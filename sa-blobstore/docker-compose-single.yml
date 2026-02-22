@@ -1,0 +1,49 @@
+# SA-BLOBSTORE Single Node Docker Compose Configuration
+# For local development and testing
+#
+# Usage:
+#   docker compose -f docker-compose-single.yml up -d
+#
+# This starts a single SA-BlobStore node on port 8095
+# (the standard AgetnticOS BlobStore port)
+
+version: '3.8'
+
+services:
+  blobstore:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sa-blobstore
+    hostname: blobstore
+    ports:
+      - "8095:8080"
+      - "9095:9090"  # Management port
+    environment:
+      NODE_ID: standalone
+      MIN_REPLICAS: "1"
+      MAX_REPLICAS: "1"
+      CLUSTER_NODES: "http://localhost:8080"
+      STORAGE_PATH: /app/data
+      JAVA_OPTS: "-Xmx256m -Xms128m"
+      SPRING_PROFILES_ACTIVE: docker
+      # Simplified settings for single node
+      UPLOAD_MAX_FILE_SIZE: "100MB"
+      UPLOAD_MAX_CONCURRENT_UPLOADS: "10"
+      HASH_DEPTH: "2"
+      HASH_CHARS_PER_LEVEL: "2"
+    volumes:
+      - blobstore-data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  blobstore-data:
+    driver: local

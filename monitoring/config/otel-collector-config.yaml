@@ -1,0 +1,45 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+    spike_limit_mib: 200
+  batch:
+    send_batch_size: 512
+    timeout: 2s
+    send_batch_max_size: 1024
+  resource:
+    attributes:
+      - key: deployment.environment
+        action: upsert
+        value: docker
+
+exporters:
+  debug:
+    verbosity: normal
+
+  # Tempo via OTLP HTTP (avoids gRPC/HTTP confusion)
+  otlphttp/tempo:
+    endpoint: http://tempo:4318
+
+  # Metrics exposition for Prometheus scrape
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [debug, otlphttp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus]

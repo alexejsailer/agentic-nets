@@ -1,0 +1,108 @@
+# Multi-stage Dockerfile for SA-BLOBSTORE
+# Optimized for production deployment with AgetnticOS integration
+
+# =============================================================================
+# Build Stage
+# =============================================================================
+FROM eclipse-temurin:21-jdk-alpine as builder
+
+LABEL maintainer="AgetnticOS Team"
+LABEL description="SA-BLOBSTORE Build Stage"
+
+WORKDIR /app
+
+# Copy Maven wrapper and pom.xml for dependency caching
+COPY mvnw* ./
+COPY .mvn .mvn
+COPY pom.xml ./
+
+# Make Maven wrapper executable
+RUN chmod +x ./mvnw
+
+# Download dependencies (cached layer)
+RUN ./mvnw dependency:resolve dependency:resolve-sources
+
+# Copy source code
+COPY src ./src
+
+# Build the application
+RUN ./mvnw clean package -DskipTests -Dspring.profiles.active=docker
+RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
+
+# =============================================================================
+# Production Runtime Stage
+# =============================================================================
+FROM eclipse-temurin:21-jre-alpine as production
+
+LABEL maintainer="AgetnticOS Team"
+LABEL description="SA-BLOBSTORE Production Image - Distributed Blob Storage"
+LABEL version="1.0.0"
+
+# Install system dependencies for health checks and utilities
+RUN apk add --no-cache \
+    curl \
+    wget \
+    dumb-init
+
+# Create application user for security
+RUN addgroup -S appuser && adduser -S -G appuser appuser
+
+# Create application directories
+RUN mkdir -p /app/data /app/logs /app/config && \
+    chown -R appuser:appuser /app
+
+WORKDIR /app
+
+# Copy application layers from build stage
+COPY --from=builder --chown=appuser:appuser /app/target/dependency/BOOT-INF/lib /app/lib
+COPY --from=builder --chown=appuser:appuser /app/target/dependency/META-INF /app/META-INF
+COPY --from=builder --chown=appuser:appuser /app/target/dependency/BOOT-INF/classes /app
+
+# Switch to non-root user
+USER appuser
+
+# Application configuration
+ENV SPRING_PROFILES_ACTIVE=docker
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport"
+ENV SERVER_PORT=8080
+ENV MANAGEMENT_PORT=9090
+
+# Expose application and management ports
+EXPOSE 8080 9090
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["java", "-cp", "/app:/app/lib/*", "com.sailer.blobstore.SaBlobstoreApplication"]
+
+# =============================================================================
+# Development Stage (for local development with hot reload)
+# =============================================================================
+FROM eclipse-temurin:21-jdk-alpine as development
+
+LABEL maintainer="AgetnticOS Team"
+LABEL description="SA-BLOBSTORE Development Image"
+
+WORKDIR /app
+
+# Install development tools
+RUN apk add --no-cache \
+    curl \
+    wget \
+    vim \
+    htop
+
+# Copy source code for development
+COPY . .
+RUN chmod +x ./mvnw
+
+# Development configuration
+ENV SPRING_PROFILES_ACTIVE=docker,dev
+ENV JAVA_TOOL_OPTIONS="-Dspring-boot.run.jvmArguments='-Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=*:5005'"
+
+EXPOSE 8080 9090 5005
+
+CMD ["./mvnw", "spring-boot:run"]

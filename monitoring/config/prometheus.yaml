@@ -1,0 +1,68 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 15s
+
+rule_files:
+  # AgetnticOS alerting rules
+  # - "/etc/prometheus/agenticos-alerts.yml"
+
+scrape_configs:
+  - job_name: "otel-collector"
+    static_configs:
+      - targets: ["otel-collector:8889"]
+    scrape_interval: 5s
+
+  - job_name: "agentic-net-node"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["agentic-net-node:8080"]
+        labels:
+          application: "agentic-net-node"
+          environment: "docker"
+          component: "core"
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  - job_name: "agentic-net-master"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["agentic-net-master:8082"]
+        labels:
+          application: "agentic-net-master"
+          environment: "docker"
+          component: "orchestration"
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  - job_name: "agentic-net-executor"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["agentic-net-executor:8084"]
+        labels:
+          application: "agentic-net-executor"
+          environment: "docker"
+          component: "executor"
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  - job_name: "agentic-net-gateway"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["agentic-net-gateway:8083"]
+        labels:
+          application: "agentic-net-gateway"
+          environment: "docker"
+          component: "gateway"
+    scrape_interval: 5s
+    scrape_timeout: 3s
+
+  - job_name: "sa-blobstore"
+    metrics_path: "/actuator/prometheus"
+    static_configs:
+      - targets: ["sa-blobstore:8080"]
+        labels:
+          application: "sa-blobstore"
+          environment: "docker"
+          component: "storage"
+    scrape_interval: 5s
+    scrape_timeout: 3s

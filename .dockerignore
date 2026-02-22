@@ -1,0 +1,28 @@
+# Build artifacts
+**/target/
+**/node_modules/
+**/dist/
+
+# IDE
+**/.idea/
+**/.vscode/
+**/*.iml
+
+# Git
+.git/
+.gitignore
+
+# Docs
+*.md
+LICENSE.md
+PROPRIETARY-EULA.md
+
+# OS
+.DS_Store
+
+# Env files
+**/.env
+**/.env.*
+
+# Monitoring (not needed in build context)
+monitoring/

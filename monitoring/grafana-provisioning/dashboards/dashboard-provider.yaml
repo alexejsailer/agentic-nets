@@ -1,0 +1,29 @@
+apiVersion: 1
+
+providers:
+  - name: 'AgetnticOS Application Dashboard'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/agenticos-dashboard.json
+      folder: 'AgetnticOS Dashboards'
+
+  - name: 'AgetnticOS Basic Dashboard'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/agenticos-basic-dashboard.json
+      folder: 'AgetnticOS Dashboards'
+
+  - name: 'AgetnticOS Test Client Tracing Dashboard'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/test-client-tracing-dashboard.json
+      folder: 'AgetnticOS Dashboards'

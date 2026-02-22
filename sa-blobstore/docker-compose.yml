@@ -1,0 +1,173 @@
+# SA-BLOBSTORE Docker Compose Configuration
+# 3-Node Distributed Blob Storage Cluster
+version: '3.8'
+
+services:
+  # Node 1 - Primary node
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sa-blobstore-node1
+    hostname: node1
+    ports:
+      - "${NODE1_PORT:-8081}:8080"
+      - "${NODE1_MANAGEMENT_PORT:-9091}:9090"
+    environment:
+      NODE_ID: node1
+      MIN_REPLICAS: "${MIN_REPLICAS:-1}"
+      MAX_REPLICAS: "${MAX_REPLICAS:-2}"
+      CLUSTER_NODES: "http://node1:8080,http://node2:8080,http://node3:8080"
+      STORAGE_PATH: /app/data
+      JAVA_OPTS: "${JAVA_OPTS:--Xmx512m -Xms256m}"
+      SPRING_PROFILES_ACTIVE: docker
+      # Performance tuning
+      UPLOAD_MAX_FILE_SIZE: "${UPLOAD_MAX_FILE_SIZE:-100MB}"
+      UPLOAD_MAX_CONCURRENT_UPLOADS: "${UPLOAD_MAX_CONCURRENT_UPLOADS:-10}"
+      HASH_DEPTH: "${HASH_DEPTH:-3}"
+      HASH_CHARS_PER_LEVEL: "${HASH_CHARS_PER_LEVEL:-2}"
+    volumes:
+      - "${DATA_MOUNT_TYPE:-local}node1-data:/app/data"
+      - "./logs/node1:/app/logs"
+    networks:
+      - blobstore-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Node 2
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sa-blobstore-node2
+    hostname: node2
+    ports:
+      - "${NODE2_PORT:-8082}:8080"
+      - "${NODE2_MANAGEMENT_PORT:-9092}:9090"
+    environment:
+      NODE_ID: node2
+      MIN_REPLICAS: "${MIN_REPLICAS:-1}"
+      MAX_REPLICAS: "${MAX_REPLICAS:-2}"
+      CLUSTER_NODES: "http://node1:8080,http://node2:8080,http://node3:8080"
+      STORAGE_PATH: /app/data
+      JAVA_OPTS: "${JAVA_OPTS:--Xmx512m -Xms256m}"
+      SPRING_PROFILES_ACTIVE: docker
+      # Performance tuning
+      UPLOAD_MAX_FILE_SIZE: "${UPLOAD_MAX_FILE_SIZE:-100MB}"
+      UPLOAD_MAX_CONCURRENT_UPLOADS: "${UPLOAD_MAX_CONCURRENT_UPLOADS:-10}"
+      HASH_DEPTH: "${HASH_DEPTH:-3}"
+      HASH_CHARS_PER_LEVEL: "${HASH_CHARS_PER_LEVEL:-2}"
+    volumes:
+      - "${DATA_MOUNT_TYPE:-local}node2-data:/app/data"
+      - "./logs/node2:/app/logs"
+    networks:
+      - blobstore-network
+    restart: unless-stopped
+    depends_on:
+      - node1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Node 3
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: sa-blobstore-node3
+    hostname: node3
+    ports:
+      - "${NODE3_PORT:-8083}:8080"
+      - "${NODE3_MANAGEMENT_PORT:-9093}:9090"
+    environment:
+      NODE_ID: node3
+      MIN_REPLICAS: "${MIN_REPLICAS:-1}"
+      MAX_REPLICAS: "${MAX_REPLICAS:-2}"
+      CLUSTER_NODES: "http://node1:8080,http://node2:8080,http://node3:8080"
+      STORAGE_PATH: /app/data
+      JAVA_OPTS: "${JAVA_OPTS:--Xmx512m -Xms256m}"
+      SPRING_PROFILES_ACTIVE: docker
+      # Performance tuning
+      UPLOAD_MAX_FILE_SIZE: "${UPLOAD_MAX_FILE_SIZE:-100MB}"
+      UPLOAD_MAX_CONCURRENT_UPLOADS: "${UPLOAD_MAX_CONCURRENT_UPLOADS:-10}"
+      HASH_DEPTH: "${HASH_DEPTH:-3}"
+      HASH_CHARS_PER_LEVEL: "${HASH_CHARS_PER_LEVEL:-2}"
+    volumes:
+      - "${DATA_MOUNT_TYPE:-local}node3-data:/app/data"
+      - "./logs/node3:/app/logs"
+    networks:
+      - blobstore-network
+    restart: unless-stopped
+    depends_on:
+      - node1
+      - node2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Load Balancer (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: sa-blobstore-nginx
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - blobstore-network
+    depends_on:
+      - node1
+      - node2
+      - node3
+    restart: unless-stopped
+
+# Networks
+networks:
+  blobstore-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volumes - Local by default, can be switched via DATA_MOUNT_TYPE
+volumes:
+  localnode1-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/node1
+  localnode2-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/node2
+  localnode3-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH:-./data}/node3
+      
+  # Docker volume alternatives (used when DATA_MOUNT_TYPE=docker)
+  dockernode1-data:
+    driver: local
+  dockernode2-data:
+    driver: local  
+  dockernode3-data:
+    driver: local

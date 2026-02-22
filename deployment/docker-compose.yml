@@ -1,0 +1,492 @@
+# AgetnticOS Agentic-Nets — Hybrid Deployment
+#
+# Closed-source services (node, master, gui) pull from Docker Hub.
+# Open-source services (gateway, executor, cli, chat, blobstore) build locally.
+#
+# Network topology:
+#   agenticos-backend (bridge): backend services (node, master, executor, gateway, monitoring, registry)
+#   agenticos-clients (bridge): client services (gateway, gui, cli, chat)
+#
+# Gateway auto-generates admin secret on first startup.
+# CLI and Chat mount gateway data volume (read-only) to auto-authenticate.
+#
+# Usage:
+#   cd deployment
+#   cp .env.template .env   # then edit .env with your settings
+#   docker compose up -d
+#   docker compose down
+
+volumes:
+  tempo-data:
+  prometheus-data:
+  grafana-data:
+  registry-data:
+  openbao-data:
+
+networks:
+  agenticos-backend:
+    name: agenticos-backend
+    driver: bridge
+  agenticos-clients:
+    name: agenticos-clients
+    driver: bridge
+
+services:
+
+  # ===========================================================================
+  # MONITORING STACK
+  # ===========================================================================
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: agenticos-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - tempo-data:/var/tempo
+      - ../monitoring/config/tempo.yaml:/etc/tempo.yaml:ro
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: agenticos-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ../monitoring/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: agenticos-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ../monitoring/config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: agenticos-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3000}
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../monitoring/grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../monitoring/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
+  # TOOL REGISTRY
+  # ===========================================================================
+
+  agenticos-registry:
+    image: registry:2
+    container_name: agenticos-registry
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/v2/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ===========================================================================
+  # CORE BACKEND SERVICES
+  # ===========================================================================
+
+  agentic-net-node:
+    image: alexejsailer/agenticos-node:${AGENTICOS_NODE_TAG:-latest}
+    container_name: agenticos-node
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
+      AGENTICOS_SNAPSHOT_STORE_FILESYSTEM_DIRECTORY: /app/data/snapshots
+      AGENTICOS_PERSISTENCE_RECOVERY_EVENTBASEPATH: /app/data/events
+      AGENTICOS_PERSISTENCE_RECOVERY_SNAPSHOTBASEPATH: /app/data/snapshots
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: agentic-net-node
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=node
+    volumes:
+      - ${AGENTICOS_NODE_DATA_DIR:-~/.agenticos}:/app/data
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_NODE_MEMORY_LIMIT:-2G}
+          cpus: "${AGENTIC_NET_NODE_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  agentic-net-master:
+    image: alexejsailer/agenticos-master:${AGENTICOS_MASTER_TAG:-latest}
+    container_name: agenticos-master
+    depends_on:
+      agentic-net-node:
+        condition: service_healthy
+      agentic-net-vault:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
+      AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.5:cloud}
+      AGENTICOS_REGISTRY_ENABLED: "${AGENTICOS_REGISTRY_ENABLED:-true}"
+      AGENTICOS_REGISTRY_URL: "http://agenticos-registry:5000"
+      AGENTICOS_REGISTRY_INTERNAL_URL: "http://agenticos-registry:5000"
+      AGENTICOS_DOCKER_ENABLED: "${AGENTICOS_DOCKER_ENABLED:-true}"
+      AGENTICOS_DOCKER_NETWORK: "agenticos-backend"
+      AGENTICOS_DOCKER_REGISTRY_HOST: "localhost:${AGENTICOS_REGISTRY_PORT:-5001}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: agentic-net-master
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=master
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_MASTER_MEMORY_LIMIT:-2G}
+          cpus: "${AGENTIC_NET_MASTER_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  agentic-net-executor:
+    build:
+      context: ../agentic-net-executor
+      dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
+    image: alexejsailer/agenticos-executor:${AGENTICOS_EXECUTOR_TAG:-latest}
+    container_name: agenticos-executor
+    depends_on:
+      agentic-net-master:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      EXECUTOR_UPSTREAM_URL: http://agentic-net-master:8082
+      AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: agentic-net-executor
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_EXECUTOR_MEMORY_LIMIT:-1G}
+          cpus: "${AGENTIC_NET_EXECUTOR_CPU_LIMIT:-0.75}"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # SECRETS MANAGEMENT
+  # ===========================================================================
+
+  openbao:
+    image: quay.io/openbao/openbao:2.1.0
+    container_name: agenticos-openbao
+    command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}"]
+    environment:
+      BAO_ADDR: "http://0.0.0.0:8200"
+    volumes:
+      - openbao-data:/openbao/data
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  agentic-net-vault:
+    build:
+      context: ../agentic-net-vault
+      dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
+    image: alexejsailer/agenticos-vault:${AGENTICOS_VAULT_TAG:-latest}
+    container_name: agenticos-vault
+    depends_on:
+      openbao:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      VAULT_OPENBAO_URL: http://openbao:8200
+      VAULT_OPENBAO_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: agentic-net-vault
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=vault
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_VAULT_MEMORY_LIMIT:-512M}
+          cpus: "${AGENTIC_NET_VAULT_CPU_LIMIT:-0.5}"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/api/health/ping || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # API GATEWAY
+  # ===========================================================================
+
+  agentic-net-gateway:
+    build:
+      context: ../agentic-net-gateway
+      dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
+    image: alexejsailer/agenticos-gateway:${AGENTICOS_GATEWAY_TAG:-latest}
+    container_name: agenticos-gateway
+    depends_on:
+      agentic-net-master:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      MASTER_URL: http://agentic-net-master:8082
+      NODE_URL: http://agentic-net-node:8080
+      VAULT_URL: http://agentic-net-vault:8085
+      GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-30}
+      GATEWAY_PROXY_TIMEOUT: ${GATEWAY_PROXY_TIMEOUT:-300}
+      AGENTICOS_ADMIN_SECRET: ${AGENTICOS_ADMIN_SECRET:-}
+      GATEWAY_JWT_KEY_DIR: /app/data/jwt
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: agentic-net-gateway
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=gateway
+    ports:
+      - "${AGENTIC_NET_GATEWAY_PORT:-8083}:8083"
+    volumes:
+      - ./data/gateway:/app/data
+    networks:
+      - agenticos-backend
+      - agenticos-clients
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_GATEWAY_MEMORY_LIMIT:-1G}
+          cpus: "${AGENTIC_NET_GATEWAY_CPU_LIMIT:-0.75}"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/api/health/ping || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # CLIENT SERVICES
+  # ===========================================================================
+
+  agentic-net-gui:
+    image: alexejsailer/agenticos-gui:${AGENTICOS_GUI_TAG:-latest}
+    container_name: agenticos-gui
+    depends_on:
+      agentic-net-gateway:
+        condition: service_healthy
+    ports:
+      - "${AGENTIC_NET_GUI_PORT:-4200}:4200"
+    networks:
+      - agenticos-clients
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4200/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  agentic-net-cli:
+    build:
+      context: ../agentic-net-cli
+      dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
+    image: alexejsailer/agenticos-cli:${AGENTICOS_CLI_TAG:-latest}
+    container_name: agenticos-cli
+    depends_on:
+      agentic-net-gateway:
+        condition: service_healthy
+    environment:
+      AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
+      AGENTICOS_GATEWAY_SECRET_FILE: /app/gateway-data/jwt/admin-secret
+    volumes:
+      - ./data/gateway:/app/gateway-data:ro
+    networks:
+      - agenticos-clients
+    restart: "no"
+    stdin_open: true
+    tty: true
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTICOS_CLI_MEMORY_LIMIT:-512M}
+          cpus: "${AGENTICOS_CLI_CPU_LIMIT:-0.5}"
+
+  agentic-net-chat:
+    build:
+      context: ..
+      dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
+    image: alexejsailer/agenticos-chat:${AGENTICOS_CHAT_TAG:-latest}
+    container_name: agenticos-chat
+    depends_on:
+      agentic-net-gateway:
+        condition: service_healthy
+    environment:
+      AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
+      AGENTICOS_GATEWAY_SECRET_FILE: /app/gateway-data/jwt/admin-secret
+      TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_BOT_WEBHOOK_BASE_URL: ${TELEGRAM_BOT_WEBHOOK_BASE_URL:-}
+      TELEGRAM_BOT_WEBHOOK_SECRET: ${TELEGRAM_BOT_WEBHOOK_SECRET:-}
+      TELEGRAM_BOT_ALLOWED_CHAT_IDS: ${TELEGRAM_BOT_ALLOWED_CHAT_IDS:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.5:cloud}
+    volumes:
+      - ./data/gateway:/app/gateway-data:ro
+    networks:
+      - agenticos-clients
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTICOS_CHAT_MEMORY_LIMIT:-512M}
+          cpus: "${AGENTICOS_CHAT_CPU_LIMIT:-0.5}"
+
+  sa-blobstore:
+    build:
+      context: ../sa-blobstore
+      dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
+    image: alexejsailer/agenticos-blobstore:${AGENTICOS_BLOBSTORE_TAG:-latest}
+    container_name: agenticos-blobstore
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: sa-blobstore
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=blobstore
+    ports:
+      - "${SA_BLOBSTORE_PORT:-8090}:8080"
+    networks:
+      - agenticos-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.75"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s

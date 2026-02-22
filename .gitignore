@@ -1,0 +1,46 @@
+# Java build artifacts
+target/
+classes/
+**/target/
+**/classes/
+*.class
+
+# Maven wrapper
+.mvn/
+**/mvnw
+**/mvnw.cmd
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.development
+.env.production
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+
+# Deployment data and runtime secrets
+deployment/data/
+**/data/jwt/
