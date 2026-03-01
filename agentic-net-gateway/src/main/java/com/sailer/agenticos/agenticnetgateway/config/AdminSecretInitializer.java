@@ -10,7 +10,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.SecureRandom;
+import java.util.Set;
 
 /**
  * Auto-generates and persists the OAuth2 admin secret when none is configured.
@@ -51,6 +53,7 @@ public class AdminSecretInitializer {
             // Secret provided via env var — persist to file for container sharing
             Files.writeString(secretPath, configured, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+            restrictPermissions(secretPath);
             logger.info("Admin secret persisted to {}", secretPath);
             return;
         }
@@ -69,8 +72,20 @@ public class AdminSecretInitializer {
         String secret = generateHexSecret();
         Files.writeString(secretPath, secret, StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+        restrictPermissions(secretPath);
         properties.setClientSecret(secret);
         logger.info("Admin secret generated and saved to {}", secretPath);
+    }
+
+    private static void restrictPermissions(Path path) {
+        try {
+            Files.setPosixFilePermissions(path, Set.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE
+            ));
+        } catch (UnsupportedOperationException | IOException e) {
+            // Non-POSIX filesystem (e.g., Windows) — skip silently
+        }
     }
 
     private static String generateHexSecret() {

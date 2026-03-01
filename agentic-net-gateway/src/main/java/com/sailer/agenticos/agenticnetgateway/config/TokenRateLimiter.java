@@ -12,6 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.Map;
@@ -79,10 +80,18 @@ public class TokenRateLimiter extends OncePerRequestFilter {
 
     private String getClientIp(HttpServletRequest request) {
         String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
+        if (xff != null && !xff.isBlank() && isTrustedProxy(request.getRemoteAddr())) {
             return xff.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private boolean isTrustedProxy(String remoteAddr) {
+        String trusted = props.getTrustedProxies();
+        if (trusted == null || trusted.isBlank()) return false;
+        return Arrays.stream(trusted.split(","))
+                .map(String::trim)
+                .anyMatch(remoteAddr::equals);
     }
 
     private void evictStaleEntries() {

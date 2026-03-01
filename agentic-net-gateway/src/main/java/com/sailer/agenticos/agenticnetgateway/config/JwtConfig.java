@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyFactory;
@@ -136,6 +137,18 @@ public class JwtConfig {
 
         Files.writeString(path, pem, StandardCharsets.US_ASCII,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+        restrictPermissions(path);
+    }
+
+    private static void restrictPermissions(Path path) {
+        try {
+            Files.setPosixFilePermissions(path, java.util.Set.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE
+            ));
+        } catch (UnsupportedOperationException | IOException e) {
+            // Non-POSIX filesystem (e.g., Windows) — skip silently
+        }
     }
 
     private static byte[] readPem(Path path, String type) throws IOException {

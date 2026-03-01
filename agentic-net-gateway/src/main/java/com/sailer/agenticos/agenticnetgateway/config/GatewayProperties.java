@@ -20,6 +20,7 @@ public class GatewayProperties {
     private String jwtKeyDir = "./data/jwt";
     private int tokenTtlSeconds = 3600;
     private int rateLimitPerMinute = 10;
+    private String trustedProxies = "";
 
     public String getMasterUrl() {
         return masterUrl;
@@ -99,5 +100,13 @@ public class GatewayProperties {
 
     public void setRateLimitPerMinute(int rateLimitPerMinute) {
         this.rateLimitPerMinute = rateLimitPerMinute;
+    }
+
+    public String getTrustedProxies() {
+        return trustedProxies;
+    }
+
+    public void setTrustedProxies(String trustedProxies) {
+        this.trustedProxies = trustedProxies;
     }
 }

@@ -16,6 +16,12 @@
 #   docker compose up -d
 #   docker compose down
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 volumes:
   tempo-data:
   prometheus-data:
@@ -47,6 +53,7 @@ services:
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
       interval: 15s
@@ -66,6 +73,7 @@ services:
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
       interval: 15s
@@ -93,6 +101,7 @@ services:
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
       interval: 15s
@@ -121,6 +130,7 @@ services:
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 15s
@@ -140,6 +150,7 @@ services:
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/v2/ || exit 1"]
       interval: 10s
@@ -159,15 +170,18 @@ services:
       AGENTICOS_SNAPSHOT_STORE_FILESYSTEM_DIRECTORY: /app/data/snapshots
       AGENTICOS_PERSISTENCE_RECOVERY_EVENTBASEPATH: /app/data/events
       AGENTICOS_PERSISTENCE_RECOVERY_SNAPSHOTBASEPATH: /app/data/snapshots
+      LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-node
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=node
     volumes:
       - ${AGENTICOS_NODE_DATA_DIR:-~/.agenticos}:/app/data
+      - ./data/logs/node:/app/logs
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -207,15 +221,18 @@ services:
       AGENTICOS_DOCKER_ENABLED: "${AGENTICOS_DOCKER_ENABLED:-true}"
       AGENTICOS_DOCKER_NETWORK: "agenticos-backend"
       AGENTICOS_DOCKER_REGISTRY_HOST: "localhost:${AGENTICOS_REGISTRY_PORT:-5001}"
+      LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-master
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=master
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/logs/master:/app/logs
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -244,13 +261,17 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       EXECUTOR_UPSTREAM_URL: http://agentic-net-master:8082
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
+    volumes:
+      - ./data/logs/executor:/app/logs
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -281,6 +302,7 @@ services:
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "bao", "status"]
       interval: 10s
@@ -301,13 +323,17 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       VAULT_OPENBAO_URL: http://openbao:8200
       VAULT_OPENBAO_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}
+      LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-vault
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=vault
+    volumes:
+      - ./data/logs/vault:/app/logs
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -345,6 +371,7 @@ services:
       GATEWAY_PROXY_TIMEOUT: ${GATEWAY_PROXY_TIMEOUT:-300}
       AGENTICOS_ADMIN_SECRET: ${AGENTICOS_ADMIN_SECRET:-}
       GATEWAY_JWT_KEY_DIR: /app/data/jwt
+      LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-gateway
@@ -353,10 +380,12 @@ services:
       - "${AGENTIC_NET_GATEWAY_PORT:-8083}:8083"
     volumes:
       - ./data/gateway:/app/data
+      - ./data/logs/gateway:/app/logs
     networks:
       - agenticos-backend
       - agenticos-clients
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -384,9 +413,12 @@ services:
         condition: service_healthy
     ports:
       - "${AGENTIC_NET_GUI_PORT:-4200}:4200"
+    volumes:
+      - ./data/logs/gui:/app/logs
     networks:
       - agenticos-clients
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -415,12 +447,14 @@ services:
       AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
       AGENTICOS_GATEWAY_SECRET_FILE: /app/gateway-data/jwt/admin-secret
     volumes:
-      - ./data/gateway:/app/gateway-data:ro
+      - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
+      - ./data/logs/cli:/app/logs
     networks:
       - agenticos-clients
     restart: "no"
     stdin_open: true
     tty: true
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -461,10 +495,12 @@ services:
       OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-minimax-m2.5:cloud}
       OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-gemini-3-flash-preview:cloud}
     volumes:
-      - ./data/gateway:/app/gateway-data:ro
+      - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
+      - ./data/logs/chat:/app/logs
     networks:
       - agenticos-clients
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -479,15 +515,19 @@ services:
     container_name: agenticos-blobstore
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: sa-blobstore
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=blobstore
     ports:
       - "${SA_BLOBSTORE_PORT:-8090}:8080"
+    volumes:
+      - ./data/logs/blobstore:/app/logs
     networks:
       - agenticos-backend
     restart: unless-stopped
+    logging: *default-logging
     deploy:
       resources:
         limits:

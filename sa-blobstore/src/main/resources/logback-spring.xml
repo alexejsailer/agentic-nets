@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <property name="LOG_PATH" value="${LOG_PATH:-/tmp}"/>
-    <property name="LOG_FILE" value="agentic-net-executor"/>
+    <property name="LOG_FILE" value="sa-blobstore"/>
     <property name="MAX_FILE_SIZE" value="50MB"/>
     <property name="MAX_HISTORY" value="5"/>
     <property name="TOTAL_SIZE_CAP" value="250MB"/>
@@ -9,7 +9,7 @@
     <!-- Console Appender -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5p trace_id=%X{trace_id} span_id=%X{span_id} %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -24,21 +24,12 @@
             <cleanHistoryOnStart>true</cleanHistoryOnStart>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %5p trace_id=%X{trace_id} span_id=%X{span_id} %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Application-specific logging -->
-    <logger name="com.sailer.agenticos" level="INFO"/>
-
-    <!-- Silence chatty polling service logging -->
-    <logger name="com.sailer.agenticos.agenticnetexecutor.service.MasterPollingService" level="WARN"/>
-    <logger name="com.sailer.agenticos.agenticnetexecutor.transition" level="INFO"/>
-
-    <!-- Silence Spring/Reactor framework noise -->
+    <!-- Silence Spring framework noise -->
     <logger name="org.springframework" level="WARN"/>
-    <logger name="org.springframework.web.reactive.function.client.ExchangeFunctions" level="WARN"/>
-    <logger name="reactor.netty" level="WARN"/>
 
     <!-- Root logger - both file and console output -->
     <root level="INFO">
