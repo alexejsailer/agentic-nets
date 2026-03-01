@@ -80,10 +80,10 @@ const DEFAULT_PROFILE: ProfileConfig = {
   },
   ollama: {
     base_url: 'http://localhost:11434',
-    model: 'minimax-m2.5:cloud',
-    high_model: 'qwen3.5:cloud',
-    medium_model: 'minimax-m2.5:cloud',
-    low_model: 'gemini-3-flash-preview:cloud',
+    model: 'kimi-k2.5:cloud',
+    high_model: 'kimi-k2.5:cloud',
+    medium_model: 'kimi-k2.5:cloud',
+    low_model: 'kimi-k2.5:cloud',
   },
   openai: {
     api_key: '${OPENAI_API_KEY}',

@@ -48,9 +48,9 @@ AGENTICOS_MODEL_TIER=medium   # Options: high, medium, low
 
 ```bash
 OLLAMA_BASE_URL=http://host.docker.internal:11434
-OLLAMA_HIGH_MODEL=qwen3.5:cloud
-OLLAMA_MEDIUM_MODEL=minimax-m2.5:cloud
-OLLAMA_LOW_MODEL=gemini-3-flash-preview:cloud
+OLLAMA_HIGH_MODEL=kimi-k2.5:cloud
+OLLAMA_MEDIUM_MODEL=kimi-k2.5:cloud
+OLLAMA_LOW_MODEL=kimi-k2.5:cloud
 ```
 
 **Cloud models** (suffix `:cloud`) run on remote infrastructure via Ollama's cloud
@@ -147,7 +147,7 @@ These overrides are per-session and reset when the bot restarts.
 
 ## Ollama Cloud Authentication
 
-Cloud models (e.g., `qwen3.5:cloud`, `minimax-m2.5:cloud`) require Ollama to be
+Cloud models (e.g., `kimi-k2.5:cloud`, `kimi-k2.5:cloud`) require Ollama to be
 authenticated on the host machine.
 
 ### Local Mac (Docker Desktop)
@@ -160,7 +160,7 @@ ollama login
 # Enter your Ollama credentials when prompted
 
 # Verify cloud models work
-ollama run qwen3.5:cloud "hello"
+ollama run kimi-k2.5:cloud "hello"
 ```
 
 ### Remote Linux Server (Staging/Production)
@@ -178,7 +178,7 @@ ollama login
 systemctl status ollama
 
 # 4. Test a cloud model
-ollama run qwen3.5:cloud "hello"
+ollama run kimi-k2.5:cloud "hello"
 ```
 
 **Important**: If Ollama runs as a systemd service (typically as the `ollama` user),

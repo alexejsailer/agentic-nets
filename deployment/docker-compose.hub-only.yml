@@ -213,7 +213,7 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.5:cloud}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AGENTICOS_REGISTRY_ENABLED: "${AGENTICOS_REGISTRY_ENABLED:-true}"
       AGENTICOS_REGISTRY_URL: "http://agenticos-registry:5000"
@@ -476,10 +476,10 @@ services:
       OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-o4-mini}
       OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5-nano}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:cloud}
-      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-qwen3.5:cloud}
-      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-minimax-m2.5:cloud}
-      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-gemini-3-flash-preview:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.5:cloud}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k2.5:cloud}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-kimi-k2.5:cloud}
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-kimi-k2.5:cloud}
     volumes:
       - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
       - ./data/logs/chat:/app/logs

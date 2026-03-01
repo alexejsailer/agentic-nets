@@ -56,7 +56,7 @@ export function createLlmProvider(name: string, profile: ProfileConfig, tier?: M
       return new OpenAIProvider(apiKey, model);
     }
     case 'ollama': {
-      const model = resolveModelForTier(effectiveTier, profile.ollama, 'minimax-m2.5:cloud');
+      const model = resolveModelForTier(effectiveTier, profile.ollama, 'kimi-k2.5:cloud');
       return new OllamaProvider(
         profile.ollama?.base_url || 'http://localhost:11434',
         model,
