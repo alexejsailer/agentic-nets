@@ -154,7 +154,7 @@ claude -p 'prompt' --no-session-persistence < /dev/null
 - **Build**: `cd agentic-net-chat && npm install && npx tsup`
 - **Dependency**: `@agenticos/cli` via `file:../agentic-net-cli` (monorepo workspace link)
 - **Sessions**: Auto-expiration (4-hour TTL), auto-compaction (30K token threshold)
-- **Limits**: 50 iterations, 50 tool calls, 3 think calls, 5 consecutive same-tool calls
+- **Limits**: 100 iterations, 100 tool calls, 3 think calls, 50 consecutive same-tool calls
 - **License**: `"SEE LICENSE IN LICENSE.md"` in package.json
 
 **Note on Docker build context**: The chat Dockerfile uses the repo root as build context (not just `agentic-net-chat/`) because it needs to copy `agentic-net-cli/` for the workspace dependency.

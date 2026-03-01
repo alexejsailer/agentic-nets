@@ -12,10 +12,10 @@ const AUTO_COMPACT_CHARS = AUTO_COMPACT_TOKENS * CHARS_PER_TOKEN;
 const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 const TYPING_REFRESH_MS = 4_000;
 const TELEGRAM_LOOP_LIMITS = {
-  maxIterations: 50,
-  maxToolCalls: 50,
+  maxIterations: 100,
+  maxToolCalls: 100,
   maxThinkCalls: 3,
-  maxConsecutiveSameToolCalls: 5,
+  maxConsecutiveSameToolCalls: 50,
 };
 const DIRECT_LOCAL_MAX_ITERATIONS = 8;
 const DIRECT_LOCAL_MAX_ITERATIONS_HARD_CAP = 12;
