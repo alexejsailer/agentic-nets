@@ -501,9 +501,13 @@ export class ToolExecutor {
   }
 
   private async executeGetNetStructure(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
-    const result = await this.masterApi.getNet(params.netId, this.modelId, sessionId);
-    return { success: true, data: result };
+    try {
+      const sessionId = params.sessionId || this.sessionId;
+      const result = await this.masterApi.getNet(params.netId, this.modelId, sessionId);
+      return { success: true, data: result };
+    } catch (err: any) {
+      return { success: false, error: `Failed to get net structure: ${err.message || err}` };
+    }
   }
 
   private async executeVerifyNet(params: Record<string, any>): Promise<ToolResult> {
@@ -530,7 +534,12 @@ export class ToolExecutor {
       return { success: false, error: 'sessionId is required (or configure a default session)' };
     }
 
-    const analysis = await this.analyzeNetDoctor(netId, sessionId);
+    let analysis: NetDoctorAnalysis;
+    try {
+      analysis = await this.analyzeNetDoctor(netId, sessionId);
+    } catch (err: any) {
+      return { success: false, error: `NET_DOCTOR failed to analyze net '${netId}': ${err.message || err}` };
+    }
     if (!applyFixes) {
       return { success: true, data: { ...analysis, applied: false } };
     }
@@ -1005,12 +1014,16 @@ export class ToolExecutor {
   }
 
   private async executeListAllInscriptions(): Promise<ToolResult> {
-    const children = await this.nodeApi.getChildren(this.modelId, 'root/workspace/transitions');
-    const inscriptions = [];
-    for (const child of children) {
-      inscriptions.push({ transitionId: child.name, id: child.id });
+    try {
+      const children = await this.nodeApi.getChildren(this.modelId, 'root/workspace/transitions');
+      const inscriptions = [];
+      for (const child of children) {
+        inscriptions.push({ transitionId: child.name, id: child.id });
+      }
+      return { success: true, data: inscriptions };
+    } catch {
+      return { success: true, data: [] };
     }
-    return { success: true, data: inscriptions };
   }
 
   private async executeListSessionNets(params: Record<string, any>): Promise<ToolResult> {
