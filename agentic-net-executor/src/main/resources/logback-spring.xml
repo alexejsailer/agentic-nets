@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property name="LOG_PATH" value="${LOG_PATH:-/tmp}"/>
+    <property name="LOG_FILE" value="agentic-net-executor"/>
+    <property name="MAX_FILE_SIZE" value="300MB"/>
+    <property name="MAX_HISTORY" value="7"/>
+    <property name="TOTAL_SIZE_CAP" value="1GB"/>
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender with Size and Time-based Policy -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE}.%d{yyyy-MM-dd}.%i.gz</fileNamePattern>
+            <maxFileSize>${MAX_FILE_SIZE}</maxFileSize>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+            <totalSizeCap>${TOTAL_SIZE_CAP}</totalSizeCap>
+            <cleanHistoryOnStart>true</cleanHistoryOnStart>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Application-specific logging -->
+    <logger name="com.sailer.agenticos" level="INFO"/>
+
+    <!-- Silence chatty polling service logging -->
+    <logger name="com.sailer.agenticos.agenticnetexecutor.service.MasterPollingService" level="WARN"/>
+    <logger name="com.sailer.agenticos.agenticnetexecutor.transition" level="INFO"/>
+
+    <!-- Silence Spring/Reactor framework noise -->
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.web.reactive.function.client.ExchangeFunctions" level="WARN"/>
+    <logger name="reactor.netty" level="WARN"/>
+
+    <!-- Root logger - file only, no console output -->
+    <root level="INFO">
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

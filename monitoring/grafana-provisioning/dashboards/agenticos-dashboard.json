@@ -1,0 +1,650 @@
+{
+  "id": null,
+  "title": "AgetnticOS Application Dashboard",
+  "tags": [
+    "agenticos",
+    "spring-boot",
+    "tree-structure"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 27,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "model_id",
+        "type": "query",
+        "query": "label_values(agenticos_model_version_total, model_id)",
+        "datasource": "Prometheus",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Application Status",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "up{job=\"agentic-net-node\"}",
+          "refId": "A",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "background"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Active Models",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "count(group by (model_id) (agenticos_model_version_total))",
+          "refId": "A",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Request Rate",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{application=\"agentic-net-node\"}[5m])",
+          "refId": "A",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Error Rate",
+      "type": "stat",
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{application=\"agentic-net-node\",status=~\"4..|5..\"}[5m]) / rate(http_server_requests_seconds_count{application=\"agentic-net-node\"}[5m]) * 100",
+          "refId": "A",
+          "datasource": "Prometheus"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "HTTP Request Rate",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{application=\"agentic-net-node\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{method}} {{uri}}",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Requests/sec",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "pointradius": 2,
+      "legend": {
+        "show": true,
+        "values": true,
+        "current": true,
+        "max": true,
+        "avg": true
+      }
+    },
+    {
+      "id": 6,
+      "title": "Response Time Distribution",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{application=\"agentic-net-node\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "50th percentile",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "histogram_quantile(0.90, rate(http_server_requests_seconds_bucket{application=\"agentic-net-node\"}[5m]))",
+          "refId": "B",
+          "legendFormat": "90th percentile",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=\"agentic-net-node\"}[5m]))",
+          "refId": "C",
+          "legendFormat": "95th percentile",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{application=\"agentic-net-node\"}[5m]))",
+          "refId": "D",
+          "legendFormat": "99th percentile",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Response Time (seconds)",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 0,
+      "linewidth": 2,
+      "legend": {
+        "show": true,
+        "values": true,
+        "current": true
+      }
+    },
+    {
+      "id": 7,
+      "title": "Model Operations",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "expr": "rate(agenticos_model_operations_total{model_id=~\"$model_id\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{model_id}} - {{operation}}",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Operations/sec",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2
+    },
+    {
+      "id": 8,
+      "title": "Tree Elements Count",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 17
+      },
+      "targets": [
+        {
+          "expr": "agenticos_model_elements_total{model_id=~\"$model_id\"}",
+          "refId": "A",
+          "legendFormat": "{{model_id}} - {{type}}",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Element Count",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2
+    },
+    {
+      "id": 9,
+      "title": "Transaction Processing",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 17
+      },
+      "targets": [
+        {
+          "expr": "rate(agenticos_transaction_duration_seconds_count{model_id=~\"$model_id\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{model_id}} - Transactions/sec",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(agenticos_transaction_duration_seconds_bucket{model_id=~\"$model_id\"}[5m]))",
+          "refId": "B",
+          "legendFormat": "{{model_id}} - 95th percentile duration",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Transactions/sec",
+          "min": 0
+        },
+        {
+          "label": "Duration (seconds)",
+          "min": 0,
+          "show": true
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2
+    },
+    {
+      "id": 10,
+      "title": "JVM Memory Usage",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{application=\"agentic-net-node\",area=\"heap\"}",
+          "refId": "A",
+          "legendFormat": "{{id}} - Used",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{application=\"agentic-net-node\",area=\"heap\"}",
+          "refId": "B",
+          "legendFormat": "{{id}} - Max",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Bytes",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "unit": "bytes"
+    },
+    {
+      "id": 11,
+      "title": "Garbage Collection Activity",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "targets": [
+        {
+          "expr": "rate(jvm_gc_collection_seconds_sum{application=\"agentic-net-node\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{gc}} - Time/sec",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(jvm_gc_collection_seconds_count{application=\"agentic-net-node\"}[5m])",
+          "refId": "B",
+          "legendFormat": "{{gc}} - Collections/sec",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "GC Time/sec",
+          "min": 0
+        },
+        {
+          "label": "Collections/sec",
+          "min": 0,
+          "show": true
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2
+    },
+    {
+      "id": 12,
+      "title": "Snapshot Operations",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "expr": "rate(agenticos_snapshot_created_total{model_id=~\"$model_id\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{model_id}} - Created/sec",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "rate(agenticos_snapshot_failed_total{model_id=~\"$model_id\"}[5m])",
+          "refId": "B",
+          "legendFormat": "{{model_id}} - Failed/sec",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Snapshots/sec",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2
+    },
+    {
+      "id": 13,
+      "title": "Event Persistence",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 8,
+        "y": 35
+      },
+      "targets": [
+        {
+          "expr": "rate(agenticos_event_blocks_created_total{model_id=~\"$model_id\"}[5m])",
+          "refId": "A",
+          "legendFormat": "{{model_id}} - Event Blocks/sec",
+          "datasource": "Prometheus"
+        },
+        {
+          "expr": "agenticos_event_journal_size{model_id=~\"$model_id\"}",
+          "refId": "B",
+          "legendFormat": "{{model_id}} - Journal Size",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Blocks/sec",
+          "min": 0
+        },
+        {
+          "label": "Journal Size",
+          "min": 0,
+          "show": true
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2
+    },
+    {
+      "id": 14,
+      "title": "Storage Usage",
+      "type": "graph",
+      "gridPos": {
+        "h": 9,
+        "w": 8,
+        "x": 16,
+        "y": 35
+      },
+      "targets": [
+        {
+          "expr": "agenticos_storage_bytes_used{model_id=~\"$model_id\"}",
+          "refId": "A",
+          "legendFormat": "{{model_id}} - {{type}}",
+          "datasource": "Prometheus"
+        }
+      ],
+      "yAxes": [
+        {
+          "label": "Bytes",
+          "min": 0
+        },
+        {
+          "show": false
+        }
+      ],
+      "lines": true,
+      "fill": 1,
+      "linewidth": 2,
+      "unit": "bytes"
+    },
+    {
+      "id": 15,
+      "title": "OpenTelemetry Traces",
+      "type": "table",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": "Tempo",
+          "queryType": "traceql",
+          "query": "{resource.service.name=\"agentic-net-node\"}"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "traceID": "Trace ID",
+              "spanName": "Operation",
+              "duration": "Duration",
+              "startTime": "Start Time"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Start Time",
+            "desc": true
+          }
+        ]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "width": 150
+          }
+        }
+      }
+    }
+  ]
+}

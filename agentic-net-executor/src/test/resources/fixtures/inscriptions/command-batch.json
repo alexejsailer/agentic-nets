@@ -1,0 +1,23 @@
+{
+  "id": "transition-command-batch",
+  "kind": "command",
+  "presets": {},
+  "postsets": {},
+  "action": {
+    "type": "command",
+    "inputPlace": "place-commands",
+    "groupBy": "executor",
+    "batching": {
+      "mode": "PER_EXECUTOR",
+      "maxBatchSize": 10
+    },
+    "dispatch": [
+      {"executor": "fs", "channel": "filesystem"},
+      {"executor": "bash", "channel": "shell"},
+      {"executor": "mcp", "channel": "mcp-server"}
+    ],
+    "await": "ALL",
+    "timeoutMs": 60000
+  },
+  "emit": []
+}

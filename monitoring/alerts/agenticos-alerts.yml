@@ -1,0 +1,62 @@
+groups:
+  - name: agenticos.alerts
+    rules:
+      - alert: AgetnticOSApplicationDown
+        expr: up{job="agentic-net-node"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: agentic-net-node
+        annotations:
+          summary: "AgetnticOS Application is down"
+          description: "AgetnticOS application has been down for more than 30 seconds"
+          
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_seconds_count{application="agentic-net-node",status=~"4..|5.."}[5m]) / rate(http_server_requests_seconds_count{application="agentic-net-node"}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: agentic-net-node
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for the past 2 minutes"
+          
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application="agentic-net-node"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: agentic-net-node
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is {{ $value }}s for the past 5 minutes"
+          
+      - alert: HighMemoryUsage
+        expr: (jvm_memory_used_bytes{application="agentic-net-node",area="heap"} / jvm_memory_max_bytes{application="agentic-net-node",area="heap"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          service: agentic-net-node
+        annotations:
+          summary: "High JVM memory usage"
+          description: "JVM heap memory usage is {{ $value | humanizePercentage }} for instance {{ $labels.instance }}"
+          
+      - alert: ModelOperationFailures
+        expr: rate(agenticos_model_operations_failed_total[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+          service: agentic-net-node
+        annotations:
+          summary: "Model operations failing"
+          description: "Model {{ $labels.model_id }} has {{ $value }} operations failing per second"
+          
+      - alert: SnapshotCreationFailures
+        expr: rate(agenticos_snapshot_failed_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: agentic-net-node
+        annotations:
+          summary: "Snapshot creation failures"
+          description: "Model {{ $labels.model_id }} has failing snapshot creation"

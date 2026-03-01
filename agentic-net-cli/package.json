@@ -1,0 +1,53 @@
+{
+  "name": "@agenticos/cli",
+  "version": "0.1.0",
+  "description": "AgetnticOS CLI - Intelligent Petri net modeling from the command line",
+  "type": "module",
+  "bin": {
+    "agenticos": "./dist/bin/agenticos.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/bin/agenticos.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0",
+    "ollama": "^0.5.14",
+    "ora": "^8.2.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "exports": {
+    "./agent/runtime": "./src/agent/runtime.ts",
+    "./agent/tool-executor": "./src/agent/tool-executor.ts",
+    "./agent/tools": "./src/agent/tools.ts",
+    "./agent/roles": "./src/agent/roles.ts",
+    "./agent/prompts": "./src/agent/prompts.ts",
+    "./llm/provider": "./src/llm/provider.ts",
+    "./llm/anthropic": "./src/llm/anthropic.ts",
+    "./llm/ollama": "./src/llm/ollama.ts",
+    "./gateway/client": "./src/gateway/client.ts",
+    "./gateway/auth": "./src/gateway/auth.ts",
+    "./config/config": "./src/config/config.ts",
+    "./commands/llm-factory": "./src/commands/llm-factory.ts"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "keywords": ["agenticos", "petri-net", "workflow", "cli"],
+  "license": "SEE LICENSE IN LICENSE.md"
+}

@@ -1,0 +1,12 @@
+{
+  "executor": "fs",
+  "command": "readFile",
+  "params": {
+    "path": "/data/config.json",
+    "encoding": "utf-8"
+  },
+  "context": {
+    "requestId": "req-abc-123",
+    "userId": "user-456"
+  }
+}
