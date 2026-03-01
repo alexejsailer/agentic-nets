@@ -929,14 +929,20 @@ export class ToolExecutor {
 
     // Find transition node under /root/workspace/transitions/
     const transitionsPath = 'root/workspace/transitions';
-    let parentId: string;
 
     try {
-      const children = await this.nodeApi.getChildren(this.modelId, transitionsPath);
+      // Try to list existing transition nodes; empty array if path doesn't exist yet
+      let children: any[];
+      try {
+        children = await this.nodeApi.getChildren(this.modelId, transitionsPath);
+      } catch {
+        children = [];
+      }
+
       const transitionNode = children.find((c: any) => c.name === transitionId);
 
       if (transitionNode) {
-        parentId = transitionNode.id;
+        const parentId = transitionNode.id;
         // Check if inscription already exists
         const transChildren = await this.nodeApi.getChildren(this.modelId, `${transitionsPath}/${transitionId}`);
         const existing = transChildren.find((c: any) => c.name === 'inscription');
@@ -963,17 +969,36 @@ export class ToolExecutor {
           }]);
         }
       } else {
-        // Create transition node and inscription
-        const transitionsInfo = await this.nodeApi.resolve(this.modelId, transitionsPath);
-        const transitionsId = transitionsInfo?.id || transitionsInfo;
-        await this.nodeApi.executeEvents(this.modelId, [
-          {
+        // Ensure root/workspace/transitions node exists (bootstrap on fresh deploy)
+        let transitionsId: string;
+        try {
+          const transitionsInfo = await this.nodeApi.resolve(this.modelId, transitionsPath);
+          transitionsId = transitionsInfo?.id || transitionsInfo;
+        } catch {
+          // transitions node doesn't exist — create it under root/workspace
+          const workspaceInfo = await this.nodeApi.resolve(this.modelId, 'root/workspace');
+          const workspaceId = workspaceInfo?.id || workspaceInfo;
+          await this.nodeApi.executeEvents(this.modelId, [{
             eventType: 'createNode',
-            parentId: transitionsId,
+            parentId: workspaceId,
             id: 'auto',
-            name: transitionId,
-          },
-        ]);
+            name: 'transitions',
+          }]);
+          const wsChildren = await this.nodeApi.getChildren(this.modelId, 'root/workspace');
+          const created = wsChildren.find((c: any) => c.name === 'transitions');
+          transitionsId = created?.id;
+          if (!transitionsId) {
+            return { success: false, error: 'Failed to create transitions node under root/workspace' };
+          }
+        }
+
+        // Create transition node
+        await this.nodeApi.executeEvents(this.modelId, [{
+          eventType: 'createNode',
+          parentId: transitionsId,
+          id: 'auto',
+          name: transitionId,
+        }]);
 
         // Re-resolve to get new node ID
         const updatedChildren = await this.nodeApi.getChildren(this.modelId, transitionsPath);
