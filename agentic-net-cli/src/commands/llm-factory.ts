@@ -1,6 +1,8 @@
 import type { LlmProvider } from '../llm/provider.js';
-import type { ProfileConfig } from '../config/config.js';
+import type { ProfileConfig, ModelTier } from '../config/config.js';
+import { resolveModelForTier } from '../config/config.js';
 import { AnthropicProvider } from '../llm/anthropic.js';
+import { OpenAIProvider } from '../llm/openai.js';
 import { OllamaProvider } from '../llm/ollama.js';
 import { ClaudeCodeProvider } from '../llm/claude-code.js';
 import { CodexProvider } from '../llm/codex.js';
@@ -14,11 +16,13 @@ export function createHelperLlm(profile: ProfileConfig): LlmProvider | undefined
   const apiKey = profile.anthropic?.api_key;
   if (!apiKey) return undefined;
 
-  const helperModel = profile.anthropic?.helper_model || profile.anthropic?.model || 'claude-haiku-4-5-20251001';
+  const helperModel = resolveModelForTier('low', profile.anthropic, 'claude-haiku-4-5-20251001');
   return new AnthropicProvider(apiKey, helperModel);
 }
 
-export function createLlmProvider(name: string, profile: ProfileConfig): LlmProvider {
+export function createLlmProvider(name: string, profile: ProfileConfig, tier?: ModelTier): LlmProvider {
+  const effectiveTier = tier ?? profile.default_tier ?? 'medium';
+
   switch (name) {
     case 'claude':
     case 'anthropic': {
@@ -28,46 +32,67 @@ export function createLlmProvider(name: string, profile: ProfileConfig): LlmProv
           'Anthropic API key not configured. Set ANTHROPIC_API_KEY or configure in ~/.agenticos/config.yaml',
         );
       }
-      const workerModel = profile.anthropic?.model;
-      const thinkingModel = profile.anthropic?.thinking_model;
+      const workerModel = resolveModelForTier(effectiveTier, profile.anthropic, 'claude-sonnet-4-6');
       const worker = new AnthropicProvider(apiKey, workerModel);
-      if (thinkingModel && thinkingModel !== workerModel) {
-        const thinker = new AnthropicProvider(apiKey, thinkingModel);
-        return new RoutedLlmProvider(worker, thinker);
+
+      // When not on high tier, route to high model for thinking
+      if (effectiveTier !== 'high') {
+        const highModel = resolveModelForTier('high', profile.anthropic, workerModel);
+        if (highModel && highModel !== workerModel) {
+          const thinker = new AnthropicProvider(apiKey, highModel);
+          return new RoutedLlmProvider(worker, thinker);
+        }
       }
       return worker;
     }
+    case 'openai': {
+      const apiKey = profile.openai?.api_key;
+      if (!apiKey) {
+        throw new Error(
+          'OpenAI API key not configured. Set OPENAI_API_KEY or configure in ~/.agenticos/config.yaml',
+        );
+      }
+      const model = resolveModelForTier(effectiveTier, profile.openai, 'o4-mini');
+      return new OpenAIProvider(apiKey, model);
+    }
     case 'ollama': {
+      const model = resolveModelForTier(effectiveTier, profile.ollama, 'minimax-m2.5:cloud');
       return new OllamaProvider(
         profile.ollama?.base_url || 'http://localhost:11434',
-        profile.ollama?.model || 'llama3.2',
+        model,
       );
     }
     case 'claude-code': {
       const binary = profile.claude_code?.binary || 'claude';
-      const workerModel = profile.claude_code?.model || 'sonnet';
-      const thinkingModel = profile.claude_code?.thinking_model;
+      const workerModel = resolveModelForTier(effectiveTier, profile.claude_code, 'sonnet');
       const worker = new ClaudeCodeProvider(binary, workerModel);
-      if (thinkingModel && thinkingModel !== workerModel) {
-        const thinker = new ClaudeCodeProvider(binary, thinkingModel);
-        return new RoutedLlmProvider(worker, thinker);
+
+      if (effectiveTier !== 'high') {
+        const highModel = resolveModelForTier('high', profile.claude_code, workerModel);
+        if (highModel && highModel !== workerModel) {
+          const thinker = new ClaudeCodeProvider(binary, highModel);
+          return new RoutedLlmProvider(worker, thinker);
+        }
       }
       return worker;
     }
     case 'codex': {
       const binary = profile.codex?.binary || 'codex';
-      const workerModel = profile.codex?.model || 'o3';
-      const thinkingModel = profile.codex?.thinking_model;
+      const workerModel = resolveModelForTier(effectiveTier, profile.codex, 'gpt-5.2-codex');
       const worker = new CodexProvider(binary, workerModel);
-      if (thinkingModel && thinkingModel !== workerModel) {
-        const thinker = new CodexProvider(binary, thinkingModel);
-        return new RoutedLlmProvider(worker, thinker);
+
+      if (effectiveTier !== 'high') {
+        const highModel = resolveModelForTier('high', profile.codex, workerModel);
+        if (highModel && highModel !== workerModel) {
+          const thinker = new CodexProvider(binary, highModel);
+          return new RoutedLlmProvider(worker, thinker);
+        }
       }
       return worker;
     }
     default:
       throw new Error(
-        `Unknown LLM provider: '${name}'. Supported: claude, ollama, claude-code, codex`,
+        `Unknown LLM provider: '${name}'. Supported: claude, openai, ollama, claude-code, codex`,
       );
   }
 }

@@ -19,7 +19,7 @@ export class CodexProvider implements LlmProvider {
 
   constructor(
     private binary: string = 'codex',
-    private model: string = 'o3',
+    private model: string = 'gpt-5.2-codex',
   ) {}
 
   async chat(

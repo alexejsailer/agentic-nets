@@ -1,7 +1,9 @@
 import { Bot } from 'grammy';
 import type { ChatChannel, MessageSender, ChannelSecurityConfig } from '../types.js';
-import type { SessionManager } from '../../session/session-manager.js';
+import { SessionManager } from '../../session/session-manager.js';
 import { splitMessage } from './message-splitter.js';
+
+const VALID_TIERS = ['high', 'medium', 'low'] as const;
 
 export class TelegramChannel implements ChatChannel, MessageSender {
   readonly platform = 'telegram';
@@ -46,7 +48,11 @@ export class TelegramChannel implements ChatChannel, MessageSender {
         'Commands:\n' +
         '/clear - Reset conversation\n' +
         '/context - Show session info\n' +
-        '/compact - Summarize conversation to save context',
+        '/compact - Summarize conversation to save context\n' +
+        '/provider <name> - Switch LLM provider\n' +
+        '/model <high|medium|low> - Set model tier\n' +
+        '/setkey <provider> <key> - Set API key\n' +
+        '/config - Show current LLM configuration',
       );
     });
 
@@ -75,6 +81,88 @@ export class TelegramChannel implements ChatChannel, MessageSender {
       } catch (err: any) {
         await ctx.reply(`Compact failed: ${err.message}`);
       }
+    });
+
+    this.bot.command('provider', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const args = ctx.match?.toString().trim();
+      if (!args) {
+        await ctx.reply(`Usage: /provider <name>\nSupported: ${SessionManager.supportedProviders.join(', ')}`);
+        return;
+      }
+      const provider = args.toLowerCase();
+      if (!SessionManager.supportedProviders.includes(provider)) {
+        await ctx.reply(`Unknown provider: ${provider}\nSupported: ${SessionManager.supportedProviders.join(', ')}`);
+        return;
+      }
+      this.sessionManager.setProvider(chatId, provider);
+      await ctx.reply(`Switched to provider: ${provider}`);
+    });
+
+    this.bot.command('setkey', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const args = ctx.match?.toString().trim();
+      if (!args) {
+        await ctx.reply('Usage: /setkey <provider> <api-key>');
+        return;
+      }
+      const parts = args.split(/\s+/, 2);
+      if (parts.length < 2) {
+        await ctx.reply('Usage: /setkey <provider> <api-key>');
+        return;
+      }
+      const [provider, key] = parts;
+      this.sessionManager.setApiKey(chatId, provider.toLowerCase(), key);
+
+      // Try to delete the message containing the API key for security
+      try {
+        await ctx.deleteMessage();
+      } catch {
+        // May not have permission to delete messages
+      }
+
+      await ctx.reply(`API key set for ${provider}. (Please delete your message if it wasn't auto-deleted.)`);
+    });
+
+    this.bot.command('model', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const args = ctx.match?.toString().trim().toLowerCase();
+      if (!args || !VALID_TIERS.includes(args as any)) {
+        await ctx.reply(`Usage: /model <high|medium|low>`);
+        return;
+      }
+      this.sessionManager.setTier(chatId, args as 'high' | 'medium' | 'low');
+      await ctx.reply(`Model tier set to: ${args}`);
+    });
+
+    this.bot.command('config', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const overrides = this.sessionManager.getUserOverrides(chatId);
+      const info = this.sessionManager.getSessionInfo(chatId);
+
+      const lines: string[] = [
+        'Current LLM Configuration:',
+        `  Provider: ${overrides.provider || '(default)'}`,
+        `  Tier: ${overrides.tier || '(default)'}`,
+        `  Model: ${info.modelId}`,
+      ];
+
+      if (overrides.apiKeys && Object.keys(overrides.apiKeys).length > 0) {
+        const keyList = Object.keys(overrides.apiKeys).map(k => `${k}: ***set***`).join(', ');
+        lines.push(`  API Keys: ${keyList}`);
+      } else {
+        lines.push('  API Keys: (none overridden)');
+      }
+
+      lines.push('');
+      lines.push('Commands:');
+      lines.push('  /provider <name> - Switch provider');
+      lines.push('  /model <high|medium|low> - Set tier');
+      lines.push('  /setkey <provider> <key> - Set API key');
+      lines.push('  /clear - Reset conversation');
+      lines.push('  /compact - Compress context');
+
+      await ctx.reply(lines.join('\n'));
     });
 
     // Text messages → agent

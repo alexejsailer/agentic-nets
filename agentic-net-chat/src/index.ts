@@ -60,6 +60,8 @@ export async function startChatBridge(): Promise<void> {
     toolSchemas,
     modelId,
     tgConfig.session_prefix,
+    profile,
+    providerName,
   );
 
   // Create and start Telegram channel

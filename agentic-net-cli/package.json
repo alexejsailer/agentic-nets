@@ -19,6 +19,7 @@
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
     "ollama": "^0.5.14",
+    "openai": "^4.77.0",
     "ora": "^8.2.0",
     "yaml": "^2.7.0"
   },
@@ -42,6 +43,7 @@
     "./gateway/client": "./src/gateway/client.ts",
     "./gateway/auth": "./src/gateway/auth.ts",
     "./config/config": "./src/config/config.ts",
+    "./llm/openai": "./src/llm/openai.ts",
     "./commands/llm-factory": "./src/commands/llm-factory.ts"
   },
   "files": [

@@ -151,7 +151,7 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticos-node:${AGENTICOS_NODE_TAG:-latest}
+    image: alexejsailer/agenticos-node:1.2.0
     container_name: agenticos-node
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
@@ -184,7 +184,7 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticos-master:${AGENTICOS_MASTER_TAG:-latest}
+    image: alexejsailer/agenticos-master:1.2.0
     container_name: agenticos-master
     depends_on:
       agentic-net-node:
@@ -199,7 +199,8 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.5:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:cloud}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       AGENTICOS_REGISTRY_ENABLED: "${AGENTICOS_REGISTRY_ENABLED:-true}"
       AGENTICOS_REGISTRY_URL: "http://agenticos-registry:5000"
       AGENTICOS_REGISTRY_INTERNAL_URL: "http://agenticos-registry:5000"
@@ -234,7 +235,7 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticos-executor:${AGENTICOS_EXECUTOR_TAG:-latest}
+    image: alexejsailer/agenticos-executor:latest
     container_name: agenticos-executor
     depends_on:
       agentic-net-master:
@@ -291,7 +292,7 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticos-vault:${AGENTICOS_VAULT_TAG:-latest}
+    image: alexejsailer/agenticos-vault:latest
     container_name: agenticos-vault
     depends_on:
       openbao:
@@ -330,7 +331,7 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticos-gateway:${AGENTICOS_GATEWAY_TAG:-latest}
+    image: alexejsailer/agenticos-gateway:latest
     container_name: agenticos-gateway
     depends_on:
       agentic-net-master:
@@ -376,7 +377,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticos-gui:${AGENTICOS_GUI_TAG:-latest}
+    image: alexejsailer/agenticos-gui:1.2.0
     container_name: agenticos-gui
     depends_on:
       agentic-net-gateway:
@@ -405,7 +406,7 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticos-cli:${AGENTICOS_CLI_TAG:-latest}
+    image: alexejsailer/agenticos-cli:latest
     container_name: agenticos-cli
     depends_on:
       agentic-net-gateway:
@@ -430,7 +431,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticos-chat:${AGENTICOS_CHAT_TAG:-latest}
+    image: alexejsailer/agenticos-chat:latest
     container_name: agenticos-chat
     depends_on:
       agentic-net-gateway:
@@ -445,9 +446,20 @@ services:
       TELEGRAM_BOT_WEBHOOK_SECRET: ${TELEGRAM_BOT_WEBHOOK_SECRET:-}
       TELEGRAM_BOT_ALLOWED_CHAT_IDS: ${TELEGRAM_BOT_ALLOWED_CHAT_IDS:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_HIGH_MODEL: ${ANTHROPIC_HIGH_MODEL:-claude-opus-4-6}
+      ANTHROPIC_MEDIUM_MODEL: ${ANTHROPIC_MEDIUM_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_LOW_MODEL: ${ANTHROPIC_LOW_MODEL:-claude-haiku-4-5-20251001}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.2}
+      OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-o4-mini}
+      OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5-nano}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.5:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3.5:cloud}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-qwen3.5:cloud}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-minimax-m2.5:cloud}
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-gemini-3-flash-preview:cloud}
     volumes:
       - ./data/gateway:/app/gateway-data:ro
     networks:
@@ -463,7 +475,7 @@ services:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticos-blobstore:${AGENTICOS_BLOBSTORE_TAG:-latest}
+    image: alexejsailer/agenticos-blobstore:latest
     container_name: agenticos-blobstore
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}

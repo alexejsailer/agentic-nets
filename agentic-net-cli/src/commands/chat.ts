@@ -31,7 +31,8 @@ export function registerChatCommand(program: Command, getContext: () => { client
   program
     .command('chat')
     .description('Interactive agent REPL with persistent conversation')
-    .option('--provider <name>', 'LLM provider (claude|ollama|claude-code|codex)')
+    .option('--provider <name>', 'LLM provider (claude|openai|ollama|claude-code|codex)')
+    .option('--tier <tier>', 'Model tier (high|medium|low)')
     .option('--role <role>', 'Agent role (r|rw|rwx|rwxh)')
     .action(async (opts: any) => {
       const { client, modelId, sessionId } = getContext();
@@ -43,7 +44,7 @@ export function registerChatCommand(program: Command, getContext: () => { client
 
       let llm: LlmProvider;
       try {
-        llm = createLlmProvider(providerName, profile);
+        llm = createLlmProvider(providerName, profile, opts.tier);
       } catch (err: any) {
         outputError(err.message);
         return;

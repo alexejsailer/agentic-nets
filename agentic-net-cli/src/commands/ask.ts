@@ -23,7 +23,8 @@ export function registerAskCommand(program: Command, getContext: () => { client:
     .command('ask')
     .description('Single-shot agent query')
     .argument('<message>', 'Message for the agent')
-    .option('--provider <name>', 'LLM provider (claude|ollama|claude-code|codex)')
+    .option('--provider <name>', 'LLM provider (claude|openai|ollama|claude-code|codex)')
+    .option('--tier <tier>', 'Model tier (high|medium|low)')
     .option('--role <role>', 'Agent role (r|rw|rwx|rwxh)')
     .option('--quiet', 'Only show final output')
     .option('--stdin', 'Read message from stdin')
@@ -37,7 +38,7 @@ export function registerAskCommand(program: Command, getContext: () => { client:
 
       let llm;
       try {
-        llm = createLlmProvider(providerName, profile);
+        llm = createLlmProvider(providerName, profile, opts.tier);
       } catch (err: any) {
         outputError(err.message);
         process.exit(1);

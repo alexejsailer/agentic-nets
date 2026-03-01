@@ -1,7 +1,9 @@
 import type { LlmMessage, LlmProvider } from '@agenticos/cli/llm/provider';
 import type { ToolSchema } from '@agenticos/cli/agent/tools';
+import type { ProfileConfig, ModelTier } from '@agenticos/cli/config/config';
 import { ToolExecutor, type ToolResult } from '@agenticos/cli/agent/tool-executor';
 import { agentLoop } from '@agenticos/cli/agent/runtime';
+import { createLlmProvider } from '@agenticos/cli/commands/llm-factory';
 import type { MessageSender } from '../channel/types.js';
 
 const CHARS_PER_TOKEN = 4;
@@ -26,12 +28,21 @@ const TRANSITION_LABEL_HINTS: Array<{ pattern: RegExp; transitionId: string }> =
   { pattern: /\bscrape\s+url\b/i, transitionId: 't-scrape' },
 ];
 
+const SUPPORTED_PROVIDERS = ['claude', 'anthropic', 'openai', 'ollama', 'claude-code', 'codex'];
+
+export interface UserOverrides {
+  provider?: string;
+  tier?: ModelTier;
+  apiKeys?: Record<string, string>;
+}
+
 interface Session {
   history: LlmMessage[];
   turnCount: number;
   processing: boolean;
   queue: Array<{ text: string; sender: MessageSender }>;
   lastActivity: number;
+  overrides: UserOverrides;
 }
 
 export interface SessionInfo {
@@ -51,12 +62,14 @@ export class SessionManager {
   private evictionTimer: ReturnType<typeof setInterval>;
 
   constructor(
-    private llm: LlmProvider,
+    private defaultLlm: LlmProvider,
     private toolExecutor: ToolExecutor,
     private systemPrompt: string,
     private toolSchemas: ToolSchema[],
     private modelId: string,
     private sessionPrefix: string,
+    private profile: ProfileConfig,
+    private defaultProviderName: string,
   ) {
     // Evict stale sessions every 30 minutes
     this.evictionTimer = setInterval(() => this.evictStaleSessions(), 30 * 60 * 1000);
@@ -71,6 +84,7 @@ export class SessionManager {
         processing: false,
         queue: [],
         lastActivity: Date.now(),
+        overrides: {},
       };
       this.sessions.set(chatId, session);
     }
@@ -80,6 +94,57 @@ export class SessionManager {
 
   private getSessionId(chatId: string): string {
     return `${this.sessionPrefix}-${chatId}`;
+  }
+
+  private getLlmForSession(chatId: string): LlmProvider {
+    const session = this.sessions.get(chatId);
+    if (!session) return this.defaultLlm;
+
+    const overrides = session.overrides;
+    const hasOverrides = overrides.provider || overrides.tier || (overrides.apiKeys && Object.keys(overrides.apiKeys).length > 0);
+    if (!hasOverrides) return this.defaultLlm;
+
+    // Build a patched profile with overrides
+    const providerName = overrides.provider || this.defaultProviderName;
+    const patchedProfile: ProfileConfig = { ...this.profile };
+
+    // Apply API key overrides
+    if (overrides.apiKeys) {
+      if (overrides.apiKeys['anthropic'] || overrides.apiKeys['claude']) {
+        patchedProfile.anthropic = { ...patchedProfile.anthropic, api_key: overrides.apiKeys['anthropic'] || overrides.apiKeys['claude'] };
+      }
+      if (overrides.apiKeys['openai']) {
+        patchedProfile.openai = { ...patchedProfile.openai, api_key: overrides.apiKeys['openai'] };
+      }
+    }
+
+    try {
+      return createLlmProvider(providerName, patchedProfile, overrides.tier);
+    } catch {
+      // Fall back to default on error
+      return this.defaultLlm;
+    }
+  }
+
+  setProvider(chatId: string, provider: string): void {
+    const session = this.getOrCreateSession(chatId);
+    session.overrides.provider = provider;
+  }
+
+  setTier(chatId: string, tier: ModelTier): void {
+    const session = this.getOrCreateSession(chatId);
+    session.overrides.tier = tier;
+  }
+
+  setApiKey(chatId: string, provider: string, key: string): void {
+    const session = this.getOrCreateSession(chatId);
+    if (!session.overrides.apiKeys) session.overrides.apiKeys = {};
+    session.overrides.apiKeys[provider] = key;
+  }
+
+  getUserOverrides(chatId: string): UserOverrides {
+    const session = this.sessions.get(chatId);
+    return session?.overrides ?? {};
   }
 
   async handleMessage(chatId: string, text: string, sender: MessageSender): Promise<void> {
@@ -115,6 +180,7 @@ export class SessionManager {
   ): Promise<void> {
     session.turnCount++;
     const scopedExecutor = this.toolExecutor.fork({ sessionId: this.getSessionId(chatId) });
+    const llm = this.getLlmForSession(chatId);
 
     // Start typing indicator with periodic refresh
     let typingActive = true;
@@ -159,7 +225,7 @@ export class SessionManager {
       };
 
       for await (const event of agentLoop(
-        this.llm,
+        llm,
         scopedExecutor,
         this.systemPrompt,
         text,
@@ -219,7 +285,7 @@ export class SessionManager {
       const historyChars = JSON.stringify(session.history).length;
       if (historyChars > AUTO_COMPACT_CHARS) {
         try {
-          session.history = await this.doCompact(session.history);
+          session.history = await this.doCompact(session.history, llm);
           await sender.sendText(chatId, `_[Auto-compacted to ~${this.estimateTokens(session.history)} tokens]_`);
         } catch {
           // Non-fatal
@@ -233,7 +299,7 @@ export class SessionManager {
       if (errMsg.includes('E2BIG') || errMsg.includes('exited with code')) {
         try {
           if (session.history.length > 2) {
-            session.history = await this.doCompact(session.history);
+            session.history = await this.doCompact(session.history, llm);
             await sender.sendText(chatId, `Error: ${errMsg}\n\n[Auto-compacted session to recover. Please retry.]`);
             return;
           }
@@ -268,11 +334,12 @@ export class SessionManager {
       return { estimatedTokens: 0 };
     }
 
-    session.history = await this.doCompact(session.history);
+    const llm = this.getLlmForSession(chatId);
+    session.history = await this.doCompact(session.history, llm);
     return { estimatedTokens: this.estimateTokens(session.history) };
   }
 
-  private async doCompact(history: LlmMessage[]): Promise<LlmMessage[]> {
+  private async doCompact(history: LlmMessage[], llm: LlmProvider): Promise<LlmMessage[]> {
     const summaryRequest = `Summarize our conversation so far in a concise paragraph. Focus on:
 - What the user asked for
 - What tools were used and their results
@@ -280,7 +347,7 @@ export class SessionManager {
 - Any important context for continuing the conversation
 Keep it under 300 words.`;
 
-    const response = await this.llm.chat(
+    const response = await llm.chat(
       this.systemPrompt,
       [
         ...history,
@@ -321,6 +388,10 @@ Keep it under 300 words.`;
 
   destroy(): void {
     clearInterval(this.evictionTimer);
+  }
+
+  static get supportedProviders(): string[] {
+    return SUPPORTED_PROVIDERS;
   }
 }
 
