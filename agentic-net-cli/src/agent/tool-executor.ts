@@ -157,6 +157,10 @@ export class ToolExecutor {
           return this.executeExportPnml(params);
         case 'NET_DOCTOR':
           return this.executeNetDoctor(params);
+        case 'ADAPT_INSCRIPTIONS':
+          return this.executeAdaptInscriptions(params);
+        case 'CREATE_SESSION':
+          return this.executeCreateSession(params);
         case 'CREATE_NET':
           return this.executeCreateNet(params);
         case 'DELETE_NET':
@@ -178,7 +182,7 @@ export class ToolExecutor {
         case 'LIST_ALL_SESSIONS':
           return this.executeListAllSessions();
         case 'LIST_ALL_INSCRIPTIONS':
-          return this.executeListAllInscriptions();
+          return this.executeListAllInscriptions(params);
         case 'LIST_SESSION_NETS':
           return this.executeListSessionNets(params);
         case 'EMIT_MEMORY':
@@ -555,6 +559,203 @@ export class ToolExecutor {
         postCheck: postCheck.summary,
       },
     };
+  }
+
+  private async executeAdaptInscriptions(params: Record<string, any>): Promise<ToolResult> {
+    const netId = String(params.netId || '').trim();
+    let sessionId = String(params.sessionId || this.sessionId || '').trim();
+    const applyFixes = params.applyFixes === true;
+
+    if (!netId) {
+      return { success: false, error: 'netId is required' };
+    }
+    if (!sessionId) {
+      sessionId = 'system/alive';
+    }
+
+    try {
+      // Get net structure
+      const rawNet = await this.masterApi.getNet(netId, this.modelId, sessionId);
+      const net = rawNet?.net ?? rawNet;
+      const places = net?.places ?? {};
+      const transitions = net?.transitions ?? {};
+      const arcs = net?.arcs ?? {};
+
+      // Normalize entries
+      const placeEntries = Array.isArray(places)
+        ? places.map((p: any) => String(p?.placeId || p?.id || ''))
+        : Object.entries(places).map(([id]: [string, any]) => id);
+      const transitionEntries = Array.isArray(transitions)
+        ? transitions.map((t: any) => String(t?.transitionId || t?.id || ''))
+        : Object.entries(transitions).map(([id]: [string, any]) => id);
+
+      const placeIdSet = new Set(placeEntries);
+      const transitionIdSet = new Set(transitionEntries);
+
+      // Build arc topology
+      const arcPresets = new Map<string, Set<string>>(); // transitionId -> preset place IDs
+      const arcPostsets = new Map<string, Set<string>>(); // transitionId -> postset place IDs
+
+      const arcEntries = Array.isArray(arcs)
+        ? arcs.map((a: any) => ({ source: String(a?.sourceId || a?.source || ''), target: String(a?.targetId || a?.target || '') }))
+        : Object.entries(arcs).map(([, v]: [string, any]) => ({ source: String(v?.sourceId || v?.source || ''), target: String(v?.targetId || v?.target || '') }));
+
+      for (const arc of arcEntries) {
+        if (placeIdSet.has(arc.source) && transitionIdSet.has(arc.target)) {
+          if (!arcPresets.has(arc.target)) arcPresets.set(arc.target, new Set());
+          arcPresets.get(arc.target)!.add(arc.source);
+        } else if (transitionIdSet.has(arc.source) && placeIdSet.has(arc.target)) {
+          if (!arcPostsets.has(arc.source)) arcPostsets.set(arc.source, new Set());
+          arcPostsets.get(arc.source)!.add(arc.target);
+        }
+      }
+
+      // Check each transition's inscription
+      const mismatches: any[] = [];
+      let checkedCount = 0;
+      let fixedCount = 0;
+
+      for (const transitionId of transitionEntries) {
+        const expectedPresets = arcPresets.get(transitionId) ?? new Set<string>();
+        const expectedPostsets = arcPostsets.get(transitionId) ?? new Set<string>();
+
+        // Load inscription using existing helper
+        let inscription: any;
+        try {
+          inscription = await this.loadTransitionInscription(transitionId);
+        } catch {
+          continue;
+        }
+        if (!inscription) continue;
+        checkedCount++;
+
+        // Extract inscription preset/postset placeIds
+        const inscPresets = new Set<string>();
+        if (inscription.presets) {
+          for (const v of Object.values(inscription.presets) as any[]) {
+            if (v?.placeId) inscPresets.add(v.placeId);
+          }
+        }
+        const inscPostsets = new Set<string>();
+        if (inscription.postsets) {
+          for (const v of Object.values(inscription.postsets) as any[]) {
+            if (v?.placeId) inscPostsets.add(v.placeId);
+          }
+        }
+
+        // Compare
+        const presetDrift: string[] = [];
+        const postsetDrift: string[] = [];
+
+        for (const p of inscPresets) {
+          if (!expectedPresets.has(p)) presetDrift.push(`inscription references preset '${p}' but no arc connects it`);
+        }
+        for (const p of expectedPresets) {
+          if (!inscPresets.has(p)) presetDrift.push(`arc connects '${p}' as preset but inscription misses it`);
+        }
+        for (const p of inscPostsets) {
+          if (!expectedPostsets.has(p)) postsetDrift.push(`inscription references postset '${p}' but no arc connects it`);
+        }
+        for (const p of expectedPostsets) {
+          if (!inscPostsets.has(p)) postsetDrift.push(`arc connects '${p}' as postset but inscription misses it`);
+        }
+
+        // Validate NL expression references
+        const nlIssues: string[] = [];
+        if (inscription.action?.nl?.startsWith?.('@')) {
+          const exprPath = inscription.action.nl.substring(1);
+          const presetRef = exprPath.includes('.') ? exprPath.substring(0, exprPath.indexOf('.')) : exprPath;
+          const presetKeys = Object.keys(inscription.presets || {});
+          if (!presetKeys.includes(presetRef)) {
+            nlIssues.push(`action.nl references '${presetRef}' but no preset key exists (available: ${presetKeys.join(', ')})`);
+          }
+        }
+
+        if (presetDrift.length > 0 || postsetDrift.length > 0 || nlIssues.length > 0) {
+          const mismatch: any = {
+            transitionId,
+            presetDrift,
+            postsetDrift,
+            nlIssues,
+            arcPresets: [...expectedPresets],
+            arcPostsets: [...expectedPostsets],
+            inscriptionPresets: [...inscPresets],
+            inscriptionPostsets: [...inscPostsets],
+          };
+
+          if (applyFixes) {
+            try {
+              // Rebuild presets to match arcs
+              if (![...inscPresets].every(p => expectedPresets.has(p)) || ![...expectedPresets].every(p => inscPresets.has(p))) {
+                const newPresets: any = {};
+                const existingKeys = Object.keys(inscription.presets || {});
+                let idx = 0;
+                for (const placeId of expectedPresets) {
+                  const key = idx < existingKeys.length ? existingKeys[idx] : `input${idx > 0 ? idx : ''}`;
+                  const existingConfig = idx < existingKeys.length ? { ...(inscription.presets[existingKeys[idx]] || {}) } : { arcql: 'FROM $ LIMIT 1', take: 'FIRST', consume: true };
+                  existingConfig.placeId = placeId;
+                  newPresets[key] = existingConfig;
+                  idx++;
+                }
+                inscription.presets = newPresets;
+              }
+              // Rebuild postsets to match arcs
+              if (![...inscPostsets].every(p => expectedPostsets.has(p)) || ![...expectedPostsets].every(p => inscPostsets.has(p))) {
+                const newPostsets: any = {};
+                const existingKeys = Object.keys(inscription.postsets || {});
+                let idx = 0;
+                for (const placeId of expectedPostsets) {
+                  const key = idx < existingKeys.length ? existingKeys[idx] : `output${idx > 0 ? idx : ''}`;
+                  const existingConfig = idx < existingKeys.length ? { ...(inscription.postsets[existingKeys[idx]] || {}) } : {};
+                  existingConfig.placeId = placeId;
+                  newPostsets[key] = existingConfig;
+                  idx++;
+                }
+                inscription.postsets = newPostsets;
+              }
+              // Write back using the same SET_INSCRIPTION path
+              await this.executeSetInscription({ transitionId, inscription });
+              fixedCount++;
+              mismatch.fixed = true;
+            } catch (err: any) {
+              mismatch.fixed = false;
+              mismatch.fixError = err.message || String(err);
+            }
+          }
+
+          mismatches.push(mismatch);
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          netId,
+          transitionCount: transitionEntries.length,
+          checkedCount,
+          mismatchCount: mismatches.length,
+          mismatches,
+          fixesApplied: applyFixes,
+          fixedCount,
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: `ADAPT_INSCRIPTIONS failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeCreateSession(params: Record<string, any>): Promise<ToolResult> {
+    const sessionId = params.sessionId;
+    if (!sessionId) return { success: false, error: 'sessionId is required' };
+    const result = await this.masterApi.createSession(
+      this.modelId,
+      sessionId,
+      {
+        naturalLanguageText: params.naturalLanguageText || '',
+        description: params.description,
+      }
+    );
+    return { success: true, data: result };
   }
 
   private async executeCreateNet(params: Record<string, any>): Promise<ToolResult> {
@@ -1039,14 +1240,58 @@ export class ToolExecutor {
     };
   }
 
-  private async executeListAllInscriptions(): Promise<ToolResult> {
+  private async executeListAllInscriptions(params: Record<string, any>): Promise<ToolResult> {
     try {
+      const kindFilter = params.kind ? String(params.kind).toLowerCase() : null;
+      const includeContent = kindFilter ? true : Boolean(params.includeContent);
+      const limit = params.limit ? Number(params.limit) : (kindFilter ? 3 : Infinity);
+
       const children = await this.nodeApi.getChildren(this.modelId, 'root/workspace/transitions');
-      const inscriptions = [];
+      const transitions: any[] = [];
+
       for (const child of children) {
-        inscriptions.push({ transitionId: child.name, id: child.id });
+        const info: any = { transitionId: child.name, id: child.id };
+
+        if (includeContent) {
+          try {
+            const inscription = await this.loadTransitionInscription(child.name);
+            if (inscription) {
+              info.inscription = inscription;
+            }
+          } catch {
+            // Keep info even if inscription load fails
+          }
+        }
+
+        // Filter by kind if requested
+        if (kindFilter) {
+          const kind = info.inscription?.kind;
+          if (!kind || kind.toLowerCase() !== kindFilter) {
+            continue;
+          }
+        }
+
+        transitions.push(info);
+
+        // Apply limit
+        if (transitions.length >= limit) {
+          break;
+        }
       }
-      return { success: true, data: inscriptions };
+
+      const response: any = {
+        modelId: this.modelId,
+        transitionCount: transitions.length,
+        transitions,
+      };
+      if (kindFilter) {
+        response.kindFilter = kindFilter;
+        response.limit = limit;
+        response.note = `Filtered by kind='${kindFilter}'. Analyze these examples before creating new inscriptions of this type.`;
+      } else {
+        response.note = 'Showing all transitions in model';
+      }
+      return { success: true, data: response };
     } catch {
       return { success: true, data: [] };
     }

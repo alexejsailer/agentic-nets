@@ -21,9 +21,11 @@ export type AgentTool =
   | 'VERIFY_NET'
   | 'EXPORT_PNML'
   | 'NET_DOCTOR'
+  | 'ADAPT_INSCRIPTIONS'
   // Runtime Place Operations (W flag)
   | 'CREATE_RUNTIME_PLACE'
   // Structure Creation (W flag)
+  | 'CREATE_SESSION'
   | 'CREATE_NET'
   | 'DELETE_NET'
   | 'CREATE_PLACE'
@@ -243,6 +245,30 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
       required: ['netId'],
     },
   },
+  ADAPT_INSCRIPTIONS: {
+    description: 'Adapt inscription presets/postsets to match arc-connected places and validate NL expressions. Reports and optionally fixes placeId drift.',
+    schema: {
+      type: 'object',
+      properties: {
+        netId: { type: 'string', description: 'Net ID to check' },
+        sessionId: { type: 'string', description: 'Session ID (optional)' },
+        applyFixes: { type: 'boolean', description: 'If true, auto-fix inscription placeIds to match arcs' },
+      },
+      required: ['netId'],
+    },
+  },
+  CREATE_SESSION: {
+    description: 'Create a new session in the model workspace with optional NL text.',
+    schema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'Session ID (e.g., examples, session-2026-03-04)' },
+        naturalLanguageText: { type: 'string', description: 'Initial NL description for the session' },
+        description: { type: 'string', description: 'Optional short description' },
+      },
+      required: ['sessionId'],
+    },
+  },
   CREATE_NET: {
     description: 'Create a new Petri net container in a session.',
     schema: {
@@ -336,12 +362,12 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   SET_INSCRIPTION: {
-    description: 'Set runtime inscription configuration for a transition.',
+    description: 'Set runtime inscription configuration for a transition. Supports optional schedule: {type: "interval", intervalMs: N} or {type: "cron", cron: "expr"}.',
     schema: {
       type: 'object',
       properties: {
         transitionId: { type: 'string', description: 'Transition ID' },
-        inscription: { type: 'object', description: 'Full TransitionInscription JSON' },
+        inscription: { type: 'object', description: 'Full TransitionInscription JSON (id, kind, presets, postsets, action, emit, mode, schedule?)' },
       },
       required: ['transitionId', 'inscription'],
     },
@@ -368,10 +394,14 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   LIST_ALL_INSCRIPTIONS: {
-    description: 'List all transition inscriptions.',
+    description: 'List all transition inscriptions. Use kind filter to find examples before creating new inscriptions.',
     schema: {
       type: 'object',
-      properties: {},
+      properties: {
+        includeContent: { type: 'boolean', description: 'Include full inscription content' },
+        kind: { type: 'string', description: 'Filter by kind: http, command, agent, map, task, llm' },
+        limit: { type: 'number', description: 'Max results (default 3 when kind is set)' },
+      },
       required: [],
     },
   },

@@ -67,7 +67,7 @@ ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
 6. **HIERARCHICAL ACCESS**: Use \`\${input.data.field}\` for token data, \`\${input._meta.id}\` for metadata.
 7. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`.
 8. **SESSION SCOPE**: PNML nets belong to session \`${opts.sessionId}\`.
-9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition you created or found. Use the inscription templates from your knowledge. A transition without an inscription will NEVER execute.
+9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition. FIRST call \`LIST_ALL_INSCRIPTIONS({kind: "<type>"})\` to learn from existing inscriptions, THEN use observed patterns. A transition without an inscription will NEVER execute.
 9b. **CREATE ALL RUNTIME PLACES**: After inscribing, call CREATE_RUNTIME_PLACE for EVERY place in the net (both input AND output places). Then CREATE_TOKEN in the first input place.
 10. **FIX INCOMPLETE NETS**: When asked to add missing arcs or inscriptions, follow this exact sequence: (a) THINK to plan, (b) GET_NET_STRUCTURE once, (c) identify missing arcs and inscriptions from the structure, (d) CREATE_ARC for every missing arc, (e) SET_INSCRIPTION for every uninscribed transition, (f) VERIFY_NET, (g) DONE. Do NOT waste iterations on individual GET_PLACE_INFO or GET_TRANSITION calls.
 11. **EXECUTION ROUTING**: When asked to execute a transition, use \`EXECUTE_TRANSITION_SMART\` by default.
@@ -115,6 +115,26 @@ const CORE_KNOWLEDGE = `## Core Knowledge
 - **AGENT**: AI agent execution
 - **COMMAND**: Shell command execution
 
+### Choosing the Right Kind (Deterministic First)
+**Prefer deterministic transitions** (pass, map, http, command) — they are cheaper, faster, and reproducible. Use llm/agent ONLY when reasoning is genuinely required.
+- Deterministic data reshape → **map** (if you can write it as a JSON template with \`\${input.data.*}\`, it's a map, NOT an agent)
+- External API → **http**, shell command → **command**, pure routing → **pass**
+- Need AI reasoning? Multi-step → **agent**, single inference → **llm**
+
+### Where \`\${...}\` Interpolation Works
+- ✅ MAP \`action.template\`, HTTP \`url/headers/body\`, LLM \`prompt\`
+- ❌ COMMAND action fields (\`inputPlace\`, \`dispatch\`, \`await\`, \`timeoutMs\` are static config)
+- ❌ PASS action, AGENT action fields (\`nl\` uses \`@input.instruction\`, not \`\${...}\`)
+
+### MAP→Command Pipeline
+To dynamically build and execute a shell command: MAP transition creates a full CommandToken via template (\`\${input.data.command}\` in template), then a downstream COMMAND transition consumes and executes it. The MAP interpolates; the COMMAND dispatches. Required CommandToken fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.
+
+### Pipeline Awareness (CRITICAL)
+When testing or creating a transition in a pipeline, **always inspect the downstream consumer**:
+1. Call GET_PLACE_CONNECTIONS on the output place — if a COMMAND transition consumes from it, your MAP template MUST produce a complete CommandToken, not arbitrary JSON.
+2. After FIRE_ONCE, inspect the emitted token with QUERY_TOKENS and verify it matches the downstream consumer's expected schema.
+3. A MAP that fires "successfully" but produces the wrong token shape is still broken — don't report success until the output is valid for the next step.
+
 ### Token Placement Protocol
 **BEFORE creating tokens with CREATE_TOKEN**, call GET_PLACE_CONNECTIONS to check if any transition consumes from the target place.
 - If \`consume: true\`, your token will be consumed within seconds by the polling transition
@@ -136,6 +156,7 @@ const WRITE_KNOWLEDGE = `## Write Knowledge
 - **A Petri net without arcs is useless!** Always create arcs.
 - Arcs must be **bipartite**: place→transition OR transition→place. Never place→place or transition→transition.
 - After creating ALL PNML elements, call VERIFY_NET. Clean duplicates with DELETE_PLACE/DELETE_ARC.
+- After SET_INSCRIPTION on all transitions, call ADAPT_INSCRIPTIONS({netId, applyFixes: true}) to auto-fix any placeId drift.
 
 ### Fixing Incomplete Nets
 When asked to add missing arcs or inscriptions:
@@ -156,10 +177,20 @@ When asked to add missing arcs or inscriptions:
 - **Before deploying transitions**: Ensure all preset and postset runtime places exist.
 - **Drift repair**: Use NET_DOCTOR to diagnose and optionally fix visual/runtime arc drift.
 
+### Learn Before Create (MANDATORY — DO THIS BEFORE EVERY SET_INSCRIPTION)
+
+Before creating ANY inscription, you MUST study existing inscriptions of the same kind in the model:
+
+1. **Determine the kind** needed: \`http\`, \`map\`, \`task\`, \`llm\`, \`agent\`, or \`command\`
+2. **Call** \`LIST_ALL_INSCRIPTIONS({kind: "<kind>", includeContent: true})\` — returns up to 3 examples
+3. **Analyze** returned inscriptions for: host format, placeId patterns, emit rules, action fields
+4. **Follow** observed patterns when constructing your new inscription
+5. **Fall back** to templates below ONLY if no existing inscriptions of that kind exist
+
 ### Inscription Validation Checklist (CHECK BEFORE EVERY SET_INSCRIPTION)
 Before calling SET_INSCRIPTION, verify your inscription:
 1. \`"id"\` matches the PNML transition ID exactly (e.g., \`"t-fetch"\`)
-2. \`"kind"\` matches action type: \`"task"\` for pass, \`"http"\` for http, \`"map"\` for map, \`"llm"\` for llm
+2. \`"kind"\` matches action type: \`"task"\` for pass, \`"http"\` for http, \`"map"\` for map, \`"llm"\` for llm, \`"command"\` for command, \`"agent"\` for agent
 3. Every preset \`"placeId"\` matches a PNML place ID exactly
 4. Every postset \`"placeId"\` matches a PNML place ID exactly
 5. \`"host"\` uses format \`"{modelId}@localhost:8080"\` with actual modelId substituted
@@ -191,7 +222,7 @@ Pass action allowed fields: \`type\` only.
 
 #### Concrete HTTP Example: POST with body
 \`\`\`json
-{"id":"t-create","kind":"http","presets":{"input":{"placeId":"p-request","host":"system@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"system@localhost:8080"}},"action":{"type":"http","method":"POST","url":"https://api.example.com/items","headers":{"Content-Type":"application/json"},"body":"{\\"name\\":\\"\\${input.data.name}\\",\\"qty\\":\\${input.data.qty}}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
+{"id":"t-create","kind":"http","presets":{"input":{"placeId":"p-request","host":"system@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"system@localhost:8080"}},"action":{"type":"http","method":"POST","url":"https://api.example.com/items","headers":{"Content-Type":"application/json"},"body":"{\\"name\\":\\"\\\${input.data.name}\\",\\"qty\\":\\\${input.data.qty}}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
 \`\`\`
 
 #### Map (Data Transformation)
@@ -206,13 +237,34 @@ Map action allowed fields: \`type\`, \`template\`.
 \`\`\`
 LLM action allowed fields: \`type\`, \`prompt\`.
 
+#### Command (Shell Execution via Executor)
+\`\`\`json
+{"id":"t-run-cmd","kind":"command","presets":{"input":{"placeId":"p-cmd-input","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"response":{"placeId":"p-cmd-result","host":"{modelId}@localhost:8080"}},"action":{"type":"command","inputPlace":"input","dispatch":[{"executor":"bash","channel":"default"}],"await":"ALL","timeoutMs":300000},"emit":[{"to":"response","from":"@result","when":"success"}],"mode":"SINGLE"}
+\`\`\`
+Command action allowed fields: \`type\`, \`inputPlace\` (preset key name), \`dispatch\` (array of executor/channel), \`await\` ("ALL"), \`timeoutMs\`, \`groupBy\` (optional).
+Input tokens must use the full CommandToken schema: \`{kind: "command", id: "...", executor: "bash", command: "exec", args: {command: "...", workingDir: "/absolute/path"}, expect: "text"}\`
+Emit: use \`"from": "@result"\` for command execution result.
+
+#### Agent (Autonomous AI Execution)
+\`\`\`json
+{"id":"t-agent-task","kind":"agent","presets":{"input":{"placeId":"p-task","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-agent-result","host":"{modelId}@localhost:8080"}},"action":{"type":"agent","nl":"@input.instruction","memoryPlace":"p-memory","modelId":"{modelId}","role":"rwxh"},"emit":[{"to":"output","from":"@response"}],"mode":"SINGLE"}
+\`\`\`
+Agent action allowed fields: \`type\`, \`nl\` (NL instruction expression), \`memoryPlace\` (optional), \`modelId\` (target model), \`role\` (rwxh flags).
+Emit: use \`"from": "@response"\` for agent execution result.
+Note: Agent transitions can also omit presets/postsets if the agent discovers places dynamically via NL instruction.
+
 ### Template Interpolation in URLs and Bodies
 - \`\${input.data.name}\` — simple field access
 - \`\${input.data.results.0.latitude}\` — array index (first element)
 - \`\${input.data.nested.deep.field}\` — nested object access
 - \`\${input._meta.id}\` — token metadata
 
-**Key rules**: Replace \`{modelId}\` with actual modelId. \`placeId\` and \`id\` must match PNML IDs exactly. Always include at least one \`emit\` rule. Emit \`from\` values: \`@response.json\` (HTTP/LLM), \`@response\` (map), \`@input.data\` (pass). After inscribing, CREATE_RUNTIME_PLACE for each place, then CREATE_TOKEN in the first input place.`;
+**Key rules**: Replace \`{modelId}\` with actual modelId. \`placeId\` and \`id\` must match PNML IDs exactly. Always include at least one \`emit\` rule. Emit \`from\` values: \`@response.json\` (HTTP/LLM), \`@response\` (map), \`@input.data\` (pass). After inscribing, CREATE_RUNTIME_PLACE for each place, then CREATE_TOKEN in the first input place.
+
+### Common Mistakes (Write)
+- **Mistake 5**: Using \`kind: "agent"\` for deterministic transforms → use \`kind: "map"\`. If output is a JSON template with \`\${input.data.*}\`, it's a MAP.
+- **Mistake 6**: \`\${...}\` in command action fields → use MAP→Command pipeline instead (MAP builds CommandToken, COMMAND executes it).
+- **Mistake 7**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.`;
 
 const EXECUTE_KNOWLEDGE = `## Execute Knowledge
 
