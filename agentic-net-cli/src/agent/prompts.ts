@@ -67,7 +67,7 @@ ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
 6. **HIERARCHICAL ACCESS**: Use \`\${input.data.field}\` for token data, \`\${input._meta.id}\` for metadata.
 7. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`.
 8. **SESSION SCOPE**: PNML nets belong to session \`${opts.sessionId}\`.
-9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition you created or found. Use the inscription templates from your knowledge. A transition without an inscription will NEVER execute.
+9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition. FIRST call \`LIST_ALL_INSCRIPTIONS({kind: "<type>"})\` to learn from existing inscriptions, THEN use observed patterns. A transition without an inscription will NEVER execute.
 9b. **CREATE ALL RUNTIME PLACES**: After inscribing, call CREATE_RUNTIME_PLACE for EVERY place in the net (both input AND output places). Then CREATE_TOKEN in the first input place.
 10. **FIX INCOMPLETE NETS**: When asked to add missing arcs or inscriptions, follow this exact sequence: (a) THINK to plan, (b) GET_NET_STRUCTURE once, (c) identify missing arcs and inscriptions from the structure, (d) CREATE_ARC for every missing arc, (e) SET_INSCRIPTION for every uninscribed transition, (f) VERIFY_NET, (g) DONE. Do NOT waste iterations on individual GET_PLACE_INFO or GET_TRANSITION calls.
 11. **EXECUTION ROUTING**: When asked to execute a transition, use \`EXECUTE_TRANSITION_SMART\` by default.
@@ -156,10 +156,20 @@ When asked to add missing arcs or inscriptions:
 - **Before deploying transitions**: Ensure all preset and postset runtime places exist.
 - **Drift repair**: Use NET_DOCTOR to diagnose and optionally fix visual/runtime arc drift.
 
+### Learn Before Create (MANDATORY — DO THIS BEFORE EVERY SET_INSCRIPTION)
+
+Before creating ANY inscription, you MUST study existing inscriptions of the same kind in the model:
+
+1. **Determine the kind** needed: \`http\`, \`map\`, \`task\`, \`llm\`, \`agent\`, or \`command\`
+2. **Call** \`LIST_ALL_INSCRIPTIONS({kind: "<kind>", includeContent: true})\` — returns up to 3 examples
+3. **Analyze** returned inscriptions for: host format, placeId patterns, emit rules, action fields
+4. **Follow** observed patterns when constructing your new inscription
+5. **Fall back** to templates below ONLY if no existing inscriptions of that kind exist
+
 ### Inscription Validation Checklist (CHECK BEFORE EVERY SET_INSCRIPTION)
 Before calling SET_INSCRIPTION, verify your inscription:
 1. \`"id"\` matches the PNML transition ID exactly (e.g., \`"t-fetch"\`)
-2. \`"kind"\` matches action type: \`"task"\` for pass, \`"http"\` for http, \`"map"\` for map, \`"llm"\` for llm
+2. \`"kind"\` matches action type: \`"task"\` for pass, \`"http"\` for http, \`"map"\` for map, \`"llm"\` for llm, \`"command"\` for command, \`"agent"\` for agent
 3. Every preset \`"placeId"\` matches a PNML place ID exactly
 4. Every postset \`"placeId"\` matches a PNML place ID exactly
 5. \`"host"\` uses format \`"{modelId}@localhost:8080"\` with actual modelId substituted
@@ -191,7 +201,7 @@ Pass action allowed fields: \`type\` only.
 
 #### Concrete HTTP Example: POST with body
 \`\`\`json
-{"id":"t-create","kind":"http","presets":{"input":{"placeId":"p-request","host":"system@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"system@localhost:8080"}},"action":{"type":"http","method":"POST","url":"https://api.example.com/items","headers":{"Content-Type":"application/json"},"body":"{\\"name\\":\\"\\${input.data.name}\\",\\"qty\\":\\${input.data.qty}}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
+{"id":"t-create","kind":"http","presets":{"input":{"placeId":"p-request","host":"system@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"system@localhost:8080"}},"action":{"type":"http","method":"POST","url":"https://api.example.com/items","headers":{"Content-Type":"application/json"},"body":"{\\"name\\":\\"\\\${input.data.name}\\",\\"qty\\":\\\${input.data.qty}}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
 \`\`\`
 
 #### Map (Data Transformation)
@@ -205,6 +215,22 @@ Map action allowed fields: \`type\`, \`template\`.
 {"id":"t-analyze","kind":"llm","presets":{"input":{"placeId":"p-input","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"{modelId}@localhost:8080"}},"action":{"type":"llm","prompt":"Analyze: \${input.data}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
 \`\`\`
 LLM action allowed fields: \`type\`, \`prompt\`.
+
+#### Command (Shell Execution via Executor)
+\`\`\`json
+{"id":"t-run-cmd","kind":"command","presets":{"input":{"placeId":"p-cmd-input","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"response":{"placeId":"p-cmd-result","host":"{modelId}@localhost:8080"}},"action":{"type":"command","inputPlace":"input","dispatch":[{"executor":"bash","channel":"default"}],"await":"ALL","timeoutMs":300000},"emit":[{"to":"response","from":"@result","when":"success"}],"mode":"SINGLE"}
+\`\`\`
+Command action allowed fields: \`type\`, \`inputPlace\` (preset key name), \`dispatch\` (array of executor/channel), \`await\` ("ALL"), \`timeoutMs\`, \`groupBy\` (optional).
+Input tokens must use the full CommandToken schema: \`{kind: "command", id: "...", executor: "bash", command: "exec", args: {command: "...", workingDir: "/absolute/path"}, expect: "text"}\`
+Emit: use \`"from": "@result"\` for command execution result.
+
+#### Agent (Autonomous AI Execution)
+\`\`\`json
+{"id":"t-agent-task","kind":"agent","presets":{"input":{"placeId":"p-task","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-agent-result","host":"{modelId}@localhost:8080"}},"action":{"type":"agent","nl":"@input.instruction","memoryPlace":"p-memory","modelId":"{modelId}","role":"rwxh"},"emit":[{"to":"output","from":"@response"}],"mode":"SINGLE"}
+\`\`\`
+Agent action allowed fields: \`type\`, \`nl\` (NL instruction expression), \`memoryPlace\` (optional), \`modelId\` (target model), \`role\` (rwxh flags).
+Emit: use \`"from": "@response"\` for agent execution result.
+Note: Agent transitions can also omit presets/postsets if the agent discovers places dynamically via NL instruction.
 
 ### Template Interpolation in URLs and Bodies
 - \`\${input.data.name}\` — simple field access

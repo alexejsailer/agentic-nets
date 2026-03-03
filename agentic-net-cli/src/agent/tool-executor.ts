@@ -178,7 +178,7 @@ export class ToolExecutor {
         case 'LIST_ALL_SESSIONS':
           return this.executeListAllSessions();
         case 'LIST_ALL_INSCRIPTIONS':
-          return this.executeListAllInscriptions();
+          return this.executeListAllInscriptions(params);
         case 'LIST_SESSION_NETS':
           return this.executeListSessionNets(params);
         case 'EMIT_MEMORY':
@@ -1039,14 +1039,58 @@ export class ToolExecutor {
     };
   }
 
-  private async executeListAllInscriptions(): Promise<ToolResult> {
+  private async executeListAllInscriptions(params: Record<string, any>): Promise<ToolResult> {
     try {
+      const kindFilter = params.kind ? String(params.kind).toLowerCase() : null;
+      const includeContent = kindFilter ? true : Boolean(params.includeContent);
+      const limit = params.limit ? Number(params.limit) : (kindFilter ? 3 : Infinity);
+
       const children = await this.nodeApi.getChildren(this.modelId, 'root/workspace/transitions');
-      const inscriptions = [];
+      const transitions: any[] = [];
+
       for (const child of children) {
-        inscriptions.push({ transitionId: child.name, id: child.id });
+        const info: any = { transitionId: child.name, id: child.id };
+
+        if (includeContent) {
+          try {
+            const inscription = await this.loadTransitionInscription(child.name);
+            if (inscription) {
+              info.inscription = inscription;
+            }
+          } catch {
+            // Keep info even if inscription load fails
+          }
+        }
+
+        // Filter by kind if requested
+        if (kindFilter) {
+          const kind = info.inscription?.kind;
+          if (!kind || kind.toLowerCase() !== kindFilter) {
+            continue;
+          }
+        }
+
+        transitions.push(info);
+
+        // Apply limit
+        if (transitions.length >= limit) {
+          break;
+        }
       }
-      return { success: true, data: inscriptions };
+
+      const response: any = {
+        modelId: this.modelId,
+        transitionCount: transitions.length,
+        transitions,
+      };
+      if (kindFilter) {
+        response.kindFilter = kindFilter;
+        response.limit = limit;
+        response.note = `Filtered by kind='${kindFilter}'. Analyze these examples before creating new inscriptions of this type.`;
+      } else {
+        response.note = 'Showing all transitions in model';
+      }
+      return { success: true, data: response };
     } catch {
       return { success: true, data: [] };
     }

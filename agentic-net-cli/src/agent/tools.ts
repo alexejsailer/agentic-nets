@@ -368,10 +368,14 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   LIST_ALL_INSCRIPTIONS: {
-    description: 'List all transition inscriptions.',
+    description: 'List all transition inscriptions. Use kind filter to find examples before creating new inscriptions.',
     schema: {
       type: 'object',
-      properties: {},
+      properties: {
+        includeContent: { type: 'boolean', description: 'Include full inscription content' },
+        kind: { type: 'string', description: 'Filter by kind: http, command, agent, map, task, llm' },
+        limit: { type: 'number', description: 'Max results (default 3 when kind is set)' },
+      },
       required: [],
     },
   },
