@@ -29,7 +29,10 @@ export function registerAskCommand(program: Command, getContext: () => { client:
     .option('--quiet', 'Only show final output')
     .option('--stdin', 'Read message from stdin')
     .action(async (message: string, opts: any) => {
-      const { client, modelId, sessionId } = getContext();
+      const ctx = getContext();
+      const client = ctx.client;
+      const modelId = ctx.modelId;
+      const sessionId = ctx.sessionId || 'system/alive';
       const cfg = loadConfig();
       const profile = resolveProfile(getActiveProfile(cfg));
 

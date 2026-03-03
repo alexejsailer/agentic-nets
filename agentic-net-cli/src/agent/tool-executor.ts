@@ -502,7 +502,7 @@ export class ToolExecutor {
 
   private async executeGetNetStructure(params: Record<string, any>): Promise<ToolResult> {
     try {
-      const sessionId = params.sessionId || this.sessionId;
+      const sessionId = params.sessionId || this.sessionId || 'system/alive';
       const result = await this.masterApi.getNet(params.netId, this.modelId, sessionId);
       return { success: true, data: result };
     } catch (err: any) {
@@ -511,27 +511,27 @@ export class ToolExecutor {
   }
 
   private async executeVerifyNet(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const result = await this.masterApi.getNet(params.netId, this.modelId, sessionId);
     return { success: true, data: result };
   }
 
   private async executeExportPnml(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const result = await this.masterApi.exportNet(params.netId, this.modelId, sessionId);
     return { success: true, data: result };
   }
 
   private async executeNetDoctor(params: Record<string, any>): Promise<ToolResult> {
     const netId = String(params.netId || '').trim();
-    const sessionId = String(params.sessionId || this.sessionId || '').trim();
+    let sessionId = String(params.sessionId || this.sessionId || '').trim();
     const applyFixes = params.applyFixes === true;
 
     if (!netId) {
       return { success: false, error: 'netId is required' };
     }
     if (!sessionId) {
-      return { success: false, error: 'sessionId is required (or configure a default session)' };
+      sessionId = 'system/alive';
     }
 
     let analysis: NetDoctorAnalysis;
@@ -558,7 +558,7 @@ export class ToolExecutor {
   }
 
   private async executeCreateNet(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const result = await this.masterApi.createNet({
       modelId: this.modelId,
       sessionId,
@@ -798,7 +798,8 @@ export class ToolExecutor {
     const added: Array<{ arcId: string; sourceId: string; targetId: string }> = [];
     const addErrors: Array<{ sourceId: string; targetId: string; error: string }> = [];
 
-    const arcsPath = `root/workspace/sessions/${sessionId}/workspace-nets/${netId}/pnml/net/arcs`;
+    const resolvedSessionId = sessionId || 'system/alive';
+    const arcsPath = `root/workspace/sessions/${resolvedSessionId}/workspace-nets/${netId}/pnml/net/arcs`;
     const arcNodes = await this.nodeApi.getChildren(this.modelId, arcsPath);
     const arcNodeByName = new Map<string, any>();
     for (const node of arcNodes) {
@@ -862,7 +863,7 @@ export class ToolExecutor {
 
   private async executeDeleteNet(params: Record<string, any>): Promise<ToolResult> {
     // Delete net by removing tree structure
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const path = `root/workspace/sessions/${sessionId}/workspace-nets/${params.netId}`;
     const info = await this.nodeApi.resolve(this.modelId, path);
     if (info?.id) {
@@ -872,7 +873,7 @@ export class ToolExecutor {
   }
 
   private async executeCreatePlace(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const result = await this.masterApi.createPlace(params.netId, {
       modelId: this.modelId,
       sessionId,
@@ -886,7 +887,7 @@ export class ToolExecutor {
   }
 
   private async executeCreateTransition(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const result = await this.masterApi.createTransition(params.netId, {
       modelId: this.modelId,
       sessionId,
@@ -899,7 +900,7 @@ export class ToolExecutor {
   }
 
   private async executeCreateArc(params: Record<string, any>): Promise<ToolResult> {
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const result = await this.masterApi.createArc(params.netId, {
       modelId: this.modelId,
       sessionId,
@@ -912,7 +913,7 @@ export class ToolExecutor {
 
   private async executeDeletePlace(params: Record<string, any>): Promise<ToolResult> {
     // Resolve and delete
-    const sessionId = params.sessionId || this.sessionId;
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
     // The place is in the PNML tree; we need to find and delete it
     return { success: true, data: { deleted: params.placeId, note: 'Deletion via designtime API' } };
   }
@@ -1053,6 +1054,17 @@ export class ToolExecutor {
 
   private async executeListSessionNets(params: Record<string, any>): Promise<ToolResult> {
     const sessionId = params.sessionId || this.sessionId;
+    if (!sessionId) {
+      return {
+        success: true,
+        data: {
+          sessionId: '',
+          netCount: 0,
+          nets: [],
+          note: 'No session context available — this is a fresh agent execution without a session',
+        },
+      };
+    }
     const path = `root/workspace/sessions/${sessionId}/workspace-nets`;
     try {
       const children = await this.nodeApi.getChildren(this.modelId, path);
@@ -1116,7 +1128,7 @@ export class ToolExecutor {
       image: params.image,
       name: params.name || 'tool',
       env: params.env,
-      sessionId: params.sessionId || this.sessionId,
+      sessionId: params.sessionId || this.sessionId || 'system/alive',
     });
     return { success: true, data };
   }

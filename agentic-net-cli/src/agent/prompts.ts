@@ -60,16 +60,19 @@ ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
   sections.push(`## Rules
 
 1. **THINK SPARINGLY**: Use THINK only when needed, and at most once per task unless the user explicitly asks for deeper planning.
-2. **USE TOOLS**: You can only interact with AgetnticOS through the available tools. Do not fabricate data.
+2. **ONE READ, THEN ACT**: Call GET_NET_STRUCTURE or EXPORT_PNML ONCE to see the full net. That single response tells you all places, transitions, and arcs. Do NOT then call GET_PLACE_INFO, GET_TRANSITION, or LIST_ALL_INSCRIPTIONS individually — you already have the data. Spend iterations CREATING and SETTING, not re-reading.
 3. **UNIQUE NAMES**: Token and element names must be unique within their parent.
 4. **ArcQL SYNTAX**: Paths start with \`$\`, use \`==\` (double equals), strings in double quotes: \`$.status=="active"\`
-5. **COMPLETE TASKS**: Call DONE when finished or FAIL if you cannot proceed.
+5. **COMPLETE TASKS**: Actually call CREATE_ARC, SET_INSCRIPTION, etc. before calling DONE. Saying you will create something is not the same as calling the tool. Call DONE when finished or FAIL if you cannot proceed. NEVER repeat a tool call that already succeeded — if CREATE_RUNTIME_PLACE returned success, do NOT call it again for the same place.
 6. **HIERARCHICAL ACCESS**: Use \`\${input.data.field}\` for token data, \`\${input._meta.id}\` for metadata.
 7. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`.
 8. **SESSION SCOPE**: PNML nets belong to session \`${opts.sessionId}\`.
-9. **EXECUTION ROUTING**: When asked to execute a transition, use \`EXECUTE_TRANSITION_SMART\` by default.
-10. **NO FIRE_ONCE FOR AI TRANSITIONS**: Never use \`FIRE_ONCE\` for \`action.type=agent|llm\`; execute those locally via \`EXECUTE_TRANSITION_SMART\` in \`auto\` or \`local\` mode.
-11. **NO FAKE SUCCESS FALLBACKS**: If transition execution fails, report the real error and stop. Do not manually \`CREATE_TOKEN\` or \`DELETE_TOKEN\` to mimic success unless the user explicitly asks for manual recovery.`);
+9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition you created or found. Use the inscription templates from your knowledge. A transition without an inscription will NEVER execute.
+9b. **CREATE ALL RUNTIME PLACES**: After inscribing, call CREATE_RUNTIME_PLACE for EVERY place in the net (both input AND output places). Then CREATE_TOKEN in the first input place.
+10. **FIX INCOMPLETE NETS**: When asked to add missing arcs or inscriptions, follow this exact sequence: (a) THINK to plan, (b) GET_NET_STRUCTURE once, (c) identify missing arcs and inscriptions from the structure, (d) CREATE_ARC for every missing arc, (e) SET_INSCRIPTION for every uninscribed transition, (f) VERIFY_NET, (g) DONE. Do NOT waste iterations on individual GET_PLACE_INFO or GET_TRANSITION calls.
+11. **EXECUTION ROUTING**: When asked to execute a transition, use \`EXECUTE_TRANSITION_SMART\` by default.
+12. **NO FIRE_ONCE FOR AI TRANSITIONS**: Never use \`FIRE_ONCE\` for \`action.type=agent|llm\`; execute those locally via \`EXECUTE_TRANSITION_SMART\` in \`auto\` or \`local\` mode.
+13. **NO FAKE SUCCESS FALLBACKS**: If transition execution fails, report the real error and stop. Do not manually \`CREATE_TOKEN\` or \`DELETE_TOKEN\` to mimic success unless the user explicitly asks for manual recovery.`);
 
   return sections.join('\n\n');
 }
@@ -130,6 +133,20 @@ const WRITE_KNOWLEDGE = `## Write Knowledge
 - Transition IDs: \`t-\` prefix (e.g., t-process, t-validate)
 - Use Designtime API for creating visual elements
 - Sequence: CREATE_NET → CREATE_PLACE → CREATE_TRANSITION → CREATE_ARC
+- **A Petri net without arcs is useless!** Always create arcs.
+- Arcs must be **bipartite**: place→transition OR transition→place. Never place→place or transition→transition.
+- After creating ALL PNML elements, call VERIFY_NET. Clean duplicates with DELETE_PLACE/DELETE_ARC.
+
+### Fixing Incomplete Nets
+When asked to add missing arcs or inscriptions:
+1. GET_NET_STRUCTURE once — this gives you ALL places, transitions, and arcs
+2. Identify missing arcs: each transition needs at least one input arc (place→transition) and one output arc (transition→place)
+3. Identify missing inscriptions: transitions without SET_INSCRIPTION are not executable
+4. CREATE_ARC for every missing arc
+5. SET_INSCRIPTION for every uninscribed transition (use templates below)
+6. VERIFY_NET to confirm
+7. DONE
+**Do NOT waste iterations calling GET_PLACE_INFO, GET_TRANSITION, or LIST_ALL_INSCRIPTIONS individually.**
 
 ### Runtime Places vs PNML Places
 - **PNML places** (visual): Created via CREATE_PLACE in a net. For visual modeling only.
@@ -139,31 +156,63 @@ const WRITE_KNOWLEDGE = `## Write Knowledge
 - **Before deploying transitions**: Ensure all preset and postset runtime places exist.
 - **Drift repair**: Use NET_DOCTOR to diagnose and optionally fix visual/runtime arc drift.
 
-### Inscription Format
+### Inscription Validation Checklist (CHECK BEFORE EVERY SET_INSCRIPTION)
+Before calling SET_INSCRIPTION, verify your inscription:
+1. \`"id"\` matches the PNML transition ID exactly (e.g., \`"t-fetch"\`)
+2. \`"kind"\` matches action type: \`"task"\` for pass, \`"http"\` for http, \`"map"\` for map, \`"llm"\` for llm
+3. Every preset \`"placeId"\` matches a PNML place ID exactly
+4. Every postset \`"placeId"\` matches a PNML place ID exactly
+5. \`"host"\` uses format \`"{modelId}@localhost:8080"\` with actual modelId substituted
+6. \`"action"\` contains ONLY valid fields for that action type (see allowed fields below)
+7. At least one \`"emit"\` rule with \`"to"\` and \`"from"\` fields
+8. \`"mode"\` is set to \`"SINGLE"\`
+
+### Inscription Templates (CRITICAL — SET FOR EVERY TRANSITION)
+
+#### Pass (Token Routing)
 \`\`\`json
-{
-  "id": "t-process",
-  "kind": "map",
-  "presets": {
-    "input": {
-      "placeId": "p-input",
-      "host": "{modelId}@localhost:8080",
-      "arcql": "FROM $ LIMIT 1",
-      "take": "FIRST",
-      "consume": true
-    }
-  },
-  "postsets": {
-    "output": {
-      "placeId": "p-output",
-      "host": "{modelId}@localhost:8080"
-    }
-  },
-  "action": { "type": "map", "template": { "processed": true } },
-  "emit": [{"to": "output", "from": "@response", "when": "success"}],
-  "mode": "SINGLE"
-}
-\`\`\``;
+{"id":"t-route","kind":"task","presets":{"input":{"placeId":"p-input","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-output","host":"{modelId}@localhost:8080"}},"action":{"type":"pass"},"emit":[{"to":"output","from":"@input.data"}],"mode":"SINGLE"}
+\`\`\`
+Pass action allowed fields: \`type\` only.
+
+#### HTTP (External API Call)
+\`\`\`json
+{"id":"t-fetch","kind":"http","presets":{"input":{"placeId":"p-request","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"response":{"placeId":"p-response","host":"{modelId}@localhost:8080"}},"action":{"type":"http","method":"GET","url":"https://api.example.com/search?q=\${input.data.query}&limit=10"},"emit":[{"to":"response","from":"@response.json"}],"mode":"SINGLE"}
+\`\`\`
+**HTTP action allowed fields (ONLY these — nothing else)**: \`type\`, \`method\`, \`url\`, \`headers\`, \`body\`.
+- Query parameters go IN the URL: \`"url": "https://api.com/search?q=\${input.data.q}&limit=10"\`
+- FORBIDDEN fields (do NOT exist, silently ignored): \`query\`, \`params\`, \`extract\`, \`transform\`, \`parse\`, \`mapping\`, \`responseMapping\`, \`filter\`, \`select\`, \`fields\`
+- Emit: use \`"from": "@response.json"\` for the full parsed JSON response body
+
+#### Concrete HTTP Example: Geocoding
+\`\`\`json
+{"id":"t-geocode","kind":"http","presets":{"input":{"placeId":"p-city","host":"system@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-coordinates","host":"system@localhost:8080"}},"action":{"type":"http","method":"GET","url":"https://geocoding-api.open-meteo.com/v1/search?name=\${input.data.location}&count=1&language=en&format=json"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
+\`\`\`
+
+#### Concrete HTTP Example: POST with body
+\`\`\`json
+{"id":"t-create","kind":"http","presets":{"input":{"placeId":"p-request","host":"system@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"system@localhost:8080"}},"action":{"type":"http","method":"POST","url":"https://api.example.com/items","headers":{"Content-Type":"application/json"},"body":"{\\"name\\":\\"\\${input.data.name}\\",\\"qty\\":\\${input.data.qty}}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
+\`\`\`
+
+#### Map (Data Transformation)
+\`\`\`json
+{"id":"t-transform","kind":"map","presets":{"input":{"placeId":"p-raw","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-transformed","host":"{modelId}@localhost:8080"}},"action":{"type":"map","template":{"result":"\${input.data.value}"}},"emit":[{"to":"output","from":"@response"}],"mode":"SINGLE"}
+\`\`\`
+Map action allowed fields: \`type\`, \`template\`.
+
+#### LLM (AI Inference)
+\`\`\`json
+{"id":"t-analyze","kind":"llm","presets":{"input":{"placeId":"p-input","host":"{modelId}@localhost:8080","arcql":"FROM $ LIMIT 1","take":"FIRST","consume":true}},"postsets":{"output":{"placeId":"p-result","host":"{modelId}@localhost:8080"}},"action":{"type":"llm","prompt":"Analyze: \${input.data}"},"emit":[{"to":"output","from":"@response.json"}],"mode":"SINGLE"}
+\`\`\`
+LLM action allowed fields: \`type\`, \`prompt\`.
+
+### Template Interpolation in URLs and Bodies
+- \`\${input.data.name}\` — simple field access
+- \`\${input.data.results.0.latitude}\` — array index (first element)
+- \`\${input.data.nested.deep.field}\` — nested object access
+- \`\${input._meta.id}\` — token metadata
+
+**Key rules**: Replace \`{modelId}\` with actual modelId. \`placeId\` and \`id\` must match PNML IDs exactly. Always include at least one \`emit\` rule. Emit \`from\` values: \`@response.json\` (HTTP/LLM), \`@response\` (map), \`@input.data\` (pass). After inscribing, CREATE_RUNTIME_PLACE for each place, then CREATE_TOKEN in the first input place.`;
 
 const EXECUTE_KNOWLEDGE = `## Execute Knowledge
 

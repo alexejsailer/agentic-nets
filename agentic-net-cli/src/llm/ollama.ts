@@ -2,6 +2,11 @@ import { Ollama } from 'ollama';
 import type { LlmProvider, LlmMessage, LlmResponse, LlmContent } from './provider.js';
 import type { ToolSchema } from '../agent/tools.js';
 
+/** Strip <think>...</think> blocks that some models (e.g. qwen3-coder) emit. */
+function stripThinkingBlocks(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+}
+
 export class OllamaProvider implements LlmProvider {
   name = 'ollama';
   private client: Ollama;
@@ -23,17 +28,53 @@ export class OllamaProvider implements LlmProvider {
     ];
 
     for (const msg of messages) {
-      const textParts = msg.content
-        .filter(c => c.type === 'text')
-        .map(c => (c as { type: 'text'; text: string }).text);
+      if (msg.role === 'assistant') {
+        // Extract tool_use blocks → Ollama tool_calls
+        const toolUses = msg.content.filter(c => c.type === 'tool_use') as Array<{
+          type: 'tool_use'; id: string; name: string; input: Record<string, any>;
+        }>;
+        const textParts = msg.content
+          .filter(c => c.type === 'text')
+          .map(c => (c as { type: 'text'; text: string }).text);
 
-      const toolResults = msg.content
-        .filter(c => c.type === 'tool_result')
-        .map(c => (c as { type: 'tool_result'; tool_use_id: string; content: string }).content);
+        const textContent = stripThinkingBlocks(textParts.join('\n'));
 
-      const combined = [...textParts, ...toolResults].join('\n');
-      if (combined) {
-        ollamaMessages.push({ role: msg.role, content: combined });
+        if (toolUses.length > 0) {
+          ollamaMessages.push({
+            role: 'assistant',
+            content: textContent || '',
+            tool_calls: toolUses.map(tu => ({
+              id: tu.id,
+              function: { name: tu.name, arguments: tu.input },
+            })),
+          });
+        } else if (textContent) {
+          ollamaMessages.push({ role: 'assistant', content: textContent });
+        }
+      } else if (msg.role === 'user') {
+        // Check for tool_result blocks → Ollama role: 'tool'
+        const toolResults = msg.content.filter(c => c.type === 'tool_result') as Array<{
+          type: 'tool_result'; tool_use_id: string; content: string;
+        }>;
+        const textParts = msg.content
+          .filter(c => c.type === 'text')
+          .map(c => (c as { type: 'text'; text: string }).text);
+
+        if (toolResults.length > 0) {
+          // Send each tool result as a separate role: 'tool' message
+          for (const tr of toolResults) {
+            ollamaMessages.push({
+              role: 'tool',
+              content: tr.content,
+            });
+          }
+        }
+
+        // Send any remaining text as a user message
+        const textContent = textParts.join('\n').trim();
+        if (textContent) {
+          ollamaMessages.push({ role: 'user', content: textContent });
+        }
       }
     }
 
@@ -69,9 +110,12 @@ export class OllamaProvider implements LlmProvider {
       }
     }
 
-    // Process text content
+    // Process text content — strip <think> blocks
     if (response.message.content) {
-      content.push({ type: 'text', text: response.message.content });
+      const cleaned = stripThinkingBlocks(response.message.content);
+      if (cleaned) {
+        content.push({ type: 'text', text: cleaned });
+      }
     }
 
     return {

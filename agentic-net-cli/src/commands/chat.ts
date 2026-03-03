@@ -35,7 +35,10 @@ export function registerChatCommand(program: Command, getContext: () => { client
     .option('--tier <tier>', 'Model tier (high|medium|low)')
     .option('--role <role>', 'Agent role (r|rw|rwx|rwxh)')
     .action(async (opts: any) => {
-      const { client, modelId, sessionId } = getContext();
+      const ctx = getContext();
+      const client = ctx.client;
+      const modelId = ctx.modelId;
+      const sessionId = ctx.sessionId || 'system/alive';
       const cfg = loadConfig();
       const profile = resolveProfile(getActiveProfile(cfg));
 

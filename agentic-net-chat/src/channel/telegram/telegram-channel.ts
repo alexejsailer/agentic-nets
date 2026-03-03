@@ -5,6 +5,81 @@ import { splitMessage } from './message-splitter.js';
 
 const VALID_TIERS = ['high', 'medium', 'low'] as const;
 
+/**
+ * Escape text for Telegram MarkdownV2 while preserving common markdown formatting.
+ * Preserves: **bold**, `inline code`, ```code blocks```, _italic_
+ * Escapes all other MarkdownV2 special characters.
+ */
+function escapeMarkdownV2(text: string): string {
+  // Characters that must be escaped in MarkdownV2 (outside of entities)
+  const SPECIAL = /([[\]()~>#+=|{}.!-])/g;
+
+  const parts: string[] = [];
+  let remaining = text;
+
+  // Process code blocks and inline code first (they need no internal escaping)
+  const codePattern = /(```[\s\S]*?```|`[^`]+`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = codePattern.exec(remaining)) !== null) {
+    // Escape the text before this code block
+    const before = remaining.slice(lastIndex, match.index);
+    parts.push(escapeSegment(before, SPECIAL));
+    // Keep code blocks as-is (Telegram handles them)
+    parts.push(match[0]);
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Escape remaining text after last code block
+  parts.push(escapeSegment(remaining.slice(lastIndex), SPECIAL));
+
+  return parts.join('');
+}
+
+/**
+ * Escape a text segment while preserving bold (**), italic (_), and strikethrough (~).
+ */
+function escapeSegment(text: string, specialPattern: RegExp): string {
+  // Temporarily replace formatting markers
+  const BOLD_RE = /\*\*(.+?)\*\*/g;
+  const ITALIC_RE = /__(.+?)__/g;
+  const BOLD_PH = '\x01BOLD\x02';
+  const ITALIC_PH = '\x01ITALIC\x02';
+
+  // Extract bold/italic spans
+  const bolds: string[] = [];
+  const italics: string[] = [];
+
+  let result = text.replace(BOLD_RE, (_, content) => {
+    bolds.push(content);
+    return `${BOLD_PH}${bolds.length - 1}${BOLD_PH}`;
+  });
+  result = result.replace(ITALIC_RE, (_, content) => {
+    italics.push(content);
+    return `${ITALIC_PH}${italics.length - 1}${ITALIC_PH}`;
+  });
+
+  // Escape special characters
+  result = result.replace(specialPattern, '\\$1');
+
+  // Restore bold/italic with proper MarkdownV2 syntax
+  result = result.replace(
+    new RegExp(`\\\\?${escapeRegex(BOLD_PH)}(\\d+)\\\\?${escapeRegex(BOLD_PH)}`, 'g'),
+    (_, idx) => `*${bolds[Number(idx)].replace(specialPattern, '\\$1')}*`,
+  );
+  result = result.replace(
+    new RegExp(`\\\\?${escapeRegex(ITALIC_PH)}(\\d+)\\\\?${escapeRegex(ITALIC_PH)}`, 'g'),
+    (_, idx) => `_${italics[Number(idx)].replace(specialPattern, '\\$1')}_`,
+  );
+
+  return result;
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export class TelegramChannel implements ChatChannel, MessageSender {
   readonly platform = 'telegram';
   private bot: Bot;
@@ -198,9 +273,14 @@ export class TelegramChannel implements ChatChannel, MessageSender {
   async sendText(chatId: string, text: string): Promise<void> {
     const chunks = splitMessage(text);
     for (const chunk of chunks) {
-      // Send as plain text — Telegram's legacy Markdown parser is too strict
-      // and causes duplicate/garbled messages with code blocks and special chars.
-      await this.bot.api.sendMessage(Number(chatId), chunk);
+      // Try MarkdownV2 first, fall back to plain text if parsing fails
+      try {
+        const escaped = escapeMarkdownV2(chunk);
+        await this.bot.api.sendMessage(Number(chatId), escaped, { parse_mode: 'MarkdownV2' });
+      } catch {
+        // MarkdownV2 parse failed — send as plain text
+        await this.bot.api.sendMessage(Number(chatId), chunk);
+      }
     }
   }
 

@@ -90,10 +90,16 @@ export async function* agentLoop(
     // Always add assistant response to message history
     messages.push({ role: 'assistant', content: response.content });
 
-    // If no tool calls, we're done
+    // If no tool calls and there is meaningful text, we're done.
+    // If the response is completely empty (e.g. thinking blocks stripped), retry.
     if (toolUses.length === 0) {
-      yield { type: 'done', content: textParts.join('\n'), messages: [...messages] };
-      return;
+      const finalText = textParts.join('\n').trim();
+      if (finalText) {
+        yield { type: 'done', content: finalText, messages: [...messages] };
+        return;
+      }
+      // Empty response — retry (model may have only emitted thinking)
+      continue;
     }
 
     // Process tool calls
