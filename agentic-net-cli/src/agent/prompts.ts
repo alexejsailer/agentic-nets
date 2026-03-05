@@ -115,6 +115,26 @@ const CORE_KNOWLEDGE = `## Core Knowledge
 - **AGENT**: AI agent execution
 - **COMMAND**: Shell command execution
 
+### Choosing the Right Kind (Deterministic First)
+**Prefer deterministic transitions** (pass, map, http, command) — they are cheaper, faster, and reproducible. Use llm/agent ONLY when reasoning is genuinely required.
+- Deterministic data reshape → **map** (if you can write it as a JSON template with \`\${input.data.*}\`, it's a map, NOT an agent)
+- External API → **http**, shell command → **command**, pure routing → **pass**
+- Need AI reasoning? Multi-step → **agent**, single inference → **llm**
+
+### Where \`\${...}\` Interpolation Works
+- ✅ MAP \`action.template\`, HTTP \`url/headers/body\`, LLM \`prompt\`
+- ❌ COMMAND action fields (\`inputPlace\`, \`dispatch\`, \`await\`, \`timeoutMs\` are static config)
+- ❌ PASS action, AGENT action fields (\`nl\` uses \`@input.instruction\`, not \`\${...}\`)
+
+### MAP→Command Pipeline
+To dynamically build and execute a shell command: MAP transition creates a full CommandToken via template (\`\${input.data.command}\` in template), then a downstream COMMAND transition consumes and executes it. The MAP interpolates; the COMMAND dispatches. Required CommandToken fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.
+
+### Pipeline Awareness (CRITICAL)
+When testing or creating a transition in a pipeline, **always inspect the downstream consumer**:
+1. Call GET_PLACE_CONNECTIONS on the output place — if a COMMAND transition consumes from it, your MAP template MUST produce a complete CommandToken, not arbitrary JSON.
+2. After FIRE_ONCE, inspect the emitted token with QUERY_TOKENS and verify it matches the downstream consumer's expected schema.
+3. A MAP that fires "successfully" but produces the wrong token shape is still broken — don't report success until the output is valid for the next step.
+
 ### Token Placement Protocol
 **BEFORE creating tokens with CREATE_TOKEN**, call GET_PLACE_CONNECTIONS to check if any transition consumes from the target place.
 - If \`consume: true\`, your token will be consumed within seconds by the polling transition
@@ -239,7 +259,12 @@ Note: Agent transitions can also omit presets/postsets if the agent discovers pl
 - \`\${input.data.nested.deep.field}\` — nested object access
 - \`\${input._meta.id}\` — token metadata
 
-**Key rules**: Replace \`{modelId}\` with actual modelId. \`placeId\` and \`id\` must match PNML IDs exactly. Always include at least one \`emit\` rule. Emit \`from\` values: \`@response.json\` (HTTP/LLM), \`@response\` (map), \`@input.data\` (pass). After inscribing, CREATE_RUNTIME_PLACE for each place, then CREATE_TOKEN in the first input place.`;
+**Key rules**: Replace \`{modelId}\` with actual modelId. \`placeId\` and \`id\` must match PNML IDs exactly. Always include at least one \`emit\` rule. Emit \`from\` values: \`@response.json\` (HTTP/LLM), \`@response\` (map), \`@input.data\` (pass). After inscribing, CREATE_RUNTIME_PLACE for each place, then CREATE_TOKEN in the first input place.
+
+### Common Mistakes (Write)
+- **Mistake 5**: Using \`kind: "agent"\` for deterministic transforms → use \`kind: "map"\`. If output is a JSON template with \`\${input.data.*}\`, it's a MAP.
+- **Mistake 6**: \`\${...}\` in command action fields → use MAP→Command pipeline instead (MAP builds CommandToken, COMMAND executes it).
+- **Mistake 7**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.`;
 
 const EXECUTE_KNOWLEDGE = `## Execute Knowledge
 
