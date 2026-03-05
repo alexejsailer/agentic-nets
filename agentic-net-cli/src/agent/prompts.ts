@@ -64,7 +64,7 @@ ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
 3. **UNIQUE NAMES**: Token and element names must be unique within their parent.
 4. **ArcQL SYNTAX**: Paths start with \`$\`, use \`==\` (double equals), strings in double quotes: \`$.status=="active"\`
 5. **COMPLETE TASKS**: Actually call CREATE_ARC, SET_INSCRIPTION, etc. before calling DONE. Saying you will create something is not the same as calling the tool. Call DONE when finished or FAIL if you cannot proceed. NEVER repeat a tool call that already succeeded — if CREATE_RUNTIME_PLACE returned success, do NOT call it again for the same place.
-6. **HIERARCHICAL ACCESS**: Use \`\${input.data.field}\` for token data, \`\${input._meta.id}\` for metadata.
+6. **HIERARCHICAL ACCESS**: Use \`\${<presetKey>.data.field}\` for token data, \`\${<presetKey>._meta.id}\` for metadata. The prefix (e.g., \`input\`) must match the preset key name in the inscription exactly.
 7. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`.
 8. **SESSION SCOPE**: PNML nets belong to session \`${opts.sessionId}\`.
 9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition. FIRST call \`LIST_ALL_INSCRIPTIONS({kind: "<type>"})\` to learn from existing inscriptions, THEN use observed patterns. A transition without an inscription will NEVER execute.
@@ -103,10 +103,14 @@ const CORE_KNOWLEDGE = `## Core Knowledge
 - Modes: \`summarize\` (LLM summary), \`text\` (plain text), \`links\` (URLs), \`structure\` (headings), \`head\` (raw chars)
 - Example: \`EXTRACT_TOKEN_CONTENT(placePath: "root/workspace/places/p-raw-html", tokenName: "page-1", mode: "text")\`
 
-### Template Interpolation (MAP Actions)
-- \`\${input.data.orderId}\` — User data property
+### Template Interpolation (MAP Actions, HTTP URLs, LLM Prompts)
+
+**CRITICAL — Preset Key = Template Variable Prefix**: The preset key name in the inscription IS the variable prefix in \`\${...}\` expressions. If your preset is \`"input": {...}\`, use \`\${input.data.field}\`. If your preset is \`"request": {...}\`, use \`\${request.data.field}\`. A mismatch (e.g., preset named \`"p-weather-input"\` but template uses \`\${input.data.field}\`) resolves to empty/null because the engine looks for a preset named \`"input"\` which doesn't exist.
+
+- \`\${input.data.orderId}\` — User data property (preset key is \`"input"\`)
 - \`\${input._meta.id}\` — Token UUID
 - \`\${input._meta.name}\` — Token name
+- **Rule**: Keep preset keys simple (\`"input"\`, \`"request"\`) so templates stay readable
 
 ### Inscription Types
 - **PASS**: Route tokens without transformation
@@ -134,6 +138,12 @@ When testing or creating a transition in a pipeline, **always inspect the downst
 1. Call GET_PLACE_CONNECTIONS on the output place — if a COMMAND transition consumes from it, your MAP template MUST produce a complete CommandToken, not arbitrary JSON.
 2. After FIRE_ONCE, inspect the emitted token with QUERY_TOKENS and verify it matches the downstream consumer's expected schema.
 3. A MAP that fires "successfully" but produces the wrong token shape is still broken — don't report success until the output is valid for the next step.
+
+### DRY_RUN_TRANSITION
+Simulate a transition without side effects. Shows upstream context, simulated action output, downstream validation, and pipeline warnings. Use before FIRE_ONCE.
+- If \`pipelineOk: false\`: read each warning and fix the inscription with SET_INSCRIPTION, then DRY_RUN_TRANSITION again
+- "Output missing required CommandToken field 'X'" → add the missing field to the MAP template. Full schema: \`{kind: "command", id: "...", executor: "bash", command: "exec", args: {command: "..."}, expect: "text"}\`. The \`command\` field (value \`"exec"\` or \`"script"\`) is the execution mode, NOT the shell command
+- Empty preset places are normal — focus on template structure, not token availability. Do NOT call FAIL because places are empty
 
 ### Token Placement Protocol
 **BEFORE creating tokens with CREATE_TOKEN**, call GET_PLACE_CONNECTIONS to check if any transition consumes from the target place.
@@ -264,7 +274,8 @@ Note: Agent transitions can also omit presets/postsets if the agent discovers pl
 ### Common Mistakes (Write)
 - **Mistake 5**: Using \`kind: "agent"\` for deterministic transforms → use \`kind: "map"\`. If output is a JSON template with \`\${input.data.*}\`, it's a MAP.
 - **Mistake 6**: \`\${...}\` in command action fields → use MAP→Command pipeline instead (MAP builds CommandToken, COMMAND executes it).
-- **Mistake 7**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.`;
+- **Mistake 7**: Preset key vs template prefix mismatch → If preset is \`"p-weather-input"\` but URL uses \`\${input.data.field}\`, the engine looks for preset \`"input"\` (not found) and resolves to empty. The prefix in \`\${...}\` MUST match the preset key exactly. Keep preset keys simple: \`"input"\`, \`"request"\`.
+- **Mistake 8**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.`;
 
 const EXECUTE_KNOWLEDGE = `## Execute Knowledge
 
