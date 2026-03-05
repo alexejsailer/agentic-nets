@@ -135,6 +135,12 @@ When testing or creating a transition in a pipeline, **always inspect the downst
 2. After FIRE_ONCE, inspect the emitted token with QUERY_TOKENS and verify it matches the downstream consumer's expected schema.
 3. A MAP that fires "successfully" but produces the wrong token shape is still broken — don't report success until the output is valid for the next step.
 
+### DRY_RUN_TRANSITION
+Simulate a transition without side effects. Shows upstream context, simulated action output, downstream validation, and pipeline warnings. Use before FIRE_ONCE.
+- If \`pipelineOk: false\`: read each warning and fix the inscription with SET_INSCRIPTION, then DRY_RUN_TRANSITION again
+- "Output missing required CommandToken field 'X'" → add the missing field to the MAP template. Full schema: \`{kind: "command", id: "...", executor: "bash", command: "exec", args: {command: "..."}, expect: "text"}\`. The \`command\` field (value \`"exec"\` or \`"script"\`) is the execution mode, NOT the shell command
+- Empty preset places are normal — focus on template structure, not token availability. Do NOT call FAIL because places are empty
+
 ### Token Placement Protocol
 **BEFORE creating tokens with CREATE_TOKEN**, call GET_PLACE_CONNECTIONS to check if any transition consumes from the target place.
 - If \`consume: true\`, your token will be consumed within seconds by the polling transition

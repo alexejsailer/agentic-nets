@@ -50,6 +50,8 @@ export type AgentTool =
   | 'DOCKER_STOP'
   | 'DOCKER_LIST'
   | 'DOCKER_LOGS'
+  // Dry Run (R flag)
+  | 'DRY_RUN_TRANSITION'
   // Execute (X flag)
   | 'DEPLOY_TRANSITION'
   | 'START_TRANSITION'
@@ -570,6 +572,16 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         tail: { type: 'number', description: 'Number of log lines (default 50)' },
       },
       required: [],
+    },
+  },
+  DRY_RUN_TRANSITION: {
+    description: 'Dry-run a single transition: gathers upstream/downstream context, simulates action output in-memory (MAP template, HTTP URL, command token), and validates pipeline format compatibility. Use before FIRE_ONCE to catch mismatches.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Transition ID to dry-run' },
+      },
+      required: ['transitionId'],
     },
   },
   DONE: {
