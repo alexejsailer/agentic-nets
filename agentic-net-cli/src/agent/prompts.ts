@@ -136,6 +136,7 @@ const WRITE_KNOWLEDGE = `## Write Knowledge
 - **A Petri net without arcs is useless!** Always create arcs.
 - Arcs must be **bipartite**: place→transition OR transition→place. Never place→place or transition→transition.
 - After creating ALL PNML elements, call VERIFY_NET. Clean duplicates with DELETE_PLACE/DELETE_ARC.
+- After SET_INSCRIPTION on all transitions, call ADAPT_INSCRIPTIONS({netId, applyFixes: true}) to auto-fix any placeId drift.
 
 ### Fixing Incomplete Nets
 When asked to add missing arcs or inscriptions:

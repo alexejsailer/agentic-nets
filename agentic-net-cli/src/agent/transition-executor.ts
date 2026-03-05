@@ -399,7 +399,16 @@ function resolvePathFromBindings(path: string, bindings: Map<string, any[]>): an
     if (typeof current === 'string') {
       try { current = JSON.parse(current); } catch { return current; }
     }
-    current = current[parts[i]];
+    const next = current[parts[i]];
+    if (next === undefined && current != null && typeof current === 'object' && 'value' in current) {
+      let unwrapped = current.value;
+      if (typeof unwrapped === 'string') {
+        try { unwrapped = JSON.parse(unwrapped); } catch { /* not JSON */ }
+      }
+      current = (unwrapped != null && typeof unwrapped === 'object') ? (unwrapped as any)[parts[i]] : next;
+    } else {
+      current = next;
+    }
   }
 
   return current ?? path;
