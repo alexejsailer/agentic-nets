@@ -122,7 +122,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   CREATE_TOKEN: {
-    description: 'Create a token in a RUNTIME place with JSON data (usually under root/workspace/places/{placeId}). WARNING: First call GET_PLACE_CONNECTIONS to check for consuming transitions. Command transitions require full CommandToken schema: {kind:"command",id:"...",executor:"bash",command:"exec",args:{command:"..."},expect:"text"}. Do NOT FIRE_ONCE on running transitions.',
+    description: 'Create a token in a RUNTIME place with JSON data (usually under root/workspace/places/{placeId}). WARNING: First call GET_PLACE_CONNECTIONS to check for consuming transitions — it returns expectedTokenShape per consumer showing requiredFields. Command transitions require full CommandToken schema: {kind:"command",id:"...",executor:"bash",command:"exec",args:{command:"..."},expect:"text"}. Do NOT FIRE_ONCE on running transitions.',
     schema: {
       type: 'object',
       properties: {
@@ -173,7 +173,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   GET_PLACE_CONNECTIONS: {
-    description: 'Discover which transitions consume from or produce to a given place. Call BEFORE CREATE_TOKEN to check if a running transition will immediately consume your token.',
+    description: 'Discover which transitions consume from or produce to a given place. Returns expectedTokenShape per consumer with requiredFields and templateVars. Call BEFORE CREATE_TOKEN to know exactly which fields your token must include.',
     schema: {
       type: 'object',
       properties: {

@@ -51,6 +51,9 @@ ${opts.task}`);
     sections.push(AUTONOMOUS_KNOWLEDGE);
   }
 
+  // Workflow playbooks (all roles)
+  sections.push(PLAYBOOK_KNOWLEDGE);
+
   // Available tools
   sections.push(`## Available Tools
 
@@ -130,6 +133,9 @@ const CORE_KNOWLEDGE = `## Core Knowledge
 - ❌ COMMAND action fields (\`inputPlace\`, \`dispatch\`, \`await\`, \`timeoutMs\` are static config)
 - ❌ PASS action, AGENT action fields (\`nl\` uses \`@input.instruction\`, not \`\${...}\`)
 
+**COMMAND action allowed fields**: ONLY \`type\`, \`inputPlace\`, \`dispatch\`, \`await\`, \`timeoutMs\`, \`groupBy\`. NO \`command\`, \`cwd\`, \`script\`, or \`\${...}\`. The shell command comes from the CommandToken in the input place.
+**Executor assignment**: COMMAND transitions MUST have \`assignedAgent: "agentic-net-executor-default"\`. Master rejects command actions.
+
 ### MAP→Command Pipeline
 To dynamically build and execute a shell command: MAP transition creates a full CommandToken via template (\`\${input.data.command}\` in template), then a downstream COMMAND transition consumes and executes it. The MAP interpolates; the COMMAND dispatches. Required CommandToken fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.
 
@@ -147,6 +153,10 @@ Simulate a transition without side effects. Shows upstream context, simulated ac
 
 ### Token Placement Protocol
 **BEFORE creating tokens with CREATE_TOKEN**, call GET_PLACE_CONNECTIONS to check if any transition consumes from the target place.
+- Read \`expectedTokenShape.requiredFields\` from each consumer. Shape your tokenData to include ALL required fields.
+  - For \`command\` consumers: the response includes a full \`example\` — use it as your template
+  - For \`map/http/llm/agent\` consumers: \`requiredFields\` shows the exact \`data.*\` fields referenced by the template
+  - For \`pass/task\` consumers: any shape accepted
 - If \`consume: true\`, your token will be consumed within seconds by the polling transition
 - **Command transitions** require the full CommandToken schema:
   \`{kind: "command", id: "unique-id", executor: "bash", command: "exec", args: {command: "your-cmd", workingDir: "/absolute/path"}, expect: "text"}\`
@@ -166,6 +176,7 @@ const WRITE_KNOWLEDGE = `## Write Knowledge
 - **A Petri net without arcs is useless!** Always create arcs.
 - Arcs must be **bipartite**: place→transition OR transition→place. Never place→place or transition→transition.
 - After creating ALL PNML elements, call VERIFY_NET. Clean duplicates with DELETE_PLACE/DELETE_ARC.
+- **IMPORTANT**: VERIFY_NET may report issues with PRE-EXISTING transitions you did NOT create. Ignore those — only fix elements YOU just created.
 - After SET_INSCRIPTION on all transitions, call ADAPT_INSCRIPTIONS({netId, applyFixes: true}) to auto-fix any placeId drift.
 
 ### Fixing Incomplete Nets
@@ -273,9 +284,10 @@ Note: Agent transitions can also omit presets/postsets if the agent discovers pl
 
 ### Common Mistakes (Write)
 - **Mistake 5**: Using \`kind: "agent"\` for deterministic transforms → use \`kind: "map"\`. If output is a JSON template with \`\${input.data.*}\`, it's a MAP.
-- **Mistake 6**: \`\${...}\` in command action fields → use MAP→Command pipeline instead (MAP builds CommandToken, COMMAND executes it).
+- **Mistake 6**: \`\${...}\` or extra fields (\`command\`, \`cwd\`) in command action → command action allows ONLY: type, inputPlace, dispatch, await, timeoutMs, groupBy. Use MAP→Command pipeline for dynamic commands. Symptom: fires but emits nothing.
 - **Mistake 7**: Preset key vs template prefix mismatch → If preset is \`"p-weather-input"\` but URL uses \`\${input.data.field}\`, the engine looks for preset \`"input"\` (not found) and resolves to empty. The prefix in \`\${...}\` MUST match the preset key exactly. Keep preset keys simple: \`"input"\`, \`"request"\`.
-- **Mistake 8**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.`;
+- **Mistake 8**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.
+- **Mistake 9**: COMMAND transition assigned to master → must be assigned to \`agentic-net-executor-default\`. Symptom: fires but nothing happens.`;
 
 const EXECUTE_KNOWLEDGE = `## Execute Knowledge
 
@@ -299,6 +311,29 @@ undeployed → deployed → starting → running → stopped
 - Run VERIFY_RUNTIME_BINDINGS first to avoid runtime place errors
 - The CommandToken MUST include \`args.workingDir\` set to an absolute path (e.g., \`/Users/.../AgetnticOS/core\`)
 
+### End-to-End Pipeline Firing
+When firing a multi-stage pipeline sequentially:
+1. Check status of each transition with GET_TRANSITION first
+2. If "running": Do NOT call FIRE_ONCE (race condition). STOP_TRANSITION first, then FIRE_ONCE.
+3. If "deployed" or "stopped": FIRE_ONCE is safe.
+4. If a running transition auto-consumed the token, check the output place — skip FIRE_ONCE.
+5. NEVER retry FIRE_ONCE repeatedly if it fails — check WHY, then move on.
+
+### COMMAND Diagnostic Checklist (when command transition won't execute)
+1. GET_TRANSITION → assignedAgent must be "agentic-net-executor-default" (not master)
+2. GET_TRANSITION → action fields must be ONLY: type, inputPlace, dispatch, await, timeoutMs (no \${...}, no command, no cwd)
+3. VERIFY_RUNTIME_BINDINGS → all placeIds must exist as runtime places
+4. DRY_RUN_TRANSITION → upstream must produce valid CommandToken with all 6 fields
+Quick rule: FIRE_ONCE returns queued:true but no output → almost always wrong executor assignment (Check 1)
+
+### Pipeline Tracing Pattern
+To trace a pipeline, walk the graph step-by-step:
+1. GET_PLACE_CONNECTIONS on starting place → find consuming transitions
+2. GET_TRANSITION on each consumer → find postset places
+3. Repeat until no more consumers (terminal place)
+4. Report chain: \`p-A → t-X(kind) → p-B → t-Y(kind) → p-C\`
+Maximum 3-5 tool calls for a linear pipeline. Do NOT list all inscriptions.
+
 ### EXECUTE_TRANSITION_SMART (Default)
 - Use this first when user asks to "execute transition"
 - Auto route: \`action.type=agent|llm\` → local CLI/Telegram LLM execution, others → FIRE_ONCE on master
@@ -314,6 +349,13 @@ undeployed → deployed → starting → running → stopped
 
 const AUTONOMOUS_KNOWLEDGE = `## Autonomous Knowledge
 
+### Iteration Management (CRITICAL)
+- After each tool call, assess progress. If you have what you need, move to the NEXT step immediately.
+- Do NOT try to fix pre-existing problems — only fix your own work.
+- FIRE_ONCE failure: check if token was auto-consumed by a running transition, check output place. Do NOT retry.
+- Call DONE as soon as you have the answer. Do not do extra verification unless specifically asked.
+- Budget: create place+token=2 calls, fire+check=2 calls, full pipeline=5-7 calls. If >15 calls, call DONE with what you have.
+
 ### Task Completion Protocol
 1. Read inscription and bound tokens
 2. Check memory for previous attempts
@@ -324,3 +366,37 @@ const AUTONOMOUS_KNOWLEDGE = `## Autonomous Knowledge
 - Store learned patterns in memory place
 - Build helper transitions for recurring tasks
 - Emit knowledge tokens for future agents`;
+
+const PLAYBOOK_KNOWLEDGE = `## Workflow Playbooks
+
+Follow these step-by-step when a task matches the trigger.
+
+### Playbook 1: Create Complete Net
+TRIGGER: "create a net", "build a workflow"
+1. THINK → plan places, transitions, arcs, kinds
+2. CREATE_SESSION → CREATE_NET → CREATE_PLACE (all) → CREATE_TRANSITION (all) → CREATE_ARC (all)
+3. VERIFY_NET → fix issues
+4. For EACH transition: LIST_ALL_INSCRIPTIONS({kind}) → SET_INSCRIPTION → CHECK validationPassed
+5. ADAPT_INSCRIPTIONS → CREATE_RUNTIME_PLACE (all) → CREATE_TOKEN (first input) → DONE
+
+### Playbook 2: MAP→COMMAND Pipeline
+TRIGGER: "execute a shell command", "run a script"
+1. Create 3 places + 2 transitions (MAP + COMMAND) + arcs
+2. SET_INSCRIPTION MAP: template produces full CommandToken (kind, id, executor, command, args.command, expect)
+3. SET_INSCRIPTION COMMAND: action has ONLY type, inputPlace, dispatch, await, timeoutMs — NO command/cwd/\${...}
+4. DRY_RUN_TRANSITION on COMMAND → verify pipelineOk
+5. CREATE_RUNTIME_PLACE (all) → DEPLOY_TRANSITION (both) → CREATE_TOKEN → FIRE_ONCE each → DONE
+
+### Playbook 3: Diagnose Broken Transition
+TRIGGER: "won't execute", "no output", "stuck", "diagnose"
+1. DIAGNOSE_TRANSITION → if HEALTHY: check input tokens; if ERROR: follow recommendations in order
+2. Fix → DIAGNOSE_TRANSITION again → verify HEALTHY → DONE
+
+### Playbook 4: Deploy and Test Pipeline
+TRIGGER: "deploy", "test the pipeline", "fire"
+1. For EACH transition: DIAGNOSE_TRANSITION → DEPLOY_TRANSITION
+2. CREATE_TOKEN (first input) → For EACH: GET_TRANSITION status → FIRE_ONCE → QUERY_TOKENS output → DONE
+
+### Playbook 5: Verify Inscription
+TRIGGER: "check", "verify", "validate"
+1. DIAGNOSE_TRANSITION → report inscription/runtime/deployment/pipeline findings → DONE`;

@@ -409,14 +409,19 @@ export class ToolExecutor {
           const presets = inscription.presets || {};
           for (const [presetName, preset] of Object.entries(presets) as [string, any][]) {
             if (preset?.placeId === placeId) {
-              consumers.push({
+              const consumer: any = {
                 transitionId,
                 presetName,
                 kind,
                 arcql: preset.arcql || '',
                 consume: preset.consume ?? false,
                 take: preset.take || 'FIRST',
-              });
+              };
+              const tokenShape = this.analyzeExpectedTokenShape(inscription, presetName, kind);
+              if (Object.keys(tokenShape).length > 0) {
+                consumer.expectedTokenShape = tokenShape;
+              }
+              consumers.push(consumer);
             }
           }
 
@@ -1811,6 +1816,90 @@ export class ToolExecutor {
       .filter(b => b.type === 'text')
       .map(b => (b as any).text)
       .join('\n');
+  }
+
+  /**
+   * Analyze the expected token shape for a consumer transition based on its inscription.
+   */
+  private analyzeExpectedTokenShape(inscription: any, presetName: string, kind: string): Record<string, any> {
+    const shape: Record<string, any> = {};
+    if (!kind) return shape;
+
+    const k = kind.toLowerCase();
+    switch (k) {
+      case 'command':
+        shape.description = 'Command transitions require the full CommandToken schema';
+        shape.requiredFields = ['kind', 'id', 'executor', 'command', 'args', 'args.command'];
+        shape.example = {
+          kind: 'command', id: 'unique-cmd-id', executor: 'bash', command: 'exec',
+          args: { command: 'your-shell-command-here' }, expect: 'text',
+        };
+        break;
+      case 'map':
+      case 'http':
+      case 'llm':
+      case 'agent': {
+        const action = inscription.action || {};
+        const templateText = this.getTemplateText(k, action);
+        if (templateText) {
+          const varPattern = /\$\{([^}]+)}/g;
+          const allVars: string[] = [];
+          let match: RegExpExecArray | null;
+          while ((match = varPattern.exec(templateText)) !== null) {
+            allVars.push(match[1].trim());
+          }
+          // Filter to vars referencing this preset
+          const presetVars = allVars.filter(v => v.startsWith(presetName + '.'));
+          const fields = presetVars.map(v => v.substring(presetName.length + 1));
+
+          if (fields.length > 0) {
+            shape.description = `Token fields referenced by ${kind.toUpperCase()} template`;
+            shape.requiredFields = fields;
+            shape.templateVars = presetVars.map(v => '${' + v + '}');
+          } else {
+            shape.description = `${kind.toUpperCase()} transition — no template variables reference preset '${presetName}'`;
+          }
+        } else {
+          shape.description = `${kind.toUpperCase()} transition — no template text found`;
+        }
+        break;
+      }
+      case 'pass':
+      case 'task':
+        shape.description = 'Any token shape accepted — pass/task transitions forward tokens unchanged';
+        break;
+      default:
+        shape.description = `Unknown transition kind '${kind}' — check inscription manually`;
+        break;
+    }
+    return shape;
+  }
+
+  /** Extract the template text from an action based on transition kind. */
+  private getTemplateText(kind: string, action: any): string | null {
+    const parts: string[] = [];
+    switch (kind) {
+      case 'map':
+        if (action.template != null) parts.push(typeof action.template === 'object' ? JSON.stringify(action.template) : String(action.template));
+        break;
+      case 'http':
+        if (action.url) parts.push(String(action.url));
+        if (action.body) parts.push(String(action.body));
+        if (action.headers && typeof action.headers === 'object') {
+          for (const v of Object.values(action.headers)) {
+            if (v != null) parts.push(String(v));
+          }
+        }
+        break;
+      case 'llm':
+        if (action.prompt) parts.push(String(action.prompt));
+        if (action.nl) parts.push(String(action.nl));
+        break;
+      case 'agent':
+        if (action.nl) parts.push(String(action.nl));
+        break;
+    }
+    return parts.length > 0 ? parts.join(' ') : null;
   }
 
   /** Normalize common path issues from LLM hallucinations. */
