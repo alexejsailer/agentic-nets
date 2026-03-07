@@ -52,6 +52,9 @@ export type AgentTool =
   | 'DOCKER_LOGS'
   // Dry Run (R flag)
   | 'DRY_RUN_TRANSITION'
+  // Validation (R flag)
+  | 'VERIFY_INSCRIPTION'
+  | 'DIAGNOSE_TRANSITION'
   // Execute (X flag)
   | 'DEPLOY_TRANSITION'
   | 'START_TRANSITION'
@@ -580,6 +583,26 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
       type: 'object',
       properties: {
         transitionId: { type: 'string', description: 'Transition ID to dry-run' },
+      },
+      required: ['transitionId'],
+    },
+  },
+  VERIFY_INSCRIPTION: {
+    description: 'Algorithmically verify inscription: schema, ArcQL syntax, action config, emit rules, net context, and token compatibility — deterministic PASS/FAIL.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Transition ID to verify' },
+      },
+      required: ['transitionId'],
+    },
+  },
+  DIAGNOSE_TRANSITION: {
+    description: 'Diagnose transition health: validates inscription, checks runtime bindings, verifies executor assignment, and runs pipeline compatibility — returns single holistic report with actionable recommendations.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Transition ID to diagnose' },
       },
       required: ['transitionId'],
     },

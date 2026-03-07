@@ -213,6 +213,12 @@ export class ToolExecutor {
           return this.executeTransitionLocally(params);
         case 'EXECUTE_TRANSITION_SMART':
           return this.executeTransitionSmart(params);
+        case 'DRY_RUN_TRANSITION':
+          return this.executeDryRunTransition(params);
+        case 'VERIFY_INSCRIPTION':
+          return this.executeVerifyInscription(params);
+        case 'DIAGNOSE_TRANSITION':
+          return this.executeDiagnoseTransition(params);
         case 'DONE':
           return { success: true, data: { status: 'done', summary: params.summary } };
         case 'FAIL':
@@ -1449,6 +1455,21 @@ export class ToolExecutor {
 
   private async executeStopTransition(params: Record<string, any>): Promise<ToolResult> {
     const result = await this.masterApi.stopTransition(params.transitionId, this.modelId);
+    return { success: true, data: result };
+  }
+
+  private async executeDryRunTransition(params: Record<string, any>): Promise<ToolResult> {
+    const result = await this.masterApi.dryRunTransition(params.transitionId, this.modelId);
+    return { success: true, data: result };
+  }
+
+  private async executeVerifyInscription(params: Record<string, any>): Promise<ToolResult> {
+    const result = await this.masterApi.verifyInscription(params.transitionId, this.modelId);
+    return { success: true, data: result };
+  }
+
+  private async executeDiagnoseTransition(params: Record<string, any>): Promise<ToolResult> {
+    const result = await this.masterApi.diagnoseTransition(params.transitionId, this.modelId);
     return { success: true, data: result };
   }
 

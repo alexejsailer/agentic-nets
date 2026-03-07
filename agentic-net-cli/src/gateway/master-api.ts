@@ -154,6 +154,19 @@ export class MasterApi {
     });
   }
 
+  // ---- Transition validation ----
+  async dryRunTransition(transitionId: string, modelId: string): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${transitionId}/dry-run`, undefined, { modelId });
+  }
+
+  async verifyInscription(transitionId: string, modelId: string): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${transitionId}/verify-inscription`, undefined, { modelId });
+  }
+
+  async diagnoseTransition(transitionId: string, modelId: string): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${transitionId}/diagnose`, undefined, { modelId });
+  }
+
   // ---- Generic HTTP helpers (used by Docker/Registry tools) ----
   async get<T = any>(path: string): Promise<T> {
     return this.client.masterApi('GET', path);
