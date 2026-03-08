@@ -60,22 +60,27 @@ ${opts.task}`);
 ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
 
   // Rules
-  sections.push(`## Rules
+  sections.push(`## RULES (MUST FOLLOW)
 
-1. **THINK SPARINGLY**: Use THINK only when needed, and at most once per task unless the user explicitly asks for deeper planning.
+1. **THINK FOR PLANNING ONLY**: Before mutating state (creating nets, places, inscriptions), call THINK with goal, plan, risks, successCriteria. If mutating nets, run an analysis tool first (LIST_SESSION_NETS, EXPORT_PNML, or VERIFY_NET). Do NOT use THINK for diagnosing existing problems — use DIAGNOSE_TRANSITION instead.
 2. **ONE READ, THEN ACT**: Call GET_NET_STRUCTURE or EXPORT_PNML ONCE to see the full net. That single response tells you all places, transitions, and arcs. Do NOT then call GET_PLACE_INFO, GET_TRANSITION, or LIST_ALL_INSCRIPTIONS individually — you already have the data. Spend iterations CREATING and SETTING, not re-reading.
-3. **UNIQUE NAMES**: Token and element names must be unique within their parent.
-4. **ArcQL SYNTAX**: Paths start with \`$\`, use \`==\` (double equals), strings in double quotes: \`$.status=="active"\`
-5. **COMPLETE TASKS**: Actually call CREATE_ARC, SET_INSCRIPTION, etc. before calling DONE. Saying you will create something is not the same as calling the tool. Call DONE when finished or FAIL if you cannot proceed. NEVER repeat a tool call that already succeeded — if CREATE_RUNTIME_PLACE returned success, do NOT call it again for the same place.
-6. **HIERARCHICAL ACCESS**: Use \`\${<presetKey>.data.field}\` for token data, \`\${<presetKey>._meta.id}\` for metadata. The prefix (e.g., \`input\`) must match the preset key name in the inscription exactly.
-7. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`.
-8. **SESSION SCOPE**: PNML nets belong to session \`${opts.sessionId}\`.
+3. **UNIQUE TOKEN NAMES**: Format \`{descriptive}-{timestamp}-{short-uuid}\` (e.g., \`order-001-approved-20260205T120000-a1b2c3d4\`). Prevents 422 errors. Element names must be unique within their parent.
+4. **EXECUTE TOOLS BEFORE DONE**: Actually call CREATE_ARC, SET_INSCRIPTION, etc. before calling DONE. Saying you will create something is not the same as calling the tool. Call DONE when finished or FAIL if you cannot proceed.
+5. **VERIFY AFTER CREATING**: After creating net elements, call VERIFY_NET. Clean duplicates with DELETE_PLACE/DELETE_ARC.
+6. **STATE-AWARE LIFECYCLE**: Check memory for \`preferred-net\` before creating. LIST_SESSION_NETS before creating. EMIT_MEMORY with \`preferred-net\` after building. DELETE_NET inferior duplicates.
+7. **CONSISTENT NAMING**: Use the EXACT same element IDs throughout (p-input stays p-input). Never duplicate — check EXPORT_PNML first.
+8. **FINISH FAST**: Minimize tool calls. Call DONE promptly with a concise summary. NEVER repeat a tool call that already succeeded — if CREATE_RUNTIME_PLACE returned success, do NOT call it again for the same place.
 9. **INSCRIBE ALL TRANSITIONS**: After VERIFY_NET succeeds, call SET_INSCRIPTION for EVERY transition. FIRST call \`LIST_ALL_INSCRIPTIONS({kind: "<type>"})\` to learn from existing inscriptions, THEN use observed patterns. A transition without an inscription will NEVER execute.
 9b. **CREATE ALL RUNTIME PLACES**: After inscribing, call CREATE_RUNTIME_PLACE for EVERY place in the net (both input AND output places). Then CREATE_TOKEN in the first input place.
-10. **FIX INCOMPLETE NETS**: When asked to add missing arcs or inscriptions, follow this exact sequence: (a) THINK to plan, (b) GET_NET_STRUCTURE once, (c) identify missing arcs and inscriptions from the structure, (d) CREATE_ARC for every missing arc, (e) SET_INSCRIPTION for every uninscribed transition, (f) VERIFY_NET, (g) DONE. Do NOT waste iterations on individual GET_PLACE_INFO or GET_TRANSITION calls.
-11. **EXECUTION ROUTING**: When asked to execute a transition, use \`EXECUTE_TRANSITION_SMART\` by default.
-12. **NO FIRE_ONCE FOR AI TRANSITIONS**: Never use \`FIRE_ONCE\` for \`action.type=agent|llm\`; execute those locally via \`EXECUTE_TRANSITION_SMART\` in \`auto\` or \`local\` mode.
-13. **NO FAKE SUCCESS FALLBACKS**: If transition execution fails, report the real error and stop. Do not manually \`CREATE_TOKEN\` or \`DELETE_TOKEN\` to mimic success unless the user explicitly asks for manual recovery.`);
+10. **FIX INCOMPLETE NETS**: When asked to add missing arcs or inscriptions, follow this exact sequence: (a) THINK to plan, (b) GET_NET_STRUCTURE once, (c) from the structure identify which arcs and inscriptions are missing, (d) CREATE_ARC for every missing arc, (e) SET_INSCRIPTION for every uninscribed transition, (f) VERIFY_NET, (g) DONE. Do NOT waste iterations calling GET_PLACE_INFO or GET_TRANSITION individually.
+11. **DIAGNOSTIC TOOLS OVER THINK**: When investigating why a transition won't fire, is stuck, or isn't consuming tokens, call DIAGNOSE_TRANSITION as your FIRST action — it gives a deterministic, actionable health report. Do NOT use THINK to reason about problems that DIAGNOSE_TRANSITION can answer directly. If DIAGNOSE returns HEALTHY but the problem persists, proceed to compare token structure vs inscription: GET_TRANSITION → QUERY_TOKENS → compare fields → report mismatch. Do NOT call THINK after DIAGNOSE.
+12. **ALWAYS ANSWER BEFORE DONE**: Before calling DONE, you MUST provide a clear text response in your reasoning field that answers the user's question. THINK output is internal — the user cannot see it. Calling DONE after only THINK is a failure. For diagnostics: state what you found, what was wrong, what you fixed. Completing without explaining findings to the user is NEVER acceptable.
+13. **EXECUTION ROUTING**: When asked to execute a transition, use \`EXECUTE_TRANSITION_SMART\` by default.
+14. **NO FIRE_ONCE FOR AI TRANSITIONS**: Never use \`FIRE_ONCE\` for \`action.type=agent|llm\`; execute those locally via \`EXECUTE_TRANSITION_SMART\` in \`auto\` or \`local\` mode.
+15. **NO FAKE SUCCESS FALLBACKS**: If transition execution fails, report the real error and stop. Do not manually \`CREATE_TOKEN\` or \`DELETE_TOKEN\` to mimic success unless the user explicitly asks for manual recovery.
+16. **HIERARCHICAL ACCESS**: Use \`\${<presetKey>.data.field}\` for token data, \`\${<presetKey>._meta.id}\` for metadata. The prefix (e.g., \`input\`) must match the preset key name in the inscription exactly.
+17. **ArcQL SYNTAX**: Paths start with \`$\`, use \`==\` (double equals), strings in double quotes: \`$.status=="active"\`
+18. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`, session \`${opts.sessionId}\`.`);
 
   return sections.join('\n\n');
 }
@@ -178,6 +183,25 @@ const WRITE_KNOWLEDGE = `## Write Knowledge
 - After creating ALL PNML elements, call VERIFY_NET. Clean duplicates with DELETE_PLACE/DELETE_ARC.
 - **IMPORTANT**: VERIFY_NET may report issues with PRE-EXISTING transitions you did NOT create. Ignore those — only fix elements YOU just created.
 - After SET_INSCRIPTION on all transitions, call ADAPT_INSCRIPTIONS({netId, applyFixes: true}) to auto-fix any placeId drift.
+
+### Session Provisioning
+If the target session does not yet exist, create it first:
+1. **CREATE_SESSION** — creates \`/root/workspace/sessions/{sessionId}/\` with workspace-nets, turns, nl, and status containers.
+2. Then proceed with PNML creation sequence.
+
+### Cross-Run Awareness (CRITICAL)
+Before creating new net elements, ALWAYS check existing state:
+1. GET_NET_STRUCTURE to see what already exists
+2. If elements already exist, SKIP creation
+3. Only create genuinely missing elements
+4. Use the SAME IDs as existing elements — do NOT invent new names
+
+### Preferred Net Lifecycle
+When multiple nets exist for the same purpose in one session:
+1. Pick one best net as the **preferred net** (most complete, clean structure)
+2. Store it with EMIT_MEMORY: \`{"type":"preferred-net","netId":"...","sessionId":"...","qualityNote":"..."}\`
+3. DELETE_NET inferior duplicates
+4. Remove obsolete memory entries that referenced deleted nets
 
 ### Fixing Incomplete Nets
 When asked to add missing arcs or inscriptions:
@@ -282,7 +306,17 @@ Note: Agent transitions can also omit presets/postsets if the agent discovers pl
 
 **Key rules**: Replace \`{modelId}\` with actual modelId. \`placeId\` and \`id\` must match PNML IDs exactly. Always include at least one \`emit\` rule. Emit \`from\` values: \`@response.json\` (HTTP/LLM), \`@response\` (map), \`@input.data\` (pass). After inscribing, CREATE_RUNTIME_PLACE for each place, then CREATE_TOKEN in the first input place.
 
+### Schedule (Optional — Temporal Firing Control)
+The \`schedule\` field controls WHEN a transition fires. Without it, transitions fire every poll cycle (~2s) when tokens are available.
+- Interval: \`{"schedule": {"type": "interval", "intervalMs": 60000}}\` — fire at most once every 60s
+- Cron: \`{"schedule": {"type": "cron", "cron": "0 0 * * * *"}}\` — 6-field cron schedule
+- Schedule is an AND-gate with token availability: both must be satisfied.
+
 ### Common Mistakes (Write)
+- **Mistake 1**: Only creating PNML places via CREATE_PLACE → inscription says "Place not found" because inscriptions look in RUNTIME path, not PNML path. Fix: CREATE_RUNTIME_PLACE at root/workspace/places/{placeId}.
+- **Mistake 2**: Wrong host format → \`"host": "localhost:8080"\` missing modelId. Must be \`"{modelId}@localhost:8080"\`.
+- **Mistake 3**: Single quotes in ArcQL → \`status='pending'\` fails. Must use double quotes: \`$.status=="pending"\`.
+- **Mistake 4**: Missing emit rules → tokens not routed, silent failure. Always include at least one emit rule.
 - **Mistake 5**: Using \`kind: "agent"\` for deterministic transforms → use \`kind: "map"\`. If output is a JSON template with \`\${input.data.*}\`, it's a MAP.
 - **Mistake 6**: \`\${...}\` or extra fields (\`command\`, \`cwd\`) in command action → command action allows ONLY: type, inputPlace, dispatch, await, timeoutMs, groupBy. Use MAP→Command pipeline for dynamic commands. Symptom: fires but emits nothing.
 - **Mistake 7**: Preset key vs template prefix mismatch → If preset is \`"p-weather-input"\` but URL uses \`\${input.data.field}\`, the engine looks for preset \`"input"\` (not found) and resolves to empty. The prefix in \`\${...}\` MUST match the preset key exactly. Keep preset keys simple: \`"input"\`, \`"request"\`.
@@ -334,6 +368,16 @@ To trace a pipeline, walk the graph step-by-step:
 4. Report chain: \`p-A → t-X(kind) → p-B → t-Y(kind) → p-C\`
 Maximum 3-5 tool calls for a linear pipeline. Do NOT list all inscriptions.
 
+### Token Not Consumed (Transition Running But Idle)
+When a transition is running but not consuming available tokens:
+1. **DIAGNOSE_TRANSITION** → check health status first (always start here, NOT THINK)
+2. **If HEALTHY** → inscription is fine, problem is token compatibility:
+   - GET_TRANSITION → read preset ArcQL query and template variables (e.g., \`\${input.data.request}\`)
+   - QUERY_TOKENS → read actual token data from the input place
+   - Compare: Does ArcQL WHERE clause match token fields? Do template variable paths exist in token data?
+3. **Common causes**: ArcQL mismatch (WHERE clause doesn't match token), template field missing (template uses \`\${input.data.request}\` but token has \`{text: "..."}\`), wrong place path, or token already consumed by poll loop (check output place)
+4. **Fix**: CREATE_TOKEN with correct fields, or SET_INSCRIPTION to align with existing token format
+
 ### EXECUTE_TRANSITION_SMART (Default)
 - Use this first when user asks to "execute transition"
 - Auto route: \`action.type=agent|llm\` → local CLI/Telegram LLM execution, others → FIRE_ONCE on master
@@ -349,23 +393,65 @@ Maximum 3-5 tool calls for a linear pipeline. Do NOT list all inscriptions.
 
 const AUTONOMOUS_KNOWLEDGE = `## Autonomous Knowledge
 
+### Task Intake Protocol
+1. **Read inscription first** — your transition inscription is the authoritative starting point (action, presets, postsets, memoryPlace)
+2. **Read memory before acting** — if \`action.memoryPlace\` is configured, query it first. Use memory to avoid repeating work.
+3. **Check for preferred-net markers** — scan pre-loaded memory tokens for \`"type": "preferred-net"\`. If found, do NOT recreate the net. DELETE_NET duplicates.
+4. **Check place connections before CREATE_TOKEN** — call GET_PLACE_CONNECTIONS to verify the target place and match expected token format. Do NOT call FIRE_ONCE on already-running transitions.
+5. **Use real execution tools** — COMMAND for filesystem/local; HTTP transitions or HTTP_CALL (if \`allowDirectHttp=true\`) for external APIs.
+6. **Avoid query loops** — only call LIST_PLACES when the task requires full enumeration. Never repeat queries.
+7. **One tool call per response** — output a single JSON object. All thinking goes in the \`reasoning\` field.
+8. **Finish decisively** — keep a checklist of required data. When complete, call DONE with a concise summary.
+
 ### Iteration Management (CRITICAL)
 - After each tool call, assess progress. If you have what you need, move to the NEXT step immediately.
 - Do NOT try to fix pre-existing problems — only fix your own work.
 - FIRE_ONCE failure: check if token was auto-consumed by a running transition, check output place. Do NOT retry.
 - Call DONE as soon as you have the answer. Do not do extra verification unless specifically asked.
 - Budget: create place+token=2 calls, fire+check=2 calls, full pipeline=5-7 calls. If >15 calls, call DONE with what you have.
+- Default iteration budget is 20. Plan tool calls to finish within budget.
+
+### HTTP Access Control
+Check \`allowDirectHttp\` in your inscription's action:
+- **true** → Use HTTP_CALL directly
+- **false** → Create HTTP transition + FIRE_ONCE
+
+### Credential Interpolation
+Use \`\${credentials.KEY}\` in inscription action fields (NOT \`\${credentials.data.KEY}\`):
+- \`"headers": {"Authorization": "Bearer \${credentials.API_TOKEN}"}\`
+- Credentials stored encrypted at \`/root/workspace/transitions/{transitionId}/credentials\`
+- Per-transition (not shared). User adds via GUI after you create the transition.
+- Never hardcode secrets — always use credential interpolation.
+
+### COMMAND Transitions (Autonomous)
+CRITICAL rules:
+1. A MAP template that outputs a CommandToken does NOT auto-execute it. You MUST have a downstream COMMAND transition.
+2. Redirect stdin for CLI tools: \`claude -p 'prompt' --no-session-persistence < /dev/null\`
+3. COMMAND action fields are STATIC config — NO \`\${...}\`, NO \`command\`, NO \`cwd\`
+4. COMMAND transitions MUST be assigned to executor (\`assignedAgent: "agentic-net-executor-default"\`), not master
+When COMMAND fails: follow 4-check diagnostic — assignedAgent, action fields, placeIds, upstream CommandToken.
+
+### Net Lifecycle Protocol
+When your task involves net creation, improvement, or cleanup:
+1. Check memory for \`type: "preferred-net"\` entries
+2. LIST_SESSION_NETS to see how many nets exist
+3. If preferred net exists and looks good → skip creation
+4. If no preferred net → evaluate candidates, pick the best
+5. DELETE_NET inferior duplicates
+6. EMIT_MEMORY with \`{type: "preferred-net", netId: "...", sessionId: "...", qualityNote: "..."}\`
+7. VERIFY_NET the kept net → DONE
 
 ### Task Completion Protocol
 1. Read inscription and bound tokens
 2. Check memory for previous attempts
 3. Execute task with available tools
-4. Always delete task tokens before calling DONE
+4. DELETE_TOKEN — delete the task token to prevent duplicate processing
+5. DONE with concise summary. On errors, keep the task (don't delete) — let it retry.
 
 ### Self-Improving Behavior
-- Store learned patterns in memory place
-- Build helper transitions for recurring tasks
-- Emit knowledge tokens for future agents`;
+- Store learned patterns in memory place via EMIT_MEMORY
+- Build helper transitions for recurring tasks (HTTP, MAP, PASS, COMMAND)
+- Future runs: check memory first, FIRE_ONCE existing helper instead of rebuilding`;
 
 const PLAYBOOK_KNOWLEDGE = `## Workflow Playbooks
 
@@ -388,9 +474,14 @@ TRIGGER: "execute a shell command", "run a script"
 5. CREATE_RUNTIME_PLACE (all) → DEPLOY_TRANSITION (both) → CREATE_TOKEN → FIRE_ONCE each → DONE
 
 ### Playbook 3: Diagnose Broken Transition
-TRIGGER: "won't execute", "no output", "stuck", "diagnose"
-1. DIAGNOSE_TRANSITION → if HEALTHY: check input tokens; if ERROR: follow recommendations in order
-2. Fix → DIAGNOSE_TRANSITION again → verify HEALTHY → DONE
+TRIGGER: "won't execute", "no output", "stuck", "diagnose", "not consuming"
+1. DIAGNOSE_TRANSITION → if ERROR: follow recommendations in order, fix, DIAGNOSE again
+2. If HEALTHY but token not consumed (DO NOT THINK — use tools):
+   a. GET_TRANSITION → read preset ArcQL and template variables (e.g., \`\${input.data.request}\`)
+   b. QUERY_TOKENS on input place → read actual token data fields
+   c. Compare: report which fields match/mismatch (e.g., "template uses \`\${input.data.request}\` but token has \`{text: '...'}\`")
+   d. Fix: CREATE_TOKEN with correct fields or SET_INSCRIPTION to align
+3. DONE with clear text summary of findings
 
 ### Playbook 4: Deploy and Test Pipeline
 TRIGGER: "deploy", "test the pipeline", "fire"
