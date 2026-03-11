@@ -40,10 +40,17 @@ public class TransitionActionExecutor {
         TransitionInscription.Action.CommandAction commandAction =
                 (TransitionInscription.Action.CommandAction) action;
 
-        // Collect input tokens from bindings as JsonNode list
-        List<JsonNode> inputTokens = bindings.values().stream()
-                .map(ArcQueryResult.TokenBinding::data)
-                .toList();
+        // Collect input tokens: only from the inputPlace binding if specified,
+        // otherwise fall back to all bindings (backward compatible)
+        String inputPlaceKey = commandAction.inputPlace();
+        List<JsonNode> inputTokens;
+        if (inputPlaceKey != null && bindings.containsKey(inputPlaceKey)) {
+            inputTokens = List.of(bindings.get(inputPlaceKey).data());
+        } else {
+            inputTokens = bindings.values().stream()
+                    .map(ArcQueryResult.TokenBinding::data)
+                    .toList();
+        }
 
         CommandActionExecutor.CommandActionResult result = commandActionExecutor.execute(
                 commandAction, inputTokens, definition.transitionId());

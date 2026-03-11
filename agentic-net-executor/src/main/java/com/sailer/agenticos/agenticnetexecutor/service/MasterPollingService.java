@@ -52,6 +52,7 @@ public class MasterPollingService {
     private final boolean authEnabled;
     private final String clientId;
     private final String clientSecret;
+    private final String configuredModels;
     private final AtomicReference<String> jwtToken = new AtomicReference<>();
     private final AtomicReference<Instant> tokenExpiry = new AtomicReference<>(Instant.EPOCH);
 
@@ -63,12 +64,14 @@ public class MasterPollingService {
             @Value("${executor.id:agentic-net-executor-default}") String executorId,
             @Value("${executor.upstream.auth.client-id:}") String clientId,
             @Value("${executor.upstream.auth.client-secret:}") String clientSecret,
+            @Value("${executor.models:*}") String configuredModels,
             TransitionStore transitionStore,
             @Lazy com.sailer.agenticos.agenticnetexecutor.transition.runtime.TransitionOrchestrator orchestrator) {
         this.upstreamUrl = upstreamUrl;
         this.executorId = executorId;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.configuredModels = configuredModels;
         this.authEnabled = clientId != null && !clientId.isBlank()
                 && clientSecret != null && !clientSecret.isBlank();
         this.transitionStore = transitionStore;
@@ -143,6 +146,7 @@ public class MasterPollingService {
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/transitions/discover")
                         .queryParam("executorId", executorId)
+                        .queryParam("allowedModels", configuredModels)
                         .build())
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<DiscoveryResponse>() {})
@@ -214,7 +218,8 @@ public class MasterPollingService {
                     var builder = uriBuilder
                             .path("/api/transitions/poll")
                             .queryParam("executorId", executorId)
-                            .queryParam("modelId", modelId);
+                            .queryParam("modelId", modelId)
+                            .queryParam("allowedModels", configuredModels);
                     if (!deployedIds.isEmpty()) {
                         builder.queryParam("deployed", deployedIds);
                     }

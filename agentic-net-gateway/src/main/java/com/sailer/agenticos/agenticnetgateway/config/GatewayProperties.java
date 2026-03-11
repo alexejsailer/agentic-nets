@@ -21,6 +21,8 @@ public class GatewayProperties {
     private int tokenTtlSeconds = 3600;
     private int rateLimitPerMinute = 10;
     private String trustedProxies = "";
+    private int masterHeartbeatTtlSeconds = 60;
+    private int proxyFanOutTimeoutSeconds = 30;
 
     public String getMasterUrl() {
         return masterUrl;
@@ -108,5 +110,21 @@ public class GatewayProperties {
 
     public void setTrustedProxies(String trustedProxies) {
         this.trustedProxies = trustedProxies;
+    }
+
+    public int getMasterHeartbeatTtlSeconds() {
+        return masterHeartbeatTtlSeconds;
+    }
+
+    public void setMasterHeartbeatTtlSeconds(int masterHeartbeatTtlSeconds) {
+        this.masterHeartbeatTtlSeconds = masterHeartbeatTtlSeconds;
+    }
+
+    public int getProxyFanOutTimeoutSeconds() {
+        return proxyFanOutTimeoutSeconds;
+    }
+
+    public void setProxyFanOutTimeoutSeconds(int proxyFanOutTimeoutSeconds) {
+        this.proxyFanOutTimeoutSeconds = proxyFanOutTimeoutSeconds;
     }
 }
