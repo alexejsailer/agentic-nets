@@ -189,6 +189,16 @@ export class ToolExecutor {
           return this.executeEmitMemory(params);
         case 'EXTRACT_TOKEN_CONTENT':
           return this.executeExtractTokenContent(params);
+        case 'EXTRACT_RAW_DATA':
+          return this.executeExtractRawData(params);
+        case 'GET_LINKED_PLACES':
+          return this.executeGetLinkedPlaces(params);
+        case 'PACKAGE_SEARCH':
+          return this.executePackageSearch(params);
+        case 'PACKAGE_PUBLISH':
+          return this.executePackagePublish(params);
+        case 'PACKAGE_INSTALL':
+          return this.executePackageInstall(params);
         case 'REGISTRY_LIST_IMAGES':
           return this.executeRegistryListImages(params);
         case 'REGISTRY_GET_IMAGE_INFO':
@@ -246,7 +256,7 @@ export class ToolExecutor {
 
   private async executeQueryTokens(params: Record<string, any>): Promise<ToolResult> {
     const placePath = this.normalizePath(params.placePath);
-    const query = params.query || 'FROM $ LIMIT 100';
+    const query = params.query || params.arcql || 'FROM $ LIMIT 100';
     const fields: string[] | undefined = Array.isArray(params.fields) ? params.fields : undefined;
     let maxValueLength: number | undefined =
       typeof params.maxValueLength === 'number' ? params.maxValueLength : undefined;
@@ -294,9 +304,13 @@ export class ToolExecutor {
     const parentInfo = await this.nodeApi.resolve(this.modelId, placePath);
     const parentId = parentInfo?.id || parentInfo;
 
+    // Support aliases: name/tokenName, data/tokenData; auto-generate name if omitted
+    const tokenName = params.name || params.tokenName || `token-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tokenData = params.data || params.tokenData || {};
+
     const properties: Record<string, string> = {};
-    if (params.data) {
-      for (const [key, val] of Object.entries(params.data)) {
+    if (tokenData && typeof tokenData === 'object') {
+      for (const [key, val] of Object.entries(tokenData)) {
         properties[key] = typeof val === 'object' ? JSON.stringify(val) : String(val);
       }
     }
@@ -305,7 +319,7 @@ export class ToolExecutor {
       eventType: 'createLeaf',
       parentId,
       id: 'auto',
-      name: params.name,
+      name: tokenName,
       properties,
     }];
 
@@ -315,14 +329,31 @@ export class ToolExecutor {
 
   private async executeDeleteToken(params: Record<string, any>): Promise<ToolResult> {
     const placePath = this.normalizePath(params.placePath);
+    const tokenName = params.tokenName;
+    const tokenId = params.tokenId;
+
+    if (!tokenName && !tokenId) {
+      return { success: false, error: 'DELETE_TOKEN requires either tokenName or tokenId parameter' };
+    }
+
     const children = await this.nodeApi.getChildren(this.modelId, placePath);
-    const token = children.find((c: any) => c.name === params.tokenName);
-    if (!token) {
-      return { success: true, data: { message: `Token '${params.tokenName}' not found (may already be deleted)` } };
+
+    // Find token by ID first (more precise), then fall back to name
+    let token: any;
+    if (tokenId) {
+      token = children.find((c: any) => c.id === tokenId);
+      if (!token) {
+        return { success: true, data: { message: `Token with id '${tokenId}' not found in '${placePath}' (may already be deleted)` } };
+      }
+    } else {
+      token = children.find((c: any) => c.name === tokenName);
+      if (!token) {
+        return { success: true, data: { message: `Token '${tokenName}' not found in '${placePath}' (may already be deleted)` } };
+      }
     }
 
     await this.nodeApi.deleteLeaf(this.modelId, token.id, token.parentId);
-    return { success: true, data: { deleted: params.tokenName } };
+    return { success: true, data: { deleted: token.name, deletedId: token.id } };
   }
 
   private async executeCreateRuntimePlace(params: Record<string, any>): Promise<ToolResult> {
@@ -1124,14 +1155,55 @@ export class ToolExecutor {
   }
 
   private async executeDeletePlace(params: Record<string, any>): Promise<ToolResult> {
-    // Resolve and delete
     const sessionId = params.sessionId || this.sessionId || 'system/alive';
-    // The place is in the PNML tree; we need to find and delete it
-    return { success: true, data: { deleted: params.placeId, note: 'Deletion via designtime API' } };
+    const netId = params.netId;
+    const placeId = params.placeId;
+    if (!netId || !placeId) {
+      return { success: false, error: 'DELETE_PLACE requires netId and placeId' };
+    }
+
+    // PNML places are stored under the net's pnml/net/places/{placeId} path
+    // We need to find the net first, then resolve the place within it
+    try {
+      const netExport = await this.masterApi.exportNet(netId, this.modelId, sessionId);
+      const places = netExport?.net?.places || netExport?.places || {};
+      if (!places[placeId]) {
+        return { success: true, data: { deleted: false, placeId, message: `Place '${placeId}' not found in net '${netId}'` } };
+      }
+
+      // Resolve and delete the place node from the PNML tree
+      // Places are stored at: root/workspace/sessions/{sid}/workspace-nets/{netId}/pnml/net/places/{placeId}
+      const placePath = `root/workspace/sessions/${sessionId}/workspace-nets/${netId}/pnml/net/places/${placeId}`;
+      const info = await this.nodeApi.resolve(this.modelId, placePath);
+      if (info?.id) {
+        await this.nodeApi.executeEvents(this.modelId, [{ eventType: 'deleteNode', id: info.id }]);
+        return { success: true, data: { deleted: true, placeId, netId } };
+      }
+      return { success: true, data: { deleted: false, placeId, message: 'Could not resolve place path for deletion' } };
+    } catch (err: any) {
+      return { success: false, error: `DELETE_PLACE failed: ${err.message || err}` };
+    }
   }
 
   private async executeDeleteArc(params: Record<string, any>): Promise<ToolResult> {
-    return { success: true, data: { deleted: params.arcId, note: 'Deletion via designtime API' } };
+    const sessionId = params.sessionId || this.sessionId || 'system/alive';
+    const netId = params.netId;
+    const arcId = params.arcId;
+    if (!netId || !arcId) {
+      return { success: false, error: 'DELETE_ARC requires netId and arcId' };
+    }
+
+    try {
+      const arcPath = `root/workspace/sessions/${sessionId}/workspace-nets/${netId}/pnml/net/arcs/${arcId}`;
+      const info = await this.nodeApi.resolve(this.modelId, arcPath);
+      if (info?.id) {
+        await this.nodeApi.executeEvents(this.modelId, [{ eventType: 'deleteNode', id: info.id }]);
+        return { success: true, data: { deleted: true, arcId, netId } };
+      }
+      return { success: true, data: { deleted: false, arcId, message: `Arc '${arcId}' not found in net '${netId}'` } };
+    } catch (err: any) {
+      return { success: false, error: `DELETE_ARC failed: ${err.message || err}` };
+    }
   }
 
   private async executeSetInscription(params: Record<string, any>): Promise<ToolResult> {
@@ -1411,6 +1483,136 @@ export class ToolExecutor {
     return { success: true, data };
   }
 
+  // ---- Extract / Discovery / Package Tools ----
+
+  private async executeExtractRawData(params: Record<string, any>): Promise<ToolResult> {
+    const placePath = this.normalizePath(params.placePath);
+    const query = params.query || params.arcql || 'FROM $';
+    const properties: string[] | undefined = Array.isArray(params.properties) ? params.properties : undefined;
+    const separator = (params.separator as string) || '\n';
+    const maxLength = (params.maxLength as number) || 8000;
+
+    try {
+      const result = await this.nodeApi.queryTokens(this.modelId, placePath, query, 'json_with_meta', {});
+      const tokens = result?.results || result || [];
+      const lines: string[] = [];
+      let totalLen = 0;
+
+      for (const token of tokens) {
+        const data = token?.data || token?.properties || token || {};
+        const name = token?._meta?.name || token?.name || 'unknown';
+        const fields = properties || Object.keys(data);
+        const values = fields
+          .filter(f => data[f] !== undefined)
+          .map(f => `${f}: ${typeof data[f] === 'object' ? JSON.stringify(data[f]) : String(data[f])}`);
+        const line = `[${name}] ${values.join(', ')}`;
+        if (totalLen + line.length > maxLength) {
+          lines.push(`... (truncated, ${tokens.length - lines.length} more tokens)`);
+          break;
+        }
+        lines.push(line);
+        totalLen += line.length;
+      }
+
+      return {
+        success: true,
+        data: {
+          text: lines.join(separator),
+          tokenCount: tokens.length,
+          truncated: totalLen > maxLength,
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: `EXTRACT_RAW_DATA failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeGetLinkedPlaces(params: Record<string, any>): Promise<ToolResult> {
+    const placeId = params.placeId as string;
+    if (!placeId) return { success: false, error: 'placeId is required' };
+    // Use master API to find place connections, then traverse linked places
+    try {
+      const data = await this.masterApi.post('/agent/tools/get-linked-places', {
+        modelId: this.modelId,
+        placeId,
+        depth: params.depth || 1,
+      });
+      return { success: true, data };
+    } catch (err: any) {
+      // Fallback: return the place connections as linked places
+      try {
+        const connections = await this.masterApi.post('/agent/tools/get-place-connections', {
+          modelId: this.modelId,
+          placeId,
+        });
+        return { success: true, data: { placeId, connections, _hint: 'GET_LINKED_PLACES not available on this master version, showing connections instead' } };
+      } catch {
+        return { success: false, error: `GET_LINKED_PLACES failed: ${err.message || err}` };
+      }
+    }
+  }
+
+  private async executePackageSearch(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const data = await this.masterApi.searchPackages(
+        params.query,
+        params.tags,
+        params.limit,
+        params.offset,
+      );
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `PACKAGE_SEARCH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executePackagePublish(params: Record<string, any>): Promise<ToolResult> {
+    const name = params.name as string;
+    const version = params.version as string;
+    const netId = params.netId as string;
+    if (!name || !version || !netId) {
+      return { success: false, error: 'PACKAGE_PUBLISH requires name, version, and netId' };
+    }
+    try {
+      // First create the package metadata, then publish
+      await this.masterApi.createPackage({
+        name,
+        version,
+        scope: 'user',
+        description: params.description,
+        tags: params.tags,
+        source: {
+          modelId: this.modelId,
+          sessionId: params.sessionId || this.sessionId || 'system/alive',
+          netId,
+        },
+      });
+      const data = await this.masterApi.publishPackage(name, version, this.modelId);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `PACKAGE_PUBLISH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executePackageInstall(params: Record<string, any>): Promise<ToolResult> {
+    const name = params.name as string;
+    const version = params.version as string;
+    if (!name || !version) {
+      return { success: false, error: 'PACKAGE_INSTALL requires name and version' };
+    }
+    try {
+      const data = await this.masterApi.importPackage(
+        name,
+        version,
+        this.modelId,
+        params.targetSessionId || this.sessionId || 'system/alive',
+      );
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `PACKAGE_INSTALL failed: ${err.message || err}` };
+    }
+  }
+
   // ---- Deployment Tools ----
 
   private async executeDeployTransition(params: Record<string, any>): Promise<ToolResult> {
@@ -1500,6 +1702,16 @@ export class ToolExecutor {
 
     const preflight = await this.preflightTransitionOrFail(params.transitionId as string);
     if (!preflight.success) return preflight;
+
+    // Validate action type supports local execution (agent/llm only)
+    const inscription = preflight.data?.inscription;
+    const actionType = inscription?.action?.type;
+    if (actionType && actionType !== 'agent' && actionType !== 'llm') {
+      return {
+        success: false,
+        error: `EXECUTE_TRANSITION only supports agent/llm transitions locally. This transition is '${actionType}'. Use FIRE_ONCE for deterministic transitions (pass/map/http/command) or EXECUTE_TRANSITION_SMART with mode='auto'.`,
+      };
+    }
 
     const { executeTransitionLocally } = await import('./transition-executor.js');
     const result = await executeTransitionLocally(
@@ -1928,10 +2140,20 @@ export class ToolExecutor {
     if (!path) return path;
     // Remove leading/trailing slashes
     let p = path.replace(/^\/+|\/+$/g, '');
-    // Fix common hallucinated prefixes
+    // Fix common hallucinated prefixes for places
     if (p.startsWith('root/place/') || p.startsWith('root/places/')) {
       p = p.replace(/^root\/places?\//, 'root/workspace/places/');
     }
+    // Fix bare place name (LLM sometimes passes just "p-test-crud")
+    if (p.startsWith('p-') && !p.includes('/')) {
+      p = `root/workspace/places/${p}`;
+    }
+    // Fix hallucinated transition paths
+    if (p.startsWith('root/transition/') || p.startsWith('root/transitions/')) {
+      p = p.replace(/^root\/transitions?\//, 'root/workspace/transitions/');
+    }
+    // Remove double slashes
+    p = p.replace(/\/\/+/g, '/');
     return p;
   }
 }
