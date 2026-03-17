@@ -42,6 +42,12 @@ export type AgentTool =
   | 'LIST_SESSION_NETS'
   | 'EMIT_MEMORY'
   | 'EXTRACT_TOKEN_CONTENT'
+  | 'EXTRACT_RAW_DATA'
+  | 'GET_LINKED_PLACES'
+  // Package Registry (R/W flag)
+  | 'PACKAGE_SEARCH'
+  | 'PACKAGE_PUBLISH'
+  | 'PACKAGE_INSTALL'
   // Registry Discovery (R flag)
   | 'REGISTRY_LIST_IMAGES'
   | 'REGISTRY_GET_IMAGE_INFO'
@@ -118,33 +124,37 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
       properties: {
         placePath: { type: 'string', description: 'Path to the place (e.g., root/workspace/places/my-place)' },
         query: { type: 'string', description: 'ArcQL query (e.g., FROM $ WHERE $.status=="active" LIMIT 10)' },
+        arcql: { type: 'string', description: 'Alias for query' },
         fields: { type: 'array', items: { type: 'string' }, description: 'Only return these fields (e.g., ["url","status"])' },
         maxValueLength: { type: 'number', description: 'Truncate string values longer than N chars (default 500)' },
       },
-      required: ['placePath', 'query'],
+      required: ['placePath'],
     },
   },
   CREATE_TOKEN: {
-    description: 'Create a token in a RUNTIME place with JSON data (usually under root/workspace/places/{placeId}). WARNING: First call GET_PLACE_CONNECTIONS to check for consuming transitions — it returns expectedTokenShape per consumer showing requiredFields. Command transitions require full CommandToken schema: {kind:"command",id:"...",executor:"bash",command:"exec",args:{command:"..."},expect:"text"}. Do NOT FIRE_ONCE on running transitions.',
+    description: 'Create a token in a RUNTIME place with JSON data (usually under root/workspace/places/{placeId}). WARNING: First call GET_PLACE_CONNECTIONS to check for consuming transitions — it returns expectedTokenShape per consumer showing requiredFields. Command transitions require full CommandToken schema: {kind:"command",id:"...",executor:"bash",command:"exec",args:{command:"..."},expect:"text"}. Do NOT FIRE_ONCE on running transitions. Token name auto-generated if omitted.',
     schema: {
       type: 'object',
       properties: {
         placePath: { type: 'string', description: 'Path to the place' },
-        name: { type: 'string', description: 'Token name (must be unique in place)' },
+        name: { type: 'string', description: 'Token name (auto-generated if omitted)' },
+        tokenName: { type: 'string', description: 'Alias for name' },
         data: { type: 'object', description: 'Token data as JSON object' },
+        tokenData: { type: 'object', description: 'Alias for data' },
       },
-      required: ['placePath', 'name', 'data'],
+      required: ['placePath'],
     },
   },
   DELETE_TOKEN: {
-    description: 'Delete a token from a place by name or ID.',
+    description: 'Delete a token from a place by name or ID. Provide tokenName OR tokenId (from _meta.id in QUERY_TOKENS results). To delete by ID: QUERY_TOKENS first, extract `_meta.id`, then DELETE_TOKEN({placePath, tokenId: "uuid"}).',
     schema: {
       type: 'object',
       properties: {
-        placePath: { type: 'string', description: 'Path to the place' },
-        tokenName: { type: 'string', description: 'Name of the token to delete' },
+        placePath: { type: 'string', description: 'Path to the place containing the token' },
+        tokenName: { type: 'string', description: 'Name of the token to delete (use this OR tokenId)' },
+        tokenId: { type: 'string', description: 'UUID of the token from _meta.id (use this OR tokenName)' },
       },
-      required: ['placePath', 'tokenName'],
+      required: ['placePath'],
     },
   },
   CREATE_RUNTIME_PLACE: {
@@ -443,6 +453,70 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         limit: { type: 'number', description: 'Max chars for text/head modes (default: 4000)' },
       },
       required: ['placePath', 'tokenName'],
+    },
+  },
+  EXTRACT_RAW_DATA: {
+    description: 'Extract plain text values from tokens in a place, stripping JSON structure for compact readable output. Lighter than QUERY_TOKENS for text analysis.',
+    schema: {
+      type: 'object',
+      properties: {
+        placePath: { type: 'string', description: 'Path to the place' },
+        query: { type: 'string', description: 'ArcQL query (default: FROM $)' },
+        properties: { type: 'array', items: { type: 'string' }, description: 'Which properties to extract (default: all)' },
+        separator: { type: 'string', description: 'Separator between values (default: newline)' },
+        maxLength: { type: 'number', description: 'Max total output chars (default: 8000)' },
+      },
+      required: ['placePath'],
+    },
+  },
+  GET_LINKED_PLACES: {
+    description: 'Navigate link transitions to discover connected places in a knowledge graph. Returns places reachable from a given place via link-type transitions.',
+    schema: {
+      type: 'object',
+      properties: {
+        placeId: { type: 'string', description: 'Starting place ID' },
+        depth: { type: 'number', description: 'Max traversal depth (default: 1)' },
+      },
+      required: ['placeId'],
+    },
+  },
+  PACKAGE_SEARCH: {
+    description: 'Search the package registry for published Agentic-Net packages.',
+    schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        tags: { type: 'string', description: 'Filter by tags (comma-separated)' },
+        limit: { type: 'number', description: 'Max results (default: 20)' },
+      },
+      required: [],
+    },
+  },
+  PACKAGE_PUBLISH: {
+    description: 'Package and publish a workspace-net as a versioned artifact to the registry.',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Package name' },
+        version: { type: 'string', description: 'Semantic version (e.g., 1.0.0)' },
+        netId: { type: 'string', description: 'Net ID to publish' },
+        sessionId: { type: 'string', description: 'Session containing the net' },
+        description: { type: 'string', description: 'Package description' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Tags for discovery' },
+      },
+      required: ['name', 'version', 'netId'],
+    },
+  },
+  PACKAGE_INSTALL: {
+    description: 'Import a published package into the current session.',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Package name' },
+        version: { type: 'string', description: 'Package version' },
+        targetSessionId: { type: 'string', description: 'Session to install into' },
+      },
+      required: ['name', 'version'],
     },
   },
   DEPLOY_TRANSITION: {
