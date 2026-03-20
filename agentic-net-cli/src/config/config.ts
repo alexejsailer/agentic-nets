@@ -168,7 +168,8 @@ export function loadConfig(): AgetnticOSConfig {
     const content = readFileSync(CONFIG_FILE, 'utf-8');
     const parsed = YAML.parse(content) as AgetnticOSConfig;
     return parsed ?? DEFAULT_CONFIG;
-  } catch {
+  } catch (err: any) {
+    console.error(`[config] Failed to parse ${CONFIG_FILE}: ${err.message}. Using defaults.`);
     return DEFAULT_CONFIG;
   }
 }

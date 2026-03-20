@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import type { GatewayClient } from '../gateway/client.js';
 import { NodeApi } from '../gateway/node-api.js';
-import { outputJson, outputSuccess, outputError, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputInfo, outputDim, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerInscriptionCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const inscription = program.command('inscription').description('Inscription operations');
@@ -26,7 +26,7 @@ export function registerInscriptionCommand(program: Command, getContext: () => {
         const leaf = children.find((c: any) => c.name === 'inscription');
         spinner.stop();
         if (!leaf) {
-          if (isJsonMode()) { outputJson(null); } else { console.log('No inscription found.'); }
+          if (isJsonMode()) { outputJson(null); } else { outputInfo('No inscription found.'); }
           return;
         }
         const value = leaf.properties?.value;
@@ -35,9 +35,9 @@ export function registerInscriptionCommand(program: Command, getContext: () => {
         if (isJsonMode()) {
           outputJson(parsed);
         } else {
-          console.log(JSON.stringify(parsed, null, 2));
+          outputDim(JSON.stringify(parsed, null, 2));
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   inscription
@@ -114,7 +114,7 @@ export function registerInscriptionCommand(program: Command, getContext: () => {
         }
         spinner.stop();
         outputSuccess(`Inscription set for ${transitionId}`);
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   inscription
@@ -183,6 +183,6 @@ export function registerInscriptionCommand(program: Command, getContext: () => {
         }
         spinner.stop();
         outputSuccess(`Inscription saved for ${transitionId}`);
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 }

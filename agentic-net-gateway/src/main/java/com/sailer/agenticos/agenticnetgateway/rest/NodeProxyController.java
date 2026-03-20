@@ -86,6 +86,7 @@ public class NodeProxyController {
                     try {
                         emitter.send(SseEmitter.event().data(data));
                     } catch (IOException e) {
+                        logger.debug("SSE send failed (client likely disconnected): {}", e.getMessage());
                         emitter.completeWithError(e);
                     }
                 },

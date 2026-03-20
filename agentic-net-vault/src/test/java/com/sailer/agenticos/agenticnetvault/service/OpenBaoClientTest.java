@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.vault.VaultException;
 import org.springframework.vault.core.VaultKeyValueOperations;
 import org.springframework.vault.core.VaultKeyValueOperationsSupport;
 import org.springframework.vault.core.VaultTemplate;
@@ -78,6 +79,24 @@ class OpenBaoClientTest {
     }
 
     @Test
+    void read_returnsNullOn404VaultException() {
+        when(kvOps.get(EXPECTED_PATH)).thenThrow(new VaultException("Status 404 Not Found"));
+
+        VaultResponse result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void read_rethrowsNon404VaultException() {
+        when(kvOps.get(EXPECTED_PATH)).thenThrow(new VaultException("Status 500 Internal Server Error"));
+
+        assertThatThrownBy(() -> openBaoClient.read(MODEL_ID, TRANSITION_ID))
+            .isInstanceOf(VaultException.class)
+            .hasMessageContaining("500");
+    }
+
+    @Test
     void delete_deletesAtCorrectPath() {
         openBaoClient.delete(MODEL_ID, TRANSITION_ID);
 
@@ -97,5 +116,60 @@ class OpenBaoClientTest {
         when(vaultTemplate.read("sys/health")).thenThrow(new RuntimeException("connection refused"));
 
         assertThat(openBaoClient.isHealthy()).isFalse();
+    }
+
+    @Test
+    void buildPath_rejectsPathTraversal() {
+        assertThatThrownBy(() -> openBaoClient.read("../secret", TRANSITION_ID))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("invalid characters");
+    }
+
+    @Test
+    void buildPath_rejectsSlashes() {
+        assertThatThrownBy(() -> openBaoClient.write("model/evil", TRANSITION_ID, Map.of("k", "v")))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("invalid characters");
+    }
+
+    @Test
+    void buildPath_rejectsEmptyIds() {
+        assertThatThrownBy(() -> openBaoClient.read("", TRANSITION_ID))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("must not be empty");
+    }
+
+    @Test
+    void buildPath_acceptsValidIds() {
+        when(kvOps.get("agenticos/credentials/Model_1/trans-2")).thenReturn(null);
+
+        VaultResponse result = openBaoClient.read("Model_1", "trans-2");
+
+        assertThat(result).isNull();
+    }
+
+    @Test
+    void write_retriesOnTransientFailure() {
+        Map<String, Object> credentials = Map.of("apiKey", "test-key");
+        doThrow(new VaultException("Connection refused"))
+            .doNothing()
+            .when(kvOps).put(EXPECTED_PATH, credentials);
+
+        openBaoClient.write(MODEL_ID, TRANSITION_ID, credentials);
+
+        verify(kvOps, times(2)).put(EXPECTED_PATH, credentials);
+    }
+
+    @Test
+    void write_givesUpAfterMaxRetries() {
+        Map<String, Object> credentials = Map.of("apiKey", "test-key");
+        doThrow(new VaultException("Connection refused"))
+            .when(kvOps).put(EXPECTED_PATH, credentials);
+
+        assertThatThrownBy(() -> openBaoClient.write(MODEL_ID, TRANSITION_ID, credentials))
+            .isInstanceOf(VaultException.class)
+            .hasMessageContaining("Connection refused");
+
+        verify(kvOps, times(3)).put(EXPECTED_PATH, credentials);
     }
 }

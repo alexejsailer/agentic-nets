@@ -103,6 +103,7 @@ public class MasterProxyController {
         try {
             master = registryService.resolveMasterForModel(modelId);
         } catch (NoMasterAvailableException e) {
+            logger.warn("SSE proxy: no master available for modelId={}: {}", modelId, e.getMessage());
             SseEmitter emitter = new SseEmitter(0L);
             emitter.completeWithError(e);
             return emitter;
@@ -125,6 +126,7 @@ public class MasterProxyController {
                     try {
                         emitter.send(SseEmitter.event().data(data));
                     } catch (IOException e) {
+                        logger.debug("SSE send failed (client likely disconnected): {}", e.getMessage());
                         emitter.completeWithError(e);
                     }
                 },
@@ -210,7 +212,8 @@ public class MasterProxyController {
                         .timeout(timeout)
                         .onErrorResume(e -> {
                             logger.warn("Discover fan-out error from {}: {}", master.masterId(), e.getMessage());
-                            return Mono.just(ResponseEntity.status(502).body(new byte[0]));
+                            return Mono.just(ResponseEntity.status(502)
+                                    .body(("{\"error\":\"Upstream error from " + master.masterId() + ": " + e.getMessage() + "\"}").getBytes()));
                         }))
                 .toList();
 
@@ -249,7 +252,7 @@ public class MasterProxyController {
                     .body(mapper.writeValueAsBytes(merged));
         } catch (Exception e) {
             logger.error("Failed to aggregate discover responses: {}", e.getMessage());
-            return ResponseEntity.status(500)
+            return ResponseEntity.status(502)
                     .body(("{\"error\":\"Aggregation failed: " + e.getMessage() + "\"}").getBytes());
         }
     }
@@ -279,7 +282,8 @@ public class MasterProxyController {
                         .timeout(timeout)
                         .onErrorResume(e -> {
                             logger.warn("Executor list fan-out error from {}: {}", master.masterId(), e.getMessage());
-                            return Mono.just(ResponseEntity.status(502).body(new byte[0]));
+                            return Mono.just(ResponseEntity.status(502)
+                                    .body(("{\"error\":\"Upstream error from " + master.masterId() + ": " + e.getMessage() + "\"}").getBytes()));
                         }))
                 .toList();
 
@@ -312,7 +316,7 @@ public class MasterProxyController {
                     .body(mapper.writeValueAsBytes(merged));
         } catch (Exception e) {
             logger.error("Failed to aggregate executor list responses: {}", e.getMessage());
-            return ResponseEntity.status(500)
+            return ResponseEntity.status(502)
                     .body(("{\"error\":\"Aggregation failed: " + e.getMessage() + "\"}").getBytes());
         }
     }
@@ -383,7 +387,7 @@ public class MasterProxyController {
                     }
                 }
             } catch (Exception e) {
-                // Not JSON or parse error — ignore
+                logger.debug("Failed to parse request body as JSON for modelId extraction: {}", e.getMessage());
             }
         }
 

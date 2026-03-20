@@ -83,8 +83,10 @@ public class AdminSecretInitializer {
                     PosixFilePermission.OWNER_READ,
                     PosixFilePermission.OWNER_WRITE
             ));
-        } catch (UnsupportedOperationException | IOException e) {
-            // Non-POSIX filesystem (e.g., Windows) — skip silently
+        } catch (UnsupportedOperationException e) {
+            logger.debug("Cannot set POSIX permissions on {} (non-POSIX filesystem)", path);
+        } catch (IOException e) {
+            logger.warn("Failed to restrict file permissions on {}: {}", path, e.getMessage());
         }
     }
 

@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -205,5 +206,17 @@ public class CommandExecutorDispatcher {
      */
     public void shutdown() {
         executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
+                logger.warn("ExecutorService did not terminate within 30s, forcing shutdown");
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                    logger.error("ExecutorService did not terminate after shutdownNow");
+                }
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

@@ -59,7 +59,8 @@ export class GatewayClient {
     if (!text) return undefined as T;
     try {
       return JSON.parse(text) as T;
-    } catch {
+    } catch (err: any) {
+      console.error(`[gateway] Failed to parse JSON response from ${url}: ${err.message}`);
       return text as T;
     }
   }
@@ -79,8 +80,8 @@ export class GatewayClient {
       if (secretFile && existsSync(secretFile)) {
         try {
           secret = readFileSync(secretFile, 'utf-8').trim();
-        } catch {
-          // Ignore file read errors
+        } catch (err: any) {
+          console.error(`[auth] Failed to read secret file ${secretFile}: ${err.message}`);
         }
       }
     }
@@ -89,12 +90,17 @@ export class GatewayClient {
         const token = await acquireToken(this.gatewayUrl, this.clientId, secret);
         tokenStore.saveToken(this.profileName, token);
         return token.access_token;
-      } catch {
-        return existing?.access_token ?? null;
+      } catch (err: any) {
+        console.error(`[auth] Token acquisition failed: ${err.message}`);
+        if (existing?.access_token) {
+          console.error('[auth] Falling back to stale token — gateway may reject it');
+          return existing.access_token;
+        }
+        return null;
       }
     }
 
-    // Return stale token if exists (let gateway reject it)
+    // No secret available — return stale token if exists (let gateway reject it)
     return existing?.access_token ?? null;
   }
 
@@ -137,7 +143,8 @@ export class GatewayClient {
     if (!text) return undefined as T;
     try {
       return JSON.parse(text) as T;
-    } catch {
+    } catch (err: any) {
+      console.error(`[gateway] Failed to parse JSON response from ${url}: ${err.message}`);
       return text as T;
     }
   }

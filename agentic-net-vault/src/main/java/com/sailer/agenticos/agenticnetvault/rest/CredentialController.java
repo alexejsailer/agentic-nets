@@ -11,7 +11,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/vault/{modelId}/transitions/{transitionId}/credentials")
-@CrossOrigin(origins = "*")
 public class CredentialController {
 
     private static final Logger logger = LoggerFactory.getLogger(CredentialController.class);

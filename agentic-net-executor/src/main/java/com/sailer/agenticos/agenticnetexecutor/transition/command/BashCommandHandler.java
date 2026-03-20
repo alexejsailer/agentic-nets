@@ -42,14 +42,21 @@ public class BashCommandHandler implements CommandHandler {
     private static final Set<String> SUPPORTED_COMMANDS = Set.of("exec", "script");
 
     private static final long DEFAULT_TIMEOUT_MS = 60000; // 60 seconds
-    private static final long MAX_TIMEOUT_MS = 600000; // 10 minutes
+    private static final long DEFAULT_MAX_TIMEOUT_MS = 600000; // 10 minutes
 
     private final ObjectMapper objectMapper;
     private final BlobStoreClient blobStoreClient;
+    private final long maxTimeoutMs;
 
-    public BashCommandHandler(ObjectMapper objectMapper, BlobStoreClient blobStoreClient) {
+    public BashCommandHandler(ObjectMapper objectMapper, BlobStoreClient blobStoreClient,
+                              @org.springframework.beans.factory.annotation.Value("${executor.command.max-timeout-ms:600000}") long maxTimeoutMs) {
         this.objectMapper = objectMapper;
         this.blobStoreClient = blobStoreClient;
+        this.maxTimeoutMs = maxTimeoutMs > 0 ? maxTimeoutMs : DEFAULT_MAX_TIMEOUT_MS;
+        if (this.maxTimeoutMs != DEFAULT_MAX_TIMEOUT_MS) {
+            logger.info("Command max timeout configured: {}ms ({}h {}m)", this.maxTimeoutMs,
+                    this.maxTimeoutMs / 3600000, (this.maxTimeoutMs % 3600000) / 60000);
+        }
     }
 
     @Override
@@ -128,7 +135,7 @@ public class BashCommandHandler implements CommandHandler {
         boolean captureStderr = getBoolean(args, "captureStderr", true);
 
         // Validate timeout
-        timeoutMs = Math.min(timeoutMs, MAX_TIMEOUT_MS);
+        timeoutMs = Math.min(timeoutMs, maxTimeoutMs);
 
         ProcessBuilder pb = new ProcessBuilder("bash", "-c", command);
 
@@ -162,7 +169,7 @@ public class BashCommandHandler implements CommandHandler {
         boolean captureStderr = getBoolean(args, "captureStderr", true);
 
         // Validate timeout
-        timeoutMs = Math.min(timeoutMs, MAX_TIMEOUT_MS);
+        timeoutMs = Math.min(timeoutMs, maxTimeoutMs);
 
         // Write script to temporary file
         Path tempScript = Files.createTempFile("agenticos-script-", ".sh");
@@ -235,7 +242,10 @@ public class BashCommandHandler implements CommandHandler {
         boolean completed = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
 
         if (!completed) {
-            process.destroyForcibly();
+            killProcessTree(process);
+            process.waitFor(5, TimeUnit.SECONDS);
+            stdoutThread.join(200);
+            stderrThread.join(200);
             throw new RuntimeException("Command timed out after " + timeoutMs + "ms: " + commandDesc);
         }
 
@@ -329,6 +339,34 @@ public class BashCommandHandler implements CommandHandler {
             ObjectNode result = (ObjectNode) processResult;
             result.put("binaryUploadError", e.getMessage());
             return result;
+        }
+    }
+
+    /**
+     * Kill the process and its entire process tree.
+     * On Linux, sends SIGKILL to the process group to clean up grandchild processes.
+     * Falls back to destroyForcibly() on other platforms or if group kill fails.
+     */
+    private void killProcessTree(Process process) {
+        long pid = process.pid();
+        try {
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("linux") || os.contains("mac") || os.contains("darwin")) {
+                // Kill the entire process group: negative PID targets the group
+                ProcessBuilder killPb = new ProcessBuilder("kill", "-9", "--", "-" + pid);
+                Process killProcess = killPb.start();
+                boolean killDone = killProcess.waitFor(5, TimeUnit.SECONDS);
+                if (!killDone || killProcess.exitValue() != 0) {
+                    // Fallback: kill by PID tree using pkill
+                    new ProcessBuilder("pkill", "-9", "-P", String.valueOf(pid)).start().waitFor(5, TimeUnit.SECONDS);
+                    process.destroyForcibly();
+                }
+            } else {
+                process.destroyForcibly();
+            }
+        } catch (Exception e) {
+            logger.warn("Process tree kill failed for PID {}, falling back to destroyForcibly: {}", pid, e.getMessage());
+            process.destroyForcibly();
         }
     }
 

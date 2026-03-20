@@ -15,7 +15,8 @@ class TokenStore {
     if (!existsSync(file)) return null;
     try {
       return JSON.parse(readFileSync(file, 'utf-8')) as StoredToken;
-    } catch {
+    } catch (err: any) {
+      console.error(`[auth] Failed to read token file ${file}: ${err.message}`);
       return null;
     }
   }

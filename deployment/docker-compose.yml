@@ -162,7 +162,7 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticos-node:1.2.0
+    image: alexejsailer/agenticos-node:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-node
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
@@ -198,7 +198,7 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticos-master:1.2.0
+    image: alexejsailer/agenticos-master:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-master
     depends_on:
       agentic-net-node:
@@ -252,7 +252,7 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticos-executor:latest
+    image: alexejsailer/agenticos-executor:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-executor
     depends_on:
       agentic-net-master:
@@ -314,7 +314,7 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticos-vault:latest
+    image: alexejsailer/agenticos-vault:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-vault
     depends_on:
       openbao:
@@ -357,7 +357,7 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticos-gateway:latest
+    image: alexejsailer/agenticos-gateway:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-gateway
     depends_on:
       agentic-net-master:
@@ -406,7 +406,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticos-gui:1.2.0
+    image: alexejsailer/agenticos-gui:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-gui
     depends_on:
       agentic-net-gateway:
@@ -438,7 +438,7 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticos-cli:latest
+    image: alexejsailer/agenticos-cli:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-cli
     depends_on:
       agentic-net-gateway:
@@ -465,7 +465,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticos-chat:latest
+    image: alexejsailer/agenticos-chat:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-chat
     depends_on:
       agentic-net-gateway:
@@ -512,7 +512,7 @@ services:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticos-blobstore:latest
+    image: alexejsailer/agenticos-blobstore:${AGENTICOS_VERSION:-1.19.0}
     container_name: agenticos-blobstore
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}

@@ -68,6 +68,8 @@ export type AgentTool =
   | 'FIRE_ONCE'
   | 'EXECUTE_TRANSITION'
   | 'EXECUTE_TRANSITION_SMART'
+  // Discovery
+  | 'FIND_SHARED_PLACES'
   // Control
   | 'DONE'
   | 'FAIL';
@@ -478,6 +480,16 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         depth: { type: 'number', description: 'Max traversal depth (default: 1)' },
       },
       required: ['placeId'],
+    },
+  },
+  FIND_SHARED_PLACES: {
+    description: 'Find places that appear in multiple nets (shared places). Returns each shared place with the nets it belongs to and current token count. Use this to understand cross-net communication topology.',
+    schema: {
+      type: 'object',
+      properties: {
+        namePattern: { type: 'string', description: "Optional glob pattern to filter place names (e.g., 'p-*', 'p-knowledge-*'). Defaults to all places." },
+      },
+      required: [],
     },
   },
   PACKAGE_SEARCH: {

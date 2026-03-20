@@ -3,7 +3,7 @@ import type { GatewayClient } from '../gateway/client.js';
 import { MasterApi } from '../gateway/master-api.js';
 import { NodeApi } from '../gateway/node-api.js';
 import { loadConfig, saveConfig, getActiveProfile } from '../config/config.js';
-import { outputJson, outputSuccess, outputError, outputTable, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputInfo, outputTable, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerSessionCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const session = program.command('session').description('Session management');
@@ -31,9 +31,9 @@ export function registerSessionCommand(program: Command, getContext: () => { cli
           outputJson(result);
         } else {
           outputSuccess(`Created session: ${sessionId}`);
-          console.log(`Use: agenticos session use ${sessionId}`);
+          outputInfo(`Use: agenticos session use ${sessionId}`);
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   session
@@ -55,7 +55,7 @@ export function registerSessionCommand(program: Command, getContext: () => { cli
             children.map((c: any) => [c.name, c.id]),
           );
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   session

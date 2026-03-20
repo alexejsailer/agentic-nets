@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { MasterApi } from '../gateway/master-api.js';
 import { NodeApi } from '../gateway/node-api.js';
-import { outputJson, outputSuccess, outputError, outputTable, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputInfo, outputTable, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerPlaceCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const place = program.command('place').description('Place operations');
@@ -39,6 +39,7 @@ export function registerPlaceCommand(program: Command, getContext: () => { clien
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -63,6 +64,7 @@ export function registerPlaceCommand(program: Command, getContext: () => { clien
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -82,8 +84,8 @@ export function registerPlaceCommand(program: Command, getContext: () => { clien
         if (isJsonMode()) {
           outputJson({ placeId, tokenCount: children.length, tokens: children });
         } else {
-          console.log(`Place: ${placeId}`);
-          console.log(`Tokens: ${children.length}`);
+          outputInfo(`Place: ${placeId}`);
+          outputInfo(`Tokens: ${children.length}`);
           if (children.length > 0) {
             outputTable(
               ['Name', 'ID', 'Type'],
@@ -93,6 +95,7 @@ export function registerPlaceCommand(program: Command, getContext: () => { clien
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -115,6 +118,7 @@ export function registerPlaceCommand(program: Command, getContext: () => { clien
         outputSuccess(`Deleted place: ${placeId}`);
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 }

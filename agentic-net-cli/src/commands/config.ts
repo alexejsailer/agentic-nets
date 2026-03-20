@@ -3,7 +3,7 @@ import {
   loadConfig, saveConfig, getActiveProfile, getConfigFilePath, ensureConfigDir,
   type AgetnticOSConfig, type ProfileConfig,
 } from '../config/config.js';
-import { outputJson, outputSuccess, outputError, outputTable, isJsonMode } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputInfo, outputTable, isJsonMode } from '../render/output.js';
 import { createInterface } from 'node:readline';
 
 export function registerConfigCommand(program: Command): void {
@@ -61,9 +61,9 @@ export function registerConfigCommand(program: Command): void {
         outputJson({ active_profile: cfg.active_profile, profile });
         return;
       }
-      console.log(`Config file: ${getConfigFilePath()}`);
-      console.log(`Active profile: ${cfg.active_profile}`);
-      console.log();
+      outputInfo(`Config file: ${getConfigFilePath()}`);
+      outputInfo(`Active profile: ${cfg.active_profile}`);
+      outputInfo('');
       outputTable(
         ['Key', 'Value'],
         [
