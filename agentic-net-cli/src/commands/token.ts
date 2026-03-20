@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { NodeApi } from '../gateway/node-api.js';
-import { outputJson, outputSuccess, outputError, outputTable, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputInfo, outputDim, outputTable, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerTokenCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const token = program.command('token').description('Token operations');
@@ -46,6 +46,7 @@ export function registerTokenCommand(program: Command, getContext: () => { clien
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -68,16 +69,17 @@ export function registerTokenCommand(program: Command, getContext: () => { clien
           outputJson(result);
         } else {
           if (Array.isArray(result) && result.length > 0) {
-            console.log(`Found ${result.length} token(s):`);
+            outputInfo(`Found ${result.length} token(s):`);
             for (const token of result) {
-              console.log(JSON.stringify(token, null, 2));
+              outputDim(JSON.stringify(token, null, 2));
             }
           } else {
-            console.log('No tokens found.');
+            outputInfo('No tokens found.');
           }
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -98,7 +100,7 @@ export function registerTokenCommand(program: Command, getContext: () => { clien
           outputJson(children);
         } else {
           if (children.length === 0) {
-            console.log('No tokens found.');
+            outputInfo('No tokens found.');
           } else {
             outputTable(
               ['Name', 'ID', 'Properties'],
@@ -112,6 +114,7 @@ export function registerTokenCommand(program: Command, getContext: () => { clien
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -138,6 +141,7 @@ export function registerTokenCommand(program: Command, getContext: () => { clien
         outputSuccess(`Deleted token: ${tokenName} from ${placeId}`);
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 }

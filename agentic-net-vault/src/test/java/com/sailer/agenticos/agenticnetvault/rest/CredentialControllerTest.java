@@ -145,4 +145,16 @@ class CredentialControllerTest {
         mockMvc.perform(get(BASE_URL + "/metadata", MODEL_ID, TRANSITION_ID))
             .andExpect(status().isNotFound());
     }
+
+    @Test
+    void putCredentials_invalidModelId_returnsBadRequest() throws Exception {
+        when(credentialService.storeCredentials(eq("..evil"), eq(TRANSITION_ID), anyMap()))
+            .thenThrow(new IllegalArgumentException("modelId contains invalid characters (allowed: alphanumeric, dash, underscore)"));
+
+        mockMvc.perform(put("/api/vault/..evil/transitions/" + TRANSITION_ID + "/credentials")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"key\":\"value\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid request"));
+    }
 }

@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { MasterApi } from '../gateway/master-api.js';
-import { outputJson, outputSuccess, outputTable, isJsonMode, createSpinner, outputError } from '../render/output.js';
+import { outputJson, outputSuccess, outputDim, outputInfo, outputTable, isJsonMode, createSpinner, outputError } from '../render/output.js';
 
 export function registerPackageCommand(
   program: Command,
@@ -43,6 +43,7 @@ export function registerPackageCommand(
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -66,6 +67,7 @@ export function registerPackageCommand(
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -88,7 +90,7 @@ export function registerPackageCommand(
         } else {
           const packages = result.packages || [];
           if (packages.length === 0) {
-            console.log('No packages found.');
+            outputInfo('No packages found.');
           } else {
             outputTable(
               ['Name', 'Version', 'Description', 'Tags', 'Scope'],
@@ -104,6 +106,7 @@ export function registerPackageCommand(
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -121,18 +124,19 @@ export function registerPackageCommand(
         if (opts.version) {
           const result = await api.getPackageVersion(name, opts.version);
           spinner.stop();
-          console.log(JSON.stringify(result, null, 2));
+          if (isJsonMode()) { outputJson(result); } else { outputDim(JSON.stringify(result, null, 2)); }
         } else {
           const result = await api.getPackageInfo(name);
           spinner.stop();
           if (isJsonMode()) {
             outputJson(result);
           } else {
-            console.log(JSON.stringify(result, null, 2));
+            outputDim(JSON.stringify(result, null, 2));
           }
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -172,6 +176,7 @@ export function registerPackageCommand(
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -192,7 +197,7 @@ export function registerPackageCommand(
         } else {
           const packages = result.packages || [];
           if (packages.length === 0) {
-            console.log('No packages published yet.');
+            outputInfo('No packages published yet.');
           } else {
             outputTable(
               ['Name', 'Version', 'Description', 'Tags'],
@@ -207,6 +212,7 @@ export function registerPackageCommand(
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 }

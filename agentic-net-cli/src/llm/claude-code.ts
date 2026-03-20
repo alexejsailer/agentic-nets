@@ -174,8 +174,9 @@ ${toolDocs}`;
         });
 
         return { content, stop_reason: 'tool_use' };
-      } catch {
+      } catch (err: any) {
         // JSON parse failed — treat entire response as text
+        console.error(`[claude-code] Failed to parse tool_call JSON: ${err.message}`);
         return {
           content: [{ type: 'text', text }],
           stop_reason: 'end_turn',

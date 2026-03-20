@@ -193,6 +193,8 @@ export class ToolExecutor {
           return this.executeExtractRawData(params);
         case 'GET_LINKED_PLACES':
           return this.executeGetLinkedPlaces(params);
+        case 'FIND_SHARED_PLACES':
+          return this.executeFindSharedPlaces(params);
         case 'PACKAGE_SEARCH':
           return this.executePackageSearch(params);
         case 'PACKAGE_PUBLISH':
@@ -237,7 +239,10 @@ export class ToolExecutor {
           return { success: false, error: `Unknown tool: ${tool}` };
       }
     } catch (err: any) {
-      return { success: false, error: err.message || String(err) };
+      const message = err.message || String(err);
+      const stack = err.stack ? `\n${err.stack}` : '';
+      console.error(`[tool-executor] ${tool} failed: ${message}${stack}`);
+      return { success: false, error: message };
     }
   }
 
@@ -277,7 +282,8 @@ export class ToolExecutor {
       const msg = err.message || String(err);
       if (msg.includes('not found') || msg.includes('404') || msg.includes('does not exist')) {
         return {
-          success: true,
+          success: false,
+          error: `Place '${placePath}' does not exist.`,
           data: {
             results: [],
             resultCount: 0,
@@ -1549,6 +1555,17 @@ export class ToolExecutor {
       } catch {
         return { success: false, error: `GET_LINKED_PLACES failed: ${err.message || err}` };
       }
+    }
+  }
+
+  private async executeFindSharedPlaces(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const namePattern = (params.namePattern as string) || 'p-*';
+      const url = `/assistant/universal/${this.modelId}/query/shared-places?namePattern=${encodeURIComponent(namePattern)}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `FIND_SHARED_PLACES failed: ${err.message || err}` };
     }
   }
 

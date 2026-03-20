@@ -19,10 +19,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(VaultException.class)
     public ResponseEntity<Map<String, Object>> handleVaultException(VaultException ex) {
-        logger.error("OpenBao error: {}", ex.getMessage());
+        logger.error("OpenBao error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorBody(
             "OpenBao backend error",
-            ex.getMessage()
+            "Failed to communicate with secrets backend"
         ));
     }
 
@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorBody(
             "Internal server error",
-            ex.getMessage()
+            "An unexpected error occurred"
         ));
     }
 

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { MasterApi } from '../gateway/master-api.js';
 import { NodeApi } from '../gateway/node-api.js';
-import { outputJson, outputSuccess, outputError, outputTable, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputInfo, outputDim, outputTable, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerTransitionCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const transition = program.command('transition').description('Transition operations');
@@ -37,6 +37,7 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -61,6 +62,7 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -84,16 +86,17 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
         if (isJsonMode()) {
           outputJson({ transitionId: id, inscription, children });
         } else {
-          console.log(`Transition: ${id}`);
+          outputInfo(`Transition: ${id}`);
           if (inscription) {
-            console.log('Inscription:');
-            console.log(JSON.stringify(inscription, null, 2));
+            outputInfo('Inscription:');
+            outputDim(JSON.stringify(inscription, null, 2));
           } else {
-            console.log('No inscription configured.');
+            outputDim('No inscription configured.');
           }
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 
@@ -110,7 +113,7 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
         const result = await api.startTransition(id, modelId);
         spinner.stop();
         if (isJsonMode()) { outputJson(result); } else { outputSuccess(`Started transition: ${id}`); }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   transition
@@ -126,7 +129,7 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
         const result = await api.stopTransition(id, modelId);
         spinner.stop();
         if (isJsonMode()) { outputJson(result); } else { outputSuccess(`Stopped transition: ${id}`); }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   transition
@@ -141,8 +144,8 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
       try {
         const result = await api.fireOnce(id, modelId);
         spinner.stop();
-        if (isJsonMode()) { outputJson(result); } else { outputSuccess(`Fired transition: ${id}`); console.log(JSON.stringify(result, null, 2)); }
-      } catch (err: any) { spinner.fail(err.message); }
+        if (isJsonMode()) { outputJson(result); } else { outputSuccess(`Fired transition: ${id}`); outputDim(JSON.stringify(result, null, 2)); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   transition
@@ -178,6 +181,6 @@ export function registerTransitionCommand(program: Command, getContext: () => { 
             ],
           );
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 }

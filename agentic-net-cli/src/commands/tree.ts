@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { NodeApi } from '../gateway/node-api.js';
-import { outputJson, outputTable, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputInfo, outputDim, outputTable, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerTreeCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const tree = program.command('tree').description('Tree operations');
@@ -18,8 +18,8 @@ export function registerTreeCommand(program: Command, getContext: () => { client
       try {
         const result = await api.getTreeJson(modelId, path);
         spinner.stop();
-        console.log(JSON.stringify(result, null, 2));
-      } catch (err: any) { spinner.fail(err.message); }
+        if (isJsonMode()) { outputJson(result); } else { outputDim(JSON.stringify(result, null, 2)); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   tree
@@ -47,7 +47,7 @@ export function registerTreeCommand(program: Command, getContext: () => { client
             ]),
           );
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   tree
@@ -65,9 +65,9 @@ export function registerTreeCommand(program: Command, getContext: () => { client
         if (isJsonMode()) {
           outputJson(result);
         } else {
-          console.log(`Path: ${path}`);
-          console.log(`UUID: ${result?.id || result}`);
+          outputInfo(`Path: ${path}`);
+          outputInfo(`UUID: ${result?.id || result}`);
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 }

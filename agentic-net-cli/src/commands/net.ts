@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { MasterApi } from '../gateway/master-api.js';
-import { outputJson, outputSuccess, outputTable, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputDim, outputTable, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerNetCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const net = program.command('net').description('Petri net operations');
@@ -28,7 +28,7 @@ export function registerNetCommand(program: Command, getContext: () => { client:
         });
         spinner.stop();
         if (isJsonMode()) { outputJson(result); } else { outputSuccess(`Created net: ${netId}`); }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   net
@@ -48,9 +48,9 @@ export function registerNetCommand(program: Command, getContext: () => { client:
         } else if (Array.isArray(result)) {
           outputTable(['Net ID', 'Name'], result.map((n: any) => [n.netId || n.id, n.name || '']));
         } else {
-          console.log(JSON.stringify(result, null, 2));
+          outputDim(JSON.stringify(result, null, 2));
         }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   net
@@ -67,8 +67,8 @@ export function registerNetCommand(program: Command, getContext: () => { client:
       try {
         const result = await api.exportNet(netId, modelId, opts.session || sessionId);
         spinner.stop();
-        console.log(JSON.stringify(result, null, 2));
-      } catch (err: any) { spinner.fail(err.message); }
+        if (isJsonMode()) { outputJson(result); } else { outputDim(JSON.stringify(result, null, 2)); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   net
@@ -88,6 +88,6 @@ export function registerNetCommand(program: Command, getContext: () => { client:
         });
         spinner.stop();
         if (isJsonMode()) { outputJson(result); } else { outputSuccess('Net imported successfully'); }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 }

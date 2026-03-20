@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import type { GatewayClient } from '../gateway/client.js';
 import { MasterApi } from '../gateway/master-api.js';
 import { NodeApi } from '../gateway/node-api.js';
-import { outputJson, outputSuccess, outputError, isJsonMode, createSpinner } from '../render/output.js';
+import { outputJson, outputSuccess, outputError, outputDim, isJsonMode, createSpinner } from '../render/output.js';
 
 export function registerArcCommand(program: Command, getContext: () => { client: GatewayClient; modelId: string; sessionId: string }): void {
   const arc = program.command('arc').description('Arc operations');
@@ -30,7 +30,7 @@ export function registerArcCommand(program: Command, getContext: () => { client:
         });
         spinner.stop();
         if (isJsonMode()) { outputJson(result); } else { outputSuccess(`Created arc: ${opts.source} → ${opts.target}`); }
-      } catch (err: any) { spinner.fail(err.message); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   arc
@@ -45,8 +45,8 @@ export function registerArcCommand(program: Command, getContext: () => { client:
       try {
         const result = await api.getNet(opts.net, modelId, sessionId);
         spinner.stop();
-        if (isJsonMode()) { outputJson(result); } else { console.log(JSON.stringify(result, null, 2)); }
-      } catch (err: any) { spinner.fail(err.message); }
+        if (isJsonMode()) { outputJson(result); } else { outputDim(JSON.stringify(result, null, 2)); }
+      } catch (err: any) { spinner.fail(err.message); process.exit(1); }
     });
 
   arc
@@ -78,6 +78,7 @@ export function registerArcCommand(program: Command, getContext: () => { client:
         }
       } catch (err: any) {
         spinner.fail(err.message);
+        process.exit(1);
       }
     });
 }

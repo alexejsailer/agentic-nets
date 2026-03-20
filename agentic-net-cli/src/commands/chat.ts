@@ -50,7 +50,7 @@ export function registerChatCommand(program: Command, getContext: () => { client
         llm = createLlmProvider(providerName, profile, opts.tier);
       } catch (err: any) {
         outputError(err.message);
-        return;
+        process.exit(1);
       }
 
       const helperLlm = createHelperLlm(profile);
