@@ -1,0 +1,46 @@
+version: 2
+updates:
+  # Java services — Maven
+  - package-ecosystem: maven
+    directory: /agentic-net-gateway
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: maven
+    directory: /agentic-net-executor
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: maven
+    directory: /agentic-net-vault
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: maven
+    directory: /sa-blobstore
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # TypeScript services — npm
+  - package-ecosystem: npm
+    directory: /agentic-net-cli
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /agentic-net-chat
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
