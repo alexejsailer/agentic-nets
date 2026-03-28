@@ -145,6 +145,8 @@ services:
   agenticos-registry:
     image: registry:2
     container_name: agenticos-registry
+    ports:
+      - "${AGENTICOS_REGISTRY_PORT:-5001}:5000"
     volumes:
       - registry-data:/var/lib/registry
     networks:
@@ -525,3 +527,21 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  # ===========================================================================
+  # TOOL CONTAINERS (uncomment to enable)
+  # ===========================================================================
+
+  # agenticos-tool-crawler:
+  #   image: ${AGENTICOS_REGISTRY_HOST:-localhost:5001}/agenticos-tool-crawler:1.0.0
+  #   container_name: agenticos-tool-crawler
+  #   networks:
+  #     - agenticos-backend
+  #   restart: unless-stopped
+  #   logging: *default-logging
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/health || exit 1"]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 10s
