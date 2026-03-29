@@ -3,7 +3,7 @@ package com.sailer.agenticos.agenticnetexecutor.model.util;
 import java.util.UUID;
 
 /**
- * Application-wide constants for AgetnticOS, including fixed root UUID for the tree structure.
+ * Application-wide constants for AgenticNetOS, including fixed root UUID for the tree structure.
  */
 public final class AgenticOsConstants {
 

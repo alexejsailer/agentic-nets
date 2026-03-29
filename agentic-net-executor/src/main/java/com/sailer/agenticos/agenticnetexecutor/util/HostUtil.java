@@ -1,7 +1,7 @@
 package com.sailer.agenticos.agenticnetexecutor.util;
 
 /**
- * Utility class for parsing host strings in AgetnticOS inscriptions.
+ * Utility class for parsing host strings in AgenticNetOS inscriptions.
  *
  * Host format: "{modelId}@{host}:{port}"
  * Examples:

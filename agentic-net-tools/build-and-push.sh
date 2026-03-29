@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build all AgetnticOS tool images and push to the local registry.
+# Build all AgenticNetOS tool images and push to the local registry.
 #
 # Usage:
 #   ./build-and-push.sh                    # Build + push all tools
@@ -34,7 +34,7 @@ build_and_push() {
     echo "  Done: $REGISTRY/$name:$version"
 }
 
-echo "=== AgetnticOS Tool Image Builder ==="
+echo "=== AgenticNetOS Tool Image Builder ==="
 echo "Registry: $REGISTRY"
 echo ""
 

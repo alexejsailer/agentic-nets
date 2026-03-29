@@ -66,7 +66,7 @@ public class BlobController {
      * - uuid: {uuid} - Globally unique
      * - content-hash: sha256/{hash} - Deduplication
      *
-     * Response includes a AgetnticOS URN: urn:agenticos:blob:{blobId}
+     * Response includes a AgenticNetOS URN: urn:agenticos:blob:{blobId}
      */
     @PostMapping(consumes = MediaType.ALL_VALUE)
     public ResponseEntity<Map<String, Object>> uploadBlobAutoId(

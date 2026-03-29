@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AgetnticOS Agentic-Nets — Build & Push Open-Source Images
+# AgenticNetOS Agentic-Nets — Build & Push Open-Source Images
 #
-# Builds, tags, and pushes open-source AgetnticOS images to Docker Hub.
+# Builds, tags, and pushes open-source AgenticNetOS images to Docker Hub.
 # Only includes services whose source is in this repository.
 #
 # Usage:
@@ -90,7 +90,7 @@ if ! $DRY_RUN; then
 fi
 
 echo "============================================"
-echo "AgetnticOS Agentic-Nets — Build & Push"
+echo "AgenticNetOS Agentic-Nets — Build & Push"
 echo "  Version:  $VERSION"
 echo "  Dry run:  $DRY_RUN"
 echo "  Services: ${SERVICES[*]}"

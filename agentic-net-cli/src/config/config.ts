@@ -53,7 +53,7 @@ export interface ProfileConfig {
   };
 }
 
-export interface AgetnticOSConfig {
+export interface AgenticNetOSConfig {
   active_profile: string;
   profiles: Record<string, ProfileConfig>;
 }
@@ -109,7 +109,7 @@ const DEFAULT_PROFILE: ProfileConfig = {
   },
 };
 
-const DEFAULT_CONFIG: AgetnticOSConfig = {
+const DEFAULT_CONFIG: AgenticNetOSConfig = {
   active_profile: 'local',
   profiles: {
     local: DEFAULT_PROFILE,
@@ -159,14 +159,14 @@ export function getTokensDir(): string {
   return TOKENS_DIR;
 }
 
-export function loadConfig(): AgetnticOSConfig {
+export function loadConfig(): AgenticNetOSConfig {
   ensureConfigDir();
   if (!existsSync(CONFIG_FILE)) {
     return DEFAULT_CONFIG;
   }
   try {
     const content = readFileSync(CONFIG_FILE, 'utf-8');
-    const parsed = YAML.parse(content) as AgetnticOSConfig;
+    const parsed = YAML.parse(content) as AgenticNetOSConfig;
     return parsed ?? DEFAULT_CONFIG;
   } catch (err: any) {
     console.error(`[config] Failed to parse ${CONFIG_FILE}: ${err.message}. Using defaults.`);
@@ -174,13 +174,13 @@ export function loadConfig(): AgetnticOSConfig {
   }
 }
 
-export function saveConfig(config: AgetnticOSConfig): void {
+export function saveConfig(config: AgenticNetOSConfig): void {
   ensureConfigDir();
   const content = YAML.stringify(config, { indent: 2 });
   writeFileSync(CONFIG_FILE, content, 'utf-8');
 }
 
-export function getActiveProfile(config: AgetnticOSConfig): ProfileConfig {
+export function getActiveProfile(config: AgenticNetOSConfig): ProfileConfig {
   const name = config.active_profile || 'local';
   return config.profiles[name] ?? DEFAULT_PROFILE;
 }

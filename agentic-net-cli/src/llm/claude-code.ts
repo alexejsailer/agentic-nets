@@ -12,7 +12,7 @@ const MAX_USER_PROMPT_CHARS = 80_000;
 /**
  * Claude Code CLI provider.
  * Spawns `claude -p` for each iteration.
- * Embeds AgetnticOS tool definitions in the system prompt and parses
+ * Embeds AgenticNetOS tool definitions in the system prompt and parses
  * structured <tool_call> blocks from the text response.
  */
 export class ClaudeCodeProvider implements LlmProvider {
@@ -42,7 +42,7 @@ export class ClaudeCodeProvider implements LlmProvider {
   }
 
   /**
-   * Embed AgetnticOS tool definitions and tool-call protocol into the system prompt.
+   * Embed AgenticNetOS tool definitions and tool-call protocol into the system prompt.
    */
   private buildSystemWithTools(systemPrompt: string, tools: ToolSchema[]): string {
     if (tools.length === 0) return systemPrompt;
@@ -62,7 +62,7 @@ export class ClaudeCodeProvider implements LlmProvider {
 
 ## Tool Use Protocol
 
-You have access to AgetnticOS tools. When you need to use a tool, output EXACTLY this format:
+You have access to AgenticNetOS tools. When you need to use a tool, output EXACTLY this format:
 
 <tool_call>
 {"name": "TOOL_NAME", "input": {"param1": "value1"}}

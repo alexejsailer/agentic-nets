@@ -1,6 +1,6 @@
-# Contributing to AgenticOS Agentic-Nets
+# Contributing to AgenticNetOS Agentic-Nets
 
-Thank you for your interest in contributing to AgenticOS. This document provides guidelines for contributing to the open-source components of the project.
+Thank you for your interest in contributing to AgenticNetOS. This document provides guidelines for contributing to the open-source components of the project.
 
 ## License
 

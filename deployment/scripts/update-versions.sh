@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AgenticOS — Update Image Versions in Compose Files
+# AgenticNetOS — Update Image Versions in Compose Files
 #
 # Updates all alexejsailer/agenticos-* image tags in the deployment compose
 # files to a specific version. Run this after promoting images to Docker Hub.

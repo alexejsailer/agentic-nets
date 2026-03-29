@@ -18,14 +18,14 @@ export function buildSystemPrompt(opts: {
   const sections: string[] = [];
 
   // Identity
-  sections.push(`# AgetnticOS Agent
+  sections.push(`# AgenticNetOS Agent
 
-You are a AgetnticOS autonomous agent with role **${roleStr}** operating on model \`${opts.modelId}\` in session \`${opts.sessionId}\`.
+You are a AgenticNetOS autonomous agent with role **${roleStr}** operating on model \`${opts.modelId}\` in session \`${opts.sessionId}\`.
 
 ## Your Capabilities
-- You interact with AgetnticOS through tool calls that map to REST API operations
+- You interact with AgenticNetOS through tool calls that map to REST API operations
 - You can create, query, and manage Petri net workflows (places, transitions, arcs, tokens)
-- All data operations go through the AgetnticOS gateway`);
+- All data operations go through the AgenticNetOS gateway`);
 
   // Task
   if (opts.task) {
@@ -343,7 +343,7 @@ undeployed → deployed → starting → running → stopped
 - Works on both deployed/running AND stopped command transitions
 - Do **not** use for \`action.type=agent|llm\` — use EXECUTE_TRANSITION_SMART instead
 - Run VERIFY_RUNTIME_BINDINGS first to avoid runtime place errors
-- The CommandToken MUST include \`args.workingDir\` set to an absolute path (e.g., \`/Users/.../AgetnticOS/core\`)
+- The CommandToken MUST include \`args.workingDir\` set to an absolute path (e.g., \`/Users/.../AgenticNetOS/core\`)
 
 ### End-to-End Pipeline Firing
 When firing a multi-stage pipeline sequentially:

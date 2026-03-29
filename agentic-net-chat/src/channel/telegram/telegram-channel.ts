@@ -118,12 +118,13 @@ export class TelegramChannel implements ChatChannel, MessageSender {
     // Commands
     this.bot.command('start', async (ctx) => {
       await ctx.reply(
-        'AgetnticOS Agent connected.\n\n' +
+        'AgenticNetOS Agent connected.\n\n' +
         'Send any message to interact with the agent.\n\n' +
         'Commands:\n' +
         '/clear - Reset conversation\n' +
         '/context - Show session info\n' +
         '/compact - Summarize conversation to save context\n' +
+        '/chronicle <question> - Ask the Session Chronicle agent\n' +
         '/provider <name> - Switch LLM provider\n' +
         '/model <high|medium|low> - Set model tier\n' +
         '/setkey <provider> <key> - Set API key\n' +
@@ -238,6 +239,33 @@ export class TelegramChannel implements ChatChannel, MessageSender {
       lines.push('  /compact - Compress context');
 
       await ctx.reply(lines.join('\n'));
+    });
+
+    // Chronicle command — routes to agent with chronicle persona context
+    this.bot.command('chronicle', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const args = ctx.match?.toString().trim();
+      if (!args) {
+        await ctx.reply(
+          'Usage: /chronicle <question or command>\n\n' +
+          'Examples:\n' +
+          '  /chronicle status\n' +
+          '  /chronicle what errors happened today?\n' +
+          '  /chronicle generate a daily report\n' +
+          '  /chronicle initialize and record current state',
+        );
+        return;
+      }
+
+      // Prefix the message with chronicle persona instruction
+      const chronicleMessage =
+        `[CHRONICLE MODE] You are now acting as the Session Chronicle agent. ` +
+        `Your mission is to record, analyze, and report on session state over time. ` +
+        `You may only write to paths under /chronicle/. Never modify operational places or transitions. ` +
+        `Always include timestamps and metrics. Be quantitative.\n\n` +
+        `User request: ${args}`;
+
+      await this.sessionManager.handleMessage(chatId, chronicleMessage, this);
     });
 
     // Text messages → agent

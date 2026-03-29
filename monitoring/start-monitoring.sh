@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# AgetnticOS Monitoring Stack Startup Script
+# AgenticNetOS Monitoring Stack Startup Script
 
 set -e
 
-echo "🚀 Starting AgetnticOS Monitoring Stack..."
+echo "🚀 Starting AgenticNetOS Monitoring Stack..."
 
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
@@ -46,9 +46,9 @@ fi
 
 echo ""
 echo "🎯 Next steps:"
-echo "1. Start your AgetnticOS application: ./mvnw spring-boot:run"
+echo "1. Start your AgenticNetOS application: ./mvnw spring-boot:run"
 echo "2. Open Grafana: http://localhost:3000 (admin/admin)"
-echo "3. Navigate to 'Dashboards' → 'AgetnticOS Application Dashboard'"
+echo "3. Navigate to 'Dashboards' → 'AgenticNetOS Application Dashboard'"
 echo "4. Generate some traffic to see metrics: curl http://localhost:8080/api/tree"
 echo ""
 echo "📚 For more details, see GRAFANA_DASHBOARD.md"

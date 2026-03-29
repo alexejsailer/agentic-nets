@@ -9,7 +9,7 @@ import { SessionManager } from './session/session-manager.js';
 import { TelegramChannel } from './channel/telegram/telegram-channel.js';
 
 export async function startChatBridge(): Promise<void> {
-  // Load AgetnticOS CLI config
+  // Load AgenticNetOS CLI config
   const cliConfig = loadConfig();
   const profile = resolveProfile(getActiveProfile(cliConfig));
 
@@ -82,7 +82,7 @@ export async function startChatBridge(): Promise<void> {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  console.log(`AgetnticOS Chat Bridge`);
+  console.log(`AgenticNetOS Chat Bridge`);
   console.log(`  Gateway:  ${profile.gateway_url}`);
   console.log(`  Provider: ${providerName}`);
   console.log(`  Model:    ${modelId}`);

@@ -37,8 +37,8 @@ export class CodexProvider implements LlmProvider {
       const retryPrompt = `${fullPrompt}
 
 [RETRY REQUIREMENT]
-Your previous response was invalid because it did not include a AgetnticOS <tool_call>.
-AgetnticOS tools are available in this interface.
+Your previous response was invalid because it did not include a AgenticNetOS <tool_call>.
+AgenticNetOS tools are available in this interface.
 Respond now with EXACTLY one valid <tool_call>...</tool_call> block and no extra text.`;
       const retryOutput = await this.runCodex(retryPrompt);
       const retryParsed = this.parseResponse(retryOutput);
@@ -68,7 +68,7 @@ Respond now with EXACTLY one valid <tool_call>...</tool_call> block and no extra
 
 ## Tool Use Protocol
 
-You have access to AgetnticOS tools. When you need to use a tool, output EXACTLY this format:
+You have access to AgenticNetOS tools. When you need to use a tool, output EXACTLY this format:
 
 <tool_call>
 {"name": "TOOL_NAME", "input": {"param1": "value1"}}

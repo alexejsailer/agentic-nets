@@ -18,7 +18,7 @@
 
 **Licensor**: Alexej Sailer
 
-**Licensed Work**: AgetnticOS Agentic-Nets — all source code in this repository
+**Licensed Work**: AgenticNetOS Agentic-Nets — all source code in this repository
 
 **Change Date**: 2030-02-22
 

@@ -1,8 +1,8 @@
-# AgetnticOS Agentic-Nets — Open-Source Repository
+# AgenticNetOS Agentic-Nets — Open-Source Repository
 
 ## Overview
 
-This is the **public, open-source** part of [AgetnticOS](https://alexejsailer.com) — the Agentic Workflow OS. It contains the open-source services, deployment configurations, and monitoring stack.
+This is the **public, open-source** part of [AgenticNetOS](https://alexejsailer.com) — the Agentic Workflow OS. It contains the open-source services, deployment configurations, and monitoring stack.
 
 Closed-source core services (node, master, gui) are distributed as pre-built Docker Hub images and governed by `PROPRIETARY-EULA.md`. All source code in this repo is licensed under `LICENSE.md` (BSL 1.1).
 
@@ -134,7 +134,7 @@ claude -p 'prompt' --no-session-persistence < /dev/null
 
 ### agentic-net-cli
 
-**Purpose**: Command-line interface for AgetnticOS operations.
+**Purpose**: Command-line interface for AgenticNetOS operations.
 
 - **Technology**: TypeScript, Node.js 22, ESM bundle via tsup
 - **Build**: `cd agentic-net-cli && npm install && npx tsup` (105KB ESM bundle)
@@ -279,7 +279,7 @@ Stack: Grafana + Prometheus + Tempo + OpenTelemetry Collector
 | Prometheus | http://localhost:9090 | |
 | Tempo | http://localhost:3200 | Distributed tracing |
 
-All AgetnticOS services export metrics and traces via OpenTelemetry (OTLP to `otel-collector:4318`).
+All AgenticNetOS services export metrics and traces via OpenTelemetry (OTLP to `otel-collector:4318`).
 
 Configs in `monitoring/config/`, Grafana dashboards in `monitoring/grafana-provisioning/`.
 
@@ -314,7 +314,7 @@ Configs in `monitoring/config/`, Grafana dashboards in `monitoring/grafana-provi
 
 ## Relationship to core/
 
-This repo (`agentic-nets/`) was split from the AgetnticOS monorepo. The open-source services were **moved** here (not copied). The private repo at `../core/` retains the closed-source services and full git history.
+This repo (`agentic-nets/`) was split from the AgenticNetOS monorepo. The open-source services were **moved** here (not copied). The private repo at `../core/` retains the closed-source services and full git history.
 
 The closed-source services (node, master, gui) are consumed here only as Docker Hub images — their source code is not in this repository.
 

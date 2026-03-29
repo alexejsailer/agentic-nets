@@ -117,7 +117,10 @@ class MasterPollingIntegrationTest {
             assertThat(parsedInscription.action().type()).isEqualTo("command");
         });
 
-        assertThat(mockMaster.getRequestCount()).isEqualTo(2); // poll + deployment status
+        // poll + async deployment status report — wait for both
+        await().atMost(5, SECONDS).untilAsserted(() ->
+                assertThat(mockMaster.getRequestCount()).isEqualTo(2)
+        );
     }
 
     @Test

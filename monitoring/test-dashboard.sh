@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔍 AgetnticOS Dashboard Setup Test"
+echo "🔍 AgenticNetOS Dashboard Setup Test"
 echo "=============================="
 
 # Check if monitoring stack is running
@@ -20,12 +20,12 @@ else
     exit 1
 fi
 
-# Check if AgetnticOS app is running
+# Check if AgenticNetOS app is running
 echo ""
-echo "2. Checking AgetnticOS application..."
+echo "2. Checking AgenticNetOS application..."
 
 if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
-    echo "✅ AgetnticOS application is running (http://localhost:8080)"
+    echo "✅ AgenticNetOS application is running (http://localhost:8080)"
     
     # Check metrics endpoint
     METRIC_COUNT=$(curl -s http://localhost:8080/actuator/prometheus | wc -l)
@@ -37,14 +37,14 @@ if curl -s http://localhost:8080/actuator/health > /dev/null 2>&1; then
     sleep 2
     
     if curl -s "http://localhost:9090/api/v1/query?query=up{job=\"agentic-net-node\"}" | grep -q '"value":\[.*,"1"\]'; then
-        echo "✅ Prometheus is successfully scraping AgetnticOS metrics"
+        echo "✅ Prometheus is successfully scraping AgenticNetOS metrics"
     else
-        echo "⚠️  Prometheus may not be scraping AgetnticOS yet (this can take up to 30 seconds)"
+        echo "⚠️  Prometheus may not be scraping AgenticNetOS yet (this can take up to 30 seconds)"
         echo "    Check targets: http://localhost:9090/targets"
     fi
     
 else
-    echo "❌ AgetnticOS application not running. Run: ./mvnw spring-boot:run"
+    echo "❌ AgenticNetOS application not running. Run: ./mvnw spring-boot:run"
     echo "    (Make sure to run this in another terminal)"
 fi
 
@@ -61,11 +61,11 @@ echo ""
 echo "📊 Dashboard Access:"
 echo "   Grafana:    http://localhost:3000 (admin/admin)"
 echo "   Prometheus: http://localhost:9090"
-echo "   AgetnticOS:     http://localhost:8080"
+echo "   AgenticNetOS:     http://localhost:8080"
 
 echo ""
 echo "🎯 Next Steps:"
 echo "   1. Open Grafana: http://localhost:3000"
-echo "   2. Go to Dashboards → AgetnticOS Basic Dashboard"
+echo "   2. Go to Dashboards → AgenticNetOS Basic Dashboard"
 echo "   3. You should see basic metrics (HTTP requests, memory, CPU)"
 echo "   4. Generate more traffic: curl http://localhost:8080/api/tree"

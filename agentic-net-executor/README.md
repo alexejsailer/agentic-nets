@@ -1,6 +1,6 @@
 # AgenticNet Executor
 
-Command-only executor for AgetnticOS transitions.
+Command-only executor for AgenticNetOS transitions.
 
 ## Overview
 

@@ -1,7 +1,7 @@
 {
   "name": "@agenticos/chat",
   "version": "0.1.0",
-  "description": "AgetnticOS Chat Bridge - Multi-channel messaging to AgetnticOS agent system",
+  "description": "AgenticNetOS Chat Bridge - Multi-channel messaging to AgenticNetOS agent system",
   "type": "module",
   "bin": {
     "agenticos-chat": "./dist/bin/agenticos-chat.js"

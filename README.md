@@ -1,11 +1,11 @@
-# AgetnticOS Agentic-Nets
+# AgenticNetOS Agentic-Nets
 
 > **BETA SOFTWARE — USE AT YOUR OWN RISK**
 >
 > This project is in active development. It may contain bugs, incomplete features, and breaking changes.
 > There is **absolutely no warranty** of any kind. See [LICENSE.md](LICENSE.md) and [PROPRIETARY-EULA.md](PROPRIETARY-EULA.md) for details.
 
-**Agentic-Nets** is the open-source deployment and extension layer for [AgetnticOS](https://alexejsailer.com) — the Agentic Workflow OS that combines autonomous intelligence with Petri-net control, distributed execution, and full token-level observability.
+**Agentic-Nets** is the open-source deployment and extension layer for [AgenticNetOS](https://alexejsailer.com) — the Agentic Workflow OS that combines autonomous intelligence with Petri-net control, distributed execution, and full token-level observability.
 
 This repository contains the open-source services, deployment configurations, and monitoring stack. Closed-source core services (node, master, gui) are available as pre-built Docker images from Docker Hub.
 
