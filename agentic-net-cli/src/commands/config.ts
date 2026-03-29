@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import {
   loadConfig, saveConfig, getActiveProfile, getConfigFilePath, ensureConfigDir,
-  type AgetnticOSConfig, type ProfileConfig,
+  type AgenticNetOSConfig, type ProfileConfig,
 } from '../config/config.js';
 import { outputJson, outputSuccess, outputError, outputInfo, outputTable, isJsonMode } from '../render/output.js';
 import { createInterface } from 'node:readline';

@@ -90,7 +90,7 @@ export function registerChatCommand(program: Command, getContext: () => { client
       let lineBuffer = '';       // current typed/pasted content
       let isPasting = false;     // inside bracketed paste sequence
 
-      outputInfo(`AgetnticOS Agent | Model: ${modelId} | Session: ${sessionId || 'auto'} | Provider: ${providerName}`);
+      outputInfo(`AgenticNetOS Agent | Model: ${modelId} | Session: ${sessionId || 'auto'} | Provider: ${providerName}`);
       outputInfo('Type your request, or /help for commands.\n');
 
       const prompt = '> ';

@@ -642,7 +642,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   DOCKER_LIST: {
-    description: 'List running AgetnticOS tool containers.',
+    description: 'List running AgenticNetOS tool containers.',
     schema: {
       type: 'object',
       properties: {

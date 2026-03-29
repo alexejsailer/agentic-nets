@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * AgenticNet Gateway — Thin API Gateway
  *
- * The only internet-facing service in the AgetnticOS ecosystem.
+ * The only internet-facing service in the AgenticNetOS ecosystem.
  * Authenticates requests via Bearer tokens and relays to agentic-net-master.
  *
  * Port: 8083

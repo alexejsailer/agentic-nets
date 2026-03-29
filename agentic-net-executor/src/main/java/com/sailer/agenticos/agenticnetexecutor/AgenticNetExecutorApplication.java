@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * AgenticNet Executor Application
  *
- * Command-only executor for AgetnticOS transitions.
+ * Command-only executor for AgenticNetOS transitions.
  *
  * Key Capabilities:
  * - Polls agentic-net-master for assigned command transitions

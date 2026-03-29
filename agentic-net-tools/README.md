@@ -1,6 +1,6 @@
-# AgetnticOS Tool Images
+# AgenticNetOS Tool Images
 
-User-space tool containers that AgetnticOS agents can discover, deploy, and use via HTTP transitions.
+User-space tool containers that AgenticNetOS agents can discover, deploy, and use via HTTP transitions.
 
 ## Structure
 
@@ -53,7 +53,7 @@ Every tool image must include these labels:
 ## Quick Start
 
 ```bash
-# Start local registry (part of AgetnticOS docker-compose)
+# Start local registry (part of AgenticNetOS docker-compose)
 cd ../deployment
 docker compose up -d agenticos-registry
 
@@ -64,7 +64,7 @@ docker compose up -d agenticos-registry
 curl http://localhost:5001/v2/_catalog
 # {"repositories":["agenticos-tool-echo","agenticos-tool-crawler","agenticos-tool-rss","agenticos-tool-search"]}
 
-# Browse via AgetnticOS API (requires master running with registry enabled)
+# Browse via AgenticNetOS API (requires master running with registry enabled)
 curl http://localhost:8082/api/registry/images
 ```
 

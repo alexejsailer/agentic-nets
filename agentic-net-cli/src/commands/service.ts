@@ -12,16 +12,16 @@ function findAgenticosScript(): string {
   const candidates = [
     join(process.cwd(), 'agenticos.sh'),
     AGENTICOS_SCRIPT,
-    join(process.env['HOME'] || '', 'Developer/AgetnticOS/agenticos.sh'),
+    join(process.env['HOME'] || '', 'Developer/AgenticNetOS/agenticos.sh'),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
   }
-  throw new Error('agenticos.sh not found. Run from AgetnticOS project root or set AGENTICOS_DIR.');
+  throw new Error('agenticos.sh not found. Run from AgenticNetOS project root or set AGENTICOS_DIR.');
 }
 
 export function registerServiceCommand(program: Command): void {
-  const service = program.command('service').description('AgetnticOS service management');
+  const service = program.command('service').description('AgenticNetOS service management');
 
   service
     .command('status')

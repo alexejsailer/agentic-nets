@@ -1,6 +1,6 @@
 # Post-Deployment Configuration
 
-After deploying AgenticOS, you can configure API keys, LLM providers, model tiers,
+After deploying AgenticNetOS, you can configure API keys, LLM providers, model tiers,
 Telegram bot settings, and Ollama cloud access by editing the `.env` file and
 restarting the affected services.
 

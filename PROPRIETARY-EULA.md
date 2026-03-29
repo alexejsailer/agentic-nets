@@ -1,4 +1,4 @@
-# AgetnticOS Proprietary End-User License Agreement (EULA)
+# AgenticNetOS Proprietary End-User License Agreement (EULA)
 
 > ## BETA SOFTWARE — USE AT YOUR OWN RISK
 >

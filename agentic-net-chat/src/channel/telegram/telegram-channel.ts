@@ -118,7 +118,7 @@ export class TelegramChannel implements ChatChannel, MessageSender {
     // Commands
     this.bot.command('start', async (ctx) => {
       await ctx.reply(
-        'AgetnticOS Agent connected.\n\n' +
+        'AgenticNetOS Agent connected.\n\n' +
         'Send any message to interact with the agent.\n\n' +
         'Commands:\n' +
         '/clear - Reset conversation\n' +

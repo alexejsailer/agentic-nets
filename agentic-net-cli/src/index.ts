@@ -25,7 +25,7 @@ export function createProgram(): Command {
 
   program
     .name('agenticos')
-    .description('AgetnticOS CLI — Intelligent Petri net modeling from the command line')
+    .description('AgenticNetOS CLI — Intelligent Petri net modeling from the command line')
     .version('0.1.0')
     .option('--gateway <url>', 'Override gateway URL')
     .option('--model <modelId>', 'Override model ID')

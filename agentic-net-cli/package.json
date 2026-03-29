@@ -1,7 +1,7 @@
 {
   "name": "@agenticos/cli",
   "version": "0.1.0",
-  "description": "AgetnticOS CLI - Intelligent Petri net modeling from the command line",
+  "description": "AgenticNetOS CLI - Intelligent Petri net modeling from the command line",
   "type": "module",
   "bin": {
     "agenticos": "./dist/bin/agenticos.js"

@@ -1,13 +1,13 @@
-# AgetnticOS Agentic-Net-Monitoring Project
+# AgenticNetOS Agentic-Net-Monitoring Project
 
 ## Overview
 
-AgetnticOS Agentic-Net-Monitoring is a comprehensive observability stack that provides real-time monitoring, metrics collection, distributed tracing, and alerting capabilities for the AgetnticOS ecosystem. It implements industry-standard monitoring technologies including Prometheus, Grafana, Tempo, and OpenTelemetry to deliver complete visibility into system performance, health, and operational characteristics.
+AgenticNetOS Agentic-Net-Monitoring is a comprehensive observability stack that provides real-time monitoring, metrics collection, distributed tracing, and alerting capabilities for the AgenticNetOS ecosystem. It implements industry-standard monitoring technologies including Prometheus, Grafana, Tempo, and OpenTelemetry to deliver complete visibility into system performance, health, and operational characteristics.
 
 ### Key Features
 - **Complete Observability Stack** with Prometheus metrics, Grafana dashboards, and Tempo tracing
 - **OpenTelemetry Integration** with standardized telemetry data collection and export
-- **Pre-configured Dashboards** optimized for AgetnticOS application monitoring
+- **Pre-configured Dashboards** optimized for AgenticNetOS application monitoring
 - **Automated Health Checks** with service readiness validation
 - **Docker Compose Orchestration** for simplified deployment and management
 - **Professional Alerting** with Prometheus-based alerting rules
@@ -29,7 +29,7 @@ AgetnticOS Agentic-Net-Monitoring is a comprehensive observability stack that pr
 **Configuration**: `config/prometheus.yaml`
 
 **Key Features**:
-- **Metrics Scraping**: Automated collection from AgetnticOS applications via `/actuator/prometheus`
+- **Metrics Scraping**: Automated collection from AgenticNetOS applications via `/actuator/prometheus`
 - **Time Series Storage**: High-performance metrics storage with configurable retention
 - **PromQL Query Language**: Powerful querying capabilities for metrics analysis
 - **Alert Rules**: Configurable alerting based on metric thresholds and patterns
@@ -57,7 +57,7 @@ scrape_configs:
 
 **Key Features**:
 - **Pre-configured Datasources**: Automatic connection to Prometheus and Tempo
-- **Custom Dashboards**: AgetnticOS-specific dashboards for application monitoring
+- **Custom Dashboards**: AgenticNetOS-specific dashboards for application monitoring
 - **User Management**: Secure access with admin/admin default credentials
 - **Alert Integration**: Visual alerting with notification channels
 - **Plugin Ecosystem**: Extensible with community plugins
@@ -81,7 +81,7 @@ scrape_configs:
 **Integration Points**:
 - **Ingestion**: Receives traces from OpenTelemetry Collector
 - **Grafana Integration**: Provides trace datasource for Grafana
-- **AgetnticOS Applications**: Direct integration with Spring Boot tracing
+- **AgenticNetOS Applications**: Direct integration with Spring Boot tracing
 
 #### 4. OpenTelemetry Collector (`otel-collector:4317/4318`)
 **Purpose**: Telemetry data collection, processing, and export hub
@@ -114,19 +114,19 @@ exporters:
 ## Dashboard and Visualization
 
 ### Pre-configured Dashboards
-The monitoring stack includes professionally designed dashboards optimized for AgetnticOS monitoring:
+The monitoring stack includes professionally designed dashboards optimized for AgenticNetOS monitoring:
 
-#### 1. AgetnticOS Application Dashboard
+#### 1. AgenticNetOS Application Dashboard
 **Purpose**: Core application performance and health monitoring
 
 **Key Metrics Panels**:
 - **HTTP Request Metrics**: Request rates, response times, error rates
 - **JVM Performance**: Memory usage, garbage collection, thread utilization
 - **Database Operations**: Transaction rates, connection pool status
-- **Custom Business Metrics**: AgetnticOS-specific operational indicators
+- **Custom Business Metrics**: AgenticNetOS-specific operational indicators
 - **System Health**: Service uptime, health check status
 
-#### 2. AgetnticOS Infrastructure Dashboard
+#### 2. AgenticNetOS Infrastructure Dashboard
 **Purpose**: System-level monitoring and resource utilization
 
 **Key Metrics Panels**:
@@ -135,7 +135,7 @@ The monitoring stack includes professionally designed dashboards optimized for A
 - **Docker Health**: Container status, restart counts, resource limits
 - **Host System**: OS-level metrics and resource utilization
 
-#### 3. AgetnticOS Tracing Dashboard
+#### 3. AgenticNetOS Tracing Dashboard
 **Purpose**: Distributed tracing analysis and performance profiling
 
 **Key Features**:
@@ -145,10 +145,10 @@ The monitoring stack includes professionally designed dashboards optimized for A
 - **Error Correlation**: Trace-to-log correlation for debugging
 
 ### Custom Metrics Integration
-AgetnticOS applications expose custom metrics through Spring Boot Actuator:
+AgenticNetOS applications expose custom metrics through Spring Boot Actuator:
 
 ```java
-// Custom metrics examples from AgetnticOS applications
+// Custom metrics examples from AgenticNetOS applications
 @Timed(name = "agenticos.model.operations", description = "Time taken for model operations")
 @Counter(name = "agenticos.events.processed", description = "Number of events processed")
 @Gauge(name = "agenticos.models.active", description = "Number of active models")
@@ -159,7 +159,7 @@ AgetnticOS applications expose custom metrics through Spring Boot Actuator:
 ### Quick Start
 ```bash
 # Navigate to monitoring directory
-cd /Users/alexejsailer/Developer/AgetnticOS/agentic-net-monitoring
+cd /Users/alexejsailer/Developer/AgenticNetOS/agentic-net-monitoring
 
 # Start monitoring stack
 ./start-monitoring.sh
@@ -217,7 +217,7 @@ The monitoring stack includes comprehensive testing capabilities:
 **Test Coverage**:
 - **Service Health**: Validates all monitoring services are responsive
 - **Datasource Connectivity**: Tests Grafana datasource connections
-- **Metric Collection**: Verifies metrics are being collected from AgetnticOS apps
+- **Metric Collection**: Verifies metrics are being collected from AgenticNetOS apps
 - **Dashboard Rendering**: Validates dashboard panels display data correctly
 
 ```bash
@@ -227,13 +227,13 @@ The monitoring stack includes comprehensive testing capabilities:
 # Expected output:
 ✅ Prometheus is collecting metrics from agentic-net-node
 ✅ Grafana datasources are configured correctly
-✅ AgetnticOS Application Dashboard is responsive
+✅ AgenticNetOS Application Dashboard is responsive
 ```
 
-## Integration with AgetnticOS Ecosystem
+## Integration with AgenticNetOS Ecosystem
 
 ### Spring Boot Application Integration
-AgetnticOS applications integrate with the monitoring stack through:
+AgenticNetOS applications integrate with the monitoring stack through:
 
 #### OpenTelemetry Configuration
 ```properties
@@ -255,7 +255,7 @@ management.metrics.export.prometheus.enabled=true
 #### Custom Metrics Registration
 ```java
 @Component
-public class AgetnticOSMetrics {
+public class AgenticNetOSMetrics {
     private final MeterRegistry meterRegistry;
 
     @EventListener
@@ -295,8 +295,8 @@ The monitoring stack supports comprehensive development workflows:
 
 #### Local Development
 ```bash
-# Start AgetnticOS applications with monitoring
-cd /Users/alexejsailer/Developer/AgetnticOS/agentic-net-node
+# Start AgenticNetOS applications with monitoring
+cd /Users/alexejsailer/Developer/AgenticNetOS/agentic-net-node
 ./mvnw spring-boot:run
 
 # Monitor in real-time through Grafana
@@ -408,14 +408,14 @@ Alert rules are defined in `/alerts/` directory and loaded by Prometheus:
 
 #### Application Health Alerts
 ```yaml
-# AgetnticOS Application Health
-- alert: AgetnticOSServiceDown
+# AgenticNetOS Application Health
+- alert: AgenticNetOSServiceDown
   expr: up{job=~"agentic-net-.*"} == 0
   for: 30s
   labels:
     severity: critical
   annotations:
-    summary: "AgetnticOS service {{ $labels.job }} is down"
+    summary: "AgenticNetOS service {{ $labels.job }} is down"
     description: "{{ $labels.job }} has been down for more than 30 seconds"
 
 - alert: HighErrorRate
@@ -478,4 +478,4 @@ Grafana supports multiple notification channels:
 3. **Performance Baselines**: Establish and monitor performance baselines
 4. **Continuous Improvement**: Iterative improvement based on operational experience
 
-This document provides comprehensive understanding of the AgetnticOS agentic-net-monitoring project's observability architecture, monitoring capabilities, integration patterns, and operational procedures for effective AgetnticOS ecosystem monitoring and performance management.
+This document provides comprehensive understanding of the AgenticNetOS agentic-net-monitoring project's observability architecture, monitoring capabilities, integration patterns, and operational procedures for effective AgenticNetOS ecosystem monitoring and performance management.

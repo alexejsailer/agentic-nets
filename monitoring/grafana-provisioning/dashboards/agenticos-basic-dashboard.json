@@ -1,6 +1,6 @@
 {
   "id": null,
-  "title": "AgetnticOS Basic Dashboard",
+  "title": "AgenticNetOS Basic Dashboard",
   "tags": [
     "agenticos",
     "spring-boot"
@@ -580,7 +580,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**Getting Started:**\n\n1. If you see no data, ensure your AgetnticOS application is running: `./mvnw spring-boot:run`\n2. Check Prometheus is scraping: http://localhost:9090/targets\n3. Test metrics endpoint: http://localhost:8080/actuator/prometheus\n4. Generate some traffic: `curl http://localhost:8080/api/tree`\n\n**Available Standard Metrics:**\n- `up{job=\"agentic-net-node\"}` - Application up/down status\n- `http_server_requests_seconds_*` - HTTP request metrics\n- `jvm_memory_*` - JVM memory usage\n- `jvm_threads_*` - Thread information\n- `system_cpu_usage` - CPU utilization\n\n**Next Steps:**\nSee `METRICS_INTEGRATION.md` for adding AgetnticOS-specific metrics like model operations, snapshots, and tree structure data."
+        "content": "**Getting Started:**\n\n1. If you see no data, ensure your AgenticNetOS application is running: `./mvnw spring-boot:run`\n2. Check Prometheus is scraping: http://localhost:9090/targets\n3. Test metrics endpoint: http://localhost:8080/actuator/prometheus\n4. Generate some traffic: `curl http://localhost:8080/api/tree`\n\n**Available Standard Metrics:**\n- `up{job=\"agentic-net-node\"}` - Application up/down status\n- `http_server_requests_seconds_*` - HTTP request metrics\n- `jvm_memory_*` - JVM memory usage\n- `jvm_threads_*` - Thread information\n- `system_cpu_usage` - CPU utilization\n\n**Next Steps:**\nSee `METRICS_INTEGRATION.md` for adding AgenticNetOS-specific metrics like model operations, snapshots, and tree structure data."
       }
     }
   ]

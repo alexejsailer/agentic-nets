@@ -18,7 +18,7 @@ export interface GatewayClientOptions {
 }
 
 /**
- * AgetnticOS gateway client. All traffic goes through the gateway.
+ * AgenticNetOS gateway client. All traffic goes through the gateway.
  * JWT is auto-acquired when AGENTICOS_ADMIN_SECRET env var is set.
  */
 export class GatewayClient {

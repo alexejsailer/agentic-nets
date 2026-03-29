@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AgenticNet Gateway is a complete, production-ready intelligent service for automating token transformations and service deployment in the AgetnticOS ecosystem. It provides end-to-end automation from natural language requirements to deployed solutions.
+The AgenticNet Gateway is a complete, production-ready intelligent service for automating token transformations and service deployment in the AgenticNetOS ecosystem. It provides end-to-end automation from natural language requirements to deployed solutions.
 
 ## What We Built
 
