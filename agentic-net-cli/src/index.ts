@@ -19,6 +19,7 @@ import { registerAskCommand } from './commands/ask.js';
 import { registerServiceCommand } from './commands/service.js';
 import { registerVersionCommand } from './commands/version.js';
 import { registerPackageCommand } from './commands/package.js';
+import { registerChronicleCommand } from './commands/chronicle.js';
 
 export function createProgram(): Command {
   const program = new Command();
@@ -86,6 +87,7 @@ export function createProgram(): Command {
   registerChatCommand(program, getContext);
   registerAskCommand(program, getContext);
   registerPackageCommand(program, getContext);
+  registerChronicleCommand(program, getContext);
   registerServiceCommand(program);
   registerVersionCommand(program);
 
