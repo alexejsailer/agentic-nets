@@ -43,6 +43,7 @@ export type AgentTool =
   | 'EMIT_MEMORY'
   | 'EXTRACT_TOKEN_CONTENT'
   | 'EXTRACT_RAW_DATA'
+  | 'INSPECT_TOKEN_SIZE'
   | 'GET_LINKED_PLACES'
   // Package Registry (R/W flag)
   | 'PACKAGE_SEARCH'
@@ -444,13 +445,13 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   EXTRACT_TOKEN_CONTENT: {
-    description: 'Extract and analyze a single token\'s large content (e.g. 70KB HTML). Modes: summarize (LLM summary), text (plain text), links (URLs), structure (headings/forms), head (raw first/last chars).',
+    description: 'Extract and analyze a single token\'s large content (e.g. 70KB HTML). Modes: auto (recommended — smart detect+strip), summarize, text, links, structure, head.',
     schema: {
       type: 'object',
       properties: {
         placePath: { type: 'string', description: 'Path to the place containing the token' },
         tokenName: { type: 'string', description: 'Exact name of the token to read' },
-        mode: { type: 'string', description: 'Processing mode: summarize (default), text, links, structure, head' },
+        mode: { type: 'string', description: 'Processing mode: auto (recommended), summarize, text, links, structure, head' },
         property: { type: 'string', description: 'Which token property to read (default: body)' },
         limit: { type: 'number', description: 'Max chars for text/head modes (default: 4000)' },
       },
@@ -458,7 +459,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   EXTRACT_RAW_DATA: {
-    description: 'Extract plain text values from tokens in a place, stripping JSON structure for compact readable output. Lighter than QUERY_TOKENS for text analysis.',
+    description: 'Extract plain text values from tokens in a place, stripping JSON structure for compact readable output. Values auto-truncated to 2000 chars.',
     schema: {
       type: 'object',
       properties: {
@@ -467,6 +468,18 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         properties: { type: 'array', items: { type: 'string' }, description: 'Which properties to extract (default: all)' },
         separator: { type: 'string', description: 'Separator between values (default: newline)' },
         maxLength: { type: 'number', description: 'Max total output chars (default: 8000)' },
+        maxValueLength: { type: 'number', description: 'Max chars per value before truncation (default: 2000)' },
+      },
+      required: ['placePath'],
+    },
+  },
+  INSPECT_TOKEN_SIZE: {
+    description: 'Measure token content sizes (bytes, words, chars, content type) WITHOUT reading actual content. Call BEFORE QUERY_TOKENS for web-crawled or large content. Returns per-token readingHint (SMALL/MEDIUM/LARGE).',
+    schema: {
+      type: 'object',
+      properties: {
+        placePath: { type: 'string', description: 'Path to the place' },
+        arcql: { type: 'string', description: 'ArcQL query (default: FROM $ LIMIT 20)' },
       },
       required: ['placePath'],
     },

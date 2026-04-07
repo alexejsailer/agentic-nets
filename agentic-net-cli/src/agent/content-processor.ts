@@ -152,7 +152,7 @@ export function chunkText(text: string, chunkSize: number = 15000): string[] {
   return chunks;
 }
 
-export type ContentMode = 'summarize' | 'text' | 'links' | 'structure' | 'head';
+export type ContentMode = 'auto' | 'summarize' | 'text' | 'links' | 'structure' | 'head';
 
 export interface ContentResult {
   mode: ContentMode;
@@ -170,6 +170,27 @@ export function processContent(raw: string, mode: ContentMode, limit: number = 4
   const base = { mode, contentType, originalLength: raw.length };
 
   switch (mode) {
+    case 'auto': {
+      const result: ContentResult = { ...base, mode: 'auto', detectedType: contentType, originalKb: (raw.length / 1024).toFixed(1) };
+      if (contentType === 'html') {
+        const stripped = stripHtml(raw);
+        result.strippedLength = stripped.length;
+        result.compressionRatio = `${Math.round((1 - stripped.length / raw.length) * 100)}%`;
+        result.text = stripped.slice(0, limit);
+        result.truncated = stripped.length > limit;
+        if (stripped.length > limit) result.remaining = stripped.length - limit;
+        const structure = extractStructure(raw);
+        if (structure.title) result.title = structure.title;
+        if (structure.headings.length > 0) result.headingCount = structure.headings.length;
+      } else if (contentType === 'json') {
+        result.summary = summarizeJson(raw, limit);
+        result.truncated = false;
+      } else {
+        result.text = raw.slice(0, limit);
+        result.truncated = raw.length > limit;
+      }
+      return result;
+    }
     case 'text': {
       const text = contentType === 'html' ? stripHtml(raw) : raw;
       return { ...base, text: text.slice(0, limit), truncated: text.length > limit };

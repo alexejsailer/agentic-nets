@@ -106,10 +106,12 @@ const CORE_KNOWLEDGE = `## Core Knowledge
 - \`FROM $ ORDER BY $.timestamp DESC LIMIT 10\` — Sort and limit
 
 ### Large Token Content
-- QUERY_TOKENS auto-truncates values to 500 chars (safety net for 70KB+ tokens)
-- When you see truncated content and need the full data, use **EXTRACT_TOKEN_CONTENT**
-- Modes: \`summarize\` (LLM summary), \`text\` (plain text), \`links\` (URLs), \`structure\` (headings), \`head\` (raw chars)
-- Example: \`EXTRACT_TOKEN_CONTENT(placePath: "root/workspace/places/p-raw-html", tokenName: "page-1", mode: "text")\`
+- QUERY_TOKENS auto-truncates values to 2000 chars (safety net for large tokens). Truncated tokens have \`_truncated: true\`.
+- **INSPECT_TOKEN_SIZE**: Call FIRST to measure token sizes (bytes, words, content type) WITHOUT reading content. Returns per-token readingHint (SMALL/MEDIUM/LARGE).
+- When you see truncated content or LARGE tokens, use **EXTRACT_TOKEN_CONTENT** with \`mode: "auto"\` (recommended)
+- Auto mode detects content type: HTML → strips tags + clean text; JSON → structural summary; Text → as-is
+- Other modes: \`summarize\`, \`text\`, \`links\` (URLs), \`structure\` (headings), \`head\` (raw chars)
+- Example: \`EXTRACT_TOKEN_CONTENT(placePath: "root/workspace/places/p-raw-html", tokenName: "page-1", mode: "auto")\`
 
 ### Template Interpolation (MAP Actions, HTTP URLs, LLM Prompts)
 
