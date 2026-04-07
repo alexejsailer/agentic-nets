@@ -191,6 +191,8 @@ export class ToolExecutor {
           return this.executeExtractTokenContent(params);
         case 'EXTRACT_RAW_DATA':
           return this.executeExtractRawData(params);
+        case 'INSPECT_TOKEN_SIZE':
+          return this.executeInspectTokenSize(params);
         case 'GET_LINKED_PLACES':
           return this.executeGetLinkedPlaces(params);
         case 'FIND_SHARED_PLACES':
@@ -1530,6 +1532,67 @@ export class ToolExecutor {
       };
     } catch (err: any) {
       return { success: false, error: `EXTRACT_RAW_DATA failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeInspectTokenSize(params: Record<string, any>): Promise<ToolResult> {
+    const placePath = this.normalizePath(params.placePath);
+    let arcql = (params.arcql as string) || 'FROM $ LIMIT 20';
+    if (!arcql.toUpperCase().includes('LIMIT')) arcql += ' LIMIT 20';
+
+    try {
+      const result = await this.nodeApi.queryTokens(this.modelId, placePath, arcql, 'json_with_meta', {});
+      const tokens = result?.results || result || [];
+      let totalBytes = 0, totalChars = 0, totalWords = 0;
+      const tokenSizes: any[] = [];
+
+      for (const token of tokens) {
+        const name = token?._meta?.name || 'unknown';
+        const data = token?.data || {};
+        const serialized = JSON.stringify(data);
+        const bytes = new TextEncoder().encode(serialized).length;
+        const chars = serialized.length;
+        const words = serialized.trim() ? serialized.split(/\s+/).length : 0;
+
+        // Per-property breakdown
+        const properties: Record<string, any> = {};
+        if (typeof data === 'object' && data !== null) {
+          for (const [k, v] of Object.entries(data)) {
+            const val = String(v);
+            properties[k] = { chars: val.length, kb: (val.length / 1024).toFixed(1) };
+          }
+        }
+
+        // Content type detection
+        const trimmed = serialized.trimStart();
+        let contentType = 'text';
+        if (trimmed.startsWith('<') && (trimmed.includes('</') || trimmed.includes('/>'))) contentType = 'html';
+        else if (trimmed.startsWith('{') || trimmed.startsWith('[')) contentType = 'json';
+
+        const sizeInfo: Record<string, any> = {
+          tokenName: name, bytes, chars, words,
+          kb: (bytes / 1024).toFixed(1), contentType,
+        };
+        if (Object.keys(properties).length > 0) sizeInfo.properties = properties;
+        if (chars > 8000) sizeInfo.readingHint = "LARGE - use EXTRACT_TOKEN_CONTENT with mode='auto' or 'summarize'";
+        else if (chars > 2000) sizeInfo.readingHint = "MEDIUM - consider EXTRACT_TOKEN_CONTENT or QUERY_TOKENS with maxValueLength";
+        else sizeInfo.readingHint = "SMALL - safe to read with QUERY_TOKENS";
+
+        tokenSizes.push(sizeInfo);
+        totalBytes += bytes; totalChars += chars; totalWords += words;
+      }
+
+      const response: Record<string, any> = {
+        placePath, tokenCount: tokenSizes.length,
+        totalBytes, totalKb: (totalBytes / 1024).toFixed(1),
+        totalChars, totalWords, tokens: tokenSizes,
+      };
+      if (totalChars > 20000) {
+        response.warning = `Total content is very large (${(totalBytes / 1024).toFixed(1)} KB). Use EXTRACT_TOKEN_CONTENT on individual tokens with mode='auto' or 'summarize'.`;
+      }
+      return { success: true, data: response };
+    } catch (err: any) {
+      return { success: false, error: `INSPECT_TOKEN_SIZE failed: ${err.message || err}` };
     }
   }
 
