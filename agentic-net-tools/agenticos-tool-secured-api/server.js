@@ -1,6 +1,6 @@
 const http = require('http');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 const VALID_API_KEY = process.env.API_KEY || 'agenticos-test-key-2026';
 
 const server = http.createServer((req, res) => {
