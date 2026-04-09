@@ -14,26 +14,35 @@ agentic-net-tools/
 │   ├── Dockerfile
 │   ├── package.json
 │   └── server.js
+├── agenticos-tool-reddit/           # Reddit JSON API integration
+│   ├── Dockerfile
+│   ├── package.json
+│   └── server.js
 ├── agenticos-tool-rss/              # RSS/Atom feed reader
 │   ├── Dockerfile
 │   ├── package.json
 │   └── server.js
-└── agenticos-tool-search/           # Web search via DuckDuckGo HTML
+├── agenticos-tool-search/           # Web search via DuckDuckGo HTML
+│   ├── Dockerfile
+│   ├── package.json
+│   └── server.js
+└── agenticos-tool-secured-api/      # Test API-key protected endpoint
     ├── Dockerfile
-    ├── package.json
     └── server.js
 ```
 
 ## Tool Summary
 
-| Tool | Port (host) | Endpoint | Description |
-|------|-------------|----------|-------------|
-| `agenticos-tool-echo` | — | `POST /*` | Demo echo server for testing |
-| `agenticos-tool-crawler` | 8086 | `POST /crawl` | Crawls web pages, returns structured content |
-| `agenticos-tool-rss` | 8087 | `POST /fetch` | Fetches RSS/Atom feeds, returns parsed items |
-| `agenticos-tool-search` | 8088 | `POST /search` | Searches web via DuckDuckGo HTML scraping |
+| Tool | Endpoint | Description |
+|------|----------|-------------|
+| `agenticos-tool-echo` | `POST /*` | Echoes request data for smoke tests and debugging |
+| `agenticos-tool-crawler` | `POST /crawl` | Crawls web pages and extracts structured content |
+| `agenticos-tool-reddit` | `POST /posts`, `POST /search`, `POST /comments` | Fetches Reddit posts, comments, and search results |
+| `agenticos-tool-rss` | `POST /fetch` | Fetches and parses RSS/Atom feeds |
+| `agenticos-tool-search` | `POST /search` | Searches the web via DuckDuckGo HTML scraping |
+| `agenticos-tool-secured-api` | `POST /data` | Validates `X-API-Key` and returns secured test data |
 
-All tools listen on port **8080 internally**. Host ports above are for local dev (`docker run -p`).
+All tools listen on port **8080 internally**. Host ports are chosen when you run them, either manually with `docker run -p` or via the AgenticOS tools panel, which allocates dynamic host ports.
 
 ## Label Convention
 
@@ -62,7 +71,7 @@ docker compose up -d agenticos-registry
 
 # Verify
 curl http://localhost:5001/v2/_catalog
-# {"repositories":["agenticos-tool-echo","agenticos-tool-crawler","agenticos-tool-rss","agenticos-tool-search"]}
+# {"repositories":["agenticos-tool-crawler","agenticos-tool-echo","agenticos-tool-reddit","agenticos-tool-rss","agenticos-tool-search","agenticos-tool-secured-api"]}
 
 # Browse via AgenticNetOS API (requires master running with registry enabled)
 curl http://localhost:8082/api/registry/images

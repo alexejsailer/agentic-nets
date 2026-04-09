@@ -22,7 +22,8 @@ build_and_push() {
 
     # Extract version from Dockerfile label or default to "latest"
     local version
-    version=$(grep -oP 'LABEL org.opencontainers.image.version="\K[^"]+' "$dir/Dockerfile" 2>/dev/null || echo "latest")
+    version=$(sed -n 's/^LABEL org\.opencontainers\.image\.version="\([^"]*\)".*/\1/p' "$dir/Dockerfile" | head -n 1)
+    version="${version:-latest}"
 
     echo "Building $name:$version..."
     docker build -t "$REGISTRY/$name:$version" -t "$REGISTRY/$name:latest" "$dir"

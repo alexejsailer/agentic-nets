@@ -11,6 +11,7 @@ LABEL io.agenticos.tool.openapi="/openapi.json"
 LABEL io.agenticos.tool.capabilities="rss,atom,feed,parse"
 
 WORKDIR /app
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 COPY package.json .
 RUN npm install --production
 COPY server.js .

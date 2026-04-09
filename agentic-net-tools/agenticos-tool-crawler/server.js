@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 8080;
 const OPENAPI_SPEC = {
   openapi: '3.0.0',
   info: {
-    title: 'AgetnticOS Web Crawler Tool',
+    title: 'AgenticOS Web Crawler Tool',
     version: '1.0.0',
     description: 'Crawls web pages and returns structured content with CSS selector support'
   },
@@ -127,7 +127,8 @@ async function crawlPage(url, selectors, timeout) {
       }
     };
   } catch (err) {
-    const errorMsg = err.name === 'AbortError' ? `Timeout after ${timeout}ms` : err.message;
+    const causeMessage = err && err.cause && err.cause.message ? `${err.message}: ${err.cause.message}` : err.message;
+    const errorMsg = err.name === 'AbortError' ? `Timeout after ${timeout}ms` : causeMessage;
     return {
       success: false,
       url,
@@ -182,5 +183,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`AgetnticOS Web Crawler Tool listening on port ${PORT}`);
+  console.log(`AgenticOS Web Crawler Tool listening on port ${PORT}`);
 });

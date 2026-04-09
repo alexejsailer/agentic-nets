@@ -1,6 +1,6 @@
 FROM node:22-alpine
 
-# AgetnticOS tool labels (OCI standard + AgetnticOS extensions)
+# AgenticOS tool labels (OCI standard + AgenticOS extensions)
 LABEL org.opencontainers.image.title="Web Crawler Tool"
 LABEL org.opencontainers.image.description="Crawls web pages and returns structured content. Supports CSS selectors."
 LABEL org.opencontainers.image.version="1.0.0"
@@ -11,6 +11,7 @@ LABEL io.agenticos.tool.openapi="/openapi.json"
 LABEL io.agenticos.tool.capabilities="crawl,scrape,extract,http"
 
 WORKDIR /app
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 COPY package.json .
 RUN npm install --production
 COPY server.js .

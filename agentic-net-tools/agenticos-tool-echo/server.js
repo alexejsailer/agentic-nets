@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       openapi: '3.0.0',
-      info: { title: 'AgetnticOS Echo Tool', version: '1.0.0', description: 'Echoes back request data with metadata' },
+      info: { title: 'AgenticOS Echo Tool', version: '1.0.0', description: 'Echoes back request data with metadata' },
       paths: {
         '/echo': {
           post: {
@@ -62,5 +62,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`AgetnticOS Echo Tool listening on port ${PORT}`);
+  console.log(`AgenticOS Echo Tool listening on port ${PORT}`);
 });

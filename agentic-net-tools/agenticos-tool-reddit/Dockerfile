@@ -11,6 +11,7 @@ LABEL io.agenticos.tool.openapi="/openapi.json"
 LABEL io.agenticos.tool.capabilities="reddit,posts,comments,search,community"
 
 WORKDIR /app
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 COPY package.json .
 RUN npm install --production
 COPY server.js .

@@ -1,8 +1,8 @@
 FROM node:22-alpine
 
-# AgetnticOS tool labels (OCI standard + AgetnticOS extensions)
+# AgenticOS tool labels (OCI standard + AgenticOS extensions)
 LABEL org.opencontainers.image.title="Echo Tool"
-LABEL org.opencontainers.image.description="Echoes back request data with metadata. Demo/test tool for the AgetnticOS tool registry."
+LABEL org.opencontainers.image.description="Echoes back request data with metadata. Demo/test tool for the AgenticOS tool registry."
 LABEL org.opencontainers.image.version="1.0.0"
 LABEL io.agenticos.tool.kind="api"
 LABEL io.agenticos.tool.port="8080"
