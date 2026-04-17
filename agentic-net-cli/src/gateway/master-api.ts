@@ -117,7 +117,8 @@ export class MasterApi {
     description?: string;
     tags?: string[];
     readme?: string;
-    source: { modelId: string; sessionId: string; netId: string };
+    // Omit source.netId to build a session bundle (all nets in the session).
+    source: { modelId: string; sessionId: string; netId?: string };
   }): Promise<any> {
     return this.client.masterApi('POST', '/packages', params);
   }
@@ -145,6 +146,15 @@ export class MasterApi {
 
   async getPackageVersion(name: string, version: string): Promise<any> {
     return this.client.masterApi('GET', `/packages/${name}/versions/${version}`);
+  }
+
+  /**
+   * Upload a pre-built package JSON into the registry. Idempotent upsert — used
+   * by `package transfer` to push a package fetched from another master into
+   * this one.
+   */
+  async uploadPackage(name: string, version: string, pkg: any): Promise<any> {
+    return this.client.masterApi('PUT', `/packages/${name}/versions/${version}`, pkg);
   }
 
   async importPackage(name: string, version: string, targetModelId: string, targetSessionId: string): Promise<any> {
