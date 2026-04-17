@@ -47,16 +47,39 @@ public class BashCommandHandler implements CommandHandler {
     private final ObjectMapper objectMapper;
     private final BlobStoreClient blobStoreClient;
     private final long maxTimeoutMs;
+    private final String shellBinary;
 
     public BashCommandHandler(ObjectMapper objectMapper, BlobStoreClient blobStoreClient,
                               @org.springframework.beans.factory.annotation.Value("${executor.command.max-timeout-ms:600000}") long maxTimeoutMs) {
         this.objectMapper = objectMapper;
         this.blobStoreClient = blobStoreClient;
         this.maxTimeoutMs = maxTimeoutMs > 0 ? maxTimeoutMs : DEFAULT_MAX_TIMEOUT_MS;
+        this.shellBinary = detectShell();
         if (this.maxTimeoutMs != DEFAULT_MAX_TIMEOUT_MS) {
             logger.info("Command max timeout configured: {}ms ({}h {}m)", this.maxTimeoutMs,
                     this.maxTimeoutMs / 3600000, (this.maxTimeoutMs % 3600000) / 60000);
         }
+    }
+
+    /**
+     * Detect available shell binary. Prefers bash, falls back to sh.
+     */
+    private static String detectShell() {
+        for (String candidate : new String[]{"/bin/bash", "/usr/bin/bash", "bash"}) {
+            try {
+                Process p = new ProcessBuilder(candidate, "--version")
+                        .redirectErrorStream(true).start();
+                boolean done = p.waitFor(2, TimeUnit.SECONDS);
+                if (done && p.exitValue() == 0) {
+                    logger.info("Shell detected: {}", candidate);
+                    return candidate;
+                }
+            } catch (Exception ignored) {
+                // Not available, try next
+            }
+        }
+        logger.warn("bash not found, falling back to /bin/sh");
+        return "/bin/sh";
     }
 
     @Override
@@ -67,6 +90,30 @@ public class BashCommandHandler implements CommandHandler {
     @Override
     public Set<String> getSupportedCommands() {
         return SUPPORTED_COMMANDS;
+    }
+
+    @Override
+    public String validate(CommandToken token) {
+        String baseError = CommandHandler.super.validate(token);
+        if (baseError != null) {
+            return baseError;
+        }
+
+        JsonNode args = parseArgsIfStringified(token.args());
+
+        if ("exec".equals(token.command())) {
+            if (args == null || !args.has("command") || args.get("command").isNull()
+                    || args.get("command").asText().isBlank()) {
+                return "Required field 'command' is missing in args for 'exec' command";
+            }
+        } else if ("script".equals(token.command())) {
+            if (args == null || !args.has("script") || args.get("script").isNull()
+                    || args.get("script").asText().isBlank()) {
+                return "Required field 'script' is missing in args for 'script' command";
+            }
+        }
+
+        return null;
     }
 
     @Override
@@ -137,10 +184,14 @@ public class BashCommandHandler implements CommandHandler {
         // Validate timeout
         timeoutMs = Math.min(timeoutMs, maxTimeoutMs);
 
-        ProcessBuilder pb = new ProcessBuilder("bash", "-c", command);
+        ProcessBuilder pb = new ProcessBuilder(shellBinary, "-c", command);
 
-        if (workingDir != null) {
-            pb.directory(new File(workingDir));
+        if (workingDir != null && !workingDir.isBlank()) {
+            File dir = new File(workingDir);
+            if (!dir.isDirectory()) {
+                throw new IllegalArgumentException("Working directory does not exist: " + workingDir);
+            }
+            pb.directory(dir);
         }
 
         if (env != null && !env.isEmpty()) {
@@ -177,10 +228,14 @@ public class BashCommandHandler implements CommandHandler {
             Files.writeString(tempScript, script, StandardCharsets.UTF_8);
             tempScript.toFile().setExecutable(true);
 
-            ProcessBuilder pb = new ProcessBuilder("bash", tempScript.toString());
+            ProcessBuilder pb = new ProcessBuilder(shellBinary, tempScript.toString());
 
-            if (workingDir != null) {
-                pb.directory(new File(workingDir));
+            if (workingDir != null && !workingDir.isBlank()) {
+                File dir = new File(workingDir);
+                if (!dir.isDirectory()) {
+                    throw new IllegalArgumentException("Working directory does not exist: " + workingDir);
+                }
+                pb.directory(dir);
             }
 
             if (env != null && !env.isEmpty()) {

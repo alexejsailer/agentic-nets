@@ -31,8 +31,8 @@ RUN addgroup -S agenticnet && adduser -S -G agenticnet agenticnet
 # Set working directory
 WORKDIR /app
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and bash for command execution
+RUN apk add --no-cache curl bash
 
 # Copy JAR from builder stage
 COPY --from=builder /app/target/*.jar app.jar

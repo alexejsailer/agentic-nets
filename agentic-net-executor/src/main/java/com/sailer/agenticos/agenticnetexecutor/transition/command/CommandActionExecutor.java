@@ -71,6 +71,9 @@ public class CommandActionExecutor {
                     // Parse stringified JSON fields (args, meta) that may have been stored as strings
                     commandData = parseStringifiedJsonFields(commandData);
 
+                    // Ensure args.command is present for exec commands (normalize missing structure)
+                    commandData = ensureArgsCommand(commandData);
+
                     CommandToken token = dispatcher.parseToken(commandData);
 
                     // Validate token
@@ -150,6 +153,12 @@ public class CommandActionExecutor {
         ObjectNode result = objectMapper.createObjectNode();
         ObjectNode argsNode = objectMapper.createObjectNode();
 
+        // Preserve existing nested args fields first (flat args.X will override on conflict)
+        JsonNode existingArgs = tokenData.get("args");
+        if (existingArgs != null && existingArgs.isObject()) {
+            existingArgs.fields().forEachRemaining(entry -> argsNode.set(entry.getKey(), entry.getValue()));
+        }
+
         // Process all fields
         tokenData.fields().forEachRemaining(entry -> {
             String key = entry.getKey();
@@ -171,7 +180,7 @@ public class CommandActionExecutor {
                     argsNode.set(nestedKey, value);
                 }
             } else if (!key.equals("args")) {
-                // Copy non-args fields as-is (skip existing "args" if present)
+                // Copy non-args fields as-is (skip existing "args" — already merged above)
                 result.set(key, value);
             }
         });
@@ -183,6 +192,134 @@ public class CommandActionExecutor {
 
         logger.debug("Reassembled token: {}", result);
         return result;
+    }
+
+    /**
+     * Ensure that args.command is present for bash/exec command tokens.
+     *
+     * LLM/agent transitions sometimes produce tokens where the args object exists
+     * but is missing the required 'command' field. This can happen when:
+     * - The shell command was placed only at top-level 'command' instead of in args
+     * - The args object was created with other fields (workingDir, timeoutMs) but 'command' was omitted
+     * - A MAP transition copied metadata but missed the actual command string
+     *
+     * This method detects tokens where:
+     * 1. executor is "bash" and command is "exec"
+     * 2. args exists but has no "command" field
+     * 3. No args object exists at all
+     *
+     * For case (3), it creates a minimal args object. For case (2), it logs a warning
+     * so the token fails validation with a clear error rather than a cryptic NPE.
+     *
+     * @param tokenData The token JSON node
+     * @return Token with args.command ensured if fixable, or original
+     */
+    private JsonNode ensureArgsCommand(JsonNode tokenData) {
+        if (tokenData == null || !tokenData.isObject()) {
+            return tokenData;
+        }
+
+        String executor = tokenData.has("executor") ? tokenData.get("executor").asText() : null;
+        String command = tokenData.has("command") ? tokenData.get("command").asText() : null;
+
+        // Only applies to bash executor
+        if (!"bash".equals(executor)) {
+            return tokenData;
+        }
+
+        // Normalize: if 'command' is not a known command type ("exec", "script"),
+        // assume the LLM placed the actual shell command in the top-level 'command' field.
+        // Move it to args.command and set command to "exec".
+        if (command != null && !command.isBlank()
+                && !"exec".equals(command) && !"script".equals(command)) {
+            logger.warn("Token {} has shell command in top-level 'command' field ('{}'), normalizing to exec with args.command",
+                    tokenData.has("id") ? tokenData.get("id").asText() : "unknown", command);
+
+            ObjectNode result = tokenData.deepCopy();
+            result.put("command", "exec");
+
+            JsonNode existingArgs = result.get("args");
+            ObjectNode argsNode;
+            if (existingArgs != null && existingArgs.isObject()) {
+                argsNode = (ObjectNode) existingArgs;
+            } else {
+                argsNode = objectMapper.createObjectNode();
+            }
+            argsNode.put("command", command);
+            result.set("args", argsNode);
+            return result;
+        }
+
+        // From here, command is "exec" (or "script", which uses "script" field in args)
+        if (!"exec".equals(command)) {
+            return tokenData;
+        }
+
+        JsonNode args = tokenData.get("args");
+
+        // Handle args as a plain string — treat it as the shell command itself
+        if (args != null && args.isTextual()) {
+            String argsText = args.asText();
+            // Only treat as plain command if it doesn't look like JSON
+            if (argsText != null && !argsText.isBlank() && !argsText.startsWith("{")) {
+                logger.warn("Token {} has args as plain string, treating as shell command",
+                        tokenData.has("id") ? tokenData.get("id").asText() : "unknown");
+
+                ObjectNode result = tokenData.deepCopy();
+                ObjectNode argsNode = objectMapper.createObjectNode();
+                argsNode.put("command", argsText);
+                result.set("args", argsNode);
+                return result;
+            }
+        }
+
+        // args exists and already has 'command' — nothing to do
+        if (args != null && args.isObject() && args.has("command") && !args.get("command").isNull()
+                && !args.get("command").asText().isBlank()) {
+            return tokenData;
+        }
+
+        // Check if there's a 'shellCommand' or 'cmd' field at top level
+        // that was meant to be args.command (common LLM format variation)
+        String shellCommand = null;
+        for (String altField : new String[]{"shellCommand", "cmd", "shell", "script"}) {
+            if (tokenData.has(altField) && !tokenData.get(altField).isNull()) {
+                shellCommand = tokenData.get(altField).asText();
+                if (shellCommand != null && !shellCommand.isBlank()) {
+                    break;
+                }
+                shellCommand = null;
+            }
+        }
+
+        if (shellCommand != null) {
+            logger.warn("Token {} has shell command in alternative field, moving to args.command",
+                    tokenData.has("id") ? tokenData.get("id").asText() : "unknown");
+
+            ObjectNode result = tokenData.deepCopy();
+            ObjectNode argsNode;
+            if (args != null && args.isObject()) {
+                argsNode = (ObjectNode) args.deepCopy();
+            } else {
+                argsNode = objectMapper.createObjectNode();
+            }
+            argsNode.put("command", shellCommand);
+            result.set("args", argsNode);
+            // Remove the alternative field to avoid confusion
+            for (String altField : new String[]{"shellCommand", "cmd", "shell", "script"}) {
+                result.remove(altField);
+            }
+            return result;
+        }
+
+        // If args exists but without command, log clearly for debugging
+        if (args != null && args.isObject() && (!args.has("command") || args.get("command").isNull()
+                || args.get("command").asText().isBlank())) {
+            logger.error("Token {} has args object but 'command' field is missing. Args: {}",
+                    tokenData.has("id") ? tokenData.get("id").asText() : "unknown", args);
+        }
+
+        return tokenData;
     }
 
     /**
