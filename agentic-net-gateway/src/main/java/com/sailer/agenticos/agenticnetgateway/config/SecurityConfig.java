@@ -7,6 +7,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -36,15 +37,19 @@ import java.util.List;
 public class SecurityConfig {
 
     private final TokenRateLimiter tokenRateLimiter;
+    private final ReadonlyEnforcementFilter readonlyEnforcementFilter;
 
-    public SecurityConfig(TokenRateLimiter tokenRateLimiter) {
+    public SecurityConfig(TokenRateLimiter tokenRateLimiter,
+                          ReadonlyEnforcementFilter readonlyEnforcementFilter) {
         this.tokenRateLimiter = tokenRateLimiter;
+        this.readonlyEnforcementFilter = readonlyEnforcementFilter;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .addFilterBefore(tokenRateLimiter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(readonlyEnforcementFilter, BearerTokenAuthenticationFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth

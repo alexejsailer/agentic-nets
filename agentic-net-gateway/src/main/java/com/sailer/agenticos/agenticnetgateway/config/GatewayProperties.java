@@ -17,6 +17,8 @@ public class GatewayProperties {
     private int proxyTimeoutSeconds = 300;
     private String clientId = "agenticos-admin";
     private String clientSecret = "";
+    private String readonlyClientId = "agenticos-readonly";
+    private String readonlyClientSecret = "";
     private String jwtKeyDir = "./data/jwt";
     private int tokenTtlSeconds = 3600;
     private int rateLimitPerMinute = 10;
@@ -78,6 +80,22 @@ public class GatewayProperties {
 
     public void setClientSecret(String clientSecret) {
         this.clientSecret = clientSecret;
+    }
+
+    public String getReadonlyClientId() {
+        return readonlyClientId;
+    }
+
+    public void setReadonlyClientId(String readonlyClientId) {
+        this.readonlyClientId = readonlyClientId;
+    }
+
+    public String getReadonlyClientSecret() {
+        return readonlyClientSecret;
+    }
+
+    public void setReadonlyClientSecret(String readonlyClientSecret) {
+        this.readonlyClientSecret = readonlyClientSecret;
     }
 
     public String getJwtKeyDir() {
