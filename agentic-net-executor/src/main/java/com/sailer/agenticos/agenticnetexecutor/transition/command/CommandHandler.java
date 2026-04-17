@@ -53,7 +53,13 @@ public interface CommandHandler {
         long startTime = System.currentTimeMillis();
 
         List<CommandResult> results = tokens.stream()
-                .map(this::execute)
+                .map(token -> {
+                    String validationError = validate(token);
+                    if (validationError != null) {
+                        return CommandResult.failed(token.id(), validationError, 0L, token.getMetaAsMap());
+                    }
+                    return execute(token);
+                })
                 .toList();
 
         long durationMs = System.currentTimeMillis() - startTime;

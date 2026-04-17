@@ -1,12 +1,16 @@
 {
-  "executor": "fs",
-  "command": "readFile",
-  "params": {
-    "path": "/data/config.json",
-    "encoding": "utf-8"
+  "kind": "command",
+  "id": "cmd-test-001",
+  "executor": "bash",
+  "command": "exec",
+  "args": {
+    "command": "echo hello world",
+    "workingDir": "/tmp",
+    "timeoutMs": 60000,
+    "captureStderr": true
   },
-  "context": {
-    "requestId": "req-abc-123",
-    "userId": "user-456"
+  "expect": "text",
+  "meta": {
+    "correlationId": "req-abc-123"
   }
 }
