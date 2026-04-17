@@ -15,24 +15,26 @@ import java.security.SecureRandom;
 import java.util.Set;
 
 /**
- * Auto-generates and persists the OAuth2 admin secret when none is configured.
+ * Auto-generates and persists the OAuth2 admin and readonly secrets when none are configured.
  * Follows the same file-persistence pattern as {@link JwtConfig} (RSA key pair).
  *
- * <p>Resolution order:
+ * <p>Resolution order (per secret):
  * <ol>
- *   <li>If {@code gateway.client-secret} is set via env/properties, use it (and persist to file)</li>
- *   <li>Else if {@code {jwtKeyDir}/admin-secret} file exists, load from file</li>
+ *   <li>If the corresponding env/property is set, use it (and persist to file)</li>
+ *   <li>Else if the secret file exists, load from file</li>
  *   <li>Else generate a 64-char hex secret, save to file</li>
  * </ol>
  *
- * <p>Clients retrieve the secret via:
+ * <p>Clients retrieve the secrets via:
  * {@code docker exec agenticos-gateway cat /app/data/jwt/admin-secret}
+ * {@code docker exec agenticos-gateway cat /app/data/jwt/readonly-secret}
  */
 @Configuration
 public class AdminSecretInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminSecretInitializer.class);
-    private static final String SECRET_FILE = "admin-secret";
+    private static final String ADMIN_SECRET_FILE = "admin-secret";
+    private static final String READONLY_SECRET_FILE = "readonly-secret";
     private static final int SECRET_BYTES = 32; // 32 bytes = 64 hex chars
 
     private final GatewayProperties properties;
@@ -42,39 +44,48 @@ public class AdminSecretInitializer {
     }
 
     @PostConstruct
-    public void initAdminSecret() throws IOException {
+    public void initSecrets() throws IOException {
         Path keyDir = Path.of(properties.getJwtKeyDir());
         Files.createDirectories(keyDir);
-        Path secretPath = keyDir.resolve(SECRET_FILE);
 
-        String configured = properties.getClientSecret();
+        initSecret(
+                "Admin",
+                keyDir.resolve(ADMIN_SECRET_FILE),
+                properties.getClientSecret(),
+                properties::setClientSecret);
 
+        initSecret(
+                "Readonly",
+                keyDir.resolve(READONLY_SECRET_FILE),
+                properties.getReadonlyClientSecret(),
+                properties::setReadonlyClientSecret);
+    }
+
+    private void initSecret(String label, Path secretPath, String configured,
+                            java.util.function.Consumer<String> sink) throws IOException {
         if (configured != null && !configured.isBlank()) {
-            // Secret provided via env var — persist to file for container sharing
             Files.writeString(secretPath, configured, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             restrictPermissions(secretPath);
-            logger.info("Admin secret persisted to {}", secretPath);
+            logger.info("{} secret persisted to {}", label, secretPath);
             return;
         }
 
         if (Files.exists(secretPath)) {
-            // Load previously generated secret from file
             String secret = Files.readString(secretPath, StandardCharsets.UTF_8).strip();
             if (!secret.isBlank()) {
-                properties.setClientSecret(secret);
-                logger.info("Admin secret loaded from {}", secretPath);
+                sink.accept(secret);
+                logger.info("{} secret loaded from {}", label, secretPath);
                 return;
             }
         }
 
-        // Generate new secret
         String secret = generateHexSecret();
         Files.writeString(secretPath, secret, StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
         restrictPermissions(secretPath);
-        properties.setClientSecret(secret);
-        logger.info("Admin secret generated and saved to {}", secretPath);
+        sink.accept(secret);
+        logger.info("{} secret generated and saved to {}", label, secretPath);
     }
 
     private static void restrictPermissions(Path path) {

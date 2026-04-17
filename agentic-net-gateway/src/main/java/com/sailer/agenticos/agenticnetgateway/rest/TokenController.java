@@ -53,9 +53,8 @@ public class TokenController {
             return ResponseEntity.badRequest().body(Map.of("error", "unsupported_grant_type"));
         }
 
-        boolean clientIdOk = secureEquals(props.getClientId(), clientId);
-        boolean clientSecretOk = secureEquals(props.getClientSecret(), clientSecret);
-        if (!clientIdOk || !clientSecretOk) {
+        String scope = resolveScope(clientId, clientSecret);
+        if (scope == null) {
             logger.warn("Invalid client credentials for client_id={}", clientId);
             return ResponseEntity.status(401).body(Map.of("error", "invalid_client"));
         }
@@ -67,17 +66,36 @@ public class TokenController {
                 .subject(clientId)
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(expiresIn))
-                .claim("scope", "agenticos admin")
+                .claim("scope", scope)
                 .build();
 
         String jwt = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
 
-        logger.info("JWT issued for client_id={}", clientId);
+        logger.info("JWT issued for client_id={} scope={}", clientId, scope);
 
         return ResponseEntity.ok(Map.of(
                 "access_token", jwt,
                 "token_type", "Bearer",
-                "expires_in", expiresIn));
+                "expires_in", expiresIn,
+                "scope", scope));
+    }
+
+    /**
+     * Match presented credentials against the configured admin or readonly client pair.
+     * Returns the scope claim to issue, or {@code null} if no match.
+     */
+    private String resolveScope(String clientId, String clientSecret) {
+        if (secureEquals(props.getClientId(), clientId)
+                && secureEquals(props.getClientSecret(), clientSecret)) {
+            return "agenticos admin";
+        }
+        String readonlySecret = props.getReadonlyClientSecret();
+        if (readonlySecret != null && !readonlySecret.isBlank()
+                && secureEquals(props.getReadonlyClientId(), clientId)
+                && secureEquals(readonlySecret, clientSecret)) {
+            return "agenticos readonly";
+        }
+        return null;
     }
 
     private static boolean secureEquals(String expected, String provided) {
