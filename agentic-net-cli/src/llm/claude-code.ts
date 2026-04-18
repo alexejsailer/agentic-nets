@@ -58,25 +58,37 @@ export class ClaudeCodeProvider implements LlmProvider {
       return `### ${t.name}\n${t.description}\nParameters:\n${params}`;
     }).join('\n\n');
 
-    return `${systemPrompt}
+    // IMPORTANT ORDERING: the <tool_call> protocol instructions MUST come
+    // FIRST so they take precedence over the agent system prompt that
+    // follows. Older arrangements (protocol appended after the big
+    // AgenticNetOS prompt) led to Haiku / Sonnet responding conversationally
+    // — "I don't have access to these tools" — because the top of the
+    // prompt described tools in REST / function-registry terms and the
+    // model treated the XML instructions as decorative.
+    return `# CRITICAL: TOOL-USE PROTOCOL (READ THIS FIRST)
 
-## Tool Use Protocol
+You have NO function-calling/tool-registry API in this session. You also do NOT have Bash, Edit, Write, Read, Glob, Grep, Task, TodoWrite, WebFetch, WebSearch, MCP connectors, or any other built-in tools — they are all disabled. Do NOT attempt to use them and do NOT claim you lack access to AgenticNetOS tools.
 
-You have access to AgenticNetOS tools. When you need to use a tool, output EXACTLY this format:
+The ONLY way to invoke an AgenticNetOS tool is to emit the **exact XML block** below as your response text. The wrapping CLI parses this XML, runs the tool against the real AgenticNetOS gateway, and feeds the result back to you as the next user turn.
 
 <tool_call>
 {"name": "TOOL_NAME", "input": {"param1": "value1"}}
 </tool_call>
 
-CRITICAL RULES:
-- Output ONE tool call per response, then STOP immediately
-- Wait for the tool result before making another call
-- After getting results, analyze them and decide next steps
-- When your task is complete, call the DONE tool
-- If you cannot proceed, call the FAIL tool
-- ALWAYS use the <tool_call> XML tags — do NOT use any other format
+RULES:
+- Output ONE tool call per response and nothing else (no prose wrapper).
+- Wait for the tool result in the next user turn before emitting another call.
+- The task finishes only when you emit a <tool_call> for the DONE tool with a summary.
+- If you truly cannot proceed, emit a <tool_call> for FAIL with an error message.
+- Never answer "I don't have access to X" — emit the <tool_call> XML for X. The system will handle access.
 
-## Available Tools
+---
+
+${systemPrompt}
+
+---
+
+## Available Tools (invoked via the <tool_call> XML above)
 
 ${toolDocs}`;
   }
@@ -197,13 +209,26 @@ ${toolDocs}`;
    */
   private runClaude(systemPrompt: string, userPrompt: string): Promise<string> {
     return new Promise((resolve, reject) => {
+      // `--tools ''` was removed in newer claude-code versions (>= 2.1). Use
+      // `--disallowedTools` with an explicit list of built-in tools to force
+      // claude into a pure-text LLM that respects our <tool_call> XML protocol.
+      const DISALLOWED_BUILTINS = [
+        'Bash', 'Edit', 'Write', 'Read', 'Glob', 'Grep',
+        'Task', 'TodoWrite', 'WebFetch', 'WebSearch',
+        'NotebookEdit', 'MultiEdit', 'SlashCommand',
+      ].join(' ');
       const args = [
         '-p',
         '--model', this.model,
         '--output-format', 'text',
         '--no-session-persistence',
         '--system-prompt', systemPrompt,
-        '--tools', '',
+        '--disallowedTools', DISALLOWED_BUILTINS,
+        // Block every MCP connector the host has configured (Gmail, Calendar,
+        // Drive, etc). Without this the model cheerfully announces "I have
+        // access to MCP tools but not your custom tools" and refuses the
+        // <tool_call> protocol.
+        '--strict-mcp-config',
       ];
 
       const proc = spawn(this.binary, args, {
