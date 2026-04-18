@@ -11,7 +11,8 @@
     "dev": "tsup --watch",
     "start": "node dist/bin/agenticos.js",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "sync-tools": "node --experimental-strip-types --no-warnings scripts/sync-tool-schemas.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
