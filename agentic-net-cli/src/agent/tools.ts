@@ -71,6 +71,10 @@ export type AgentTool =
   | 'EXECUTE_TRANSITION_SMART'
   // Discovery
   | 'FIND_SHARED_PLACES'
+  // Hierarchical Overview (R flag — session/net/neighbor drill-down in one call)
+  | 'GET_SESSION_OVERVIEW'
+  | 'GET_NET_OVERVIEW'
+  | 'FIND_NET_NEIGHBORS'
   // Control
   | 'DONE'
   | 'FAIL';
@@ -101,12 +105,18 @@ export function buildToolSchemas(tools: Set<AgentTool>): ToolSchema[] {
   return schemas;
 }
 
-interface ToolDef {
+export interface ToolDef {
   description: string;
   schema: { type: 'object'; properties: Record<string, any>; required: string[] };
 }
 
+import { GENERATED_TOOL_DEFINITIONS } from './tools.generated.js';
+
 const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
+  // Hand-written tool definitions below. Tools defined in the master catalog
+  // (agent-tool-catalog.json) are spread in from GENERATED_TOOL_DEFINITIONS at
+  // the end of this object so the catalog is the single source of truth for
+  // those entries. See scripts/sync-tool-schemas.ts to regenerate.
   THINK: {
     description: 'Deep planning checkpoint. Reason about the current state, plan next steps, identify risks.',
     schema: {
@@ -727,4 +737,6 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
       required: ['error'],
     },
   },
+  // --- Generated from agent-tool-catalog.json ---
+  ...GENERATED_TOOL_DEFINITIONS,
 };

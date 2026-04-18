@@ -197,6 +197,12 @@ export class ToolExecutor {
           return this.executeGetLinkedPlaces(params);
         case 'FIND_SHARED_PLACES':
           return this.executeFindSharedPlaces(params);
+        case 'GET_SESSION_OVERVIEW':
+          return this.executeGetSessionOverview(params);
+        case 'GET_NET_OVERVIEW':
+          return this.executeGetNetOverview(params);
+        case 'FIND_NET_NEIGHBORS':
+          return this.executeFindNetNeighbors(params);
         case 'PACKAGE_SEARCH':
           return this.executePackageSearch(params);
         case 'PACKAGE_PUBLISH':
@@ -1629,6 +1635,58 @@ export class ToolExecutor {
       return { success: true, data };
     } catch (err: any) {
       return { success: false, error: `FIND_SHARED_PLACES failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeGetSessionOverview(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      if (!sessionId) {
+        return { success: false, error: 'GET_SESSION_OVERVIEW requires sessionId (param or agent session context)' };
+      }
+      const url = `/assistant/universal/${this.modelId}/query/session-overview?sessionId=${encodeURIComponent(sessionId)}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `GET_SESSION_OVERVIEW failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeGetNetOverview(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      const netId = params.netId as string;
+      if (!sessionId) {
+        return { success: false, error: 'GET_NET_OVERVIEW requires sessionId (param or agent session context)' };
+      }
+      if (!netId) {
+        return { success: false, error: 'GET_NET_OVERVIEW requires netId' };
+      }
+      const url = `/assistant/universal/${this.modelId}/query/net-overview?sessionId=${encodeURIComponent(sessionId)}&netId=${encodeURIComponent(netId)}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `GET_NET_OVERVIEW failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeFindNetNeighbors(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      const netId = params.netId as string;
+      const depth = typeof params.depth === 'number' ? params.depth : 1;
+      const via = (params.via as string) || 'all';
+      if (!sessionId) {
+        return { success: false, error: 'FIND_NET_NEIGHBORS requires sessionId (param or agent session context)' };
+      }
+      if (!netId) {
+        return { success: false, error: 'FIND_NET_NEIGHBORS requires netId' };
+      }
+      const url = `/assistant/universal/${this.modelId}/query/net-neighbors?sessionId=${encodeURIComponent(sessionId)}&netId=${encodeURIComponent(netId)}&depth=${depth}&via=${encodeURIComponent(via)}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `FIND_NET_NEIGHBORS failed: ${err.message || err}` };
     }
   }
 
