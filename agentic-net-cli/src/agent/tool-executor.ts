@@ -203,6 +203,20 @@ export class ToolExecutor {
           return this.executeGetNetOverview(params);
         case 'FIND_NET_NEIGHBORS':
           return this.executeFindNetNeighbors(params);
+        case 'TAG_SESSION':
+          return this.executeTagSession(params);
+        case 'LIST_SESSIONS_BY_TAG':
+          return this.executeListSessionsByTag(params);
+        case 'LIST_TOOL_NETS':
+          return this.executeListToolNets(params);
+        case 'DESCRIBE_TOOL_NET':
+          return this.executeDescribeToolNet(params);
+        case 'REGISTER_TOOL_NET':
+          return this.executeRegisterToolNet(params);
+        case 'INVOKE_TOOL_NET':
+          return this.executeInvokeToolNet(params);
+        case 'SCAFFOLD_TOOL_NET':
+          return this.executeScaffoldToolNet(params);
         case 'PACKAGE_SEARCH':
           return this.executePackageSearch(params);
         case 'PACKAGE_PUBLISH':
@@ -1687,6 +1701,120 @@ export class ToolExecutor {
       return { success: true, data };
     } catch (err: any) {
       return { success: false, error: `FIND_NET_NEIGHBORS failed: ${err.message || err}` };
+    }
+  }
+
+  // ---------- Session tags + tool nets ----------
+
+  private async executeTagSession(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      if (!sessionId) {
+        return { success: false, error: 'TAG_SESSION requires sessionId (param or agent session context)' };
+      }
+      const tags = Array.isArray(params.tags)
+        ? params.tags
+        : (typeof params.tags === 'string' ? [params.tags] : null);
+      if (!tags || tags.length === 0) {
+        return { success: false, error: 'TAG_SESSION requires tags (string[])' };
+      }
+      const body = { tags, mode: params.mode || 'add' };
+      const url = `/assistant/universal/${this.modelId}/sessions/${encodeURIComponent(sessionId)}/tags`;
+      const data = await this.masterApi.post(url, body);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `TAG_SESSION failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeListSessionsByTag(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const tags: string[] = Array.isArray(params.tags)
+        ? params.tags
+        : (typeof params.tags === 'string' ? [params.tags] : (params.tag ? [params.tag] : []));
+      const qs = tags.map(t => `tag=${encodeURIComponent(t)}`).join('&');
+      const url = `/assistant/universal/${this.modelId}/query/sessions-by-tag${qs ? '?' + qs : ''}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `LIST_SESSIONS_BY_TAG failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeListToolNets(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const qs: string[] = [];
+      if (params.sessionId) qs.push(`sessionId=${encodeURIComponent(params.sessionId)}`);
+      if (params.tag) qs.push(`tag=${encodeURIComponent(params.tag)}`);
+      if (params.query) qs.push(`query=${encodeURIComponent(params.query)}`);
+      const url = `/assistant/universal/${this.modelId}/query/tool-nets${qs.length ? '?' + qs.join('&') : ''}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `LIST_TOOL_NETS failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeDescribeToolNet(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      const netId = params.netId as string;
+      if (!sessionId || !netId) {
+        return { success: false, error: 'DESCRIBE_TOOL_NET requires sessionId and netId' };
+      }
+      const url = `/assistant/universal/${this.modelId}/query/tool-net?sessionId=${encodeURIComponent(sessionId)}&netId=${encodeURIComponent(netId)}`;
+      const data = await this.masterApi.get(url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `DESCRIBE_TOOL_NET failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeRegisterToolNet(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      const netId = params.netId as string;
+      const manifest = params.manifest;
+      if (!sessionId || !netId || !manifest) {
+        return { success: false, error: 'REGISTER_TOOL_NET requires sessionId, netId, manifest' };
+      }
+      const body: Record<string, any> = { manifest };
+      if (params.sessionTag) body.sessionTag = params.sessionTag;
+      const url = `/assistant/universal/${this.modelId}/tools/${encodeURIComponent(sessionId)}/${encodeURIComponent(netId)}/register`;
+      const data = await this.masterApi.post(url, body);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `REGISTER_TOOL_NET failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeInvokeToolNet(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const sessionId = (params.sessionId as string) || this.sessionId;
+      const netId = params.netId as string;
+      if (!sessionId || !netId) {
+        return { success: false, error: 'INVOKE_TOOL_NET requires sessionId and netId' };
+      }
+      const body: Record<string, any> = { input: params.input || {} };
+      if (typeof params.timeoutMs === 'number') body.timeoutMs = params.timeoutMs;
+      const url = `/assistant/universal/${this.modelId}/tools/${encodeURIComponent(sessionId)}/${encodeURIComponent(netId)}/invoke`;
+      const data = await this.masterApi.post(url, body);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `INVOKE_TOOL_NET failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeScaffoldToolNet(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      if (!params.name) {
+        return { success: false, error: 'SCAFFOLD_TOOL_NET requires name' };
+      }
+      const url = `/assistant/universal/${this.modelId}/tools/scaffold`;
+      const data = await this.masterApi.post(url, params);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `SCAFFOLD_TOOL_NET failed: ${err.message || err}` };
     }
   }
 

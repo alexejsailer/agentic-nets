@@ -75,6 +75,14 @@ export type AgentTool =
   | 'GET_SESSION_OVERVIEW'
   | 'GET_NET_OVERVIEW'
   | 'FIND_NET_NEIGHBORS'
+  // Session tags + tool-net discovery / authorship / invocation
+  | 'TAG_SESSION'
+  | 'LIST_SESSIONS_BY_TAG'
+  | 'LIST_TOOL_NETS'
+  | 'DESCRIBE_TOOL_NET'
+  | 'REGISTER_TOOL_NET'
+  | 'INVOKE_TOOL_NET'
+  | 'SCAFFOLD_TOOL_NET'
   // Control
   | 'DONE'
   | 'FAIL';
