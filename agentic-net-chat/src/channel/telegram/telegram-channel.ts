@@ -122,6 +122,7 @@ export class TelegramChannel implements ChatChannel, MessageSender {
         'Send any message to interact with the agent.\n\n' +
         'Commands:\n' +
         '/clear - Reset conversation\n' +
+        '/verbose - Toggle streaming of tool-call batches (default ON)\n' +
         '/context - Show session info\n' +
         '/compact - Summarize conversation to save context\n' +
         '/chronicle <question> - Ask the Session Chronicle agent\n' +
@@ -136,6 +137,16 @@ export class TelegramChannel implements ChatChannel, MessageSender {
       const chatId = String(ctx.chat.id);
       this.sessionManager.clearSession(chatId);
       await ctx.reply('Conversation cleared. Starting fresh.');
+    });
+
+    this.bot.command('verbose', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const nowOn = this.sessionManager.toggleVerbose(chatId);
+      await ctx.reply(
+        nowOn
+          ? 'Verbose streaming: ON — tool calls will appear in batches as the agent runs.'
+          : 'Verbose streaming: OFF — only the final answer will be shown.',
+      );
     });
 
     this.bot.command('context', async (ctx) => {

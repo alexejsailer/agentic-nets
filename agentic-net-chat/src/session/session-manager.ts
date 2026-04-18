@@ -43,7 +43,16 @@ interface Session {
   queue: Array<{ text: string; sender: MessageSender }>;
   lastActivity: number;
   overrides: UserOverrides;
+  /** When true, stream tool-call batches to the user between turns. Default true. */
+  verbose: boolean;
 }
+
+/**
+ * How many tool calls to buffer before flushing a streamed progress message.
+ * Tuned to be talkative enough to show the agent's reasoning without spamming
+ * the chat (a turn can easily be 20+ tool calls).
+ */
+const VERBOSE_BATCH_SIZE = 3;
 
 export interface SessionInfo {
   modelId: string;
@@ -85,6 +94,7 @@ export class SessionManager {
         queue: [],
         lastActivity: Date.now(),
         overrides: {},
+        verbose: true,
       };
       this.sessions.set(chatId, session);
     }
@@ -205,21 +215,33 @@ export class SessionManager {
       }
 
       const textParts: string[] = [];
-      const toolSummaries: string[] = [];
+      // Buffer for batched tool-call streaming when session.verbose is on.
+      // Flushed every VERBOSE_BATCH_SIZE calls, and again on done/fail/error.
+      const verboseBuffer: string[] = [];
+      const flushVerboseBuffer = async () => {
+        if (!session.verbose || verboseBuffer.length === 0) return;
+        const batch = verboseBuffer.splice(0, verboseBuffer.length);
+        try {
+          await sender.sendText(chatId, batch.join('\n'));
+        } catch {
+          // non-fatal
+        }
+      };
 
       // Wire sub-agent progress to Telegram (scoped per-chat executor to avoid callback races).
+      // Sub-agent calls also respect the verbose flag.
       scopedExecutor.onProgress = (event) => {
-        const prefix = '[sub-agent] ';
+        if (!session.verbose) return;
         switch (event.type) {
           case 'tool_call':
-            sender.sendText(chatId, `${prefix}${event.tool}(${JSON.stringify(event.input || {}).slice(0, 100)})`).catch(() => {});
+            sender.sendText(chatId, `↳ \`${event.tool}(${summarizeInput(event.input)})\` _(sub-agent)_`).catch(() => {});
             break;
           case 'done':
-            sender.sendText(chatId, `${prefix}Done: ${(event.content || '').slice(0, 300)}`).catch(() => {});
+            sender.sendText(chatId, `↳ _sub-agent done:_ ${(event.content || '').slice(0, 300)}`).catch(() => {});
             break;
           case 'fail':
           case 'error':
-            sender.sendText(chatId, `${prefix}${event.type}: ${(event.content || '').slice(0, 300)}`).catch(() => {});
+            sender.sendText(chatId, `↳ _sub-agent ${event.type}:_ ${(event.content || '').slice(0, 300)}`).catch(() => {});
             break;
         }
       };
@@ -239,46 +261,47 @@ export class SessionManager {
             console.log(`  [text] ${event.content?.slice(0, 120)}`);
             break;
           case 'tool_call':
-            toolSummaries.push(`> ${event.tool}(${summarizeInput(event.input)})`);
+            // Bold tool name + monospaced params. Existing escapeMarkdownV2 in
+            // TelegramChannel preserves both **…** and `…` spans.
+            verboseBuffer.push(`→ **${event.tool}**\n\`${summarizeInput(event.input)}\``);
+            if (verboseBuffer.length >= VERBOSE_BATCH_SIZE) {
+              await flushVerboseBuffer();
+            }
             console.log(`  [tool] ${event.tool}(${summarizeInput(event.input)})`);
             break;
           case 'tool_result':
             console.log(`  [result] ${JSON.stringify(event.result).slice(0, 120)}`);
             break;
           case 'done':
+            await flushVerboseBuffer();
             if (event.content && textParts.length === 0) textParts.push(event.content);
             if (event.messages) session.history = event.messages;
             console.log(`  [DONE]`);
             break;
           case 'fail':
+            await flushVerboseBuffer();
             if (event.content) textParts.push(`Failed: ${event.content}`);
             if (event.messages) session.history = event.messages;
             console.log(`  [FAIL] ${event.content?.slice(0, 200)}`);
             break;
           case 'error':
+            await flushVerboseBuffer();
             if (event.content) textParts.push(`Error: ${event.content}`);
             if (event.messages) session.history = event.messages;
             console.log(`  [ERROR] ${event.content?.slice(0, 200)}`);
             break;
         }
       }
+      // Final safety flush in case the loop ended without a done/fail/error event.
+      await flushVerboseBuffer();
 
       // Stop typing
       typingActive = false;
       await typingPromise;
 
-      // Build response
-      const parts: string[] = [];
-
-      if (toolSummaries.length > 0) {
-        parts.push(toolSummaries.join('\n'));
-      }
-
-      if (textParts.length > 0) {
-        parts.push(textParts.join('\n'));
-      }
-
-      const response = parts.join('\n\n') || 'Done (no output).';
+      // Final response is just the agent's text — tool-call batches already
+      // streamed live above, so we no longer double-post them here.
+      const response = textParts.join('\n') || 'Done (no output).';
       await sender.sendText(chatId, response);
 
       // Auto-compact if history is too large
@@ -311,6 +334,21 @@ export class SessionManager {
       }
       await sender.sendText(chatId, `Error: ${errMsg}`);
     }
+  }
+
+  /**
+   * Toggle verbose streaming of tool-call batches for this chat.
+   * Returns the new state so the caller can report it to the user.
+   */
+  toggleVerbose(chatId: string): boolean {
+    const session = this.getOrCreateSession(chatId);
+    session.verbose = !session.verbose;
+    return session.verbose;
+  }
+
+  /** Read the current verbose flag without mutating it. */
+  isVerbose(chatId: string): boolean {
+    return this.getOrCreateSession(chatId).verbose;
   }
 
   clearSession(chatId: string): void {
