@@ -323,7 +323,45 @@ The \`schedule\` field controls WHEN a transition fires. Without it, transitions
 - **Mistake 6**: \`\${...}\` or extra fields (\`command\`, \`cwd\`) in command action → command action allows ONLY: type, inputPlace, dispatch, await, timeoutMs, groupBy. Use MAP→Command pipeline for dynamic commands. Symptom: fires but emits nothing.
 - **Mistake 7**: Preset key vs template prefix mismatch → If preset is \`"p-weather-input"\` but URL uses \`\${input.data.field}\`, the engine looks for preset \`"input"\` (not found) and resolves to empty. The prefix in \`\${...}\` MUST match the preset key exactly. Keep preset keys simple: \`"input"\`, \`"request"\`.
 - **Mistake 8**: Incomplete CommandToken in MAP template → must include all required fields: \`kind\`, \`id\`, \`executor\`, \`command\`, \`args.command\`.
-- **Mistake 9**: COMMAND transition assigned to master → must be assigned to \`agentic-net-executor-default\`. Symptom: fires but nothing happens.`;
+- **Mistake 9**: COMMAND transition assigned to master → must be assigned to \`agentic-net-executor-default\`. Symptom: fires but nothing happens.
+
+### Two-Tier LLM Config (agent transitions)
+Agent transitions (\`kind: "agent"\`) can declare **two** LLM models and a pointer that picks which is active for this-and-future fires. A single fire runs entirely on the resolved model — you switch between fires, never mid-turn.
+
+\`\`\`json
+"action": {
+  "type": "agent",
+  "nl": "@input.instruction",
+  "role": "rwxh",
+  "llmMode": "api",
+  "binary": "claude",
+  "toolsModel": "kimi-k2.5:cloud",
+  "thinkingModel": "deepseek-v3.1:671b-cloud",
+  "activeTier": "tools"
+}
+\`\`\`
+
+Fields:
+- \`llmMode\`: \`"api"\` (default) runs on master's global LlmService; \`"bash"\` shells out to \`claude -p\` or \`codex exec\`.
+- \`binary\`: bash-mode only. \`"claude"\` (default) or \`"codex"\`.
+- \`toolsModel\` / \`thinkingModel\`: the two slots.
+- \`activeTier\`: \`"tools"\` (default) or \`"thinking"\` — pointer.
+
+Resolution per fire: activeTier picks its slot; if that slot is unset, falls back to the other slot; if both unset, falls back to legacy \`action.model\`; if nothing is set, uses the master's provider default.
+
+**Flip tier at runtime**:
+\`\`\`
+SET_INSCRIPTION({ transitionId: "<id>", patch: { "action": { "activeTier": "thinking" } } })
+\`\`\`
+Takes effect on the NEXT fire. The currently running fire finishes on the pre-flip tier.
+
+Model naming:
+- \`llmMode=api\` + Ollama master → Ollama model names (\`kimi-k2.5:cloud\`, \`deepseek-v3.1:671b-cloud\`, \`llama3.2\`)
+- \`llmMode=api\` + Anthropic master → \`claude-haiku-4-5\`, \`claude-sonnet-4-6\`
+- \`llmMode=bash\` + \`binary=claude\` → \`haiku\`, \`sonnet\`, \`opus\` (Claude Code short names; no API key — uses master host's \`claude\` OAuth)
+- \`llmMode=bash\` + \`binary=codex\` → Codex CLI model names
+
+Legacy \`action.model\` / \`action.llmCommand\` still work as fallbacks when the tier fields are absent.`;
 
 const EXECUTE_KNOWLEDGE = `## Execute Knowledge
 
