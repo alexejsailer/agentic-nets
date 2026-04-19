@@ -38,7 +38,10 @@ SESSION_ID="dev"
 NET_ID="gateway-routing-verify"
 HOST="${MODEL_ID}@localhost:8080"
 EXECUTOR_ID="agentic-net-executor-default"
-GW_DIR="/Users/alexejsailer/Developer/AgenticNetOS/agentic-nets/agentic-net-gateway"
+# Resolve gateway dir from this script's location so the script is portable.
+# Override by exporting GW_DIR before running if the gateway runs from a
+# different path.
+GW_DIR="${GW_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Temp file for place UUID storage (bash 3 compatible — no associative arrays)
 PLACE_MAP=$(mktemp /tmp/gw-verify-places.XXXXXX)
@@ -803,7 +806,7 @@ seed_token "p-register-cmd" "cmd-register" "$(jq -n \
 
 # --- Token 5: p-explicit-cmd ---
 EXPLICIT_CMD=$(cat <<'EXPEOF'
-ADMIN_SECRET=$(cat /Users/alexejsailer/Developer/AgenticNetOS/agentic-nets/agentic-net-gateway/data/jwt/admin-secret 2>/dev/null || echo '') && \
+ADMIN_SECRET=$(cat $GW_DIR/data/jwt/admin-secret 2>/dev/null || echo '') && \
 if [ -z "$ADMIN_SECRET" ]; then echo 'SKIP: No admin secret found'; exit 0; fi && \
 TOKEN=$(curl -s -X POST http://localhost:8083/oauth2/token \
   -d "grant_type=client_credentials&client_id=agenticos-admin&client_secret=${ADMIN_SECRET}" \
@@ -831,7 +834,7 @@ seed_token "p-explicit-cmd" "cmd-explicit" "$(jq -n \
 
 # --- Token 6: p-wildcard-cmd ---
 WILDCARD_CMD=$(cat <<'WLDEOF'
-ADMIN_SECRET=$(cat /Users/alexejsailer/Developer/AgenticNetOS/agentic-nets/agentic-net-gateway/data/jwt/admin-secret 2>/dev/null || echo '') && \
+ADMIN_SECRET=$(cat $GW_DIR/data/jwt/admin-secret 2>/dev/null || echo '') && \
 if [ -z "$ADMIN_SECRET" ]; then echo 'SKIP: No admin secret'; exit 0; fi && \
 TOKEN=$(curl -s -X POST http://localhost:8083/oauth2/token \
   -d "grant_type=client_credentials&client_id=agenticos-admin&client_secret=${ADMIN_SECRET}" \
@@ -855,7 +858,7 @@ seed_token "p-wildcard-cmd" "cmd-wildcard" "$(jq -n \
 
 # --- Token 7: p-discover-cmd ---
 DISCOVER_CMD=$(cat <<'DSCEOF'
-ADMIN_SECRET=$(cat /Users/alexejsailer/Developer/AgenticNetOS/agentic-nets/agentic-net-gateway/data/jwt/admin-secret 2>/dev/null || echo '') && \
+ADMIN_SECRET=$(cat $GW_DIR/data/jwt/admin-secret 2>/dev/null || echo '') && \
 if [ -z "$ADMIN_SECRET" ]; then echo 'SKIP: No admin secret'; exit 0; fi && \
 TOKEN=$(curl -s -X POST http://localhost:8083/oauth2/token \
   -d "grant_type=client_credentials&client_id=agenticos-admin&client_secret=${ADMIN_SECRET}" \
@@ -879,7 +882,7 @@ seed_token "p-discover-cmd" "cmd-discover" "$(jq -n \
 
 # --- Token 8: p-executor-cmd ---
 EXECUTOR_CMD=$(cat <<'EXECEOF'
-ADMIN_SECRET=$(cat /Users/alexejsailer/Developer/AgenticNetOS/agentic-nets/agentic-net-gateway/data/jwt/admin-secret 2>/dev/null || echo '') && \
+ADMIN_SECRET=$(cat $GW_DIR/data/jwt/admin-secret 2>/dev/null || echo '') && \
 if [ -z "$ADMIN_SECRET" ]; then echo 'SKIP: No admin secret'; exit 0; fi && \
 TOKEN=$(curl -s -X POST http://localhost:8083/oauth2/token \
   -d "grant_type=client_credentials&client_id=agenticos-admin&client_secret=${ADMIN_SECRET}" \
@@ -913,7 +916,7 @@ echo '=== Deregistering test-master-2 ===' && \
 curl -s -X DELETE http://localhost:8083/internal/masters/test-master-2 | jq . && \
 echo '=== Masters after deregistration ===' && \
 curl -s http://localhost:8083/internal/masters | jq . && \
-ADMIN_SECRET=$(cat /Users/alexejsailer/Developer/AgenticNetOS/agentic-nets/agentic-net-gateway/data/jwt/admin-secret 2>/dev/null || echo '') && \
+ADMIN_SECRET=$(cat $GW_DIR/data/jwt/admin-secret 2>/dev/null || echo '') && \
 if [ -n "$ADMIN_SECRET" ]; then \
   TOKEN=$(curl -s -X POST http://localhost:8083/oauth2/token \
     -d "grant_type=client_credentials&client_id=agenticos-admin&client_secret=${ADMIN_SECRET}" \
