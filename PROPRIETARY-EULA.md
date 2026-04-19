@@ -46,7 +46,7 @@ Commercial use includes, but is not limited to:
 - Using the software to generate revenue, directly or indirectly
 - Deploying the software in a commercial production environment
 
-To obtain a commercial license, contact: **alexej@sailer.dev**
+To obtain a commercial license, contact: **alexejsailer@gmail.com**
 
 ---
 
