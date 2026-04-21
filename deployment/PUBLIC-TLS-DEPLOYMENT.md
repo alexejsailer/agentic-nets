@@ -1,6 +1,6 @@
 # Public TLS deployment — Apache + Let's Encrypt in front of the compose stack
 
-How to expose an AgenticNets deployment at `https://<your-domain>/` with a
+How to expose an Agentic-Nets deployment at `https://<your-domain>/` with a
 real TLS cert and no public port numbers visible.
 
 This is written for a Debian/Ubuntu host where Apache2 + certbot are already
