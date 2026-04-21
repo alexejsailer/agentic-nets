@@ -17,9 +17,9 @@
 
 This EULA applies to the following proprietary Docker images distributed via Docker Hub:
 
-- `alexejsailer/agenticos-node`
-- `alexejsailer/agenticos-master`
-- `alexejsailer/agenticos-gui`
+- `alexejsailer/agenticnetos-node`
+- `alexejsailer/agenticnetos-master`
+- `alexejsailer/agenticnetos-gui`
 
 These images contain **closed-source, proprietary software** and are NOT covered by the
 repository's open-source license (BSL 1.1).

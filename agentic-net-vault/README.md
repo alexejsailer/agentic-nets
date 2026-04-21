@@ -39,8 +39,8 @@ VAULT_OPENBAO_TOKEN=dev-root-token ./mvnw spring-boot:run
 docker run --rm \
   -e VAULT_OPENBAO_URL=http://openbao:8200 \
   -e VAULT_OPENBAO_TOKEN=dev-root-token \
-  --network agenticos-backend \
-  alexejsailer/agenticos-vault:latest
+  --network agenticnetos-backend \
+  alexejsailer/agenticnetos-vault:latest
 ```
 
 ## Health

@@ -38,40 +38,63 @@ Agentic-Nets is built to solve exactly those three.
 
 ---
 
-## ⚡ Install in 5 minutes
+## Install in 5 minutes
 
-You need Docker Desktop and one of: an Anthropic API key **or** local Ollama.
+You need Docker Desktop or Docker Engine with Compose v2, plus one LLM backend:
+Claude API, OpenAI API, or local Ollama. You do **not** need Java, Node.js, or
+Maven unless you want to build services from source.
 
 ```bash
-# 1. Download the compose file and env template
-mkdir agenticnetos && cd agenticnetos
-curl -LO https://raw.githubusercontent.com/alexejsailer/agentic-nets/main/deployment/docker-compose.hub-only.yml
-curl -LO https://raw.githubusercontent.com/alexejsailer/agentic-nets/main/deployment/.env.template
+# 1. Clone the public repo
+git clone https://github.com/alexejsailer/agentic-nets.git
+cd agentic-nets/deployment
+
+# 2. Create your env file
 cp .env.template .env
 
-# 2. Edit .env — pick ONE provider:
-#    (a) LLM_PROVIDER=claude + ANTHROPIC_API_KEY=sk-ant-...   ← recommended
-#    (b) LLM_PROVIDER=ollama + OLLAMA_MODEL=llama3.2          ← free/offline
-#        (first run `ollama pull llama3.2` on your host)
+# 3. Edit .env and choose ONE provider:
+#    Claude: LLM_PROVIDER=claude + ANTHROPIC_API_KEY=sk-ant-...
+#    Ollama: LLM_PROVIDER=ollama + OLLAMA_MODEL=llama3.2
+#            first run: ollama pull llama3.2
+#    OpenAI: LLM_PROVIDER=openai + OPENAI_API_KEY=sk-...
 
-# 3. Start the stack
+# 4A. Start the full stack with monitoring
 docker compose -f docker-compose.hub-only.yml up -d
 
-# 4. Deploy the onboarding agent (one time per environment)
-curl -LO https://raw.githubusercontent.com/alexejsailer/agentic-nets/main/scripts/deploy-first-net-buddy.sh
-bash deploy-first-net-buddy.sh
+# 4B. Or start the lighter stack without Grafana/Prometheus/Tempo
+# docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
-# 5. Open the GUI and talk to an agent
+# 5. Open the Studio
 open http://localhost:4200
 ```
 
-**You don't write any code.** You open the chat panel, say something like
-*"I want a net that fetches HN top stories every hour and summarizes each one
-with an LLM"*, and a team of four governed agents (PM, Architect, QA, DevOps)
-builds the net for you, deploys it, and hands you the URL.
+**You don't write any code for the first run.** Open the Universal Assistant in
+the Studio and ask *"Help me build my first net."* For write operations, switch
+to or invoke the Workflow Builder persona. It can create places, transitions,
+arcs, inscriptions, and deploy the result in the active model/session.
 
-Detailed walkthrough with screenshots and troubleshooting:
-**[agentic-nets.com/install](https://agentic-nets.com/install)** *(coming soon)*.
+### Compose choices
+
+| File | What it starts | Use it when |
+|---|---|---|
+| `deployment/docker-compose.hub-only.yml` | Complete local stack from Docker Hub, including monitoring | You want the production-like local setup |
+| `deployment/docker-compose.hub-only.no-monitoring.yml` | Complete runtime stack from Docker Hub, no monitoring | You want a lighter laptop setup |
+| `deployment/docker-compose.yml` | Closed-source core images from Docker Hub + open-source services built locally | You are developing this repo |
+
+The `.env.template` is fully commented. The most important variables are:
+
+| Variable | Purpose |
+|---|---|
+| `AGENTICNETOS_VERSION` | Docker Hub image tag. Release CI pins this. |
+| `AGENTICNETOS_BIND_ADDRESS` | Defaults to `127.0.0.1` so published ports stay local. |
+| `LLM_PROVIDER` | `ollama`, `claude`, `openai`, `claude-code`, or `codex`. |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` | Required only for those hosted providers. |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | Required for local Ollama. |
+| `OPENBAO_DEV_ROOT_TOKEN` | Local Vault token. Change before exposing the stack. |
+| `AGENTICNETOS_NODE_DATA_DIR` | Host directory for Node events and snapshots. |
+
+Detailed install, env, verification, and troubleshooting:
+[deployment/README.md](deployment/README.md).
 
 ---
 
@@ -159,9 +182,9 @@ anywhere:
 
 | Image | Purpose | Port |
 |-------|---------|------|
-| `alexejsailer/agenticos-node` | Event-sourced state engine, tree-structured persistence, ArcQL queries | 8080 |
-| `alexejsailer/agenticos-master` | Orchestration, LLM integration, transition engine, agent runtime | 8082 |
-| `alexejsailer/agenticos-gui` | Angular visual editor with drag-drop Petri-net design | 4200 |
+| `alexejsailer/agenticnetos-node` | Event-sourced state engine, tree-structured persistence, ArcQL queries | 8080 |
+| `alexejsailer/agenticnetos-master` | Orchestration, LLM integration, transition engine, agent runtime | 8082 |
+| `alexejsailer/agenticnetos-gui` | Angular visual editor with drag-drop Petri-net design | 4200 |
 
 These images are governed by the [Proprietary EULA](PROPRIETARY-EULA.md).
 
@@ -189,8 +212,10 @@ agentic-nets/
 ├── agentic-net-tools/            # Tool containers (Docker)
 │
 ├── deployment/
+│   ├── README.md                 # Local Docker Compose install guide
 │   ├── docker-compose.yml        # Hybrid: Hub images + local builds
-│   ├── docker-compose.hub-only.yml  # All services from Docker Hub
+│   ├── docker-compose.hub-only.yml  # All services from Docker Hub + monitoring
+│   ├── docker-compose.hub-only.no-monitoring.yml  # Runtime stack without monitoring
 │   ├── .env.template             # Environment config template
 │   ├── dockerfiles/              # Build files for open-source services
 │   └── scripts/
@@ -210,8 +235,8 @@ Dual-license model:
 - **Source code in this repo** — [BSL 1.1](LICENSE.md). Free for development,
   testing, personal, educational, evaluation. Commercial production use
   requires a commercial license. Converts to Apache 2.0 on 2030-02-22.
-- **Closed-source Docker Hub images** (`agenticos-node`, `agenticos-master`,
-  `agenticos-gui`) — [Proprietary EULA](PROPRIETARY-EULA.md). Free for
+- **Closed-source Docker Hub images** (`agenticnetos-node`, `agenticnetos-master`,
+  `agenticnetos-gui`) — [Proprietary EULA](PROPRIETARY-EULA.md). Free for
   personal, educational, evaluation, non-commercial use. Commercial use
   requires contact at alexejsailer@gmail.com.
 
