@@ -31,7 +31,7 @@ cd sa-blobstore
 # Docker
 docker run --rm -p 8090:8090 \
   -v agenticos-blobs:/app/target/blobstore-data \
-  alexejsailer/agenticnetos-blobstore:latest
+  alexejsailer/agenticnetos-blobstore:2.1.8
 ```
 
 ## API sketch

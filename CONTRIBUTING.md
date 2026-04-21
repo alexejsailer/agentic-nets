@@ -58,6 +58,18 @@ cd agentic-net-chat && npm install && npx tsup
 
 > **Important**: `agentic-net-chat` depends on `agentic-net-cli` via a `file:../agentic-net-cli` link. Always build CLI before Chat.
 
+### Tool Containers
+
+`agentic-net-tools/` contains Node.js-based tool images (crawler, echo, reddit, rss, search, secured-api) that agents deploy on demand via HTTP transitions. Each tool has its own `Dockerfile` + `server.js`.
+
+```bash
+# Build a single tool image
+cd agentic-net-tools/agenticos-tool-crawler && docker build -t agenticos-tool-crawler:dev .
+
+# Build and push all tools to the bundled local registry
+cd agentic-net-tools && ./build-and-push.sh
+```
+
 ## Running Locally
 
 ```bash
@@ -65,10 +77,13 @@ cd deployment
 cp .env.template .env
 # Edit .env with your configuration (LLM provider, API keys, etc.)
 
-# Option A: All pre-built images from Docker Hub
+# Option A: All pre-built images from Docker Hub + monitoring stack
 docker compose -f docker-compose.hub-only.yml up -d
 
-# Option B: Hybrid — build open-source locally, closed-source from Hub
+# Option B: All pre-built images, lighter — no Grafana/Prometheus/Tempo
+docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
+
+# Option C: Hybrid — build open-source locally, closed-source from Hub
 docker compose up -d
 ```
 
@@ -98,7 +113,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Scopes
 
-Use the service name as scope: `gateway`, `executor`, `vault`, `cli`, `chat`, `blobstore`, `deployment`, `monitoring`.
+Use the service name as scope: `gateway`, `executor`, `vault`, `cli`, `chat`, `blobstore`, `tools`, `deployment`, `monitoring`, `ci`, `docs`.
 
 ### Examples
 

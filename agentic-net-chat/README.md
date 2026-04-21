@@ -35,7 +35,7 @@ docker run --rm \
   -e TELEGRAM_BOT_ENABLED=true \
   -e TELEGRAM_BOT_TOKEN=... \
   -v agenticnetos-gateway-data:/app/gateway-data:ro \
-  alexejsailer/agenticnetos-chat:latest
+  alexejsailer/agenticnetos-chat:2.1.8
 ```
 
 ## Built-in chat commands

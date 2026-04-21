@@ -24,9 +24,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
         "gateway.master-url=http://localhost:9999",   // seed master (dummy URL)
+        "gateway.internal-secret=test-internal-secret",
         "otel.sdk.disabled=true"
 })
 class MasterRegistrationControllerTest {
+
+    private static final String INTERNAL_SECRET_HEADER = "X-Agenticos-Internal-Secret";
+    private static final String INTERNAL_SECRET = "test-internal-secret";
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,6 +40,7 @@ class MasterRegistrationControllerTest {
     @Test
     void register_returnsHeartbeatInterval() throws Exception {
         mockMvc.perform(post("/internal/masters/register")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of(
                                 "masterId", "test-master-1",
@@ -50,6 +55,7 @@ class MasterRegistrationControllerTest {
     @Test
     void register_missingFields_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/internal/masters/register")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of("masterId", "m1"))))
                 .andExpect(status().isBadRequest())
@@ -60,6 +66,7 @@ class MasterRegistrationControllerTest {
     void heartbeat_updatesTimestamp() throws Exception {
         // Register first
         mockMvc.perform(post("/internal/masters/register")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of(
                                 "masterId", "hb-master",
@@ -70,6 +77,7 @@ class MasterRegistrationControllerTest {
 
         // Heartbeat
         mockMvc.perform(post("/internal/masters/heartbeat")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of("masterId", "hb-master"))))
                 .andExpect(status().isOk())
@@ -79,6 +87,7 @@ class MasterRegistrationControllerTest {
     @Test
     void heartbeat_missingMasterId_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/internal/masters/heartbeat")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -89,6 +98,7 @@ class MasterRegistrationControllerTest {
     void deregister_removesAndReturnsOk() throws Exception {
         // Register
         mockMvc.perform(post("/internal/masters/register")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of(
                                 "masterId", "dereg-master",
@@ -98,7 +108,8 @@ class MasterRegistrationControllerTest {
                 .andExpect(status().isOk());
 
         // Deregister
-        mockMvc.perform(delete("/internal/masters/dereg-master"))
+        mockMvc.perform(delete("/internal/masters/dereg-master")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("deregistered"));
     }
@@ -115,6 +126,7 @@ class MasterRegistrationControllerTest {
     void listMasters_showsRegisteredMasters() throws Exception {
         // Register a test master
         mockMvc.perform(post("/internal/masters/register")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsString(Map.of(
                                 "masterId", "list-test-master",

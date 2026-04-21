@@ -16,7 +16,7 @@
 #   docker compose up -d
 #   docker compose down
 
-name: agenticnetos
+name: ${COMPOSE_PROJECT_NAME:-agenticnetos}
 
 x-logging: &default-logging
   driver: json-file
@@ -34,10 +34,10 @@ volumes:
 
 networks:
   agenticnetos-backend:
-    name: agenticnetos-backend
+    name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-backend
     driver: bridge
   agenticnetos-clients:
-    name: agenticnetos-clients
+    name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-clients
     driver: bridge
 
 services:
@@ -48,14 +48,14 @@ services:
   # On Linux hosts Docker auto-creates bind-mount directories as root:root. The
   # Java services run as non-root UIDs and cannot write there, hitting
   # "Permission denied" on log files and event storage. This one-shot container
-  # creates every bind-mount subdirectory and chmods 777 before any service
-  # starts. Java services wait on this with `service_completed_successfully`.
+  # creates every bind-mount subdirectory, assigns it to the non-root
+  # runtime user, and removes world access before any service starts. Java services wait on this with `service_completed_successfully`.
   # No-op on Docker Desktop (Mac/Windows) where bind mounts are root-mapped.
 
   init-perms:
     image: alpine:3.20
-    container_name: agenticnetos-init-perms
-    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && chmod -R 777 /data /node-data"]
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-init-perms
+    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && addgroup -S agenticnet && adduser -S -G agenticnet agenticnet && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
     volumes:
       - ./data:/data
       - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/node-data
@@ -66,8 +66,8 @@ services:
   # ===========================================================================
 
   tempo:
-    image: grafana/tempo:2.6.1
-    container_name: agenticnetos-tempo
+    image: ${TEMPO_IMAGE:-grafana/tempo:2.10.4}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-tempo
     command: ["-config.file=/etc/tempo.yaml"]
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-3200}:3200"
@@ -78,16 +78,15 @@ services:
       - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
+    # grafana/tempo image is distroless (no wget/curl/sh available for probes).
+    # Disable healthcheck — container exit code is authoritative; if it crashes,
+    # compose restarts it. Same pattern as otel-collector below.
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      disable: true
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: agenticnetos-otel-collector
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.135.0}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
@@ -107,8 +106,8 @@ services:
       disable: true
 
   prometheus:
-    image: prom/prometheus:latest
-    container_name: agenticnetos-prometheus
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.11.2}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yaml"
       - "--storage.tsdb.path=/prometheus"
@@ -135,8 +134,8 @@ services:
       start_period: 20s
 
   grafana:
-    image: grafana/grafana:latest
-    container_name: agenticnetos-grafana
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.0.1}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -169,7 +168,7 @@ services:
 
   agenticnetos-registry:
     image: registry:2
-    container_name: agenticnetos-registry
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-registry
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTICNETOS_REGISTRY_PORT:-5001}:5000"
     volumes:
@@ -184,20 +183,48 @@ services:
       timeout: 5s
       retries: 3
 
+  agenticos-tool-seeder:
+    image: ${DOCKER_CLI_IMAGE:-docker:28-cli}
+    profiles: ["tools"]
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-tool-seeder
+    depends_on:
+      agenticnetos-registry:
+        condition: service_healthy
+    environment:
+      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.1.9}
+      AGENTICNETOS_REGISTRY_PORT: ${AGENTICNETOS_REGISTRY_PORT:-5001}
+      AGENTICOS_TOOL_REGISTRY_HOST: ${AGENTICOS_TOOL_REGISTRY_HOST:-localhost:5001}
+      AGENTICOS_TOOL_SOURCE_REGISTRY: ${AGENTICOS_TOOL_SOURCE_REGISTRY:-docker.io/alexejsailer}
+      AGENTICOS_TOOL_SEED_TAG: ${AGENTICOS_TOOL_SEED_TAG:-}
+      AGENTICOS_TOOL_SEED_FALLBACK_TAG: ${AGENTICOS_TOOL_SEED_FALLBACK_TAG:-latest}
+      AGENTICOS_TOOL_SEED_MODE: ${AGENTICOS_TOOL_SEED_MODE:-mirror}
+      AGENTICOS_TOOL_SOURCE_DIR: /agentic-net-tools
+      AGENTICOS_TOOL_SEED_IMAGES: ${AGENTICOS_TOOL_SEED_IMAGES:-agenticos-tool-echo agenticos-tool-crawler agenticos-tool-rss agenticos-tool-search agenticos-tool-reddit agenticos-tool-secured-api}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./scripts/seed-tool-registry.sh:/usr/local/bin/seed-tool-registry.sh:ro
+      - ../agentic-net-tools:/agentic-net-tools:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/seed-tool-registry.sh"]
+    networks:
+      - agenticnetos-backend
+    restart: "no"
+
   # ===========================================================================
   # CORE BACKEND SERVICES
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-node
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-node
     depends_on:
       init-perms:
         condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
       AGENTICOS_SNAPSHOT_STORE_FILESYSTEM_DIRECTORY: /app/data/snapshots
+      AGENTICOS_PERSISTENCE_RECOVERY_MODELSBASEPATH: /app/data/models
       AGENTICOS_PERSISTENCE_RECOVERY_EVENTBASEPATH: /app/data/events
       AGENTICOS_PERSISTENCE_RECOVERY_SNAPSHOTBASEPATH: /app/data/snapshots
       LOG_PATH: /app/logs
@@ -230,8 +257,8 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-master
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -244,6 +271,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      BLOBSTORE_BASE_URL: http://sa-blobstore:8080
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
@@ -259,8 +287,11 @@ services:
       AGENTICOS_REGISTRY_URL: "http://agenticnetos-registry:5000"
       AGENTICOS_REGISTRY_INTERNAL_URL: "http://agenticnetos-registry:5000"
       AGENTICOS_DOCKER_ENABLED: "${AGENTICOS_DOCKER_ENABLED:-true}"
-      AGENTICOS_DOCKER_NETWORK: "agenticnetos-backend"
+      AGENTICOS_DOCKER_NETWORK: "${COMPOSE_PROJECT_NAME:-agenticnetos}-backend"
       AGENTICOS_DOCKER_REGISTRY_HOST: "localhost:${AGENTICNETOS_REGISTRY_PORT:-5001}"
+      AGENTICOS_DOCKER_IMAGE_ALLOWLIST: "${AGENTICOS_DOCKER_IMAGE_ALLOWLIST:-localhost:5001/agenticos-*}"
+      GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
+      AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
@@ -294,8 +325,8 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-executor
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -306,6 +337,8 @@ services:
       EXECUTOR_UPSTREAM_URL: http://agentic-net-master:8082
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       LOG_PATH: /app/logs
+      AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
+      AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor
@@ -338,8 +371,8 @@ services:
   # ===========================================================================
 
   ollama:
-    image: ollama/ollama:latest
-    container_name: agenticnetos-ollama
+    image: ${OLLAMA_IMAGE:-ollama/ollama:0.21.0}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-ollama
     volumes:
       - ollama-data:/root/.ollama
     networks:
@@ -365,7 +398,7 @@ services:
 
   openbao:
     image: quay.io/openbao/openbao:2.1.0
-    container_name: agenticnetos-openbao
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-openbao
     command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}"]
     environment:
       BAO_ADDR: "http://0.0.0.0:8200"
@@ -386,8 +419,8 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-vault
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-vault
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -398,6 +431,7 @@ services:
       VAULT_OPENBAO_URL: http://openbao:8200
       VAULT_OPENBAO_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}
       LOG_PATH: /app/logs
+      AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-vault
@@ -433,8 +467,8 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-gateway
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gateway
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -448,6 +482,8 @@ services:
       GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-30}
       GATEWAY_PROXY_TIMEOUT: ${GATEWAY_PROXY_TIMEOUT:-300}
       AGENTICOS_ADMIN_SECRET: ${AGENTICOS_ADMIN_SECRET:-}
+      GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
+      GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS: "${GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       GATEWAY_JWT_KEY_DIR: /app/data/jwt
       LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -484,8 +520,8 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-gui
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gui
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -518,8 +554,8 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-cli
+    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-cli
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -547,8 +583,8 @@ services:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-chat
+    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-chat
     profiles:
       - telegram
     depends_on:
@@ -598,8 +634,8 @@ services:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.1.2}
-    container_name: agenticnetos-blobstore
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.1.9}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-blobstore
     depends_on:
       init-perms:
         condition: service_completed_successfully

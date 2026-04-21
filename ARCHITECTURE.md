@@ -67,9 +67,9 @@ Every agent transition declares a role from the `rwxhl` flag alphabet:
 | `h` | HTTP — direct HTTP calls from inside the agent (skips http transitions) |
 | `l` | Logs — query the in-memory event line for observability |
 
-The tool catalog is the single source of truth (`core/.../agent-tool-catalog.json`) and the CLI regenerates its schema from it via `npm run sync-tools`, so the in-net agent and the CLI agent always share the same surface.
+The tool catalog is the single source of truth — the CLI regenerates its schema from it via `npm run sync-tools`, so the in-net agent and the CLI agent always share the same surface.
 
-**Two-tier LLM config (per agent transition).** Every agent inscription can declare a cheap `toolsModel` and a stronger `thinkingModel`, with `activeTier` picking which one hot fires use. Switching is between-fires only: `SET_INSCRIPTION({ action: { activeTier: "thinking" } })` takes effect on the next fire. Works for both API mode (using master's global `LlmService`) and bash mode (`claude -p` or `codex exec`). See `core/.../docs/two-tier-llm-config.md`.
+**Two-tier LLM config (per agent transition).** Every agent inscription can declare a cheap `toolsModel` and a stronger `thinkingModel`, with `activeTier` picking which one hot fires use. Switching is between-fires only: `SET_INSCRIPTION({ action: { activeTier: "thinking" } })` takes effect on the next fire. Works for both API mode (using master's global `LlmService`) and bash mode (`claude -p` or `codex exec`).
 
 ---
 
@@ -139,8 +139,8 @@ The executor never receives inbound traffic. It **polls** the master (or the gat
 |---|---|
 | Try it locally | [README.md](README.md) |
 | See what moved last cycle | [CHANGELOG.md](CHANGELOG.md) |
-| Configure per-agent model tiers | `core/.../docs/two-tier-llm-config.md` |
-| Build a new net from a persona | `core/.../docs/persona-builder-knowledge.md` |
-| Publish a tool-net | `core/.../docs/agent-knowledge-tool-nets.md` |
+| Contribute | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Use the CLI | [agentic-net-cli/README.md](agentic-net-cli/README.md) |
+| Deploy the stack | [deployment/README.md](deployment/README.md) |
 
 Closed-source core services (node, master, gui) ship as signed Docker Hub images under `PROPRIETARY-EULA.md`; open-source services in this repo are under `LICENSE.md` (BSL 1.1, converts to Apache 2.0 on 2030-02-22).

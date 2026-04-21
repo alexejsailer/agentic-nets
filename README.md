@@ -4,6 +4,19 @@
 > incomplete features, and breaking changes. No warranty. See
 > [LICENSE.md](LICENSE.md) and [PROPRIETARY-EULA.md](PROPRIETARY-EULA.md).
 
+## What's open source, what's closed source, and who can use it
+
+Agentic-Nets ships as a **hybrid stack** — mixed open-source services and closed-source Docker Hub images. Read this before deploying.
+
+| Layer | What | License | Who can use it |
+|---|---|---|---|
+| **Open source** (source code in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
+| **Closed source** (Docker Hub images only — no source in this repo) | `alexejsailer/agenticnetos-node`, `alexejsailer/agenticnetos-master`, `alexejsailer/agenticnetos-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
+
+Both licenses include a strong **NO WARRANTY / BETA** disclaimer. Nothing here is certified for regulated environments out of the box — you are responsible for your own risk assessment. If you are unsure whether your intended use counts as commercial production, **ask before deploying**.
+
+---
+
 **Governed multi-agent runtime. Your agents stop running naked.**
 
 Every agent lives inside a formal Petri net. The net's topology defines
@@ -12,7 +25,27 @@ autonomy levels (`r---` → `rwxh`). Token-level audit trail on every firing.
 A crystallization path from agent reasoning into deterministic code, on the
 same graph, without redeploy.
 
-**Full docs and install chapter:** [agentic-nets.com](https://agentic-nets.com) *(coming soon — for now see the [Install chapter in-repo](#-install-in-5-minutes))*.
+**Full docs and install chapter:** [agentic-nets.com](https://agentic-nets.com) *(see also the [Install chapter in-repo](#-install-in-5-minutes))*.
+
+---
+
+## Welcome to Agentic-Nets
+
+**Prompts with tools get you started. Agentic-Nets makes agents operable.**
+
+> "Chat agents are great for exploration. Agentic-Nets are what you use when exploration becomes production work."
+
+### The nine production gaps Agentic-Nets closes
+
+1. **Invisible state.** Every intermediate value is a token in a typed place, queryable with ArcQL while the net runs.
+2. **Vanishing memory.** Memory is structured state. Agents read and write lessons through places and `EMIT_MEMORY`.
+3. **Weak observability.** State is event-sourced. Replay the log, inspect reductions, and ask what existed at decision time.
+4. **No permission model.** Role tiers from `r----` to `rwxhl` gate tools at dispatch, not in the prompt.
+5. **Secrets in the wrong place.** Vault keeps credentials outside tokens and events, scoped per transition and injected only at action time.
+6. **Unsafe execution boundary.** Remote executors poll over egress-only links; command work runs in scoped Docker tool containers.
+7. **Hard to explain why.** Tool calls, results, emissions, and event trails keep provenance attached to the actual work.
+8. **Poor reusability.** Agents are transitions with inscriptions. Export inscriptions or PNML and reuse the net elsewhere.
+9. **No reflexive model.** Builder agents can create nets, places, arcs, transitions, and inscriptions inside the same runtime.
 
 ---
 
@@ -44,6 +77,11 @@ You need Docker Desktop or Docker Engine with Compose v2, plus one LLM backend:
 Claude API, OpenAI API, or local Ollama. You do **not** need Java, Node.js, or
 Maven unless you want to build services from source.
 
+Apple Silicon Macs can run the current Docker Hub images through Docker
+Desktop's `linux/amd64` emulation. Docker may print platform-mismatch warnings
+on first start; that is expected unless multi-arch images have been published
+for your release.
+
 ```bash
 # 1. Clone the public repo
 git clone https://github.com/alexejsailer/agentic-nets.git
@@ -54,7 +92,11 @@ cp .env.template .env
 
 # 3. Edit .env and choose ONE provider:
 #    Claude: LLM_PROVIDER=claude + ANTHROPIC_API_KEY=sk-ant-...
-#    Ollama: LLM_PROVIDER=ollama + OLLAMA_MODEL=llama3.2  (bundled as a container — no host install required)
+#    Ollama: LLM_PROVIDER=ollama (bundled container — no host install required).
+#            Default model: deepseek-v3.1:671b-cloud (routes through ollama.com,
+#            requires a one-time login — see step 5). To run fully offline instead,
+#            set OLLAMA_MODEL (and the HIGH/MEDIUM/LOW tiers) to a local tag
+#            like llama3.2 before starting the stack.
 #    OpenAI: LLM_PROVIDER=openai + OPENAI_API_KEY=sk-...
 
 # 4A. Start the full stack with monitoring
@@ -63,12 +105,52 @@ docker compose -f docker-compose.hub-only.yml up -d
 # 4B. Or start the lighter stack without Grafana/Prometheus/Tempo
 # docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
-# 5. If you chose Ollama, pull your model into the bundled container
-docker exec agenticnetos-ollama ollama pull llama3.2
+# If startup says port 5001 is already allocated, edit .env and set:
+# AGENTICNETOS_REGISTRY_PORT=5002
+# Then rerun the same docker compose command.
 
-# 6. Open the Studio
+# 5. If you chose Ollama, authenticate or pull the model into the bundled container:
+#    (a) Default cloud model — one-time interactive login (see note below):
+docker exec -it agenticnetos-ollama ollama login
+#    (b) OR, if you switched to a local model (e.g. llama3.2), pull it instead:
+# docker exec agenticnetos-ollama ollama pull llama3.2
+
+# 6. Optional: seed approved Docker tool images into the local registry.
+#    Agents use these for crawler/RSS/search/Reddit/API helper containers.
+docker compose -f docker-compose.hub-only.yml --profile tools run --rm agenticos-tool-seeder
+
+# 7. Grab the admin secret the Studio login page asks for.
+#    The gateway auto-generates it on first startup and bind-mounts it onto
+#    the host — read it from the host (NOT from inside the container):
+cat data/gateway/jwt/admin-secret
+
+# 8. Open the Studio GUI and paste the secret into the login page
 open http://localhost:4200
 ```
+
+> **Where does the admin secret come from?**
+> `agentic-net-gateway` writes a random admin secret to
+> `deployment/data/gateway/jwt/admin-secret` on its first start. Read that
+> file on the host and paste the value into the Studio login page (tick
+> *Read-only access* if you want a read-only JWT — same secret, the gateway
+> mints a scoped token). CLI, chat, and executor mount the same file
+> read-only and auto-acquire their JWTs, so you don't need to configure them.
+> If you prefer a pinned value, set `AGENTICOS_ADMIN_SECRET=<long-random-string>`
+> in `.env` before `docker compose up -d` — that string then becomes the
+> login secret.
+
+> **Where does the Ollama login token come from?**
+> `ollama login` is a one-time pairing: it prints a URL + device code to the
+> container logs, you open that URL in a browser, sign in to your
+> [ollama.com](https://ollama.com) account, and approve the device. No token
+> file to manage — credentials are stored inside the container at
+> `/root/.ollama/` and survive restarts (the `ollama-data` volume).
+> If you prefer non-interactive auth, generate an API key at
+> [ollama.com/settings/keys](https://ollama.com/settings/keys) and pass it:
+> `docker exec agenticnetos-ollama ollama login <your-api-key>`.
+> Cloud-suffixed models (`:cloud`, `:671b-cloud`, etc.) route through
+> ollama.com and can be rate-limited during long sessions — swap to a local
+> tag if you hit `429` errors.
 
 **You don't write any code for the first run.** Open the Universal Assistant in
 the Studio and ask *"Help me build my first net."* For write operations, switch
@@ -118,29 +200,51 @@ graph.
 ## Architecture
 
 ```
-                    +-------------------+
-                    | agentic-net-gui   |  Closed-source (Docker Hub)
-                    |     (4200)        |  visual Petri-net editor
-                    +--------+----------+
-                             |
-                    +--------v----------+
-                    | agentic-net-gateway  |  Open-source (this repo)
-                    |     (8083)        |  OAuth2 + JWT
-                    +---+----------+----+
-                        |          |
-              +---------v--+  +----v-----------+
-              | agentic-net  |  | agentic-net     |  Closed-source (Docker Hub)
-              | master       |  | node            |  orchestration + state engine
-              |  (8082)      |  |  (8080)         |
-              +----+---------+  +-----+-----------+
-                   |                  |
-          +--------+-----+     +------+------+
-          |              |     |             |
-  +-------v------+  +----v-----+--+   +------v------+
-  | agentic-net     |  | agentic-net    |   | sa-blobstore |
-  | executor       |  | chat          |   |   (8090)    |
-  |  (8084)        |  | (Telegram)    |   |             |
-  +----------------+  +--------------+   +-------------+
+    CLIENT AGENTS  (all authenticate via gateway-minted JWT)
+  +--------------+  +--------------+  +--------------+  +---------------+
+  | agentic-net  |  | agentic-net  |  | agentic-net  |  | agentic-net   |
+  | gui (4200)   |  | cli          |  | chat         |  | executor      |
+  | Closed-src   |  | Open-src     |  | (Telegram)   |  |  (8084)       |
+  |              |  |              |  | Open-src     |  | Open-src      |
+  +------+-------+  +------+-------+  +------+-------+  +------+--------+
+         |                 |                 |                 |
+         | JWT             | JWT             | JWT             | JWT *
+         |                 |                 |                 |
+         +-----------------+--------+--------+-----------------+
+                                    |
+                                    | (all client traffic funnels
+                                    |  through the gateway;
+                                    |  tokens minted from the
+                                    |  admin secret auto-generated
+                                    |  on first startup at
+                                    |  data/gateway/jwt/admin-secret
+                                    |  and mounted read-only by
+                                    |  cli, chat, executor)
+                                    v
+                         +-------------------+
+                         | agentic-net-      |   Open-source (this repo)
+                         | gateway (8083)    |   OAuth2 + JWT router
+                         +---+------------+--+
+                             |            |
+                +------------v+         +-v---------------+
+                | agentic-net |         | agentic-net     |   Closed-source (Docker Hub)
+                | master      |<------->| node            |   orchestration + state engine
+                |  (8082)     |         |  (8080)         |
+                +--+--------+-+         +-----------------+
+                   |        |
+                   |        |   BACKEND SERVICES
+                   |        |   (master-internal,
+                   |        |    not client-exposed)
+                   |        |
+          +--------v--+  +--v-----------+
+          | agentic-  |  | sa-blobstore |   Open-source (this repo)
+          | net-vault |  |  (8090)      |   backend data tier
+          |  (8085)   |  | large tokens |
+          | secrets   |  | + knowledge  |
+          +-----------+  +--------------+
+
+  * Executor supports dual-mode polling: JWT via gateway (shown above, works
+    across firewalls) OR direct to master on the same compose network.
 ```
 
 ### Agent roles on the wire
@@ -179,6 +283,8 @@ anywhere:
 | **agentic-net-chat** | Telegram-facing agent with streaming tool-call batches and `/verbose` toggle | — |
 | **sa-blobstore** | Distributed blob storage for large tokens, artifacts, and knowledge content | 8090 |
 | **agentic-net-tools/** | Tool containers agents start on demand (crawler, echo, reddit, rss, search, secured-api) | dynamic |
+
+Docker tools are published as `alexejsailer/agenticos-tool-*:<version>` and mirrored into the bundled local registry (`localhost:5001`) by `agenticos-tool-seeder`. Master only runs images matching the local allowlist, normally `localhost:5001/agenticos-*`.
 
 ### Closed-source services (Docker Hub)
 
@@ -221,7 +327,8 @@ agentic-nets/
 │   ├── .env.template             # Environment config template
 │   ├── dockerfiles/              # Build files for open-source services
 │   └── scripts/
-│       └── build-and-push.sh     # Build & push open-source images
+│       ├── build-and-push.sh     # Build & push open-source images
+│       └── seed-tool-registry.sh # Mirror/build Docker tools into local registry
 │
 └── monitoring/
     ├── config/                   # OTel, Prometheus, Tempo configs
@@ -250,7 +357,8 @@ Dual-license model:
 
 - **Commercial licensing**: alexejsailer@gmail.com
 - **Website & blog**: https://alexejsailer.com
-- **Hosted docs**: https://agentic-nets.com *(coming soon)*
+- **Hosted docs**: https://agentic-nets.com
+- **Video walkthroughs (YouTube)**: [Agentic-Nets playlist](https://www.youtube.com/playlist?list=PLW1ujxCEmjT0h9JgrUbMuxM2Pv2gsWnFb)
 - **Issues**: https://github.com/alexejsailer/agentic-nets/issues
 - **Contributing**: see [CONTRIBUTING.md](CONTRIBUTING.md)
 

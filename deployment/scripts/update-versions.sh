@@ -67,9 +67,11 @@ for compose_file in "${COMPOSE_FILES[@]}"; do
     # Current compose files use image: alexejsailer/agenticnetos-foo:${AGENTICNETOS_VERSION:-X.Y.Z}
     sed_in_place "s|AGENTICNETOS_VERSION:-[0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*|AGENTICNETOS_VERSION:-${VERSION}|g" "$compose_file"
 
-    # Fallback for any static tags that may appear in future compose files.
+    # Fallback for static tags that may appear in future compose files. Skip
+    # version-variable lines; otherwise this would turn
+    # repo:${AGENTICNETOS_VERSION:-X.Y.Z} into repo:VERSION${...}.
     for svc in "${ALL_SERVICES[@]}"; do
-      sed_in_place "s|alexejsailer/agenticnetos-${svc}:[a-zA-Z0-9._-]*|alexejsailer/agenticnetos-${svc}:${VERSION}|g" "$compose_file"
+      sed_in_place "/AGENTICNETOS_VERSION/!s|alexejsailer/agenticnetos-${svc}:[a-zA-Z0-9._-]*|alexejsailer/agenticnetos-${svc}:${VERSION}|g" "$compose_file"
     done
     echo "  Updated $(basename "$compose_file")"
   else

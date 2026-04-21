@@ -7,6 +7,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.8] - 2026-04-22
+
+### Fixed
+- **Master `GET /api/admin/models/{modelId}/status` 404.** Master's
+  `ModelController` proxied every other admin-model lifecycle endpoint
+  (`POST /load`, `POST /activate`, `POST /deactivate`, `POST /unload`,
+  `DELETE`) to node, but the `status` endpoint was missing — node has it
+  at `/admin/models/{modelId}/status`, gateway routes `/api/*` to master,
+  so the call returned 404. The GUI polls this endpoint while the Studio
+  is open; the repeated 404s made lifecycle state (active/inactive,
+  current version, element count) look stale even though the backend was
+  processing requests, and in the Universal Assistant it left the model
+  indicator spinning while the agent loop was actually running. Added
+  the proxy method in master's `ModelController` so GET /status now
+  forwards to node and returns the lifecycle snapshot.
+
+## [2.1.7] - 2026-04-22
+
+### Fixed
+- **GUI default service URLs for reverse-proxy deployments.** When the Studio
+  is served behind a public hostname (Apache/Nginx/Cloudflare in front of
+  the compose stack), the GUI was defaulting every service base URL to
+  `<scheme>://<public-host>:<port>` — e.g. `https://gui.example.com:8083`.
+  Browsers then tried to open port 8083 on the public host, which is bound
+  to `127.0.0.1` on the server and unreachable from the internet; every
+  post-login XHR failed with `ERR_CONNECTION_REFUSED` and the Universal
+  Assistant chat silently never reached master. Fixed
+  `resolveDefaultServiceUrl()` in `core/agentic-net-gui/.../service-url.util.ts`
+  to return the browser's origin **without a port** when
+  `isBehindReverseProxy()` is true, so `/api/*` and `/node-api/*` become
+  relative-to-origin and route through the reverse proxy. Also patched
+  `normalizeServiceBaseUrl()` so stored localhost-era URLs get
+  auto-migrated on load — existing users don't need to clear localStorage.
+  Pure-local evaluation (`http://localhost:<non-4200-port>`) keeps the
+  classic `http://localhost:<port>` form. No `.env` change required — the
+  GUI auto-detects the right pattern at runtime from the browser origin.
+
+## [2.1.6] - 2026-04-22
+
+### Docs
+- **CORS for public deployments — explicit warning + example.** The default
+  `GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS` and
+  `AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS` in `.env.template` only allow
+  `http://localhost:*` / `http://127.0.0.1:*`. Operators putting the GUI
+  behind a real public hostname (Apache/Nginx/Cloudflare reverse proxy)
+  hit `HTTP 403 "Invalid CORS request"` from the gateway and master on
+  every XHR — the login button silently fails. Both env vars now have a
+  prominent ⚠️ comment block in `.env.template` with a runnable example
+  (`https://gui.example.com`), and `deployment/PUBLIC-TLS-DEPLOYMENT.md`
+  has a new **Phase 4.5 — Allow your public origin in CORS** section
+  with edit-and-recreate instructions plus a curl-with-Origin probe to
+  verify the fix. Troubleshooting list also gained an explicit entry for
+  "Login button does nothing / 403 Invalid CORS request in DevTools".
+
+## [2.1.5] - 2026-04-22
+
+### Fixed
+- **Executor missing `AGENTICOS_CREDENTIALS_KEY` env bridge.** Master was
+  receiving the key, but executor wasn't — so encrypted transition credentials
+  couldn't be decrypted on the executor side. Added
+  `AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}` to the executor
+  service env block in all three compose files
+  (`docker-compose.yml`, `docker-compose.hub-only.yml`,
+  `docker-compose.hub-only.no-monitoring.yml`).
+- **Tempo healthcheck** was probing `wget http://localhost:3200/ready` but the
+  `grafana/tempo:2.10.4` image is distroless (no `wget`/`curl`/`sh`) — so every
+  probe failed even though Tempo was serving. Disabled the healthcheck,
+  matching the pattern already used for `otel-collector`. Container exit code
+  is authoritative; compose restarts on crash.
+- **Prometheus blobstore scrape target** was still pointing at
+  `sa-blobstore:8080` (API port) from before the 2.1.3 actuator-port move.
+  Updated `monitoring/config/prometheus.yaml` to scrape `sa-blobstore:9090`
+  (Spring Boot management port). The 6th Prometheus target now reports `up`.
+- **Typo `AgetnticOS`** in `monitoring/config/prometheus.yaml` comment header
+  → `AgenticNetOS`.
+
+## [2.1.4] - 2026-04-21
+
+### Security
+- **Gateway `GET /internal/masters` now requires the shared internal secret.**
+  The register/heartbeat/deregister endpoints already enforced
+  `X-Agenticos-Internal-Secret` (constant-time compare), but the listing
+  endpoint let any caller enumerate registered master URLs. Same check now
+  applies to all four verbs.
+- **`GATEWAY_INTERNAL_SECRET` default** in `.env.template` strengthened with an
+  explicit "public on GitHub" warning plus `openssl rand -hex 32` command for
+  generating a replacement before exposing the stack beyond 127.0.0.1.
+- **Executor service metadata** typo `AgetnticOS` → `AgenticNetOS` in
+  `/actuator/info` output.
+
+### Fixed
+- **OpenTelemetry Collector image pin** `0.150.0` → `0.135.0`. The 0.150.0 tag
+  did not exist on Docker Hub (speculative pin), causing
+  `docker compose up` to fail with "not found" during the user-sim. 0.135.0 is
+  a verified stable release and is present on Hub.
+- **`user-sim.sh` model alignment.** The .env.template default
+  (`deepseek-v3.1:671b-cloud`) requires `ollama login` and thus can't run
+  unattended. The sim now sed-overrides `OLLAMA_MODEL` (and HIGH/MEDIUM/LOW
+  tiers) to match the `--model` flag (default `llama3.2`) so the sim uses the
+  same model it actually pulls.
+- **`user-sim.sh` gateway internal secret.** Sim now generates a random
+  `GATEWAY_INTERNAL_SECRET` alongside the admin secret and settings key, so
+  the deployed gateway doesn't inherit the public-default placeholder.
+
+### Docs
+- README top now leads with a license/usage table (open-source vs closed-source,
+  who can use each).
+- README Install step rewritten around the new cloud-default model + `ollama
+  login` flow, with a sidebar explaining where the Ollama token comes from.
+- Added "Welcome to Agentic-Nets" section with the nine production gaps.
+- Architecture diagram rebuilt to show the Gateway as the JWT entry point for
+  all client agents (gui, cli, chat, executor) with vault + sa-blobstore as
+  backend data-tier services.
+- CONTRIBUTING updated to cover `agentic-net-tools/` builds and the
+  no-monitoring compose variant.
+- Added `.claude/agents/agenticos-net-builder.md` — a Claude-Code-compatible
+  agent doc (credential-safe, public-repo adjusted) for users who want an
+  expert assistant when building nets.
+- Added YouTube walkthrough playlist link to README Contact section.
+- Added "Encryption key for transition credentials" section to
+  `agentic-net-executor/README.md` documenting the
+  `AGENTICOS_SETTINGS_KEY` (user-facing) → `AGENTICOS_CREDENTIALS_KEY`
+  (service-side) env-var bridge.
+
 ## [2.1.3] - 2026-04-21
 
 ### Fixed — first-time-user experience on Linux (surfaced in 2.1.2 install-sim)
@@ -144,7 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OBSERVE_MODEL tool**: Whole-model runtime snapshots for monitoring and debugging
 - **GUI persona selector**: Dropdown in universal assistant editor to switch between personas
 - **Version-pinned compose files**: All image tags use `AGENTICNETOS_VERSION` env var (no more `latest` drift)
-- **Automated version pinning**: Jenkins prepare-release pipeline now updates compose file versions
+- **Automated version pinning**: Release pipeline now updates compose file versions
 - **CHANGELOG.md**: This file
 
 ### Changed
@@ -162,20 +286,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - MasterPollingIntegrationTest updated for configuredModels parameter
 
-## [1.14.0] - 2026-03-07
+## [1.11.0] – [1.14.0]
 
-### Changed
-- Release with accumulated improvements
-
-## [1.13.0] - 2026-03-04
-
-### Changed
-- Release with accumulated improvements
-
-## [1.11.0] - 2026-02-28
-
-### Changed
-- Release with accumulated improvements
+Rolling improvements across master, executor, and gateway stabilization; detailed history captured in git log.
 
 ## [1.9.0] - 2026-02-20
 

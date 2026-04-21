@@ -39,7 +39,7 @@ docker run --rm -p 8083:8083 \
   -e MASTER_URL=http://agentic-net-master:8082 \
   -e NODE_URL=http://agentic-net-node:8080 \
   -v agenticnetos-gateway-data:/app/data \
-  alexejsailer/agenticnetos-gateway:latest
+  alexejsailer/agenticnetos-gateway:2.1.8
 ```
 
 ## Health

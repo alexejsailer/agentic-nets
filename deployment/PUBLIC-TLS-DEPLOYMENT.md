@@ -4,9 +4,8 @@ How to expose an Agentic-Nets deployment at `https://<your-domain>/` with a
 real TLS cert and no public port numbers visible.
 
 This is written for a Debian/Ubuntu host where Apache2 + certbot are already
-installed and port 80/443 are reachable from the internet. It was used to
-bring `https://agentic-nets.com/` online on the staging host; the same recipe
-works for any domain.
+installed and port 80/443 are reachable from the internet. The same recipe
+works for any public domain.
 
 ---
 
@@ -134,8 +133,7 @@ which means the world can still reach them on `http://host:4200` /
 `http://host:8083` even after Apache goes up. Fix by prefixing the port
 bindings with `127.0.0.1:`.
 
-For the **staging compose** (`ci/remote/docker-compose.staging.yml`) the
-change is already in place:
+Override the port bindings in your compose file (or via a compose `override.yml`):
 
 ```yaml
 services:
@@ -147,7 +145,7 @@ services:
       - "127.0.0.1:${AGENTIC_NET_GUI_PORT:-4200}:4200"
 ```
 
-For **your own** compose file do the same two edits, then:
+Then:
 
 ```bash
 cd /opt/agenticos         # or wherever your compose file lives
@@ -162,6 +160,44 @@ ports now.
 > intentionally still bind to `0.0.0.0`, because people running the stack
 > locally often want LAN access from a phone or other device. The loopback
 > change is only for production deployments that sit behind a reverse proxy.
+
+---
+
+## Phase 4.5 — Allow your public origin in CORS (REQUIRED for browser login)
+
+The default CORS whitelist in `.env.template` only allows
+`http://localhost:*` and `http://127.0.0.1:*`. As soon as you reach the GUI
+through your real domain the browser sends
+`Origin: https://<your-domain>`, the gateway and master reject it with
+`HTTP 403 "Invalid CORS request"`, and **the login button silently fails**.
+
+Edit `.env` and add your public origin to **both** CORS lists:
+
+```bash
+# .env  (your deployment's environment file)
+GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://<your-domain>
+AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://<your-domain>
+```
+
+Recreate the gateway + master so they pick up the new env (executor and
+GUI don't need a restart, they don't enforce CORS):
+
+```bash
+docker compose up -d --force-recreate --no-deps agentic-net-gateway agentic-net-master
+```
+
+Verify the fix mimicking what the browser does (note the `Origin` header):
+
+```bash
+curl -sS -X POST https://<your-domain>/oauth2/token \
+  -H 'Origin: https://<your-domain>' \
+  -d 'grant_type=client_credentials&client_id=agenticos-admin&client_secret=<your-admin-secret>&scope=admin'
+```
+
+A JSON body with `access_token` = success. `Invalid CORS request` = the
+origin is still not in the whitelist (typo, missing scheme, or the gateway
+didn't actually pick up the new env — re-check with `docker exec
+<container>-gateway printenv GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS`).
 
 ---
 
@@ -216,6 +252,10 @@ if you just changed the domain list.
 **XHRs hit `localhost:*` in the browser** — the running GUI image was
 built for dev, not prod. Rebuild the GUI with the production Dockerfile
 and `docker compose up -d agentic-net-gui`.
+
+**Login button does nothing / `403 Invalid CORS request` in DevTools** —
+your public origin isn't in the gateway's allow-list. See Phase 4.5
+above.
 
 **WebSocket disconnects** — verify `mod_proxy_wstunnel` is loaded
 (`apache2ctl -M | grep wstunnel`) and the `RewriteRule` for `Upgrade:
