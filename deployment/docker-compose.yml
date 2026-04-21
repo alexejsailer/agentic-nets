@@ -43,6 +43,25 @@ networks:
 services:
 
   # ===========================================================================
+  # INIT — prepare host bind-mount permissions (first-boot on Linux)
+  # ===========================================================================
+  # On Linux hosts Docker auto-creates bind-mount directories as root:root. The
+  # Java services run as non-root UIDs and cannot write there, hitting
+  # "Permission denied" on log files and event storage. This one-shot container
+  # creates every bind-mount subdirectory and chmods 777 before any service
+  # starts. Java services wait on this with `service_completed_successfully`.
+  # No-op on Docker Desktop (Mac/Windows) where bind mounts are root-mapped.
+
+  init-perms:
+    image: alpine:3.20
+    container_name: agenticnetos-init-perms
+    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && chmod -R 777 /data /node-data"]
+    volumes:
+      - ./data:/data
+      - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/node-data
+    restart: "no"
+
+  # ===========================================================================
   # MONITORING STACK
   # ===========================================================================
 
@@ -82,12 +101,10 @@ services:
       - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
+    # otel-collector-contrib is distroless — no wget/curl/sh. Disable healthcheck
+    # (the container exit code is authoritative; if it crashes, compose restarts it).
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      disable: true
 
   prometheus:
     image: prom/prometheus:latest
@@ -174,6 +191,9 @@ services:
   agentic-net-node:
     image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-node
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
@@ -213,6 +233,8 @@ services:
     image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-master
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       agentic-net-node:
         condition: service_healthy
       agentic-net-vault:
@@ -275,6 +297,8 @@ services:
     image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-executor
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       agentic-net-master:
         condition: service_healthy
     environment:
@@ -326,7 +350,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${OLLAMA_MEMORY_LIMIT:-4G}
+          memory: ${OLLAMA_MEMORY_LIMIT:-8G}
           cpus: "${OLLAMA_CPU_LIMIT:-2.0}"
     healthcheck:
       test: ["CMD", "ollama", "list"]
@@ -365,6 +389,8 @@ services:
     image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-vault
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       openbao:
         condition: service_healthy
     environment:
@@ -410,6 +436,8 @@ services:
     image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-gateway
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       agentic-net-master:
         condition: service_healthy
     environment:
@@ -459,6 +487,8 @@ services:
     image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-gui
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       agentic-net-gateway:
         condition: service_healthy
     ports:
@@ -491,6 +521,8 @@ services:
     image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-cli
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       agentic-net-gateway:
         condition: service_healthy
     environment:
@@ -517,7 +549,11 @@ services:
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
     image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-chat
+    profiles:
+      - telegram
     depends_on:
+      init-perms:
+        condition: service_completed_successfully
       agentic-net-gateway:
         condition: service_healthy
     environment:
@@ -564,6 +600,9 @@ services:
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
     image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-blobstore
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       LOG_PATH: /app/logs
@@ -588,7 +627,8 @@ services:
           memory: 256M
           cpus: "0.25"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      # blobstore exposes actuator on the management port (9090), not 8080 (API).
+      test: ["CMD-SHELL", "curl -f http://localhost:9090/actuator/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5

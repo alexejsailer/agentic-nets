@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-04-21
+
+### Fixed — first-time-user experience on Linux (surfaced in 2.1.2 install-sim)
+- **Bind-mount permissions**. On Linux hosts Docker auto-created bind-mount
+  directories (`./data/logs/*`, `${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}`)
+  as `root:root`, then Java services running as non-root UIDs hit
+  `java.io.FileNotFoundException: Permission denied` and
+  `java.nio.file.AccessDeniedException` on their first boot. All three compose
+  files now include a one-shot `init-perms` service (alpine:3.20) that
+  `mkdir -p` every bind-mount subdirectory and `chmod -R 777` them before any
+  Java service starts; every service declares
+  `depends_on: init-perms: condition: service_completed_successfully`. No-op
+  on Docker Desktop.
+- **Blobstore healthcheck**. Was targeting `:8080/actuator/health` (the API
+  port) where no actuator endpoint exists; container stayed permanently
+  marked unhealthy while actually working fine. Fixed to target
+  `:9090/actuator/health` (Spring Boot management port).
+- **otel-collector healthcheck**. The upstream image is distroless and has no
+  `wget`, `curl`, or `sh`; every healthcheck invocation failed with `OCI
+  runtime exec failed: executable file not found in $PATH`. Disabled the
+  healthcheck — the collector's process exit code is authoritative.
+- **Ollama memory default** raised from `4G` to `8G`. On Linux cgroups the
+  `4G` limit left Ollama reporting `free=2.0 GiB`, which failed the
+  `llama3.2` load check (`model requires more system memory (2.3 GiB) than is
+  available (2.0 GiB)`). At `8G` `llama3.2` loads and serves.
+
+### Changed
+- **Chat service gated behind the `telegram` compose profile**. With
+  `TELEGRAM_BOT_ENABLED=false` (the default) the chat container used to log
+  "No Telegram bot token configured" and restart-loop forever, wasting
+  resources and polluting `docker ps`. It now only starts when users opt in
+  via `docker compose --profile telegram up -d`.
+
 ## [2.1.2] - 2026-04-21
 
 ### Added
