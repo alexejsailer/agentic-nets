@@ -74,7 +74,7 @@ const DEFAULT_PROFILE: ProfileConfig = {
     api_key: '${ANTHROPIC_API_KEY}',
     model: 'claude-sonnet-4-5-20250929',
     thinking_model: undefined,
-    high_model: 'claude-opus-4-6',
+    high_model: 'claude-opus-4-7',
     medium_model: 'claude-sonnet-4-6',
     low_model: 'claude-haiku-4-5-20251001',
   },
@@ -87,9 +87,9 @@ const DEFAULT_PROFILE: ProfileConfig = {
   },
   openai: {
     api_key: '${OPENAI_API_KEY}',
-    high_model: 'gpt-5.2',
-    medium_model: 'o4-mini',
-    low_model: 'gpt-5-nano',
+    high_model: 'gpt-5.4',
+    medium_model: 'gpt-5.4-mini',
+    low_model: 'gpt-5.4-nano',
   },
   claude_code: {
     binary: 'claude',

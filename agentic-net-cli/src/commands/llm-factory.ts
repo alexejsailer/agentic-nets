@@ -52,7 +52,7 @@ export function createLlmProvider(name: string, profile: ProfileConfig, tier?: M
           'OpenAI API key not configured. Set OPENAI_API_KEY or configure in ~/.agenticos/config.yaml',
         );
       }
-      const model = resolveModelForTier(effectiveTier, profile.openai, 'o4-mini');
+      const model = resolveModelForTier(effectiveTier, profile.openai, 'gpt-5.4-mini');
       return new OpenAIProvider(apiKey, model);
     }
     case 'ollama': {
