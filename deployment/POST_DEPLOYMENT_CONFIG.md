@@ -1,7 +1,7 @@
 # Post-Deployment Configuration
 
-After deploying AgenticNetOS, you can configure API keys, LLM providers, model tiers,
-Telegram bot settings, and Ollama cloud access by editing the `.env` file and
+After deploying Agentic-Nets, you can configure API keys, LLM providers, model tiers,
+Telegram bot settings, and local Ollama access by editing the `.env` file and
 restarting the affected services.
 
 ## How Configuration Works
@@ -48,20 +48,21 @@ AGENTICOS_MODEL_TIER=medium   # Options: high, medium, low
 
 ```bash
 OLLAMA_BASE_URL=http://host.docker.internal:11434
-OLLAMA_HIGH_MODEL=kimi-k2.5:cloud
-OLLAMA_MEDIUM_MODEL=kimi-k2.5:cloud
-OLLAMA_LOW_MODEL=kimi-k2.5:cloud
+OLLAMA_MODEL=llama3.2
+OLLAMA_HIGH_MODEL=llama3.2
+OLLAMA_MEDIUM_MODEL=llama3.2
+OLLAMA_LOW_MODEL=llama3.2
 ```
 
-**Cloud models** (suffix `:cloud`) run on remote infrastructure via Ollama's cloud
-routing. They require `ollama login` on the host machine before use. See
-[Ollama Cloud Authentication](#ollama-cloud-authentication) below.
+Use a local model for first-run assistant work. Cloud models with the `:cloud`
+suffix route through ollama.com and can be rate-limited during longer assistant
+or builder sessions.
 
 ### Anthropic (Claude) Configuration
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-...
-ANTHROPIC_HIGH_MODEL=claude-opus-4-6
+ANTHROPIC_HIGH_MODEL=claude-opus-4-7
 ANTHROPIC_MEDIUM_MODEL=claude-sonnet-4-6
 ANTHROPIC_LOW_MODEL=claude-haiku-4-5-20251001
 ```
@@ -70,9 +71,9 @@ ANTHROPIC_LOW_MODEL=claude-haiku-4-5-20251001
 
 ```bash
 OPENAI_API_KEY=sk-...
-OPENAI_HIGH_MODEL=gpt-5.2
-OPENAI_MEDIUM_MODEL=o4-mini
-OPENAI_LOW_MODEL=gpt-5-nano
+OPENAI_HIGH_MODEL=gpt-5.4
+OPENAI_MEDIUM_MODEL=gpt-5.4-mini
+OPENAI_LOW_MODEL=gpt-5.4-nano
 ```
 
 ### Applying LLM Changes
@@ -145,10 +146,11 @@ Once the bot is running, users can switch providers and tiers without editing `.
 
 These overrides are per-session and reset when the bot restarts.
 
-## Ollama Cloud Authentication
+## Optional Ollama Cloud Authentication
 
-Cloud models (e.g., `kimi-k2.5:cloud`, `kimi-k2.5:cloud`) require Ollama to be
-authenticated on the host machine.
+Local models are recommended for the first run. If you deliberately choose an
+Ollama cloud model such as `gpt-oss:120b-cloud`, Ollama must be authenticated on
+the host machine.
 
 ### Local Mac (Docker Desktop)
 
@@ -160,7 +162,7 @@ ollama login
 # Enter your Ollama credentials when prompted
 
 # Verify cloud models work
-ollama run kimi-k2.5:cloud "hello"
+ollama run gpt-oss:120b-cloud "hello"
 ```
 
 ### Remote Linux Server (Staging/Production)
@@ -178,7 +180,7 @@ ollama login
 systemctl status ollama
 
 # 4. Test a cloud model
-ollama run kimi-k2.5:cloud "hello"
+ollama run gpt-oss:120b-cloud "hello"
 ```
 
 **Important**: If Ollama runs as a systemd service (typically as the `ollama` user),
@@ -238,6 +240,10 @@ OPENBAO_DEV_ROOT_TOKEN=<random-token>
 # .env
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=llama3.2
+OLLAMA_HIGH_MODEL=llama3.2
+OLLAMA_MEDIUM_MODEL=llama3.2
+OLLAMA_LOW_MODEL=llama3.2
 ```
 
 ### Claude Setup

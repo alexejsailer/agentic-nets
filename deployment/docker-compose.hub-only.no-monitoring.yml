@@ -1,10 +1,10 @@
-# Agentic-Nets — All Pre-Built (Docker Hub Only)
+# Agentic-Nets — All Pre-Built, No Monitoring (Docker Hub Only)
 #
-# ALL services use pre-built Docker Hub images. No local builds required.
-# Just: docker compose -f docker-compose.hub-only.yml up -d
+# All runtime services use pre-built Docker Hub images. Monitoring services are omitted.
+# Just: docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 #
 # Network topology:
-#   agenticnetos-backend (bridge): backend services (node, master, executor, gateway, monitoring, registry)
+#   agenticnetos-backend (bridge): backend services (node, master, executor, gateway, registry)
 #   agenticnetos-clients (bridge): client services (gateway, gui, cli, chat)
 #
 # Gateway auto-generates admin secret on first startup.
@@ -13,8 +13,8 @@
 # Usage:
 #   cd deployment
 #   cp .env.template .env   # then edit .env with your settings
-#   docker compose -f docker-compose.hub-only.yml up -d
-#   docker compose -f docker-compose.hub-only.yml down
+#   docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
+#   docker compose -f docker-compose.hub-only.no-monitoring.yml down
 
 name: agenticnetos
 
@@ -25,9 +25,6 @@ x-logging: &default-logging
     max-file: "3"
 
 volumes:
-  tempo-data:
-  prometheus-data:
-  grafana-data:
   registry-data:
   openbao-data:
 
@@ -40,110 +37,6 @@ networks:
     driver: bridge
 
 services:
-
-  # ===========================================================================
-  # MONITORING STACK
-  # ===========================================================================
-
-  tempo:
-    image: grafana/tempo:2.6.1
-    container_name: agenticnetos-tempo
-    command: ["-config.file=/etc/tempo.yaml"]
-    ports:
-      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-3200}:3200"
-    volumes:
-      - tempo-data:/var/tempo
-      - ../monitoring/config/tempo.yaml:/etc/tempo.yaml:ro
-    networks:
-      - agenticnetos-backend
-    restart: unless-stopped
-    logging: *default-logging
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: agenticnetos-otel-collector
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    ports:
-      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
-      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
-    volumes:
-      - ../monitoring/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    depends_on:
-      tempo:
-        condition: service_started
-    networks:
-      - agenticnetos-backend
-    restart: unless-stopped
-    logging: *default-logging
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:13133/ || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: agenticnetos-prometheus
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yaml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--web.console.libraries=/etc/prometheus/console_libraries"
-      - "--web.console.templates=/etc/prometheus/consoles"
-      - "--web.enable-lifecycle"
-    depends_on:
-      otel-collector:
-        condition: service_started
-    ports:
-      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - prometheus-data:/prometheus
-      - ../monitoring/config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
-    networks:
-      - agenticnetos-backend
-    restart: unless-stopped
-    logging: *default-logging
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: agenticnetos-grafana
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3000}
-    depends_on:
-      prometheus:
-        condition: service_started
-      tempo:
-        condition: service_started
-    ports:
-      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ../monitoring/grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ../monitoring/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-    networks:
-      - agenticnetos-backend
-    restart: unless-stopped
-    logging: *default-logging
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   # ===========================================================================
   # TOOL REGISTRY
@@ -184,6 +77,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-node
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=node
+      OTEL_SDK_DISABLED: "true"
     volumes:
       - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/app/data
       - ./data/logs/node:/app/logs
@@ -241,6 +135,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-master
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=master
+      OTEL_SDK_DISABLED: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/logs/master:/app/logs
@@ -280,6 +175,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
+      OTEL_SDK_DISABLED: "true"
     volumes:
       - ./data/logs/executor:/app/logs
     ports:
@@ -341,6 +237,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-vault
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=vault
+      OTEL_SDK_DISABLED: "true"
     volumes:
       - ./data/logs/vault:/app/logs
     ports:
@@ -388,6 +285,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-gateway
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=gateway
+      OTEL_SDK_DISABLED: "true"
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_GATEWAY_PORT:-8083}:8083"
     volumes:
@@ -524,6 +422,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: sa-blobstore
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=blobstore
+      OTEL_SDK_DISABLED: "true"
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${SA_BLOBSTORE_PORT:-8090}:8080"
     volumes:

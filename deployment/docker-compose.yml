@@ -1,11 +1,11 @@
-# AgetnticOS Agentic-Nets — Hybrid Deployment
+# Agentic-Nets — Hybrid Deployment
 #
 # Closed-source services (node, master, gui) pull from Docker Hub.
 # Open-source services (gateway, executor, cli, chat, blobstore) build locally.
 #
 # Network topology:
-#   agenticos-backend (bridge): backend services (node, master, executor, gateway, monitoring, registry)
-#   agenticos-clients (bridge): client services (gateway, gui, cli, chat)
+#   agenticnetos-backend (bridge): backend services (node, master, executor, gateway, monitoring, registry)
+#   agenticnetos-clients (bridge): client services (gateway, gui, cli, chat)
 #
 # Gateway auto-generates admin secret on first startup.
 # CLI and Chat mount gateway data volume (read-only) to auto-authenticate.
@@ -15,6 +15,8 @@
 #   cp .env.template .env   # then edit .env with your settings
 #   docker compose up -d
 #   docker compose down
+
+name: agenticnetos
 
 x-logging: &default-logging
   driver: json-file
@@ -30,11 +32,11 @@ volumes:
   openbao-data:
 
 networks:
-  agenticos-backend:
-    name: agenticos-backend
+  agenticnetos-backend:
+    name: agenticnetos-backend
     driver: bridge
-  agenticos-clients:
-    name: agenticos-clients
+  agenticnetos-clients:
+    name: agenticnetos-clients
     driver: bridge
 
 services:
@@ -45,13 +47,15 @@ services:
 
   tempo:
     image: grafana/tempo:2.6.1
-    container_name: agenticos-tempo
+    container_name: agenticnetos-tempo
     command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-3200}:3200"
     volumes:
       - tempo-data:/var/tempo
       - ../monitoring/config/tempo.yaml:/etc/tempo.yaml:ro
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -63,15 +67,18 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: agenticos-otel-collector
+    container_name: agenticnetos-otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
     volumes:
       - ../monitoring/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     depends_on:
       tempo:
         condition: service_started
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -83,7 +90,7 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: agenticos-prometheus
+    container_name: agenticnetos-prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yaml"
       - "--storage.tsdb.path=/prometheus"
@@ -94,12 +101,12 @@ services:
       otel-collector:
         condition: service_started
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - prometheus-data:/prometheus
       - ../monitoring/config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -111,7 +118,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: agenticos-grafana
+    container_name: agenticnetos-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -122,13 +129,13 @@ services:
       tempo:
         condition: service_started
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
     volumes:
       - grafana-data:/var/lib/grafana
       - ../monitoring/grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ../monitoring/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -142,15 +149,15 @@ services:
   # TOOL REGISTRY
   # ===========================================================================
 
-  agenticos-registry:
+  agenticnetos-registry:
     image: registry:2
-    container_name: agenticos-registry
+    container_name: agenticnetos-registry
     ports:
-      - "${AGENTICOS_REGISTRY_PORT:-5001}:5000"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTICNETOS_REGISTRY_PORT:-5001}:5000"
     volumes:
       - registry-data:/var/lib/registry
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -164,8 +171,8 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticos-node:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-node
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-node
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
@@ -178,10 +185,12 @@ services:
       OTEL_SERVICE_NAME: agentic-net-node
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=node
     volumes:
-      - ${AGENTICOS_NODE_DATA_DIR:-~/.agenticos}:/app/data
+      - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/app/data
       - ./data/logs/node:/app/logs
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_NODE_PORT:-8080}:8080"
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -200,8 +209,8 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticos-master:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-master
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-master
     depends_on:
       agentic-net-node:
         condition: service_healthy
@@ -213,16 +222,20 @@ services:
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-deepseek-v3.1:671b-cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
+      OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
+      OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
       AGENTICOS_REGISTRY_ENABLED: "${AGENTICOS_REGISTRY_ENABLED:-true}"
-      AGENTICOS_REGISTRY_URL: "http://agenticos-registry:5000"
-      AGENTICOS_REGISTRY_INTERNAL_URL: "http://agenticos-registry:5000"
+      AGENTICOS_REGISTRY_URL: "http://agenticnetos-registry:5000"
+      AGENTICOS_REGISTRY_INTERNAL_URL: "http://agenticnetos-registry:5000"
       AGENTICOS_DOCKER_ENABLED: "${AGENTICOS_DOCKER_ENABLED:-true}"
-      AGENTICOS_DOCKER_NETWORK: "agenticos-backend"
-      AGENTICOS_DOCKER_REGISTRY_HOST: "localhost:${AGENTICOS_REGISTRY_PORT:-5001}"
+      AGENTICOS_DOCKER_NETWORK: "agenticnetos-backend"
+      AGENTICOS_DOCKER_REGISTRY_HOST: "localhost:${AGENTICNETOS_REGISTRY_PORT:-5001}"
       LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
@@ -231,8 +244,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/logs/master:/app/logs
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MASTER_PORT:-8082}:8082"
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -254,8 +269,8 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticos-executor:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-executor
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-executor
     depends_on:
       agentic-net-master:
         condition: service_healthy
@@ -270,8 +285,10 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
     volumes:
       - ./data/logs/executor:/app/logs
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_EXECUTOR_PORT:-8084}:8084"
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -295,14 +312,14 @@ services:
 
   openbao:
     image: quay.io/openbao/openbao:2.1.0
-    container_name: agenticos-openbao
+    container_name: agenticnetos-openbao
     command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}"]
     environment:
       BAO_ADDR: "http://0.0.0.0:8200"
     volumes:
       - openbao-data:/openbao/data
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     healthcheck:
@@ -316,8 +333,8 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticos-vault:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-vault
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-vault
     depends_on:
       openbao:
         condition: service_healthy
@@ -332,8 +349,10 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=vault
     volumes:
       - ./data/logs/vault:/app/logs
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_VAULT_PORT:-8085}:8085"
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -359,8 +378,8 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticos-gateway:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-gateway
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-gateway
     depends_on:
       agentic-net-master:
         condition: service_healthy
@@ -379,13 +398,13 @@ services:
       OTEL_SERVICE_NAME: agentic-net-gateway
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=gateway
     ports:
-      - "${AGENTIC_NET_GATEWAY_PORT:-8083}:8083"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_GATEWAY_PORT:-8083}:8083"
     volumes:
       - ./data/gateway:/app/data
       - ./data/logs/gateway:/app/logs
     networks:
-      - agenticos-backend
-      - agenticos-clients
+      - agenticnetos-backend
+      - agenticnetos-clients
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -408,17 +427,17 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticos-gui:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-gui
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-gui
     depends_on:
       agentic-net-gateway:
         condition: service_healthy
     ports:
-      - "${AGENTIC_NET_GUI_PORT:-4200}:4200"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_GUI_PORT:-4200}:4200"
     volumes:
       - ./data/logs/gui:/app/logs
     networks:
-      - agenticos-clients
+      - agenticnetos-clients
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -440,8 +459,8 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticos-cli:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-cli
+    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-cli
     depends_on:
       agentic-net-gateway:
         condition: service_healthy
@@ -452,7 +471,7 @@ services:
       - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
       - ./data/logs/cli:/app/logs
     networks:
-      - agenticos-clients
+      - agenticnetos-clients
     restart: "no"
     stdin_open: true
     tty: true
@@ -460,15 +479,15 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${AGENTICOS_CLI_MEMORY_LIMIT:-512M}
-          cpus: "${AGENTICOS_CLI_CPU_LIMIT:-0.5}"
+          memory: ${AGENTICNETOS_CLI_MEMORY_LIMIT:-512M}
+          cpus: "${AGENTICNETOS_CLI_CPU_LIMIT:-0.5}"
 
   agentic-net-chat:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticos-chat:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-chat
+    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-chat
     depends_on:
       agentic-net-gateway:
         condition: service_healthy
@@ -485,37 +504,37 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_HIGH_MODEL: ${ANTHROPIC_HIGH_MODEL:-claude-opus-4-6}
+      ANTHROPIC_HIGH_MODEL: ${ANTHROPIC_HIGH_MODEL:-claude-opus-4-7}
       ANTHROPIC_MEDIUM_MODEL: ${ANTHROPIC_MEDIUM_MODEL:-claude-sonnet-4-6}
       ANTHROPIC_LOW_MODEL: ${ANTHROPIC_LOW_MODEL:-claude-haiku-4-5-20251001}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.2}
-      OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-o4-mini}
-      OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5-nano}
+      OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
+      OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
+      OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-deepseek-v3.1:671b-cloud}
-      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k2.5:cloud}
-      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-kimi-k2.5:cloud}
-      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-kimi-k2.5:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-llama3.2}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-llama3.2}
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-llama3.2}
     volumes:
       - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
       - ./data/logs/chat:/app/logs
     networks:
-      - agenticos-clients
+      - agenticnetos-clients
     restart: unless-stopped
     logging: *default-logging
     deploy:
       resources:
         limits:
-          memory: ${AGENTICOS_CHAT_MEMORY_LIMIT:-512M}
-          cpus: "${AGENTICOS_CHAT_CPU_LIMIT:-0.5}"
+          memory: ${AGENTICNETOS_CHAT_MEMORY_LIMIT:-512M}
+          cpus: "${AGENTICNETOS_CHAT_CPU_LIMIT:-0.5}"
 
   sa-blobstore:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticos-blobstore:${AGENTICOS_VERSION:-1.21.1}
-    container_name: agenticos-blobstore
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.0.0}
+    container_name: agenticnetos-blobstore
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       LOG_PATH: /app/logs
@@ -524,11 +543,11 @@ services:
       OTEL_SERVICE_NAME: sa-blobstore
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=blobstore
     ports:
-      - "${SA_BLOBSTORE_PORT:-8090}:8080"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${SA_BLOBSTORE_PORT:-8090}:8080"
     volumes:
       - ./data/logs/blobstore:/app/logs
     networks:
-      - agenticos-backend
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
     deploy:
@@ -554,7 +573,7 @@ services:
   #   image: ${AGENTICOS_REGISTRY_HOST:-localhost:5001}/agenticos-tool-crawler:1.0.0
   #   container_name: agenticos-tool-crawler
   #   networks:
-  #     - agenticos-backend
+  #     - agenticnetos-backend
   #   restart: unless-stopped
   #   logging: *default-logging
   #   healthcheck:
