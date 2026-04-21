@@ -64,19 +64,14 @@ docker compose -f docker-compose.hub-only.yml up -d
 # 4B. Or start the lighter stack without Grafana/Prometheus/Tempo
 # docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
-# 5. Deploy the onboarding net once per environment
-cd ..
-bash scripts/deploy-first-net-buddy.sh
-
-# 6. Open the Studio
+# 5. Open the Studio
 open http://localhost:4200
 ```
 
-**You don't write any code for the first run.** Open the Chat panel and say
-something like *"I want a net that fetches HN top stories every hour and
-summarizes each one with an LLM."* The `first-net-buddy` onboarding net routes
-that request through PM, Architect, QA, and DevOps agents, deploys a starter
-net, and returns the GUI URL.
+**You don't write any code for the first run.** Open the Universal Assistant in
+the Studio and ask *"Help me build my first net."* For write operations, switch
+to or invoke the Workflow Builder persona. It can create places, transitions,
+arcs, inscriptions, and deploy the result in the active model/session.
 
 ### Compose choices
 
@@ -225,11 +220,6 @@ agentic-nets/
 │   ├── dockerfiles/              # Build files for open-source services
 │   └── scripts/
 │       └── build-and-push.sh     # Build & push open-source images
-│
-├── scripts/
-│   └── deploy-first-net-buddy.sh # Deploy the onboarding net
-├── docs/nets/
-│   └── first-net-buddy-inscriptions.json
 │
 └── monitoring/
     ├── config/                   # OTel, Prometheus, Tempo configs

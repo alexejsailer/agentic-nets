@@ -19,7 +19,7 @@ Closed-source images (`agenticnetos-node`, `agenticnetos-master`, `agenticnetos-
 - One LLM backend:
   - Anthropic Claude API key, or
   - local Ollama with a pulled model such as `llama3.2`.
-- `bash`, `curl`, and `python3` if you want to deploy the `first-net-buddy` onboarding net.
+- `bash` and `curl` for health checks and troubleshooting.
 
 ## First Run
 
@@ -72,7 +72,7 @@ LLM_PROVIDER=claude
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-This is the fastest path for the onboarding flow because multiple agents may call the LLM in parallel.
+This is the fastest path for the Universal Assistant and Builder personas.
 
 ### Ollama
 
@@ -166,24 +166,30 @@ If a service restarts, inspect logs:
 docker compose -f docker-compose.hub-only.yml logs agentic-net-master --tail=80
 ```
 
-## Deploy the Onboarding Net
+## Build Your First Net
 
-After the stack is healthy:
-
-```bash
-cd ..
-bash scripts/deploy-first-net-buddy.sh
-```
-
-Open the printed GUI URL, then use the Chat panel to ask for your first net.
-
-For source-mode services running directly on the host, override the agent-internal URLs:
+After the stack is healthy, open the Studio:
 
 ```bash
-AGENTICOS_AGENT_NODE_URL=http://localhost:8080 \
-AGENTICOS_AGENT_MASTER_URL=http://localhost:8082 \
-bash scripts/deploy-first-net-buddy.sh
+open http://localhost:4200
 ```
+
+Create or select a concrete model and session, then create a workspace net. On an
+empty canvas, click **Ask the Universal Assistant**, or right-click the canvas and
+choose **Open Universal Assistant**. Start with:
+
+```text
+Help me build my first net.
+```
+
+Universal Assistant explains and routes work. For changes to the net, switch to
+or invoke the **Workflow Builder** persona, which can create places, transitions,
+arcs, inscriptions, and deploy the result in the active model/session.
+
+After Builder changes structure, use the editor header sync buttons:
+
+- **net sync** saves structural edits and reloads remote changes.
+- **token sync** refreshes live token counts from the backend.
 
 ## Stop and Reset
 
