@@ -8,6 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 
@@ -15,14 +17,16 @@ import java.util.Map;
  * Internal API for master node registration. Masters register themselves on startup,
  * send periodic heartbeats, and deregister on shutdown.
  *
- * <p>These endpoints are not behind JWT auth — they fall through to
- * {@code .anyRequest().permitAll()} in SecurityConfig since they don't match {@code /api/**}.</p>
+ * <p>These endpoints are protected with the shared {@code X-Agenticos-Internal-Secret}
+ * header because master registration happens before OAuth2 client credentials are available
+ * to the master.</p>
  */
 @RestController
 @RequestMapping("/internal/masters")
 public class MasterRegistrationController {
 
     private static final Logger logger = LoggerFactory.getLogger(MasterRegistrationController.class);
+    private static final String INTERNAL_SECRET_HEADER = "X-Agenticos-Internal-Secret";
 
     private final MasterRegistryService registryService;
     private final GatewayProperties props;
@@ -33,7 +37,14 @@ public class MasterRegistrationController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> register(
+            @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String internalSecret,
+            @RequestBody Map<String, Object> body) {
+        ResponseEntity<?> rejected = rejectIfUnauthorized(internalSecret);
+        if (rejected != null) {
+            return rejected;
+        }
+
         String masterId = (String) body.get("masterId");
         String url = (String) body.get("url");
         @SuppressWarnings("unchecked")
@@ -51,7 +62,14 @@ public class MasterRegistrationController {
     }
 
     @PostMapping("/heartbeat")
-    public ResponseEntity<Map<String, String>> heartbeat(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> heartbeat(
+            @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String internalSecret,
+            @RequestBody Map<String, String> body) {
+        ResponseEntity<?> rejected = rejectIfUnauthorized(internalSecret);
+        if (rejected != null) {
+            return rejected;
+        }
+
         String masterId = body.get("masterId");
         if (masterId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "masterId is required"));
@@ -61,13 +79,44 @@ public class MasterRegistrationController {
     }
 
     @DeleteMapping("/{masterId}")
-    public ResponseEntity<Map<String, String>> deregister(@PathVariable String masterId) {
+    public ResponseEntity<?> deregister(
+            @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String internalSecret,
+            @PathVariable String masterId) {
+        ResponseEntity<?> rejected = rejectIfUnauthorized(internalSecret);
+        if (rejected != null) {
+            return rejected;
+        }
+
         registryService.deregister(masterId);
         return ResponseEntity.ok(Map.of("status", "deregistered"));
     }
 
     @GetMapping
-    public ResponseEntity<List<MasterNode>> listMasters() {
+    public ResponseEntity<?> listMasters(
+            @RequestHeader(name = INTERNAL_SECRET_HEADER, required = false) String internalSecret) {
+        ResponseEntity<?> rejected = rejectIfUnauthorized(internalSecret);
+        if (rejected != null) {
+            return rejected;
+        }
         return ResponseEntity.ok(registryService.getActiveMasters());
+    }
+
+    private ResponseEntity<Map<String, String>> rejectIfUnauthorized(String providedSecret) {
+        String expected = props.getInternalSecret();
+        if (expected == null || expected.isBlank()) {
+            logger.error("Gateway internal secret is not configured; refusing master registry request");
+            return ResponseEntity.status(503).body(Map.of("error", "Gateway internal secret is not configured"));
+        }
+        if (providedSecret == null || providedSecret.isBlank() || !constantTimeEquals(expected, providedSecret)) {
+            logger.warn("Rejected unauthorized master registry request");
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+        return null;
+    }
+
+    private boolean constantTimeEquals(String expected, String actual) {
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                actual.getBytes(StandardCharsets.UTF_8));
     }
 }

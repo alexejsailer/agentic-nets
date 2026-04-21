@@ -4,18 +4,21 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Comparator;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -42,9 +45,22 @@ public class FileSystemCommandHandler implements CommandHandler {
     );
 
     private final ObjectMapper objectMapper;
+    private final List<Path> allowedRoots;
+    private final long maxFileSize;
 
-    public FileSystemCommandHandler(ObjectMapper objectMapper) {
+    public FileSystemCommandHandler(
+            ObjectMapper objectMapper,
+            @Value("${executor.command.filesystem.allowed-dirs:/workspace,/tmp/executor}") String allowedDirs,
+            @Value("${executor.command.filesystem.max-file-size:10485760}") long maxFileSize) {
         this.objectMapper = objectMapper;
+        this.allowedRoots = parseAllowedRoots(allowedDirs);
+        this.maxFileSize = maxFileSize;
+
+        if (this.allowedRoots.isEmpty()) {
+            throw new IllegalStateException("At least one filesystem allowed directory must be configured");
+        }
+        logger.info("Filesystem command handler restricted to {} with max file size {} bytes",
+                this.allowedRoots, this.maxFileSize);
     }
 
     @Override
@@ -89,8 +105,15 @@ public class FileSystemCommandHandler implements CommandHandler {
         String encoding = getString(args, "encoding", "utf-8");
         boolean binary = getBoolean(args, "binary", false);
 
-        Path path = Path.of(pathStr);
+        Path path = resolveExistingAllowedPath(pathStr);
         ObjectNode result = objectMapper.createObjectNode();
+
+        if (!Files.isRegularFile(path)) {
+            throw new IOException("Path is not a regular file: " + pathStr);
+        }
+
+        long size = Files.size(path);
+        ensureFileSize(size);
 
         if (binary) {
             byte[] bytes = Files.readAllBytes(path);
@@ -105,7 +128,7 @@ public class FileSystemCommandHandler implements CommandHandler {
             result.put("size", content.length());
         }
 
-        result.put("path", pathStr);
+        result.put("path", path.toString());
         return result;
     }
 
@@ -117,21 +140,28 @@ public class FileSystemCommandHandler implements CommandHandler {
         boolean binary = getBoolean(args, "binary", false);
         boolean createDirs = getBoolean(args, "createDirs", true);
 
-        Path path = Path.of(pathStr);
+        Charset charset = Charset.forName(encoding);
+        Path path = resolveAllowedPathForWrite(pathStr);
 
-        if (createDirs && path.getParent() != null) {
-            Files.createDirectories(path.getParent());
-        }
-
+        long writeSize;
         if (binary) {
             byte[] bytes = Base64.getDecoder().decode(content);
+            writeSize = bytes.length;
+            ensureWriteSize(path, writeSize, append);
+            if (createDirs && path.getParent() != null) {
+                Files.createDirectories(path.getParent());
+            }
             if (append) {
                 Files.write(path, bytes, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } else {
                 Files.write(path, bytes);
             }
         } else {
-            Charset charset = Charset.forName(encoding);
+            writeSize = content.getBytes(charset).length;
+            ensureWriteSize(path, writeSize, append);
+            if (createDirs && path.getParent() != null) {
+                Files.createDirectories(path.getParent());
+            }
             if (append) {
                 Files.writeString(path, content, charset, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             } else {
@@ -140,7 +170,7 @@ public class FileSystemCommandHandler implements CommandHandler {
         }
 
         ObjectNode result = objectMapper.createObjectNode();
-        result.put("path", pathStr);
+        result.put("path", path.toString());
         result.put("written", true);
         result.put("size", Files.size(path));
         return result;
@@ -151,7 +181,7 @@ public class FileSystemCommandHandler implements CommandHandler {
         boolean recursive = getBoolean(args, "recursive", false);
         boolean includeHidden = getBoolean(args, "includeHidden", false);
 
-        Path path = Path.of(pathStr);
+        Path path = resolveExistingAllowedPath(pathStr);
         ArrayNode entries = objectMapper.createArrayNode();
 
         try (Stream<Path> stream = recursive ? Files.walk(path) : Files.list(path)) {
@@ -174,23 +204,25 @@ public class FileSystemCommandHandler implements CommandHandler {
         }
 
         ObjectNode result = objectMapper.createObjectNode();
-        result.put("path", pathStr);
+        result.put("path", path.toString());
         result.set("entries", entries);
         result.put("count", entries.size());
         return result;
     }
 
-    private JsonNode executeExists(JsonNode args) {
+    private JsonNode executeExists(JsonNode args) throws IOException {
         String pathStr = getRequiredString(args, "path");
-        Path path = Path.of(pathStr);
+        Path path = resolveAllowedPathForWrite(pathStr);
+        boolean exists = Files.exists(path);
+        Path inspected = exists ? resolveExistingAllowedPath(pathStr) : path;
 
         ObjectNode result = objectMapper.createObjectNode();
-        result.put("path", pathStr);
-        result.put("exists", Files.exists(path));
-        result.put("isDirectory", Files.isDirectory(path));
-        result.put("isFile", Files.isRegularFile(path));
-        result.put("isReadable", Files.isReadable(path));
-        result.put("isWritable", Files.isWritable(path));
+        result.put("path", inspected.toString());
+        result.put("exists", exists);
+        result.put("isDirectory", Files.isDirectory(inspected));
+        result.put("isFile", Files.isRegularFile(inspected));
+        result.put("isReadable", Files.isReadable(inspected));
+        result.put("isWritable", Files.isWritable(inspected));
         return result;
     }
 
@@ -198,7 +230,7 @@ public class FileSystemCommandHandler implements CommandHandler {
         String pathStr = getRequiredString(args, "path");
         boolean parents = getBoolean(args, "parents", true);
 
-        Path path = Path.of(pathStr);
+        Path path = resolveAllowedPathForWrite(pathStr);
 
         if (parents) {
             Files.createDirectories(path);
@@ -207,7 +239,7 @@ public class FileSystemCommandHandler implements CommandHandler {
         }
 
         ObjectNode result = objectMapper.createObjectNode();
-        result.put("path", pathStr);
+        result.put("path", path.toString());
         result.put("created", true);
         return result;
     }
@@ -216,14 +248,16 @@ public class FileSystemCommandHandler implements CommandHandler {
         String pathStr = getRequiredString(args, "path");
         boolean recursive = getBoolean(args, "recursive", false);
 
-        Path path = Path.of(pathStr);
+        Path path = resolveAllowedPathForWrite(pathStr);
         boolean existed = Files.exists(path);
 
         if (existed) {
+            path = resolveExistingAllowedPath(pathStr);
+            ensureNotAllowedRoot(path);
             if (recursive && Files.isDirectory(path)) {
                 // Delete directory recursively
                 try (Stream<Path> walk = Files.walk(path)) {
-                    walk.sorted((a, b) -> b.compareTo(a)) // Reverse order (children first)
+                    walk.sorted(Comparator.reverseOrder()) // Reverse order (children first)
                             .forEach(p -> {
                                 try {
                                     Files.delete(p);
@@ -238,7 +272,7 @@ public class FileSystemCommandHandler implements CommandHandler {
         }
 
         ObjectNode result = objectMapper.createObjectNode();
-        result.put("path", pathStr);
+        result.put("path", path.toString());
         result.put("deleted", existed);
         result.put("existed", existed);
         return result;
@@ -246,13 +280,17 @@ public class FileSystemCommandHandler implements CommandHandler {
 
     private JsonNode executeStat(JsonNode args) throws IOException {
         String pathStr = getRequiredString(args, "path");
-        Path path = Path.of(pathStr);
+        Path path = resolveAllowedPathForWrite(pathStr);
+        boolean exists = Files.exists(path);
+        if (exists) {
+            path = resolveExistingAllowedPath(pathStr);
+        }
 
         ObjectNode result = objectMapper.createObjectNode();
-        result.put("path", pathStr);
-        result.put("exists", Files.exists(path));
+        result.put("path", path.toString());
+        result.put("exists", exists);
 
-        if (Files.exists(path)) {
+        if (exists) {
             result.put("isDirectory", Files.isDirectory(path));
             result.put("isFile", Files.isRegularFile(path));
             result.put("isSymbolicLink", Files.isSymbolicLink(path));
@@ -267,6 +305,88 @@ public class FileSystemCommandHandler implements CommandHandler {
     }
 
     // Helper methods for extracting arguments
+
+    private List<Path> parseAllowedRoots(String allowedDirs) {
+        if (allowedDirs == null || allowedDirs.isBlank()) {
+            return List.of();
+        }
+        return Stream.of(allowedDirs.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> Path.of(s).toAbsolutePath().normalize())
+                .distinct()
+                .toList();
+    }
+
+    private Path resolveExistingAllowedPath(String pathStr) throws IOException {
+        Path raw = normalizeAbsolute(pathStr);
+        ensureLexicallyAllowed(raw);
+        Path real = raw.toRealPath();
+        ensureRealAllowed(real);
+        return real;
+    }
+
+    private Path resolveAllowedPathForWrite(String pathStr) throws IOException {
+        Path raw = normalizeAbsolute(pathStr);
+        Path allowedRoot = ensureLexicallyAllowed(raw);
+        ensureNoSymlinkEscape(raw, allowedRoot);
+        return raw;
+    }
+
+    private Path normalizeAbsolute(String pathStr) {
+        return Path.of(pathStr).toAbsolutePath().normalize();
+    }
+
+    private Path ensureLexicallyAllowed(Path path) {
+        Optional<Path> root = allowedRoots.stream()
+                .filter(path::startsWith)
+                .findFirst();
+        if (root.isEmpty()) {
+            throw new SecurityException("Path is outside allowed directories: " + path);
+        }
+        return root.get();
+    }
+
+    private void ensureRealAllowed(Path realPath) throws IOException {
+        for (Path root : allowedRoots) {
+            Path comparableRoot = Files.exists(root) ? root.toRealPath() : root;
+            if (realPath.startsWith(comparableRoot)) {
+                return;
+            }
+        }
+        throw new SecurityException("Path resolves outside allowed directories: " + realPath);
+    }
+
+    private void ensureNoSymlinkEscape(Path rawPath, Path allowedRoot) throws IOException {
+        Path cursor = rawPath;
+        while (cursor != null && cursor.startsWith(allowedRoot) && !Files.exists(cursor)) {
+            cursor = cursor.getParent();
+        }
+        if (cursor != null && cursor.startsWith(allowedRoot)) {
+            ensureRealAllowed(cursor.toRealPath());
+        }
+    }
+
+    private void ensureFileSize(long size) {
+        if (size > maxFileSize) {
+            throw new IllegalArgumentException("File exceeds max allowed size of " + maxFileSize + " bytes");
+        }
+    }
+
+    private void ensureWriteSize(Path path, long incomingBytes, boolean append) throws IOException {
+        long existingBytes = append && Files.exists(path) ? Files.size(path) : 0;
+        ensureFileSize(existingBytes + incomingBytes);
+    }
+
+    private void ensureNotAllowedRoot(Path path) throws IOException {
+        Path realPath = path.toRealPath();
+        for (Path root : allowedRoots) {
+            Path comparableRoot = Files.exists(root) ? root.toRealPath() : root;
+            if (realPath.equals(comparableRoot)) {
+                throw new SecurityException("Deleting an allowed filesystem root is not permitted: " + root);
+            }
+        }
+    }
 
     private String getRequiredString(JsonNode args, String field) {
         if (args == null || !args.has(field) || args.get(field).isNull()) {

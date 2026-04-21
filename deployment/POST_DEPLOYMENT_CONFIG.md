@@ -216,7 +216,7 @@ host's IP:
 # Option A: Use host IP directly
 OLLAMA_BASE_URL=http://172.17.0.1:11434
 
-# Option B: Use extra_hosts in compose (already configured in staging)
+# Option B: Use extra_hosts in your compose file
 # extra_hosts:
 #   - "host.docker.internal:host-gateway"
 ```
@@ -234,7 +234,8 @@ OLLAMA_BASE_URL=http://172.17.0.1:11434
 
 The gateway auto-generates an admin secret on first startup and stores it at
 `./data/gateway/jwt/admin-secret`. CLI and Chat mount this file read-only for
-auto-authentication. Do NOT set `AGENTICOS_ADMIN_SECRET` in `.env` on staging/production.
+auto-authentication. Leave `AGENTICOS_ADMIN_SECRET` empty in `.env` so the
+gateway manages the secret lifecycle.
 
 ### Grafana & OpenBao
 

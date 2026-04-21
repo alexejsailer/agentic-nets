@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgenticNet — Local REST Client</title>
+    <style>
+        :root { --bg:#0b0f14; --panel:#0f1620; --card:#121a26; --edge:#1e2a3b; --fg:#e6edf3; --muted:#9fb0bf; --ok:#7ee787; --warn:#f2cc60; --err:#ff7b72; --acc:#4ea1ff; }
+        *{ box-sizing:border-box; }
+        html, body { height:100%; margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell; }
+        a { color: var(--acc); text-decoration: none; }
+
+        /* Top bar */
+        header { position:sticky; top:0; z-index:2; display:flex; gap:12px; align-items:center; padding:10px 14px; background:linear-gradient(180deg, #0b1119, #0a1017); border-bottom:1px solid var(--edge); }
+        header .brand { font-weight:700; letter-spacing:.3px; }
+        header .sep { width:1px; height:20px; background:var(--edge); margin:0 2px; }
+        input[type=text], input[type=number] { background:var(--card); color:var(--fg); border:1px solid var(--edge); border-radius:10px; padding:8px 10px; outline:none; }
+        input[type=checkbox]{ transform: translateY(1px); }
+        button { background:var(--acc); color:#08111c; border:0; border-radius:10px; padding:8px 12px; font-weight:600; cursor:pointer; }
+        button.secondary { background:#1f2937; color:var(--fg); border:1px solid var(--edge); }
+        button.danger { background:var(--err); color:#1b0b0b; }
+        button.ghost { background:transparent; color:var(--muted); border:1px dashed var(--edge); }
+    /* Button interaction states */
+    button { position:relative; overflow:hidden; transition: transform .06s ease, filter .15s ease, background-color .15s ease, box-shadow .15s ease; }
+    button:hover { filter: brightness(1.06); box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+    button:active { transform: translateY(1px) scale(0.98); filter: brightness(0.98); }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    button:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+    /* Ripple effect */
+    button .ripple { position:absolute; border-radius:50%; transform: scale(0); opacity:0.45; background:rgba(255,255,255,.6); animation: ripple 600ms linear; pointer-events:none; }
+    @keyframes ripple { to { transform: scale(10); opacity:0; } }
+        .muted{ color: var(--muted); }
+
+        /* Layout */
+        main { display:grid; grid-template-columns: var(--leftW, 360px) 8px 1fr; gap:16px; padding:16px; }
+        .panel { background:var(--panel); border:1px solid var(--edge); border-radius:16px; box-shadow: 0 8px 28px rgba(0,0,0,.25); overflow:hidden; }
+        .panel h2 { margin:0; padding:10px 12px; font-size:13px; letter-spacing:.3px; text-transform:uppercase; color:#bcd0e0; background:#0f1824; border-bottom:1px solid var(--edge); }
+        .panel .body{ padding:12px; }
+
+    /* Resizer between panels */
+    .resizer{ width:8px; cursor:col-resize; background:linear-gradient(180deg, transparent, rgba(255,255,255,.05), transparent); position:relative; user-select:none; }
+    .resizer::before{ content:''; position:absolute; top:0; bottom:0; left:3px; width:2px; background:rgba(255,255,255,.06); border-radius:2px; }
+    .resizer:hover{ background:rgba(78,161,255,.15); }
+    .resizer.dragging{ background:rgba(78,161,255,.25); }
+
+        /* Tree */
+        #tree { max-height: calc(100vh - 200px); overflow:auto; }
+        #tree ul { list-style:none; margin:0; padding-left:18px; }
+        #tree li { margin:2px 0; }
+        .row { display:flex; align-items:center; gap:8px; }
+        .exp { width:16px; text-align:center; cursor:pointer; color:var(--muted); user-select:none; }
+        .item { flex:1; display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:8px; cursor:pointer; }
+        .item.node { background:#0e2438; }
+        .item.leaf { background:#1f2432; }
+        .item:hover { outline:1px solid var(--edge); }
+        .item.selected { outline:2px solid var(--acc); }
+        .name { min-width:160px; display:inline-block; }
+        .id { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:var(--muted); }
+        .actions button { padding:3px 6px; font-size:12px; border-radius:8px; }
+
+        /* Right side */
+        .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+        .field { display:flex; flex-direction:column; gap:6px; }
+        label { font-size:12px; color:#b8c6d5; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+        .kvs { display:grid; grid-template-columns: 160px 1fr auto; gap:8px 12px; align-items:center; }
+        .pill { padding:2px 8px; border-radius:999px; background:#1b2636; border:1px solid var(--edge); }
+
+        /* Footer / status */
+        footer { position:sticky; bottom:0; padding:8px 14px; border-top:1px solid var(--edge); background:#0b1119; display:flex; justify-content:space-between; gap:10px; }
+        #status { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; color:var(--ok); }
+    </style>
+</head>
+<body>
+<header>
+    <span class="brand">AgenticNet</span>
+    <span class="muted">Local REST Client</span>
+    <span class="sep"></span>
+    <label class="muted">Server:</label>
+    <input id="baseUrl" type="text" value="http://localhost:8080/api" size="34" />
+    <button id="refreshBtn" class="secondary">Refresh</button>
+    <span class="sep"></span>
+    <label class="muted"><input id="followToggle" type="checkbox" /> Follow selection</label>
+    <label class="muted"><input id="autoToggle" type="checkbox" /> Auto-refresh</label>
+    <input id="autoMs" type="number" value="1500" min="250" step="250" style="width:90px" />
+    <button id="viewRootBtn" class="ghost">View Root</button>
+    <span class="sep"></span>
+    <span id="crumb" class="muted">Selected parent: <code class="mono">root</code></span>
+
+  <button id="openJsonTester" class="secondary" style="margin-left:auto;">JSON Import Tester</button>
+</header>
+
+<main>
+    <!-- Left: Tree and search -->
+    <section class="panel">
+        <h2>Tree</h2>
+        <div class="body">
+            <div class="row" style="margin-bottom:8px;">
+                <input id="filter" type="text" placeholder="Filter by name..." style="flex:1;" />
+                <button id="clearFilter" class="secondary">Clear</button>
+            </div>
+            <div id="tree"></div>
+        </div>
+    </section>
+    <div class="resizer" id="resizer" title="Drag to resize"></div>
+
+    <!-- Right: Actions and Inspector -->
+    <section class="panel">
+        <h2>Actions</h2>
+        <div class="body grid">
+            <div class="field">
+                <label>Parent (target)</label>
+                <div id="parentBadge" class="pill mono">root</div>
+            </div>
+            <div class="field">
+                <label>Quick seed</label>
+                <div class="row">
+                    <button id="seedBtn" class="secondary">Add demo data</button>
+                    <button id="wipeBtn" class="danger">Wipe under parent</button>
+                </div>
+            </div>
+            <div class="field">
+                <label>Name</label>
+                <input id="newName" type="text" placeholder="name..." />
+            </div>
+            <div class="field">
+                <label>Element ID (optional)</label>
+                <input id="newId" type="text" placeholder="auto" />
+            </div>
+            <div class="field" style="grid-column:1 / span 2; display:flex; gap:8px; justify-content:flex-end;">
+                <button id="createNodeBtn">Create Node</button>
+                <button id="createLeafBtn" class="secondary">Create Leaf</button>
+                <button id="deleteSelBtn" class="danger">Delete Selected</button>
+            </div>
+        </div>
+
+        <h2>Inspector</h2>
+        <div class="body">
+            <div id="inspectorEmpty" class="muted">No element selected.</div>
+            <div id="inspector" style="display:none;">
+                <div class="kvs">
+                    <div class="muted">Name</div>
+            <div style="height:8px"></div>
+            <div class="muted">Properties</div>
+            <div id="iPropsEmpty" class="muted" style="display:none;">No custom properties.</div>
+            <div id="iPropsBox" class="kvs" style="display:none; grid-template-columns: 160px 1fr auto;"></div>
+        <div id="iName" class="mono"></div><button id="copyName" class="secondary">Copy</button>
+                    <div class="muted">Kind</div><div id="iKind" class="mono"></div><span></span>
+                    <div class="muted">Element ID</div><div id="iId" class="mono"></div><button id="copyId" class="secondary">Copy</button>
+                    <div class="muted">Parent ID</div><div id="iPid" class="mono"></div><button id="copyPid" class="secondary">Copy</button>
+                    <div class="muted">Path</div><div id="iPath" class="mono"></div><button id="copyPath" class="secondary">Copy</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div id="status">Ready.</div>
+    <div class="muted">Tip: click a folder to target it for creation. Use “Follow selection” to render that subtree.</div>
+</footer>
+
+<script>
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+    // --- state ---
+    let baseUrl = localStorage.getItem('agenticnet.baseUrl') || 'http://localhost:8080/api';
+    $('#baseUrl').value = baseUrl;
+    let selectedElement = null; // {element:{id,parentId,name,kind}, children:[]}
+    let selectedParent = 'root';
+    let viewRoot = 'root';
+    let followSelection = localStorage.getItem('agenticnet.follow') === '1';
+    $('#followToggle').checked = followSelection;
+    let autoRefresh = localStorage.getItem('agenticnet.auto') === '1';
+    $('#autoToggle').checked = autoRefresh;
+    let autoMs = parseInt(localStorage.getItem('agenticnet.autoMs') || '1500', 10);
+    $('#autoMs').value = autoMs;
+    let autoTimer = null;
+    let treeData = null;      // last tree payload
+    let idIndex = new Map();  // id -> node (TreeNodeDto)
+    let refreshInFlight = false, pendingRefresh = false;
+
+    // left panel width (resizable)
+    let leftW = parseInt(localStorage.getItem('agenticnet.leftW') || '360', 10);
+    if (isNaN(leftW)) leftW = 360;
+    document.documentElement.style.setProperty('--leftW', leftW + 'px');
+
+    // global error handlers to keep UI responsive
+    window.addEventListener('error', e => log(`JS error: ${e.message}`, 'err'));
+    window.addEventListener('unhandledrejection', e => log(`Unhandled: ${e.reason?.message || e.reason}`, 'err'));
+
+    // --- events ---
+    $('#baseUrl').addEventListener('change', () => { baseUrl = $('#baseUrl').value; localStorage.setItem('agenticnet.baseUrl', baseUrl); refresh(); });
+    $('#refreshBtn').addEventListener('click', refresh);
+    $('#followToggle').addEventListener('change', e=>{ followSelection = e.target.checked; localStorage.setItem('agenticnet.follow', followSelection ? '1':'0'); if(followSelection){ viewRoot = selectedParent; refresh(); }});
+    $('#autoToggle').addEventListener('change', e=>{ autoRefresh = e.target.checked; localStorage.setItem('agenticnet.auto', autoRefresh ? '1':'0'); setupAuto(); });
+    $('#autoMs').addEventListener('change', e=>{ autoMs = Math.max(250, parseInt(e.target.value || '1500', 10)); localStorage.setItem('agenticnet.autoMs', String(autoMs)); setupAuto(); });
+    $('#viewRootBtn').addEventListener('click', ()=>{ viewRoot='root'; refresh(); });
+    $('#clearFilter').addEventListener('click', ()=>{ $('#filter').value=''; renderTree(treeData); });
+    $('#filter').addEventListener('input', ()=> renderTree(treeData));
+
+    $('#createNodeBtn').addEventListener('click', ()=> create('node'));
+    $('#createLeafBtn').addEventListener('click', ()=> create('leaf'));
+    $('#deleteSelBtn').addEventListener('click', deleteSelected);
+    $('#seedBtn').addEventListener('click', seedDemo);
+    $('#wipeBtn').addEventListener('click', wipeUnderParent);
+
+    $('#copyName').addEventListener('click', ()=> copyText($('#iName').textContent));
+    $('#copyId').addEventListener('click', ()=> copyText($('#iId').textContent));
+    $('#copyPid').addEventListener('click', ()=> copyText($('#iPid').textContent));
+    $('#copyPath').addEventListener('click', ()=> copyText($('#iPath').textContent));
+
+    function setupAuto(){ if(autoTimer){ clearInterval(autoTimer); autoTimer=null; } if(autoRefresh){ autoTimer = setInterval(refresh, autoMs); } }
+
+    function log(msg, level='ok'){
+      const el = $('#status');
+      el.textContent = msg;
+      el.style.color = level==='ok'? 'var(--ok)' : level==='warn'? 'var(--warn)' : 'var(--err)';
+    }
+
+    // --- API ---
+    async function api(path, opts = {}, timeoutMs = 8000) {
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(new Error('Request timeout')), timeoutMs);
+      try {
+        const res = await fetch(`${baseUrl}${path}`, {
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json', ...(opts.headers || {}) },
+          signal: ctrl.signal,
+          ...opts
+        });
+        if (!res.ok) {
+          let msg = '';
+          try { msg = await res.text(); } catch (_) {}
+          throw new Error(msg || res.statusText || `HTTP ${res.status}`);
+        }
+        const ct = res.headers.get('content-type') || '';
+        return ct.includes('application/json') ? res.json() : res.text();
+      } finally {
+        clearTimeout(to);
+      }
+    }
+
+    // --- tree refresh & render ---
+    async function refresh() {
+      if (refreshInFlight) { pendingRefresh = true; return; }
+      refreshInFlight = true;
+      try {
+        const root = await api(`/tree?parentId=${encodeURIComponent(viewRoot)}`);
+        treeData = root; buildIndex(root);
+        renderTree(root);
+        updateInspector();
+        log(`Tree loaded (view=${viewRoot})`);
+      } catch (e) {
+        log(e.message || String(e), 'err');
+      } finally {
+        refreshInFlight = false;
+        if (pendingRefresh) { pendingRefresh = false; refresh(); }
+      }
+    }
+
+    function buildIndex(root){ idIndex.clear(); (function walk(n){ idIndex.set(n.element.id, n); (n.children||[]).forEach(walk); })(root); }
+
+    function renderTree(root){
+      const container = $('#tree');
+      container.innerHTML=''; if(!root) return;
+      const filterTxt = ($('#filter').value || '').trim().toLowerCase();
+
+      const ul = document.createElement('ul');
+      container.appendChild(ul);
+
+      function matches(node){ return !filterTxt || node.element.name.toLowerCase().includes(filterTxt); }
+
+      function makeLi(node){
+        const li = document.createElement('li');
+        const row = document.createElement('div'); row.className='row';
+
+        const hasChildren = node.children && node.children.length>0;
+        const exp = document.createElement('span'); exp.className='exp'; exp.textContent = hasChildren? '▾' : '·';
+
+        const item = document.createElement('span');
+        const isNode = node.element.kind === 'node';
+        item.className = `item ${isNode? 'node':'leaf'}`;
+        item.innerHTML = `${isNode ? '📁':'📄'} <span class="name">${escapeHtml(node.element.name)}</span> <span class="id">${node.element.id}</span>`;
+        item.title = `parent=${node.element.parentId}`;
+        if(selectedElement && selectedElement.element.id===node.element.id) item.classList.add('selected');
+
+        // select on click
+        item.addEventListener('click', ()=> select(node, item));
+
+        // fold/unfold
+        let folded = false;
+        exp.addEventListener('click', ()=>{
+          if(!hasChildren) return;
+          folded = !folded;
+          exp.textContent = folded? '▸' : '▾';
+          childWrap.style.display = folded? 'none' : '';
+        });
+
+        row.appendChild(exp);
+        row.appendChild(item);
+
+        // inline delete button
+        const actions = document.createElement('span'); actions.className='actions';
+        const del = document.createElement('button'); del.className='danger'; del.textContent='Delete';
+        del.addEventListener('click', async (ev)=>{ ev.stopPropagation(); await deleteNodeOrLeaf(node); await refresh(); });
+        actions.appendChild(del);
+        row.appendChild(actions);
+
+        li.appendChild(row);
+
+        // children
+        const childWrap = document.createElement('div');
+        if(hasChildren){
+          const childUl = document.createElement('ul');
+          // filter logic: show a child if it or any descendant matches
+          for(const ch of node.children){
+            if(filterTxt){ if(shouldShowWithFilter(ch, matches)) childUl.appendChild(makeLi(ch)); }
+            else childUl.appendChild(makeLi(ch));
+          }
+          if(childUl.children.length>0) childWrap.appendChild(childUl);
+        }
+        li.appendChild(childWrap);
+
+        // filter self visibility
+        if(filterTxt){
+          const showSelf = matches(node) || childWrap.querySelector('li');
+          if(!showSelf) li.style.display='none';
+        }
+        return li;
+      }
+
+      function shouldShowWithFilter(node, pred){ if(pred(node)) return true; return (node.children||[]).some(ch=>shouldShowWithFilter(ch, pred)); }
+
+      ul.appendChild(makeLi(root));
+    }
+
+    function select(node, el){
+      selectedElement = node; const parentTarget = node.element.kind==='node' ? node.element.id : node.element.parentId;
+      selectedParent = parentTarget; viewRoot = followSelection ? parentTarget : viewRoot;
+      $$('#tree .item').forEach(x=>x.classList.remove('selected')); el.classList.add('selected');
+      $('#crumb').innerHTML = `Selected parent: <code class="mono">${selectedParent}</code>`;
+      $('#parentBadge').textContent = selectedParent;
+      updateInspector(); if(followSelection) refresh();
+    }
+
+    function updateInspector(){
+      const empty = $('#inspectorEmpty'); const box = $('#inspector');
+      if(!selectedElement){ empty.style.display='block'; box.style.display='none'; return; }
+      empty.style.display='none'; box.style.display='block';
+      const e = selectedElement.element;
+      $('#iName').textContent = e.name; $('#iKind').textContent = e.kind; $('#iId').textContent = e.id; $('#iPid').textContent = e.parentId;
+      $('#iPath').textContent = prettyPath(e.id);
+    }
+
+    function prettyPath(id){
+      // Build a path by walking parents upward; guard against cycles and self-parenting
+      if (!idIndex.has(id)) return '(unknown)';
+
+      const parts = [];
+      const seen = new Set();
+      let cur = idIndex.get(id);
+      let hops = 0; const HOP_LIMIT = 512; // safety cap against weird graphs
+
+      while (cur && hops++ < HOP_LIMIT) {
+        parts.push(cur.element.name ?? '(?)');
+        const pid = cur.element.parentId;
+
+        // stop if: no parent, self-parent, cycle, or parent not indexed
+        if (!pid || pid === cur.element.id || seen.has(pid) || !idIndex.has(pid)) break;
+
+        seen.add(cur.element.id);
+        cur = idIndex.get(pid);
+      }
+      return '/' + parts.reverse().join('/');
+    }
+    // --- operations ---
+    async function create(kind){
+      const name = $('#newName').value.trim();
+      const customId = ($('#newId').value||'').trim();
+      if(!name){ log('Name required', 'err'); return; }
+      try{
+        const body = JSON.stringify({ parentId: selectedParent, name, id: customId || 'auto' });
+        await api(`/${kind==='node'?'nodes':'leaves'}`, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+        $('#newName').value=''; $('#newId').value='';
+        await delay(30); await refresh();
+        log(`${kind} created under ${selectedParent}`);
+      }catch(e){ log(e.message, 'err'); }
+    }
+
+    async function deleteSelected(){ if(!selectedElement){ log('Nothing selected', 'warn'); return; } await deleteNodeOrLeaf(selectedElement); await refresh(); }
+
+    async function deleteNodeOrLeaf(node){
+      const e = node.element; const pid = e.parentId; const id = e.id; const path = prettyPath(id);
+      if(!confirm(`Delete ${e.kind.toUpperCase()}\n${e.name}\n${path}\n\nThis will delete the whole subtree for nodes.`)) return;
+      try{
+        if(e.kind==='node') await api(`/nodes/${encodeURIComponent(id)}?parentId=${encodeURIComponent(pid)}`, { method:'DELETE' });
+        else await api(`/leaves/${encodeURIComponent(id)}?parentId=${encodeURIComponent(pid)}`, { method:'DELETE' });
+        selectedElement = null; log(`${e.kind} deleted`);
+      }catch(err){ log(err.message, 'err'); }
+    }
+
+    async function wipeUnderParent(){
+      if(!selectedParent){ log('Select a parent first', 'warn'); return; }
+      // Fetch direct children and issue deletes; nodes delete subtrees
+      try{
+        const kids = await api(`/children?parentId=${encodeURIComponent(selectedParent)}`);
+        for(const k of kids){
+          if(k.kind==='node') await api(`/nodes/${encodeURIComponent(k.id)}?parentId=${encodeURIComponent(k.parentId)}`, { method:'DELETE' });
+          else await api(`/leaves/${encodeURIComponent(k.id)}?parentId=${encodeURIComponent(k.parentId)}`, { method:'DELETE' });
+        }
+        await delay(30); await refresh(); log(`Wiped ${kids.length} item(s) under parent`);
+      }catch(e){ log(e.message, 'err'); }
+    }
+
+    async function seedDemo(){
+      try{
+        const base = selectedParent;
+        // create a small deterministic structure
+        await createNamed('node', base, 'projects');
+        const projects = await findChildIdByName(base, 'projects');
+        await createNamed('node', projects, 'alpha');
+        await createNamed('node', projects, 'beta');
+        await createNamed('leaf', projects, 'readme.txt');
+        const alpha = await findChildIdByName(projects, 'alpha');
+        await createNamed('leaf', alpha, 'a.txt');
+        await createNamed('leaf', alpha, 'b.txt');
+        const beta = await findChildIdByName(projects, 'beta');
+        await createNamed('node', beta, 'docs');
+        const docs = await findChildIdByName(beta, 'docs');
+        await createNamed('leaf', docs, 'notes.md');
+        await delay(50); await refresh();
+        log('Demo data added');
+      }catch(e){ log(e.message, 'err'); }
+    }
+
+    async function createNamed(kind, parentId, name){
+      const body = JSON.stringify({ parentId, name, id:'auto' });
+      await api(`/${kind==='node'?'nodes':'leaves'}`, { method:'POST', headers:{'Content-Type':'application/json'}, body });
+    }
+    async function findChildIdByName(parentId, name){
+      const kids = await api(`/children?parentId=${encodeURIComponent(parentId)}`);
+      const m = kids.find(k=>k.name===name); if(!m) throw new Error('Child not found after create: '+name); return m.id;
+    }
+
+    // --- utils ---
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+    function copyText(t){ navigator.clipboard.writeText(t).then(()=>log('Copied')).catch(()=>log('Copy failed','err')); }
+    const delay = ms => new Promise(r=>setTimeout(r, ms));
+
+    // resizer setup
+    (function setupResizer(){
+      const res = document.getElementById('resizer');
+      if(!res) return;
+      let dragging=false, startX=0, startW=leftW;
+      const MIN=220, MAX=700;
+      function onMove(e){ if(!dragging) return; const dx = e.clientX - startX; let w = Math.max(MIN, Math.min(MAX, startW + dx)); document.documentElement.style.setProperty('--leftW', w+'px'); }
+      function onUp(){ if(!dragging) return; dragging=false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); const cur = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--leftW')); localStorage.setItem('agenticnet.leftW', String(cur)); res.classList.remove('dragging'); }
+      res.addEventListener('mousedown', (e)=>{ dragging=true; startX=e.clientX; startW=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--leftW')); res.classList.add('dragging'); document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp); });
+      res.addEventListener('dblclick', ()=>{ document.documentElement.style.setProperty('--leftW', '360px'); localStorage.setItem('agenticnet.leftW', '360'); });
+    })();
+
+    // global ripple on all buttons
+    (function enableGlobalRipple(){
+      document.addEventListener('click', function(e){
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        const rect = btn.getBoundingClientRect();
+        const span = document.createElement('span');
+        span.className='ripple';
+        const size = Math.max(rect.width, rect.height) * 1.2;
+        span.style.width = span.style.height = size+'px';
+        span.style.left = (e.clientX - rect.left - size/2)+'px';
+        span.style.top = (e.clientY - rect.top - size/2)+'px';
+        btn.appendChild(span);
+        span.addEventListener('animationend', ()=> span.remove());
+      }, false);
+    })();
+
+    // initial load
+    
+    document.getElementById('openJsonTester').addEventListener('click', ()=>{
+      // carry baseUrl to the json tester
+      window.location.href = 'json-test.html';
+    });
+setupAuto();
+    refresh();
+</script>
+</body>
+</html>

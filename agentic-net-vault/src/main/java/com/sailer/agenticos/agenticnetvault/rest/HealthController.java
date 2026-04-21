@@ -13,7 +13,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/health")
-@CrossOrigin(origins = "*")
 public class HealthController {
 
     @Value("${spring.application.name:agentic-net-vault}")

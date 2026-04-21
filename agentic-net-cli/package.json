@@ -22,7 +22,7 @@
     "ollama": "^0.5.14",
     "openai": "^4.77.0",
     "ora": "^8.2.0",
-    "yaml": "^2.7.0"
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",
@@ -51,6 +51,11 @@
     "dist",
     "src"
   ],
-  "keywords": ["agenticos", "petri-net", "workflow", "cli"],
+  "keywords": [
+    "agenticos",
+    "petri-net",
+    "workflow",
+    "cli"
+  ],
   "license": "SEE LICENSE IN LICENSE.md"
 }

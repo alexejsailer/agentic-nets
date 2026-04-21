@@ -1,0 +1,15 @@
+# Code owners for agentic-nets
+# Every PR gets an automatic review request from the listed owner(s).
+
+# Default: all changes are reviewed by the maintainer.
+*                               @alexejsailer
+
+# Deployment and CI/CD are especially sensitive.
+/deployment/                    @alexejsailer
+/.github/                       @alexejsailer
+/monitoring/                    @alexejsailer
+
+# Licensing.
+LICENSE.md                      @alexejsailer
+PROPRIETARY-EULA.md             @alexejsailer
+SECURITY.md                     @alexejsailer

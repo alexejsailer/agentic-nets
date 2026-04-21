@@ -202,7 +202,6 @@ export function registerChronicleCommand(
       const { client, modelId, sessionId } = getContext();
       if (!sessionId) { outputError('No session set.'); process.exit(1); }
       const question = questionParts.join(' ');
-      const master = new MasterApi(client);
       const spinner = createSpinner('Thinking...');
       spinner.start();
       try {

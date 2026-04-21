@@ -13,6 +13,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -114,8 +115,9 @@ public class MasterPollingService {
                 .post()
                 .uri("/oauth2/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .bodyValue("grant_type=client_credentials&client_id=" + clientId
-                        + "&client_secret=" + clientSecret)
+                .body(BodyInserters.fromFormData("grant_type", "client_credentials")
+                        .with("client_id", clientId)
+                        .with("client_secret", clientSecret))
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .timeout(Duration.ofSeconds(10))

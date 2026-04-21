@@ -74,6 +74,21 @@ Relevant properties (see `src/main/resources/application.properties`):
 - `executor.communication.mode` (POLLING, WEBSOCKET, HYBRID)
 - `executor.command.*` (timeouts, filesystem safety)
 
+### Encryption key for transition credentials
+
+The executor reads the env var **`AGENTICOS_CREDENTIALS_KEY`** (AES-256) to
+decrypt transition credentials injected at action time. The user-facing
+`deployment/.env.template` exposes the same value under the name
+**`AGENTICOS_SETTINGS_KEY`** — the compose files bridge it with
+`AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}` so one variable
+configures both services.
+
+When running the executor **outside** Docker Compose (e.g. `./mvnw
+spring-boot:run`), export `AGENTICOS_CREDENTIALS_KEY` directly — the compose
+bridge does not apply and the executor will fail to decrypt credentials if the
+variable is missing. The same value must match what `agentic-net-master` uses;
+otherwise decryption will silently fail.
+
 ## Notes
 
 - Command transitions **must** set `action.type = "command"`.

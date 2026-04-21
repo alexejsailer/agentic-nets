@@ -4,9 +4,8 @@ How to expose an Agentic-Nets deployment at `https://<your-domain>/` with a
 real TLS cert and no public port numbers visible.
 
 This is written for a Debian/Ubuntu host where Apache2 + certbot are already
-installed and port 80/443 are reachable from the internet. It was used to
-bring `https://agentic-nets.com/` online on the staging host; the same recipe
-works for any domain.
+installed and port 80/443 are reachable from the internet. The same recipe
+works for any public domain.
 
 ---
 
@@ -134,8 +133,7 @@ which means the world can still reach them on `http://host:4200` /
 `http://host:8083` even after Apache goes up. Fix by prefixing the port
 bindings with `127.0.0.1:`.
 
-For the **staging compose** (`ci/remote/docker-compose.staging.yml`) the
-change is already in place:
+Override the port bindings in your compose file (or via a compose `override.yml`):
 
 ```yaml
 services:
@@ -147,7 +145,7 @@ services:
       - "127.0.0.1:${AGENTIC_NET_GUI_PORT:-4200}:4200"
 ```
 
-For **your own** compose file do the same two edits, then:
+Then:
 
 ```bash
 cd /opt/agenticos         # or wherever your compose file lives

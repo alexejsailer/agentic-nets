@@ -158,8 +158,8 @@ AgenticNetOS applications expose custom metrics through Spring Boot Actuator:
 
 ### Quick Start
 ```bash
-# Navigate to monitoring directory
-cd /Users/alexejsailer/Developer/AgenticNetOS/agentic-net-monitoring
+# From the repo root, navigate to monitoring
+cd monitoring
 
 # Start monitoring stack
 ./start-monitoring.sh
@@ -295,9 +295,10 @@ The monitoring stack supports comprehensive development workflows:
 
 #### Local Development
 ```bash
-# Start AgenticNetOS applications with monitoring
-cd /Users/alexejsailer/Developer/AgenticNetOS/agentic-net-node
-./mvnw spring-boot:run
+# Start AgenticNetOS backend services (see top-level README for options)
+# Either run the full compose stack:
+docker compose -f deployment/docker-compose.hub-only.yml up -d
+# Or run open-source services from source — see CONTRIBUTING.md
 
 # Monitor in real-time through Grafana
 open http://localhost:3000
@@ -478,4 +479,4 @@ Grafana supports multiple notification channels:
 3. **Performance Baselines**: Establish and monitor performance baselines
 4. **Continuous Improvement**: Iterative improvement based on operational experience
 
-This document provides comprehensive understanding of the AgenticNetOS agentic-net-monitoring project's observability architecture, monitoring capabilities, integration patterns, and operational procedures for effective AgenticNetOS ecosystem monitoring and performance management.
+This document provides comprehensive understanding of the AgenticNetOS monitoring stack's observability architecture, monitoring capabilities, integration patterns, and operational procedures for effective AgenticNetOS ecosystem monitoring and performance management.

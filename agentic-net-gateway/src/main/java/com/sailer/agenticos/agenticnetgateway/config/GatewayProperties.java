@@ -23,6 +23,7 @@ public class GatewayProperties {
     private int tokenTtlSeconds = 3600;
     private int rateLimitPerMinute = 10;
     private String trustedProxies = "";
+    private String internalSecret = "";
     private int masterHeartbeatTtlSeconds = 60;
     private int proxyFanOutTimeoutSeconds = 30;
 
@@ -128,6 +129,14 @@ public class GatewayProperties {
 
     public void setTrustedProxies(String trustedProxies) {
         this.trustedProxies = trustedProxies;
+    }
+
+    public String getInternalSecret() {
+        return internalSecret;
+    }
+
+    public void setInternalSecret(String internalSecret) {
+        this.internalSecret = internalSecret;
     }
 
     public int getMasterHeartbeatTtlSeconds() {

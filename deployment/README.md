@@ -111,7 +111,8 @@ OPENAI_API_KEY=sk-...
 
 | Variable | Required | Default | Purpose |
 |---|---:|---|---|
-| `AGENTICNETOS_VERSION` | Yes | `2.1.2` | Docker image tag for all services. CI updates this during release. |
+| `AGENTICNETOS_VERSION` | Yes | `2.1.3` | Docker image tag for all services. |
+| `TEMPO_IMAGE`, `OTEL_COLLECTOR_IMAGE`, `PROMETHEUS_IMAGE`, `GRAFANA_IMAGE`, `OLLAMA_IMAGE` | No | pinned in `.env.template` | Third-party image pins for reproducible installs. |
 | `AGENTICNETOS_BIND_ADDRESS` | Yes | `127.0.0.1` | Host interface for published ports. Use `0.0.0.0` only intentionally. |
 | `LLM_PROVIDER` | Yes | `ollama` | Active LLM backend: `ollama`, `claude`, `openai`, `claude-code`, `codex`. |
 | `AGENTICOS_MODEL_TIER` | No | `medium` | Tier used by CLI/chat model routing. |
@@ -124,10 +125,13 @@ OPENAI_API_KEY=sk-...
 | `AGENTICOS_SETTINGS_KEY` | Shared envs | empty | Stable encryption key for persisted settings/credentials. |
 | `OPENBAO_DEV_ROOT_TOKEN` | Yes | `agenticos-dev-token` | OpenBao dev token used by the local vault stack. Change before sharing. |
 | `GRAFANA_ADMIN_PASSWORD` | Monitoring only | `admin` | Grafana admin password. |
+| `GATEWAY_INTERNAL_SECRET` | Yes | local placeholder | Shared secret for Gateway <-> Master internal registry calls. Change before sharing. |
+| `GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS`, `AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS` | No | localhost only | Browser origins allowed to call Gateway, Master, and Node APIs. |
 | `GATEWAY_TIMEOUT` | No | `30` | Gateway upstream timeout in seconds. |
 | `GATEWAY_PROXY_TIMEOUT` | No | `300` | Gateway proxy timeout for long agent/LLM calls. |
 | `AGENTICOS_REGISTRY_ENABLED` | No | `true` | Enables local OCI tool registry integration. |
 | `AGENTICOS_DOCKER_ENABLED` | No | `true` | Allows master to start Docker tool containers. |
+| `AGENTICOS_DOCKER_IMAGE_ALLOWLIST` | No | `localhost:5001/agenticos-*` | Restricts which tool images agents may start through the Docker socket. |
 | `TELEGRAM_BOT_ENABLED` | No | `false` | Enables the Telegram bridge container. |
 | `TELEGRAM_BOT_TOKEN` | Telegram only | empty | Bot token from BotFather. |
 | `TELEGRAM_BOT_ALLOWED_CHAT_IDS` | Telegram only | empty | Comma-separated allowlist for chat access. |
@@ -212,8 +216,6 @@ docker compose -f docker-compose.hub-only.yml down -v
 
 Node event/snapshot data lives in `AGENTICNETOS_NODE_DATA_DIR` and is not removed by `down -v`.
 
-## Release Notes for Maintainers
+## Release Notes
 
-`ci/VERSION` is the source of truth. The `agenticos-prepare-release` Jenkins job updates `AGENTICNETOS_VERSION` in `.env.template` and pins defaults in all public compose files, then builds, stages, health-checks, and creates local git tags. `agenticos-promote-hub` pushes the staged images to Docker Hub and runs `deployment/scripts/update-versions.sh` so the GitHub deployment files point at the promoted release.
-
-Do not push from automation. Push tags and branches manually after staging validation.
+Image releases are tagged on GitHub and published to Docker Hub under `alexejsailer/agenticnetos-*`. The `AGENTICNETOS_VERSION` variable controls which tag is used by the compose files. Pin a specific version in `.env` when you need reproducible deployments.

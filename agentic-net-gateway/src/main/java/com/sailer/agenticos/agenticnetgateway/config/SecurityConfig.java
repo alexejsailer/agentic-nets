@@ -2,6 +2,7 @@ package com.sailer.agenticos.agenticnetgateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -12,6 +13,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -22,6 +24,7 @@ import java.util.List;
  *   /actuator/**            — Health and metrics
  *   /api/health/**          — Service health checks
  *   GET /api/packages/**    — Public catalog browsing (read-only)
+ *   /internal/masters/**    — Shared-secret protected master registry
  *
  * Protected endpoints (JWT required):
  *   /api/**                 — Master API (proxied)
@@ -38,11 +41,14 @@ public class SecurityConfig {
 
     private final TokenRateLimiter tokenRateLimiter;
     private final ReadonlyEnforcementFilter readonlyEnforcementFilter;
+    private final List<String> allowedOriginPatterns;
 
     public SecurityConfig(TokenRateLimiter tokenRateLimiter,
-                          ReadonlyEnforcementFilter readonlyEnforcementFilter) {
+                          ReadonlyEnforcementFilter readonlyEnforcementFilter,
+                          @Value("${gateway.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String allowedOriginPatterns) {
         this.tokenRateLimiter = tokenRateLimiter;
         this.readonlyEnforcementFilter = readonlyEnforcementFilter;
+        this.allowedOriginPatterns = parseCsv(allowedOriginPatterns);
     }
 
     @Bean
@@ -63,16 +69,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/node-api/**").authenticated()
                         .requestMatchers("/vault-api/**").authenticated()
-                        .anyRequest().permitAll()
+                        .requestMatchers("/internal/masters/**").permitAll()
+                        .anyRequest().denyAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .cors(cors -> cors.configurationSource(req -> {
                     var c = new CorsConfiguration();
-                    c.setAllowedOriginPatterns(List.of("*"));
+                    c.setAllowedOriginPatterns(allowedOriginPatterns);
                     c.setAllowedMethods(List.of("*"));
                     c.setAllowedHeaders(List.of("*"));
                     return c;
                 }))
                 .build();
+    }
+
+    private List<String> parseCsv(String value) {
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 }
