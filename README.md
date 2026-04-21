@@ -54,8 +54,7 @@ cp .env.template .env
 
 # 3. Edit .env and choose ONE provider:
 #    Claude: LLM_PROVIDER=claude + ANTHROPIC_API_KEY=sk-ant-...
-#    Ollama: LLM_PROVIDER=ollama + OLLAMA_MODEL=llama3.2
-#            first run: ollama pull llama3.2
+#    Ollama: LLM_PROVIDER=ollama + OLLAMA_MODEL=llama3.2  (bundled as a container — no host install required)
 #    OpenAI: LLM_PROVIDER=openai + OPENAI_API_KEY=sk-...
 
 # 4A. Start the full stack with monitoring
@@ -64,7 +63,10 @@ docker compose -f docker-compose.hub-only.yml up -d
 # 4B. Or start the lighter stack without Grafana/Prometheus/Tempo
 # docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
-# 5. Open the Studio
+# 5. If you chose Ollama, pull your model into the bundled container
+docker exec agenticnetos-ollama ollama pull llama3.2
+
+# 6. Open the Studio
 open http://localhost:4200
 ```
 

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-04-21
+
+### Added
+- **Bundled Ollama container** in all three public compose files
+  (`docker-compose.yml`, `docker-compose.hub-only.yml`,
+  `docker-compose.hub-only.no-monitoring.yml`). First-time users no longer
+  need to install Ollama on the host — `docker compose up -d` now starts an
+  `agenticnetos-ollama` service out of the box. Pull your model with
+  `docker exec agenticnetos-ollama ollama pull llama3.2` after the stack is up.
+- `OLLAMA_MEMORY_LIMIT` and `OLLAMA_CPU_LIMIT` env vars so users can size the
+  bundled Ollama container for larger models.
+
+### Changed
+- Default `AGENTICNETOS_VERSION` in all compose files bumped from `2.0.0` to
+  `2.1.2` so `docker compose up -d` pulls the current release without manual
+  `.env` edits.
+- Default `OLLAMA_BASE_URL` changed from `http://host.docker.internal:11434`
+  to `http://ollama:11434` (the bundled service). Host-Ollama remains a
+  supported override; `deployment/README.md` and `POST_DEPLOYMENT_CONFIG.md`
+  document both paths including the Linux `172.17.0.1` alternative.
+- `agentic-net-master` now `depends_on: ollama` (with `service_healthy`
+  condition) so it does not start before the LLM runtime is up.
+
+### Docs
+- README quickstart updated with the new `docker exec agenticnetos-ollama
+  ollama pull` step and reordered to reflect the bundled-container default.
+- `deployment/README.md` Ollama section rewritten: bundled-container default
+  first, host-Ollama as an opt-in for GPU users.
+- `deployment/POST_DEPLOYMENT_CONFIG.md` Ollama section updated to match.
+- Environment reference table now shows `AGENTICNETOS_VERSION=2.1.2` and
+  `OLLAMA_BASE_URL=http://ollama:11434` defaults.
+
 ### Added — multi-agent coordination
 
 - **Two-tier LLM config per agent transition.** Every agent inscription can

@@ -46,13 +46,26 @@ AGENTICOS_MODEL_TIER=medium   # Options: high, medium, low
 
 ### Ollama Configuration
 
+By default the compose stack bundles an Ollama container (`agenticnetos-ollama`)
+and backend services reach it via the compose service name `ollama`:
+
 ```bash
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=llama3.2
 OLLAMA_HIGH_MODEL=llama3.2
 OLLAMA_MEDIUM_MODEL=llama3.2
 OLLAMA_LOW_MODEL=llama3.2
 ```
+
+After the stack is up, pull your model into the bundled container:
+
+```bash
+docker exec agenticnetos-ollama ollama pull llama3.2
+```
+
+If you prefer to run Ollama on your host (e.g. for GPU acceleration), override
+`OLLAMA_BASE_URL`: `http://host.docker.internal:11434` on Docker Desktop,
+`http://172.17.0.1:11434` on Linux-native Docker.
 
 Use a local model for first-run assistant work. Cloud models with the `:cloud`
 suffix route through ollama.com and can be rate-limited during longer assistant

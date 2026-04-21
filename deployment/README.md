@@ -76,24 +76,29 @@ This is the fastest path for the Universal Assistant and Builder personas.
 
 ### Ollama
 
-On the host:
+An Ollama container (`agenticnetos-ollama`) ships inside the compose stack — you do **not** need to install Ollama on your host. After `docker compose up -d`, pull the model into the running container:
 
 ```bash
-ollama pull llama3.2
+docker exec agenticnetos-ollama ollama pull llama3.2
 ```
 
-In `.env`:
+The defaults in `.env.template` already target the bundled container:
 
 ```env
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_BASE_URL=http://ollama:11434
 OLLAMA_MODEL=llama3.2
 OLLAMA_HIGH_MODEL=llama3.2
 OLLAMA_MEDIUM_MODEL=llama3.2
 OLLAMA_LOW_MODEL=llama3.2
 ```
 
-On Linux-native Docker, replace `host.docker.internal` with your Docker bridge host IP, commonly `172.17.0.1`.
+**Using host Ollama instead** (useful for GPU access): install Ollama on your host, run `ollama pull llama3.2`, and override `OLLAMA_BASE_URL` in `.env`:
+
+- Docker Desktop (Mac/Windows): `OLLAMA_BASE_URL=http://host.docker.internal:11434`
+- Linux-native Docker: `OLLAMA_BASE_URL=http://172.17.0.1:11434`
+
+**Cloud-suffixed models** (e.g. `kimi-k2.5:cloud`, `gpt-oss:120b-cloud`) route through `ollama.com` and require `ollama login` — see `POST_DEPLOYMENT_CONFIG.md`.
 
 ### OpenAI
 
@@ -106,13 +111,13 @@ OPENAI_API_KEY=sk-...
 
 | Variable | Required | Default | Purpose |
 |---|---:|---|---|
-| `AGENTICNETOS_VERSION` | Yes | `2.0.0` | Docker image tag for all services. CI updates this during release. |
+| `AGENTICNETOS_VERSION` | Yes | `2.1.2` | Docker image tag for all services. CI updates this during release. |
 | `AGENTICNETOS_BIND_ADDRESS` | Yes | `127.0.0.1` | Host interface for published ports. Use `0.0.0.0` only intentionally. |
 | `LLM_PROVIDER` | Yes | `ollama` | Active LLM backend: `ollama`, `claude`, `openai`, `claude-code`, `codex`. |
 | `AGENTICOS_MODEL_TIER` | No | `medium` | Tier used by CLI/chat model routing. |
 | `ANTHROPIC_API_KEY` | Claude only | empty | Anthropic API key. |
 | `OPENAI_API_KEY` | OpenAI only | empty | OpenAI API key. |
-| `OLLAMA_BASE_URL` | Ollama only | `http://host.docker.internal:11434` | Ollama endpoint reachable from containers. |
+| `OLLAMA_BASE_URL` | Ollama only | `http://ollama:11434` | Ollama endpoint reachable from containers. Points at the bundled `agenticnetos-ollama` service. Override for host-Ollama (Docker Desktop: `http://host.docker.internal:11434`; Linux: `http://172.17.0.1:11434`). |
 | `OLLAMA_MODEL` | Ollama only | `llama3.2` | Single model used by master. |
 | `OLLAMA_HIGH_MODEL`, `OLLAMA_MEDIUM_MODEL`, `OLLAMA_LOW_MODEL` | Ollama only | `llama3.2` | Tiered model routing for CLI/chat. |
 | `AGENTICOS_ADMIN_SECRET` | Shared envs | generated | Gateway admin client secret. Empty means auto-generate under `data/gateway/jwt/admin-secret`. |

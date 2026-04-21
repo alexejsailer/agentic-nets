@@ -30,6 +30,7 @@ volumes:
   grafana-data:
   registry-data:
   openbao-data:
+  ollama-data:
 
 networks:
   agenticnetos-backend:
@@ -171,7 +172,7 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-node
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
@@ -209,12 +210,14 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-master
     depends_on:
       agentic-net-node:
         condition: service_healthy
       agentic-net-vault:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
@@ -224,7 +227,7 @@ services:
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
@@ -269,7 +272,7 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-executor
     depends_on:
       agentic-net-master:
@@ -307,6 +310,32 @@ services:
       start_period: 60s
 
   # ===========================================================================
+  # LLM RUNTIME
+  # ===========================================================================
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: agenticnetos-ollama
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - agenticnetos-backend
+      - agenticnetos-clients
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEMORY_LIMIT:-4G}
+          cpus: "${OLLAMA_CPU_LIMIT:-2.0}"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
   # SECRETS MANAGEMENT
   # ===========================================================================
 
@@ -333,7 +362,7 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-vault
     depends_on:
       openbao:
@@ -378,7 +407,7 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-gateway
     depends_on:
       agentic-net-master:
@@ -427,7 +456,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-gui
     depends_on:
       agentic-net-gateway:
@@ -459,7 +488,7 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-cli
     depends_on:
       agentic-net-gateway:
@@ -486,7 +515,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-chat
     depends_on:
       agentic-net-gateway:
@@ -511,7 +540,7 @@ services:
       OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
       OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
       OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-llama3.2}
       OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-llama3.2}
@@ -533,7 +562,7 @@ services:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.0.0}
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.1.2}
     container_name: agenticnetos-blobstore
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
