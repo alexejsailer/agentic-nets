@@ -20,7 +20,7 @@ DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$DEPLOY_DIR/.." && pwd)"
 DOCKERFILES_DIR="$DEPLOY_DIR/dockerfiles"
 
-HUB_PREFIX="alexejsailer/agenticos"
+HUB_PREFIX="alexejsailer/agenticnetos"
 
 # Image matrix: service -> build_context (relative to REPO_ROOT), dockerfile
 declare -A CONTEXTS=(

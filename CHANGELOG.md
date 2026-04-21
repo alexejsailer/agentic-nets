@@ -78,13 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Persona framework**: Pluggable assistant personas (builder, observer, analyzer, debugger) with role-based tool filtering
 - **OBSERVE_MODEL tool**: Whole-model runtime snapshots for monitoring and debugging
 - **GUI persona selector**: Dropdown in universal assistant editor to switch between personas
-- **Version-pinned compose files**: All image tags use `AGENTICOS_VERSION` env var (no more `latest` drift)
+- **Version-pinned compose files**: All image tags use `AGENTICNETOS_VERSION` env var (no more `latest` drift)
 - **Automated version pinning**: Jenkins prepare-release pipeline now updates compose file versions
 - **CHANGELOG.md**: This file
 
 ### Changed
-- Compose files now use `${AGENTICOS_VERSION:-1.19.0}` instead of hardcoded `1.2.0` or `latest`
-- `.env.template` includes `AGENTICOS_VERSION` variable
+- Compose files now use `${AGENTICNETOS_VERSION:-1.19.0}` instead of hardcoded `1.2.0` or `latest`
+- `.env.template` includes `AGENTICNETOS_VERSION` variable
 
 ## [1.18.0] - 2026-03-20
 

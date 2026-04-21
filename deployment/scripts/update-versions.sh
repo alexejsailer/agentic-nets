@@ -2,12 +2,11 @@
 # =============================================================================
 # AgenticNetOS — Update Image Versions in Compose Files
 #
-# Updates all alexejsailer/agenticos-* image tags in the deployment compose
-# files to a specific version. Run this after promoting images to Docker Hub.
+# Updates deployment defaults to a specific version. Run this after promoting
+# images to Docker Hub.
 #
-# In docker-compose.hub-only.yml: ALL images get the new version tag.
-# In docker-compose.yml (hybrid): Only core images (node, master, gui) get
-#   the new version tag; open-source services keep :latest (built locally).
+# In docker-compose*.yml: AGENTICNETOS_VERSION defaults get the new version tag.
+# In .env.template: AGENTICNETOS_VERSION gets the same version.
 #
 # Usage:
 #   ./scripts/update-versions.sh <version>
@@ -20,11 +19,24 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-HUB_ONLY="${DEPLOY_DIR}/docker-compose.hub-only.yml"
-HYBRID="${DEPLOY_DIR}/docker-compose.yml"
+COMPOSE_FILES=(
+  "${DEPLOY_DIR}/docker-compose.yml"
+  "${DEPLOY_DIR}/docker-compose.hub-only.yml"
+  "${DEPLOY_DIR}/docker-compose.hub-only.no-monitoring.yml"
+)
+ENV_TEMPLATE="${DEPLOY_DIR}/.env.template"
 
 ALL_SERVICES=(node master executor gateway gui cli chat blobstore vault)
-CORE_SERVICES=(node master gui)
+
+sed_in_place() {
+  local expr="$1"
+  local file="$2"
+  if sed --version >/dev/null 2>&1; then
+    sed -i "$expr" "$file"
+  else
+    sed -i '' "$expr" "$file"
+  fi
+}
 
 # --- Parse version ---
 VERSION="${1:-}"
@@ -49,26 +61,29 @@ fi
 echo "Updating compose files to version ${VERSION}"
 echo ""
 
-# --- Update hub-only (all services) ---
-if [[ -f "$HUB_ONLY" ]]; then
-  for svc in "${ALL_SERVICES[@]}"; do
-    # Match alexejsailer/agenticos-{svc}:{any-tag} and replace tag
-    sed -i '' "s|alexejsailer/agenticos-${svc}:[a-zA-Z0-9._-]*|alexejsailer/agenticos-${svc}:${VERSION}|g" "$HUB_ONLY"
-  done
-  echo "  Updated docker-compose.hub-only.yml (all services → ${VERSION})"
-else
-  echo "  Warning: docker-compose.hub-only.yml not found"
-fi
+# --- Update compose files ---
+for compose_file in "${COMPOSE_FILES[@]}"; do
+  if [[ -f "$compose_file" ]]; then
+    # Current compose files use image: alexejsailer/agenticnetos-foo:${AGENTICNETOS_VERSION:-X.Y.Z}
+    sed_in_place "s|AGENTICNETOS_VERSION:-[0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*|AGENTICNETOS_VERSION:-${VERSION}|g" "$compose_file"
 
-# --- Update hybrid (core services only) ---
-if [[ -f "$HYBRID" ]]; then
-  for svc in "${CORE_SERVICES[@]}"; do
-    sed -i '' "s|alexejsailer/agenticos-${svc}:[a-zA-Z0-9._-]*|alexejsailer/agenticos-${svc}:${VERSION}|g" "$HYBRID"
-  done
-  echo "  Updated docker-compose.yml (core: node, master, gui → ${VERSION})"
+    # Fallback for any static tags that may appear in future compose files.
+    for svc in "${ALL_SERVICES[@]}"; do
+      sed_in_place "s|alexejsailer/agenticnetos-${svc}:[a-zA-Z0-9._-]*|alexejsailer/agenticnetos-${svc}:${VERSION}|g" "$compose_file"
+    done
+    echo "  Updated $(basename "$compose_file")"
+  else
+    echo "  Warning: $(basename "$compose_file") not found"
+  fi
+done
+
+# --- Update env template ---
+if [[ -f "$ENV_TEMPLATE" ]]; then
+  sed_in_place "s|^AGENTICNETOS_VERSION=.*|AGENTICNETOS_VERSION=${VERSION}|" "$ENV_TEMPLATE"
+  echo "  Updated .env.template"
 else
-  echo "  Warning: docker-compose.yml not found"
+  echo "  Warning: .env.template not found"
 fi
 
 echo ""
-echo "Done. Commit the updated compose files to agentic-nets."
+echo "Done. Commit the updated deployment defaults to agentic-nets."

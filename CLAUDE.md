@@ -169,7 +169,7 @@ claude -p 'prompt' --no-session-persistence < /dev/null
 - **KV v2 path**: `secret/agenticos/credentials/{modelId}/{transitionId}`
 - **API**: CRUD for transition credentials (`PUT/GET/DELETE /api/vault/{modelId}/transitions/{transitionId}/credentials`)
 - **Auth**: Token auth (dev mode) or AppRole (production)
-- **Network**: `agenticos-backend` only — not exposed to host
+- **Network**: `agenticnetos-backend` only — not exposed to host
 
 ### sa-blobstore (Port 8090)
 
@@ -194,8 +194,8 @@ Two deployment modes in `deployment/`:
 
 | Network | Services |
 |---------|----------|
-| `agenticos-backend` | node, master, executor, gateway, vault, openbao, monitoring, registry |
-| `agenticos-clients` | gateway, gui, cli, chat |
+| `agenticnetos-backend` | node, master, executor, gateway, vault, openbao, monitoring, registry |
+| `agenticnetos-clients` | gateway, gui, cli, chat |
 
 Gateway bridges both networks.
 
