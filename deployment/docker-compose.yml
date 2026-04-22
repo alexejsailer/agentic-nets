@@ -78,12 +78,11 @@ services:
       - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
+    # grafana/tempo image is distroless (no wget/curl/sh available for probes).
+    # Disable healthcheck — container exit code is authoritative; if it crashes,
+    # compose restarts it. Same pattern as otel-collector below.
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      disable: true
 
   otel-collector:
     image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.135.0}
@@ -311,6 +310,7 @@ services:
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
+      AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor

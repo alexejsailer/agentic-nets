@@ -163,6 +163,44 @@ ports now.
 
 ---
 
+## Phase 4.5 — Allow your public origin in CORS (REQUIRED for browser login)
+
+The default CORS whitelist in `.env.template` only allows
+`http://localhost:*` and `http://127.0.0.1:*`. As soon as you reach the GUI
+through your real domain the browser sends
+`Origin: https://<your-domain>`, the gateway and master reject it with
+`HTTP 403 "Invalid CORS request"`, and **the login button silently fails**.
+
+Edit `.env` and add your public origin to **both** CORS lists:
+
+```bash
+# .env  (your deployment's environment file)
+GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://<your-domain>
+AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:*,http://127.0.0.1:*,https://<your-domain>
+```
+
+Recreate the gateway + master so they pick up the new env (executor and
+GUI don't need a restart, they don't enforce CORS):
+
+```bash
+docker compose up -d --force-recreate --no-deps agentic-net-gateway agentic-net-master
+```
+
+Verify the fix mimicking what the browser does (note the `Origin` header):
+
+```bash
+curl -sS -X POST https://<your-domain>/oauth2/token \
+  -H 'Origin: https://<your-domain>' \
+  -d 'grant_type=client_credentials&client_id=agenticos-admin&client_secret=<your-admin-secret>&scope=admin'
+```
+
+A JSON body with `access_token` = success. `Invalid CORS request` = the
+origin is still not in the whitelist (typo, missing scheme, or the gateway
+didn't actually pick up the new env — re-check with `docker exec
+<container>-gateway printenv GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS`).
+
+---
+
 ## Phase 5 — Verify
 
 ```bash
@@ -214,6 +252,10 @@ if you just changed the domain list.
 **XHRs hit `localhost:*` in the browser** — the running GUI image was
 built for dev, not prod. Rebuild the GUI with the production Dockerfile
 and `docker compose up -d agentic-net-gui`.
+
+**Login button does nothing / `403 Invalid CORS request` in DevTools** —
+your public origin isn't in the gateway's allow-list. See Phase 4.5
+above.
 
 **WebSocket disconnects** — verify `mod_proxy_wstunnel` is loaded
 (`apache2ctl -M | grep wstunnel`) and the `RewriteRule` for `Upgrade:

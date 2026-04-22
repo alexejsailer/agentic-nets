@@ -3,7 +3,7 @@ global:
   evaluation_interval: 15s
 
 rule_files:
-  # AgetnticOS alerting rules
+  # AgenticNetOS alerting rules
   # - "/etc/prometheus/agenticos-alerts.yml"
 
 scrape_configs:
@@ -59,7 +59,7 @@ scrape_configs:
   - job_name: "sa-blobstore"
     metrics_path: "/actuator/prometheus"
     static_configs:
-      - targets: ["sa-blobstore:8080"]
+      - targets: ["sa-blobstore:9090"]
         labels:
           application: "sa-blobstore"
           environment: "docker"

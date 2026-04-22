@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.7] - 2026-04-22
+
+### Fixed
+- **GUI default service URLs for reverse-proxy deployments.** When the Studio
+  is served behind a public hostname (Apache/Nginx/Cloudflare in front of
+  the compose stack), the GUI was defaulting every service base URL to
+  `<scheme>://<public-host>:<port>` — e.g. `https://gui.example.com:8083`.
+  Browsers then tried to open port 8083 on the public host, which is bound
+  to `127.0.0.1` on the server and unreachable from the internet; every
+  post-login XHR failed with `ERR_CONNECTION_REFUSED` and the Universal
+  Assistant chat silently never reached master. Fixed
+  `resolveDefaultServiceUrl()` in `core/agentic-net-gui/.../service-url.util.ts`
+  to return the browser's origin **without a port** when
+  `isBehindReverseProxy()` is true, so `/api/*` and `/node-api/*` become
+  relative-to-origin and route through the reverse proxy. Also patched
+  `normalizeServiceBaseUrl()` so stored localhost-era URLs get
+  auto-migrated on load — existing users don't need to clear localStorage.
+  Pure-local evaluation (`http://localhost:<non-4200-port>`) keeps the
+  classic `http://localhost:<port>` form. No `.env` change required — the
+  GUI auto-detects the right pattern at runtime from the browser origin.
+
+## [2.1.6] - 2026-04-22
+
+### Docs
+- **CORS for public deployments — explicit warning + example.** The default
+  `GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS` and
+  `AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS` in `.env.template` only allow
+  `http://localhost:*` / `http://127.0.0.1:*`. Operators putting the GUI
+  behind a real public hostname (Apache/Nginx/Cloudflare reverse proxy)
+  hit `HTTP 403 "Invalid CORS request"` from the gateway and master on
+  every XHR — the login button silently fails. Both env vars now have a
+  prominent ⚠️ comment block in `.env.template` with a runnable example
+  (`https://gui.example.com`), and `deployment/PUBLIC-TLS-DEPLOYMENT.md`
+  has a new **Phase 4.5 — Allow your public origin in CORS** section
+  with edit-and-recreate instructions plus a curl-with-Origin probe to
+  verify the fix. Troubleshooting list also gained an explicit entry for
+  "Login button does nothing / 403 Invalid CORS request in DevTools".
+
+## [2.1.5] - 2026-04-22
+
+### Fixed
+- **Executor missing `AGENTICOS_CREDENTIALS_KEY` env bridge.** Master was
+  receiving the key, but executor wasn't — so encrypted transition credentials
+  couldn't be decrypted on the executor side. Added
+  `AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}` to the executor
+  service env block in all three compose files
+  (`docker-compose.yml`, `docker-compose.hub-only.yml`,
+  `docker-compose.hub-only.no-monitoring.yml`).
+- **Tempo healthcheck** was probing `wget http://localhost:3200/ready` but the
+  `grafana/tempo:2.10.4` image is distroless (no `wget`/`curl`/`sh`) — so every
+  probe failed even though Tempo was serving. Disabled the healthcheck,
+  matching the pattern already used for `otel-collector`. Container exit code
+  is authoritative; compose restarts on crash.
+- **Prometheus blobstore scrape target** was still pointing at
+  `sa-blobstore:8080` (API port) from before the 2.1.3 actuator-port move.
+  Updated `monitoring/config/prometheus.yaml` to scrape `sa-blobstore:9090`
+  (Spring Boot management port). The 6th Prometheus target now reports `up`.
+- **Typo `AgetnticOS`** in `monitoring/config/prometheus.yaml` comment header
+  → `AgenticNetOS`.
+
 ## [2.1.4] - 2026-04-21
 
 ### Security
