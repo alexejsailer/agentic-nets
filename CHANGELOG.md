@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.8] - 2026-04-22
+
+### Fixed
+- **Master `GET /api/admin/models/{modelId}/status` 404.** Master's
+  `ModelController` proxied every other admin-model lifecycle endpoint
+  (`POST /load`, `POST /activate`, `POST /deactivate`, `POST /unload`,
+  `DELETE`) to node, but the `status` endpoint was missing — node has it
+  at `/admin/models/{modelId}/status`, gateway routes `/api/*` to master,
+  so the call returned 404. The GUI polls this endpoint while the Studio
+  is open; the repeated 404s made lifecycle state (active/inactive,
+  current version, element count) look stale even though the backend was
+  processing requests, and in the Universal Assistant it left the model
+  indicator spinning while the agent loop was actually running. Added
+  the proxy method in master's `ModelController` so GET /status now
+  forwards to node and returns the lifecycle snapshot.
+
 ## [2.1.7] - 2026-04-22
 
 ### Fixed
