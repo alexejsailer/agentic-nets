@@ -111,7 +111,7 @@ docker compose -f docker-compose.hub-only.yml up -d
 
 # 5. If you chose Ollama, authenticate or pull the model into the bundled container:
 #    (a) Default cloud model — one-time interactive login (see note below):
-docker exec -it agenticnetos-ollama ollama login
+docker exec -it agenticnetos-ollama ollama signin
 #    (b) OR, if you switched to a local model (e.g. llama3.2), pull it instead:
 # docker exec agenticnetos-ollama ollama pull llama3.2
 
@@ -140,14 +140,14 @@ open http://localhost:4200
 > login secret.
 
 > **Where does the Ollama login token come from?**
-> `ollama login` is a one-time pairing: it prints a URL + device code to the
+> `ollama signin` is a one-time pairing: it prints a URL + device code to the
 > container logs, you open that URL in a browser, sign in to your
 > [ollama.com](https://ollama.com) account, and approve the device. No token
 > file to manage — credentials are stored inside the container at
 > `/root/.ollama/` and survive restarts (the `ollama-data` volume).
 > If you prefer non-interactive auth, generate an API key at
 > [ollama.com/settings/keys](https://ollama.com/settings/keys) and pass it:
-> `docker exec agenticnetos-ollama ollama login <your-api-key>`.
+> `docker exec agenticnetos-ollama ollama signin <your-api-key>`.
 > Cloud-suffixed models (`:cloud`, `:671b-cloud`, etc.) route through
 > ollama.com and can be rate-limited during long sessions — swap to a local
 > tag if you hit `429` errors.

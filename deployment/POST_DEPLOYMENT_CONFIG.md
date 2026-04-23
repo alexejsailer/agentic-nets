@@ -171,7 +171,7 @@ Docker Desktop uses `host.docker.internal` to reach the host's Ollama instance.
 
 ```bash
 # On your Mac (not inside Docker)
-ollama login
+ollama signin
 # Enter your Ollama credentials when prompted
 
 # Verify cloud models work
@@ -187,7 +187,7 @@ Ollama must be running as a systemd service and authenticated as the same user.
 curl -fsSL https://ollama.com/install.sh | sh
 
 # 2. Login (as the user running ollama)
-ollama login
+ollama signin
 
 # 3. Verify the service is running
 systemctl status ollama
@@ -200,10 +200,10 @@ ollama run gpt-oss:120b-cloud "hello"
 you must login as that user:
 
 ```bash
-sudo -u ollama ollama login
+sudo -u ollama ollama signin
 ```
 
-If `ollama login` stores credentials in `~/.ollama/`, make sure the systemd service
+If `ollama signin` stores credentials in `~/.ollama/`, make sure the systemd service
 user has access to that path.
 
 ### Docker-to-Host Networking

@@ -20,7 +20,7 @@ Closed-source images (`agenticnetos-node`, `agenticnetos-master`, `agenticnetos-
 - One LLM backend:
   - Anthropic Claude API key, or
   - OpenAI API key, or
-  - bundled Ollama. The default cloud model requires `ollama login`; a fully local model requires setting a local tag such as `llama3.2` and pulling it into the container.
+  - bundled Ollama. The default cloud model requires `ollama signin`; a fully local model requires setting a local tag such as `llama3.2` and pulling it into the container.
 - `bash` and `curl` for health checks and troubleshooting.
 
 ## First Run
@@ -122,8 +122,18 @@ An Ollama container (`agenticnetos-ollama`) ships inside the compose stack — y
 The default `.env.template` model is `deepseek-v3.1:671b-cloud`, a cloud-suffixed Ollama model routed through `ollama.com`. After `docker compose up -d`, authenticate the bundled Ollama container once:
 
 ```bash
-docker exec -it agenticnetos-ollama ollama login
+docker exec -it agenticnetos-ollama ollama signin
 ```
+
+The command prints a `https://ollama.com/connect?...` URL. Copy it into a browser, sign in to your ollama.com account (free), and click **Connect**. The CLI will confirm `Signed in as ...` and exit. The ed25519 keypair is persisted in the `ollama-data` volume — no need to repeat this unless you wipe the volume or delete the key at https://ollama.com/settings/keys.
+
+If you run the command over SSH, use `ssh -t` so docker exec gets an interactive TTY:
+
+```bash
+ssh -t user@your-host 'docker exec -it agenticnetos-ollama ollama signin'
+```
+
+If `/connect` gives **"Invalid key format"**, fall back to the manual route: run `docker exec agenticnetos-ollama cat /root/.ollama/id_ed25519.pub`, then paste that line at https://ollama.com/settings/keys → **Add public key**.
 
 For a fully local model instead, edit `.env` first and set all four Ollama model variables to a local tag such as `llama3.2`:
 
@@ -145,7 +155,7 @@ docker exec agenticnetos-ollama ollama pull llama3.2
 - Docker Desktop (Mac/Windows): `OLLAMA_BASE_URL=http://host.docker.internal:11434`
 - Linux-native Docker: `OLLAMA_BASE_URL=http://172.17.0.1:11434`
 
-**Cloud-suffixed models** (e.g. `kimi-k2.5:cloud`, `gpt-oss:120b-cloud`) route through `ollama.com` and require `ollama login` — see `POST_DEPLOYMENT_CONFIG.md`.
+**Cloud-suffixed models** (e.g. `kimi-k2.5:cloud`, `gpt-oss:120b-cloud`) route through `ollama.com` and require `ollama signin` — see `POST_DEPLOYMENT_CONFIG.md`.
 
 ### OpenAI
 
@@ -158,7 +168,7 @@ OPENAI_API_KEY=sk-...
 
 | Variable | Required | Default | Purpose |
 |---|---:|---|---|
-| `AGENTICNETOS_VERSION` | Yes | `2.1.8` | Docker image tag for all Agentic-Nets services. |
+| `AGENTICNETOS_VERSION` | Yes | `2.1.10` | Docker image tag for all Agentic-Nets services. |
 | `TEMPO_IMAGE`, `OTEL_COLLECTOR_IMAGE`, `PROMETHEUS_IMAGE`, `GRAFANA_IMAGE`, `OLLAMA_IMAGE` | No | pinned in `.env.template` | Third-party image pins for reproducible installs. |
 | `AGENTICNETOS_BIND_ADDRESS` | Yes | `127.0.0.1` | Host interface for published ports. Use `0.0.0.0` only intentionally. |
 | `LLM_PROVIDER` | Yes | `ollama` | Active LLM backend: `ollama`, `claude`, `openai`, `claude-code`, `codex`. |
@@ -166,8 +176,8 @@ OPENAI_API_KEY=sk-...
 | `ANTHROPIC_API_KEY` | Claude only | empty | Anthropic API key. |
 | `OPENAI_API_KEY` | OpenAI only | empty | OpenAI API key. |
 | `OLLAMA_BASE_URL` | Ollama only | `http://ollama:11434` | Ollama endpoint reachable from containers. Points at the bundled `agenticnetos-ollama` service. Override for host-Ollama (Docker Desktop: `http://host.docker.internal:11434`; Linux: `http://172.17.0.1:11434`). |
-| `OLLAMA_MODEL` | Ollama only | `deepseek-v3.1:671b-cloud` | Single model used by master. Requires `ollama login`; change to a pulled local tag for offline use. |
-| `OLLAMA_HIGH_MODEL`, `OLLAMA_MEDIUM_MODEL`, `OLLAMA_LOW_MODEL` | Ollama only | `deepseek-v3.1:671b-cloud` | Tiered model routing for CLI/chat. Requires `ollama login`; change to pulled local tags for offline use. |
+| `OLLAMA_MODEL` | Ollama only | `deepseek-v3.1:671b-cloud` | Single model used by master. Requires `ollama signin`; change to a pulled local tag for offline use. |
+| `OLLAMA_HIGH_MODEL`, `OLLAMA_MEDIUM_MODEL`, `OLLAMA_LOW_MODEL` | Ollama only | `deepseek-v3.1:671b-cloud` | Tiered model routing for CLI/chat. Requires `ollama signin`; change to pulled local tags for offline use. |
 | `AGENTICOS_ADMIN_SECRET` | Shared envs | generated | Gateway admin client secret. Empty means auto-generate under `data/gateway/jwt/admin-secret`. |
 | `AGENTICOS_SETTINGS_KEY` | Shared envs | empty | Stable encryption key for persisted settings/credentials. |
 | `OPENBAO_DEV_ROOT_TOKEN` | Yes | `agenticos-dev-token` | OpenBao dev token used by the local vault stack. Change before sharing. |
