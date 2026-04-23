@@ -2,6 +2,8 @@
 
 User-space tool containers that AgenticNetOS agents can discover, deploy, and use via HTTP transitions.
 
+Released tool images are published to Docker Hub as `alexejsailer/agenticos-tool-*:<version>`. A local Agentic-Nets deployment mirrors approved images into its bundled registry (`localhost:5001`) before agents can run them. This keeps the runtime allowlist narrow: agents start only curated `localhost:5001/agenticos-*` images, not arbitrary public Docker Hub images.
+
 ## Structure
 
 ```
@@ -62,12 +64,12 @@ Every tool image must include these labels:
 ## Quick Start
 
 ```bash
-# Start local registry (part of AgenticNetOS docker-compose)
+# Start the Agentic-Nets stack and local registry
 cd ../deployment
-docker compose up -d agenticos-registry
+docker compose -f docker-compose.hub-only.yml up -d
 
-# Build and push all tools
-./build-and-push.sh
+# Mirror the released tool images into the local registry
+docker compose -f docker-compose.hub-only.yml --profile tools run --rm agenticos-tool-seeder
 
 # Verify
 curl http://localhost:5001/v2/_catalog
@@ -75,6 +77,20 @@ curl http://localhost:5001/v2/_catalog
 
 # Browse via AgenticNetOS API (requires master running with registry enabled)
 curl http://localhost:8082/api/registry/images
+```
+
+For local tool development, build from this directory instead of mirroring Docker Hub:
+
+```bash
+cd ../deployment
+AGENTICOS_TOOL_SEED_MODE=build docker compose -f docker-compose.yml --profile tools run --rm agenticos-tool-seeder
+```
+
+The lower-level builder script is still useful when you want direct control:
+
+```bash
+REGISTRY=localhost:5001 ./build-and-push.sh
+REGISTRY=docker.io/alexejsailer ./build-and-push.sh 2.1.8
 ```
 
 ## Agent Workflow

@@ -12,6 +12,7 @@
 #   ./scripts/build-and-push.sh 1.0.0
 #   ./scripts/build-and-push.sh 1.0.0 --dry-run
 #   ./scripts/build-and-push.sh 1.0.0 --only gateway
+#   ./scripts/build-and-push.sh 1.0.0 --only tool-crawler
 # =============================================================================
 set -euo pipefail
 
@@ -22,26 +23,55 @@ DOCKERFILES_DIR="$DEPLOY_DIR/dockerfiles"
 
 HUB_PREFIX="alexejsailer/agenticnetos"
 
-# Image matrix: service -> build_context (relative to REPO_ROOT), dockerfile
-declare -A CONTEXTS=(
-  [gateway]="agentic-net-gateway"
-  [executor]="agentic-net-executor"
-  [vault]="agentic-net-vault"
-  [cli]="agentic-net-cli"
-  [chat]="."
-  [blobstore]="sa-blobstore"
-)
+SERVICES=(gateway executor vault cli chat blobstore tool-echo tool-crawler tool-rss tool-search tool-reddit tool-secured-api)
 
-declare -A DOCKERFILES=(
-  [gateway]="Dockerfile.agentic-net-gateway"
-  [executor]="Dockerfile.agentic-net-executor"
-  [vault]="Dockerfile.agentic-net-vault"
-  [cli]="Dockerfile.agentic-net-cli"
-  [chat]="Dockerfile.agentic-net-chat"
-  [blobstore]="Dockerfile.sa-blobstore"
-)
+context_for() {
+  case "$1" in
+    gateway) echo "agentic-net-gateway" ;;
+    executor) echo "agentic-net-executor" ;;
+    vault) echo "agentic-net-vault" ;;
+    cli) echo "agentic-net-cli" ;;
+    chat) echo "." ;;
+    blobstore) echo "sa-blobstore" ;;
+    tool-echo) echo "agentic-net-tools/agenticos-tool-echo" ;;
+    tool-crawler) echo "agentic-net-tools/agenticos-tool-crawler" ;;
+    tool-rss) echo "agentic-net-tools/agenticos-tool-rss" ;;
+    tool-search) echo "agentic-net-tools/agenticos-tool-search" ;;
+    tool-reddit) echo "agentic-net-tools/agenticos-tool-reddit" ;;
+    tool-secured-api) echo "agentic-net-tools/agenticos-tool-secured-api" ;;
+    *) return 1 ;;
+  esac
+}
 
-SERVICES=(gateway executor vault cli chat blobstore)
+dockerfile_for() {
+  case "$1" in
+    gateway) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-gateway" ;;
+    executor) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-executor" ;;
+    vault) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-vault" ;;
+    cli) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-cli" ;;
+    chat) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-chat" ;;
+    blobstore) echo "${DOCKERFILES_DIR}/Dockerfile.sa-blobstore" ;;
+    tool-echo) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-echo/Dockerfile" ;;
+    tool-crawler) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-crawler/Dockerfile" ;;
+    tool-rss) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-rss/Dockerfile" ;;
+    tool-search) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-search/Dockerfile" ;;
+    tool-reddit) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-reddit/Dockerfile" ;;
+    tool-secured-api) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-secured-api/Dockerfile" ;;
+    *) return 1 ;;
+  esac
+}
+
+image_for() {
+  case "$1" in
+    tool-echo) echo "alexejsailer/agenticos-tool-echo" ;;
+    tool-crawler) echo "alexejsailer/agenticos-tool-crawler" ;;
+    tool-rss) echo "alexejsailer/agenticos-tool-rss" ;;
+    tool-search) echo "alexejsailer/agenticos-tool-search" ;;
+    tool-reddit) echo "alexejsailer/agenticos-tool-reddit" ;;
+    tool-secured-api) echo "alexejsailer/agenticos-tool-secured-api" ;;
+    *) echo "${HUB_PREFIX}-$1" ;;
+  esac
+}
 
 # --- Parse arguments ---
 VERSION=""
@@ -101,9 +131,9 @@ BUILT=()
 FAILED=()
 
 for svc in "${SERVICES[@]}"; do
-  image="${HUB_PREFIX}-${svc}"
-  context="${REPO_ROOT}/${CONTEXTS[$svc]}"
-  dockerfile="${DOCKERFILES_DIR}/${DOCKERFILES[$svc]}"
+  image="$(image_for "$svc")"
+  context="${REPO_ROOT}/$(context_for "$svc")"
+  dockerfile="$(dockerfile_for "$svc")"
 
   echo "--- Building $image ---"
   echo "  Context:    $context"

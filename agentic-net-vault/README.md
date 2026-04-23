@@ -40,7 +40,7 @@ docker run --rm \
   -e VAULT_OPENBAO_URL=http://openbao:8200 \
   -e VAULT_OPENBAO_TOKEN=dev-root-token \
   --network agenticnetos-backend \
-  alexejsailer/agenticnetos-vault:2.1.3
+  alexejsailer/agenticnetos-vault:2.1.8
 ```
 
 ## Health

@@ -77,6 +77,11 @@ You need Docker Desktop or Docker Engine with Compose v2, plus one LLM backend:
 Claude API, OpenAI API, or local Ollama. You do **not** need Java, Node.js, or
 Maven unless you want to build services from source.
 
+Apple Silicon Macs can run the current Docker Hub images through Docker
+Desktop's `linux/amd64` emulation. Docker may print platform-mismatch warnings
+on first start; that is expected unless multi-arch images have been published
+for your release.
+
 ```bash
 # 1. Clone the public repo
 git clone https://github.com/alexejsailer/agentic-nets.git
@@ -100,18 +105,26 @@ docker compose -f docker-compose.hub-only.yml up -d
 # 4B. Or start the lighter stack without Grafana/Prometheus/Tempo
 # docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
+# If startup says port 5001 is already allocated, edit .env and set:
+# AGENTICNETOS_REGISTRY_PORT=5002
+# Then rerun the same docker compose command.
+
 # 5. If you chose Ollama, authenticate or pull the model into the bundled container:
 #    (a) Default cloud model — one-time interactive login (see note below):
 docker exec -it agenticnetos-ollama ollama login
 #    (b) OR, if you switched to a local model (e.g. llama3.2), pull it instead:
 # docker exec agenticnetos-ollama ollama pull llama3.2
 
-# 6. Grab the admin secret the Studio login page asks for.
+# 6. Optional: seed approved Docker tool images into the local registry.
+#    Agents use these for crawler/RSS/search/Reddit/API helper containers.
+docker compose -f docker-compose.hub-only.yml --profile tools run --rm agenticos-tool-seeder
+
+# 7. Grab the admin secret the Studio login page asks for.
 #    The gateway auto-generates it on first startup and bind-mounts it onto
 #    the host — read it from the host (NOT from inside the container):
 cat data/gateway/jwt/admin-secret
 
-# 7. Open the Studio GUI and paste the secret into the login page
+# 8. Open the Studio GUI and paste the secret into the login page
 open http://localhost:4200
 ```
 
@@ -271,6 +284,8 @@ anywhere:
 | **sa-blobstore** | Distributed blob storage for large tokens, artifacts, and knowledge content | 8090 |
 | **agentic-net-tools/** | Tool containers agents start on demand (crawler, echo, reddit, rss, search, secured-api) | dynamic |
 
+Docker tools are published as `alexejsailer/agenticos-tool-*:<version>` and mirrored into the bundled local registry (`localhost:5001`) by `agenticos-tool-seeder`. Master only runs images matching the local allowlist, normally `localhost:5001/agenticos-*`.
+
 ### Closed-source services (Docker Hub)
 
 | Image | Purpose | Port |
@@ -312,7 +327,8 @@ agentic-nets/
 │   ├── .env.template             # Environment config template
 │   ├── dockerfiles/              # Build files for open-source services
 │   └── scripts/
-│       └── build-and-push.sh     # Build & push open-source images
+│       ├── build-and-push.sh     # Build & push open-source images
+│       └── seed-tool-registry.sh # Mirror/build Docker tools into local registry
 │
 └── monitoring/
     ├── config/                   # OTel, Prometheus, Tempo configs

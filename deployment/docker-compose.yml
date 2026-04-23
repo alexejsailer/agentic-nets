@@ -183,12 +183,38 @@ services:
       timeout: 5s
       retries: 3
 
+  agenticos-tool-seeder:
+    image: ${DOCKER_CLI_IMAGE:-docker:28-cli}
+    profiles: ["tools"]
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-tool-seeder
+    depends_on:
+      agenticnetos-registry:
+        condition: service_healthy
+    environment:
+      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.1.8}
+      AGENTICNETOS_REGISTRY_PORT: ${AGENTICNETOS_REGISTRY_PORT:-5001}
+      AGENTICOS_TOOL_REGISTRY_HOST: ${AGENTICOS_TOOL_REGISTRY_HOST:-localhost:5001}
+      AGENTICOS_TOOL_SOURCE_REGISTRY: ${AGENTICOS_TOOL_SOURCE_REGISTRY:-docker.io/alexejsailer}
+      AGENTICOS_TOOL_SEED_TAG: ${AGENTICOS_TOOL_SEED_TAG:-}
+      AGENTICOS_TOOL_SEED_FALLBACK_TAG: ${AGENTICOS_TOOL_SEED_FALLBACK_TAG:-latest}
+      AGENTICOS_TOOL_SEED_MODE: ${AGENTICOS_TOOL_SEED_MODE:-mirror}
+      AGENTICOS_TOOL_SOURCE_DIR: /agentic-net-tools
+      AGENTICOS_TOOL_SEED_IMAGES: ${AGENTICOS_TOOL_SEED_IMAGES:-agenticos-tool-echo agenticos-tool-crawler agenticos-tool-rss agenticos-tool-search agenticos-tool-reddit agenticos-tool-secured-api}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./scripts/seed-tool-registry.sh:/usr/local/bin/seed-tool-registry.sh:ro
+      - ../agentic-net-tools:/agentic-net-tools:ro
+    entrypoint: ["/bin/sh", "/usr/local/bin/seed-tool-registry.sh"]
+    networks:
+      - agenticnetos-backend
+    restart: "no"
+
   # ===========================================================================
   # CORE BACKEND SERVICES
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-node
     depends_on:
       init-perms:
@@ -198,6 +224,7 @@ services:
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
       AGENTICOS_SNAPSHOT_STORE_FILESYSTEM_DIRECTORY: /app/data/snapshots
+      AGENTICOS_PERSISTENCE_RECOVERY_MODELSBASEPATH: /app/data/models
       AGENTICOS_PERSISTENCE_RECOVERY_EVENTBASEPATH: /app/data/events
       AGENTICOS_PERSISTENCE_RECOVERY_SNAPSHOTBASEPATH: /app/data/snapshots
       LOG_PATH: /app/logs
@@ -230,7 +257,7 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master
     depends_on:
       init-perms:
@@ -297,7 +324,7 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
     depends_on:
       init-perms:
@@ -391,7 +418,7 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-vault
     depends_on:
       init-perms:
@@ -439,7 +466,7 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gateway
     depends_on:
       init-perms:
@@ -492,7 +519,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gui
     depends_on:
       init-perms:
@@ -526,7 +553,7 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-cli
     depends_on:
       init-perms:
@@ -555,7 +582,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-chat
     profiles:
       - telegram
@@ -606,7 +633,7 @@ services:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.1.3}
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.1.8}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-blobstore
     depends_on:
       init-perms:
