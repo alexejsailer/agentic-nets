@@ -164,6 +164,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      BLOBSTORE_BASE_URL: http://sa-blobstore:8080
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
