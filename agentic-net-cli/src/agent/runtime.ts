@@ -13,8 +13,8 @@ export interface AgentEvent {
   messages?: LlmMessage[];
 }
 
-const MAX_ITERATIONS = 50;
-const MAX_TOOL_CALLS = 35;
+const MAX_ITERATIONS = 100;
+const MAX_TOOL_CALLS = 100;
 const MAX_THINK_CALLS = 6;
 const MAX_CONSECUTIVE_SAME_TOOL_CALLS = 3;
 

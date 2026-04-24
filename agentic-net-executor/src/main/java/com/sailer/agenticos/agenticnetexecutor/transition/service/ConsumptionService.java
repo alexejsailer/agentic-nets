@@ -40,49 +40,7 @@ public class ConsumptionService {
             }
         }
 
-        // Convert TokenBindings to TokenReference DTOs for master
-        logger.info("🔍 CONSUMPTION: Processing {} tokens for deletion from model '{}'", tokens.size(), modelId);
-        List<MasterPollingService.TokenReference> tokenReferences = new ArrayList<>();
-        for (ArcQueryResult.TokenBinding token : tokens) {
-            logger.debug("🔍 CONSUMPTION: Examining token id={}, name={}", token.id(), token.name());
-            logger.debug("🔍 CONSUMPTION: Token data present: {}, has _parentPlace: {}",
-                        token.data() != null,
-                        token.data() != null && token.data().has("_parentPlace"));
-
-            // ✅ FIX #4: Extract parent place from token properties (enriched by master during token binding)
-            // Master adds "_parentPlace" field during bindTokensForPresets() in TransitionOrchestrationService
-            // This gets stored in _meta.properties and extracted to token.properties() in TokenBinding
-            String parentPlace = null;
-            if (token.properties() != null && token.properties().containsKey("_parentPlace")) {
-                parentPlace = token.properties().get("_parentPlace");
-                logger.info("✅ CONSUMPTION: Extracted _parentPlace='{}' from token.properties() for id={}", parentPlace, token.id());
-            } else {
-                logger.warn("⚠️ CONSUMPTION: No _parentPlace in token.properties() for token id={}", token.id());
-                if (token.properties() != null) {
-                    logger.debug("🔍 CONSUMPTION: Available property keys: {}", token.properties().keySet());
-                }
-            }
-
-            // Use extracted parent place or fall back to token.parentId()
-            String effectiveParentId = (parentPlace != null && !parentPlace.isBlank())
-                    ? parentPlace
-                    : token.parentId();
-
-            if (effectiveParentId == null || effectiveParentId.isBlank()) {
-                logger.error("❌ CONSUMPTION: Token {} has no parent place information - cannot delete without knowing parent location", token.id());
-            } else {
-                logger.info("✅ CONSUMPTION: Using effectiveParentId='{}' for token id={}", effectiveParentId, token.id());
-            }
-
-            MasterPollingService.TokenReference ref = new MasterPollingService.TokenReference(
-                    token.id(),
-                    effectiveParentId,  // ✅ Use extracted _parentPlace
-                    token.name()
-            );
-            tokenReferences.add(ref);
-            logger.info("📝 CONSUMPTION: Prepared TokenReference(id={}, parentId={}, name={})",
-                        token.id(), effectiveParentId, token.name());
-        }
+        List<MasterPollingService.TokenReference> tokenReferences = toTokenReferences(tokens, "CONSUMPTION");
 
         // Delegate to master to delete tokens from agentic-net-node
         logger.info("🗑️ Consuming {} tokens from model '{}' via master", tokenReferences.size(), modelId);
@@ -93,5 +51,66 @@ public class ConsumptionService {
             logger.error("❌ Failed to consume tokens via master: {}", ex.getMessage(), ex);
             throw new IllegalStateException("Token consumption via master failed", ex);
         }
+    }
+
+    public void release(String host,
+                        String modelId,
+                        List<ArcQueryResult.TokenBinding> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return;
+        }
+
+        List<MasterPollingService.TokenReference> tokenReferences = toTokenReferences(tokens, "RELEASE");
+
+        logger.info("🔓 Releasing {} token locks from model '{}' via master", tokenReferences.size(), modelId);
+        try {
+            masterPollingService.releaseTokens(modelId, tokenReferences).block();
+            logger.info("✅ Successfully released {} token locks via master", tokenReferences.size());
+        } catch (Exception ex) {
+            logger.error("❌ Failed to release token locks via master: {}", ex.getMessage(), ex);
+            throw new IllegalStateException("Token lock release via master failed", ex);
+        }
+    }
+
+    private List<MasterPollingService.TokenReference> toTokenReferences(List<ArcQueryResult.TokenBinding> tokens,
+                                                                        String operationName) {
+        logger.info("🔍 {}: Processing {} tokens", operationName, tokens.size());
+        List<MasterPollingService.TokenReference> tokenReferences = new ArrayList<>();
+        for (ArcQueryResult.TokenBinding token : tokens) {
+            logger.debug("🔍 {}: Examining token id={}, name={}", operationName, token.id(), token.name());
+
+            String parentPlace = null;
+            if (token.properties() != null && token.properties().containsKey("_parentPlace")) {
+                parentPlace = token.properties().get("_parentPlace");
+                logger.info("✅ {}: Extracted _parentPlace='{}' from token.properties() for id={}",
+                        operationName, parentPlace, token.id());
+            } else {
+                logger.warn("⚠️ {}: No _parentPlace in token.properties() for token id={}", operationName, token.id());
+                if (token.properties() != null) {
+                    logger.debug("🔍 {}: Available property keys: {}", operationName, token.properties().keySet());
+                }
+            }
+
+            String effectiveParentId = (parentPlace != null && !parentPlace.isBlank())
+                    ? parentPlace
+                    : token.parentId();
+
+            if (effectiveParentId == null || effectiveParentId.isBlank()) {
+                logger.error("❌ {}: Token {} has no parent place information", operationName, token.id());
+            } else {
+                logger.info("✅ {}: Using effectiveParentId='{}' for token id={}",
+                        operationName, effectiveParentId, token.id());
+            }
+
+            MasterPollingService.TokenReference ref = new MasterPollingService.TokenReference(
+                    token.id(),
+                    effectiveParentId,
+                    token.name()
+            );
+            tokenReferences.add(ref);
+            logger.info("📝 {}: Prepared TokenReference(id={}, parentId={}, name={})",
+                    operationName, token.id(), effectiveParentId, token.name());
+        }
+        return tokenReferences;
     }
 }

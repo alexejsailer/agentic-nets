@@ -4,6 +4,10 @@
 > incomplete features, and breaking changes. No warranty. See
 > [LICENSE.md](LICENSE.md) and [PROPRIETARY-EULA.md](PROPRIETARY-EULA.md).
 
+[![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
+
+Watch the product preview on YouTube: [agentic-nets preview](https://www.youtube.com/watch?v=orI-u5YT7Go)
+
 ## What's open source, what's closed source, and who can use it
 
 Agentic-Nets ships as a **hybrid stack** — mixed open-source services and closed-source Docker Hub images. Read this before deploying.

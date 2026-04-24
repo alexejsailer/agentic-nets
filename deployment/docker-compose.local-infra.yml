@@ -1,0 +1,190 @@
+# Agentic-Nets — Local Dev Infrastructure Only
+#
+# Brings up only the services the native (Maven/npm) stack on the dev Mac
+# needs to talk to:
+#   - monitoring: tempo, otel-collector, prometheus, grafana
+#   - secrets backend: openbao (port 8200 published so the native vault wrapper can reach it)
+#   - tool registry: agenticnetos-registry
+#
+# Core services (node, master, gateway, executor, blobstore, vault wrapper, gui)
+# run NATIVELY on the Mac — not in this compose. See ../../local-dev-run.md.
+#
+# Usage:
+#   cd agentic-nets/deployment
+#   docker compose -f docker-compose.local-infra.yml -p agenticnetos up -d
+#   docker compose -f docker-compose.local-infra.yml -p agenticnetos down
+#
+# Uses project name "agenticnetos" so existing named volumes
+# (agenticnetos_grafana-data, agenticnetos_prometheus-data, etc.) and
+# the agenticnetos-backend network are reused — Grafana dashboards,
+# Prometheus history, and OpenBao dev secrets survive.
+
+name: ${COMPOSE_PROJECT_NAME:-agenticnetos}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+volumes:
+  tempo-data:
+  prometheus-data:
+  grafana-data:
+  registry-data:
+  openbao-data:
+
+networks:
+  agenticnetos-backend:
+    name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-backend
+    driver: bridge
+
+services:
+
+  # ===========================================================================
+  # MONITORING STACK
+  # ===========================================================================
+
+  tempo:
+    image: ${TEMPO_IMAGE:-grafana/tempo:2.10.4}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${TEMPO_PORT:-3200}:3200"
+    volumes:
+      - tempo-data:/var/tempo
+      - ../monitoring/config/tempo.yaml:/etc/tempo.yaml:ro
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      disable: true
+
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.135.0}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_GRPC_PORT:-4317}:4317"
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OTEL_COLLECTOR_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ../monitoring/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      disable: true
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.11.2}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yaml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ../monitoring/config/prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+    extra_hosts:
+      # Native services on the Mac are reachable from inside the container
+      # as host.docker.internal — the prometheus scrape targets use this name.
+      - "host.docker.internal:host-gateway"
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.0.1}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3000}
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../monitoring/grafana-provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../monitoring/grafana-provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
+  # TOOL REGISTRY
+  # ===========================================================================
+
+  agenticnetos-registry:
+    image: registry:2
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-registry
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTICNETOS_REGISTRY_PORT:-5001}:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5000/v2/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ===========================================================================
+  # SECRETS BACKEND (open-source OpenBao — native vault wrapper connects to 8200)
+  # ===========================================================================
+
+  openbao:
+    image: quay.io/openbao/openbao:2.1.0
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-openbao
+    command: ["server", "-dev", "-dev-root-token-id=${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}"]
+    environment:
+      BAO_ADDR: "http://0.0.0.0:8200"
+    ports:
+      # Published so the native agentic-net-vault wrapper on the Mac
+      # can reach it at http://localhost:8200.
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${OPENBAO_PORT:-8200}:8200"
+    volumes:
+      - openbao-data:/openbao/data
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s

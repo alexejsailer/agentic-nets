@@ -33,6 +33,8 @@ export function registerConfigCommand(program: Command): void {
           client_id: 'agenticos-admin',
           default_provider: provider,
           default_role: role,
+          max_iterations: 100,
+          max_tool_calls: 100,
           anthropic: { api_key: '${ANTHROPIC_API_KEY}', model: 'claude-sonnet-4-5-20250929' },
           ollama: { base_url: 'http://localhost:11434', model: 'llama3.2' },
           claude_code: { binary: 'claude', model: 'sonnet' },
@@ -72,6 +74,8 @@ export function registerConfigCommand(program: Command): void {
           ['session_id', profile.session_id || '(not set)'],
           ['default_provider', profile.default_provider],
           ['default_role', profile.default_role],
+          ['max_iterations', String(profile.max_iterations ?? '(default)')],
+          ['max_tool_calls', String(profile.max_tool_calls ?? '(default)')],
           ['client_id', profile.client_id],
         ],
       );

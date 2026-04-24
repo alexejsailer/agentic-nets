@@ -12,8 +12,6 @@ import {
 } from '../render/output.js';
 
 const ASK_LOOP_LIMITS = {
-  maxIterations: 30,
-  maxToolCalls: 24,
   maxThinkCalls: 3,
   maxConsecutiveSameToolCalls: 2,
 };
@@ -60,6 +58,11 @@ export function registerAskCommand(program: Command, getContext: () => { client:
       const toolExecutor = new ToolExecutor(client, modelId, sessionId, undefined, llm);
       const systemPrompt = buildSystemPrompt({ role, modelId, sessionId, task: userMessage });
       const toolSchemas = getToolSchemas(role);
+      const loopLimits = {
+        ...ASK_LOOP_LIMITS,
+        maxIterations: profile.max_iterations,
+        maxToolCalls: profile.max_tool_calls,
+      };
 
       const results: any[] = [];
       let finalText = '';
@@ -73,7 +76,7 @@ export function registerAskCommand(program: Command, getContext: () => { client:
           userMessage,
           toolSchemas,
           undefined,
-          ASK_LOOP_LIMITS,
+          loopLimits,
         )) {
           switch (event.type) {
             case 'text':

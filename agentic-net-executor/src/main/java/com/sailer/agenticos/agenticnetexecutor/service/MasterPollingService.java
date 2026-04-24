@@ -530,6 +530,24 @@ public class MasterPollingService {
                 .onErrorResume(err -> Mono.empty());
     }
 
+    public Mono<Void> releaseTokens(String modelId, List<TokenReference> tokens) {
+        logger.info("🔓 Releasing {} token locks via upstream for model {}", tokens.size(), modelId);
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("modelId", modelId);
+        request.put("tokens", tokens);
+
+        return webClient.post()
+                .uri("/api/transitions/tokens/release")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(Void.class)
+                .timeout(Duration.ofSeconds(10))
+                .doOnSuccess(v -> logger.info("✅ Token locks released successfully"))
+                .doOnError(e -> logger.error("Failed to release token locks: {}", e.getMessage()))
+                .onErrorResume(err -> Mono.empty());
+    }
+
     // -------------------------------------------------------------------------
     // DTOs
     // -------------------------------------------------------------------------

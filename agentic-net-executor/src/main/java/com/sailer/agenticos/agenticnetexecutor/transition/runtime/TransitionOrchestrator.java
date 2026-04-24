@@ -2,6 +2,7 @@ package com.sailer.agenticos.agenticnetexecutor.transition.runtime;
 
 import com.sailer.agenticos.agenticnetexecutor.transition.TransitionDefinition;
 import com.sailer.agenticos.agenticnetexecutor.transition.TransitionInscription;
+import com.sailer.agenticos.agenticnetexecutor.transition.TransitionStatus;
 import com.sailer.agenticos.agenticnetexecutor.transition.TransitionStore;
 import com.sailer.agenticos.agenticnetexecutor.transition.dto.ArcQueryResult;
 import com.sailer.agenticos.agenticnetexecutor.transition.service.ConsumptionService;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +70,13 @@ public class TransitionOrchestrator {
             logger.warn("Skipping execution for non-command transition {}:{}. Executor only runs command actions.", modelId, transitionId);
             return;
         }
+        // Pre-submit stop guard: if STOP arrived (locally marked the transition STOPPED)
+        // before or alongside this FIRE, don't start the work.
+        if (!isRunnable(definition.status())) {
+            logger.info("⏹️ Skipping FIRE for transition {}:{} — local status is {} (stop requested before submit)",
+                    modelId, transitionId, definition.status());
+            return;
+        }
         String flightKey = modelId + ":" + transitionId;
         if (!inFlight.add(flightKey)) {
             logger.debug("Transition {}:{} already in flight, skipping bound token execution", modelId, transitionId);
@@ -75,11 +84,33 @@ public class TransitionOrchestrator {
         }
         executor.submit(() -> {
             try {
-                runSingleWithBoundTokens(definition, boundTokens);
+                // Post-submit stop guard: re-check inside the virtual thread in case STOP
+                // landed between submit() and thread start, or while queued.
+                var latest = transitionStore.get(modelId, transitionId);
+                if (latest.isEmpty()) {
+                    logger.info("⏹️ Skipping FIRE for transition {}:{} — definition was removed after submit",
+                            modelId, transitionId);
+                    return;
+                }
+                TransitionStatus latestStatus = latest.get().status();
+                if (!isRunnable(latestStatus)) {
+                    logger.info("⏹️ Skipping FIRE for transition {}:{} inside worker — local status is {} (stop requested after submit)",
+                            modelId, transitionId, latestStatus);
+                    return;
+                }
+                runSingleWithBoundTokens(latest.get(), boundTokens);
             } finally {
                 inFlight.remove(flightKey);
             }
         });
+    }
+
+    /**
+     * Whether the local status permits executing a FIRE. Matches the master-side
+     * gate in ExecutorPollingController (running/starting allowed).
+     */
+    private static boolean isRunnable(TransitionStatus status) {
+        return status == TransitionStatus.RUNNING || status == TransitionStatus.STARTING;
     }
 
     /**
@@ -111,6 +142,7 @@ public class TransitionOrchestrator {
                                                   Map<String, Object> credentialsOverride) {
         logger.info("🎯 Executing transition {} with bound tokens from master", definition.transitionId());
         Timer.Sample sample = Timer.start(meterRegistry);
+        List<ReservedToken> reservedTokens = new ArrayList<>();
 
         try {
             // Convert bound tokens to TokenBinding format
@@ -130,6 +162,7 @@ public class TransitionOrchestrator {
                 selectedBindings.put(presetName, binding);
                 logger.debug("  Preset '{}' → token: {}", presetName, binding.id());
             }
+            reservedTokens = collectReservedTokens(definition, selectedBindings);
 
             // Execute action with bound tokens
             Map<String, Object> attributes = new HashMap<>();
@@ -146,12 +179,24 @@ public class TransitionOrchestrator {
                        definition.transitionId(), selectedBindings.size());
             ActionResult result = actionExecutor.execute(definition, selectedBindings, context);
 
+            if (shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
+                releaseReservedTokensViaMaster(definition.transitionId(), reservedTokens);
+                logger.info("⏹️ Skipping post-action side effects for transition {}:{} because local status is no longer runnable",
+                        definition.modelId(), definition.transitionId());
+                return result;
+            }
+
             // Emit to postsets (delegates to master)
             emissionService.emit(definition, result);
 
-            // Consume tokens from presets if needed (delegates to master)
-            // Always consume even on failure - otherwise failed tokens stay in queue forever
+            // Finalize reserved preset tokens via master.
             performConsumptionViaMaster(definition, selectedBindings);
+
+            if (shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
+                logger.info("⏹️ Transition {}:{} became non-runnable during finalization — skipping local bookkeeping",
+                        definition.modelId(), definition.transitionId());
+                return result;
+            }
 
             if (!result.success()) {
                 logger.warn("⚠️ Transition {}:{} action had failures but tokens were emitted and consumed",
@@ -168,6 +213,13 @@ public class TransitionOrchestrator {
                     definition.modelId(), definition.transitionId(), result.success());
             return result;
         } catch (Exception e) {
+            if (shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
+                releaseReservedTokensViaMaster(definition.transitionId(), reservedTokens);
+                logger.info("⏹️ Transition {}:{} stopped during command execution — preserving stop and releasing reservations",
+                        definition.modelId(), definition.transitionId());
+                sample.stop(meterRegistry.timer("transition.fire.duration", "transitionId", definition.transitionId()));
+                return ActionResult.failure(Map.of(), Map.of("error", e.getMessage()));
+            }
             logger.error("Transition {}:{} failed: {}", definition.modelId(), definition.transitionId(), e.getMessage(), e);
             transitionStore.recordError(definition.modelId(), definition.transitionId(), e.getMessage());
             meterRegistry.counter("transition.fire.failure", "transitionId", definition.transitionId()).increment();
@@ -412,7 +464,8 @@ public class TransitionOrchestrator {
     }
 
     /**
-     * Consume tokens via master (not direct to agentic-net-node)
+     * Finalize reserved preset tokens via master:
+     * consume when consume=true, otherwise just release the reservation lock.
      */
     private void performConsumptionViaMaster(TransitionDefinition definition,
                                             Map<String, ArcQueryResult.TokenBinding> bindings) {
@@ -447,9 +500,64 @@ public class TransitionOrchestrator {
                 // Delegate consumption to master
                 consumptionService.consume(host, modelId, List.of(binding));
             } else {
-                logger.debug("Preset '{}' has consume=false, skipping token deletion", presetName);
+                logger.debug("Preset '{}' has consume=false, releasing token lock via master", presetName);
+                String host = preset.host();
+                String modelId = HostUtil.extractModelId(host);
+                if (modelId == null || modelId.isBlank()) {
+                    throw new IllegalStateException("Cannot extract modelId from host: " + host);
+                }
+                consumptionService.release(host, modelId, List.of(binding));
             }
         }
+    }
+
+    private List<ReservedToken> collectReservedTokens(TransitionDefinition definition,
+                                                      Map<String, ArcQueryResult.TokenBinding> bindings) {
+        List<ReservedToken> reservedTokens = new ArrayList<>();
+        var inscription = definition.inscription();
+
+        for (Map.Entry<String, ArcQueryResult.TokenBinding> entry : bindings.entrySet()) {
+            String presetName = entry.getKey();
+            TransitionInscription.Preset preset = inscription.presets().get(presetName);
+            if (preset == null) {
+                logger.warn("Preset {} not found in inscription, skipping reservation tracking", presetName);
+                continue;
+            }
+
+            String host = preset.host();
+            String modelId = HostUtil.extractModelId(host);
+            if (modelId == null || modelId.isBlank()) {
+                modelId = definition.modelId();
+            }
+
+            reservedTokens.add(new ReservedToken(host, modelId, entry.getValue(), preset));
+        }
+
+        return reservedTokens;
+    }
+
+    private void releaseReservedTokensViaMaster(String transitionId, List<ReservedToken> reservedTokens) {
+        if (reservedTokens == null || reservedTokens.isEmpty()) {
+            return;
+        }
+
+        for (ReservedToken reservedToken : reservedTokens) {
+            logger.info("🔓 Releasing reserved token for transition {} via master (preset host={})",
+                    transitionId, reservedToken.host());
+            consumptionService.release(
+                    reservedToken.host(),
+                    reservedToken.modelId(),
+                    List.of(reservedToken.binding())
+            );
+        }
+    }
+
+    private boolean shouldAbortAfterAction(String modelId, String transitionId) {
+        var latest = transitionStore.get(modelId, transitionId);
+        if (latest.isEmpty()) {
+            return true;
+        }
+        return !isRunnable(latest.get().status());
     }
 
     @PreDestroy

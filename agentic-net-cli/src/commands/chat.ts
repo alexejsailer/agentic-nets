@@ -21,8 +21,6 @@ const CHARS_PER_TOKEN = 4;
 const AUTO_COMPACT_TOKENS = 30_000;
 const AUTO_COMPACT_CHARS = AUTO_COMPACT_TOKENS * CHARS_PER_TOKEN;
 const CHAT_LOOP_LIMITS = {
-  maxIterations: 40,
-  maxToolCalls: 30,
   maxThinkCalls: 4,
   maxConsecutiveSameToolCalls: 2,
 };
@@ -57,6 +55,11 @@ export function registerChatCommand(program: Command, getContext: () => { client
       const toolExecutor = new ToolExecutor(client, modelId, sessionId, helperLlm, llm);
       const systemPrompt = buildSystemPrompt({ role, modelId, sessionId });
       const toolSchemas = getToolSchemas(role);
+      const loopLimits = {
+        ...CHAT_LOOP_LIMITS,
+        maxIterations: profile.max_iterations,
+        maxToolCalls: profile.max_tool_calls,
+      };
 
       // Wire sub-agent progress reporting
       toolExecutor.onProgress = (event) => {
@@ -340,7 +343,7 @@ Paste multi-line text — it will be buffered and sent as one message.
             input,
             toolSchemas,
             history,
-            CHAT_LOOP_LIMITS,
+            loopLimits,
           )) {
             switch (event.type) {
               case 'text':

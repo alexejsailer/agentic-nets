@@ -13,6 +13,8 @@ export interface ProfileConfig {
   default_provider: string;
   default_role: string;
   default_tier?: ModelTier;
+  max_iterations?: number;
+  max_tool_calls?: number;
   anthropic?: {
     api_key?: string;
     model?: string;
@@ -70,6 +72,8 @@ const DEFAULT_PROFILE: ProfileConfig = {
   default_provider: 'claude',
   default_role: 'rw',
   default_tier: 'medium',
+  max_iterations: 100,
+  max_tool_calls: 100,
   anthropic: {
     api_key: '${ANTHROPIC_API_KEY}',
     model: 'claude-sonnet-4-5-20250929',
@@ -199,6 +203,24 @@ export function resolveValue(value: string | undefined, envVar?: string): string
   return value;
 }
 
+function parsePositiveInteger(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+function resolvePositiveInteger(value: unknown, envVar?: string): number | undefined {
+  const envValue = envVar ? parsePositiveInteger(process.env[envVar]) : undefined;
+  return envValue ?? parsePositiveInteger(value);
+}
+
 /** Resolve all env-var overrides for the active profile. */
 export function resolveProfile(profile: ProfileConfig): ProfileConfig {
   return {
@@ -208,6 +230,8 @@ export function resolveProfile(profile: ProfileConfig): ProfileConfig {
     session_id: process.env['AGENTICOS_SESSION'] ?? profile.session_id,
     default_provider: process.env['AGENTICOS_PROVIDER'] ?? profile.default_provider,
     default_tier: (process.env['AGENTICOS_MODEL_TIER'] as ModelTier) ?? profile.default_tier,
+    max_iterations: resolvePositiveInteger(profile.max_iterations, 'AGENTICOS_MAX_ITERATIONS'),
+    max_tool_calls: resolvePositiveInteger(profile.max_tool_calls, 'AGENTICOS_MAX_TOOL_CALLS'),
     anthropic: {
       api_key: resolveValue(profile.anthropic?.api_key, 'ANTHROPIC_API_KEY'),
       model: profile.anthropic?.model,
