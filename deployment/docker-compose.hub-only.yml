@@ -55,7 +55,7 @@ services:
   init-perms:
     image: alpine:3.20
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-init-perms
-    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && addgroup -S agenticnet && adduser -S -G agenticnet agenticnet && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
+    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && (getent group agenticnet >/dev/null || addgroup -S agenticnet) && (getent passwd agenticnet >/dev/null || adduser -S -G agenticnet agenticnet) && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
     volumes:
       - ./data:/data
       - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/node-data

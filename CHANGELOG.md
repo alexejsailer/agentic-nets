@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-04-24
+
+### Added
+- **Seeded knowledge catalog** (master). On startup, `agentic-net-master`
+  writes 37 system-knowledge blobs (transition-language docs, ArcQL
+  parser/executor/syntax-checker source, inscription validator, emit-rule
+  checker, designtime/runtime/deployment source, Docker tool runtime docs,
+  6 real inscription examples) to `sa-blobstore` under stable
+  `knowledge-seed/...` blob IDs. `SEARCH_KNOWLEDGE` now merges these
+  seeded hits with any model-owned knowledge tokens, so the builder
+  persona can answer "show me an HTTP transition example" or "what fields
+  does the inscription validator require" without a pre-populated user
+  model. `READ_BLOB_TEXT` retries via seed-on-demand if the blob is
+  missing at fetch time. Configurable via `AGENTICOS_KNOWLEDGE_CATALOG_ENABLED`
+  and `AGENTICOS_KNOWLEDGE_SEED_BLOBS_ENABLED` (both default `true`).
+- **Docker tool registry seeder** (`deployment/scripts/seed-tool-registry.sh`).
+  One-shot `docker compose --profile tools run agenticos-tool-seeder`
+  mirrors the approved `agenticos-tool-*` images from Docker Hub into
+  the bundled local OCI registry on `localhost:5001`. Agents are
+  allowlisted to run only `localhost:5001/agenticos-*`, so this is the
+  supported path to introduce new tool images without loosening the
+  allowlist. `AGENTICOS_TOOL_SEED_MODE=build` builds from
+  `../agentic-net-tools/` for contributor workflows.
+
+### Fixed
+- **Master → BlobStore connectivity.** `BlobStoreClient` default base URL
+  was `http://localhost:8090`, which inside the master container resolves
+  to master itself, not to `sa-blobstore`. Added
+  `BLOBSTORE_BASE_URL=http://sa-blobstore:8080` to the master service in
+  all three compose files. Without this, the new knowledge-catalog
+  seeding failed with connection-refused errors and `READ_BLOB_TEXT`
+  traffic went nowhere.
+- **Knowledge-catalog seeding retry window.** BlobStore takes ~30 s to
+  become ready after master starts; the initial 3-attempt / 12 s retry
+  window was too short and all attempts failed before BlobStore accepted
+  connections. Raised to 10 attempts with a 10 s per-attempt backoff
+  cap (~90 s total).
+- **`init-perms` idempotency.** The one-shot init container's
+  `addgroup -S agenticnet && adduser -S -G agenticnet agenticnet` failed
+  on repeat `docker compose up` runs with `addgroup: group 'agenticnet'
+  in use` when docker re-executed the stopped container. Replaced with
+  `getent`-guarded variants so the step is safe to re-run against
+  pre-existing group/user entries.
+
+### Changed
+- **`ollama signin` (canonical) replaces `ollama login` in all docs.**
+  `ollama login` is a legacy alias. Added a full walk-through for
+  authenticating the bundled Ollama container against `ollama.com` after
+  `docker compose up`, an `ssh -t` tip for remote shells, and a
+  manual fallback via <https://ollama.com/settings/keys> for
+  environments where the `/connect` endpoint rejects the URL format.
+- **`.env.template` CORS checklist moved to the top of the file** so
+  first-time operators putting the Studio behind a public domain see the
+  requirement to add their origin to `GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS`
+  and `AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS` before they hit the
+  browser-side `HTTP 403 Invalid CORS request` on login.
+- **Builder-persona prompts tightened**: new `FOCUSED NET TARGET` rule
+  (use the focused netId instead of creating a parallel net),
+  `DOCKER TOOL KNOWLEDGE` rule (search the seeded docker-tool-runtime
+  blob before designing a tool branch), `AGILE TEAM REFERENCE` rule
+  (reuse the seeded agile-team inscription bundle for multi-role
+  software-delivery workflows), and a hard `CREATE_NET` guard that
+  rejects the tool call when the context carries a `focusedNetId` and
+  the user did not explicitly ask for a separate net.
+- **Dashboard**: new "Agentic-Nets Studio" promo card surfacing the
+  visual-builder entry point from the landing page.
+
+## [2.1.9] - 2026-04-23
+
+### Summary
+Foundational release for the seeded knowledge catalog and tool-registry
+seeder. Superseded by 2.1.10, which adds the BlobStore wiring fix,
+`init-perms` idempotency, and the `ollama signin` documentation that
+makes the default cloud LLM profile work end-to-end out of the box.
+**Use 2.1.10.**
+
 ## [2.1.8] - 2026-04-22
 
 ### Fixed
