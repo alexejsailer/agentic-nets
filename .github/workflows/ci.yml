@@ -35,7 +35,7 @@ jobs:
         run: cd ${{ matrix.service }} && ./mvnw clean package -DskipTests -B
 
       - name: Upload JAR
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.service }}-jar
           path: ${{ matrix.service }}/target/*.jar
@@ -63,14 +63,14 @@ jobs:
         run: cd agentic-net-chat && npm install && npx tsup
 
       - name: Upload CLI dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli-dist
           path: agentic-net-cli/dist/
           retention-days: 1
 
       - name: Upload Chat dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chat-dist
           path: agentic-net-chat/dist/
