@@ -15,7 +15,7 @@
     "sync-tools": "node --experimental-strip-types --no-warnings scripts/sync-tool-schemas.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@anthropic-ai/sdk": "^0.91.0",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
