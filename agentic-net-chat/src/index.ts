@@ -17,15 +17,18 @@ export async function startChatBridge(): Promise<void> {
   const chatConfig = loadChatConfig();
 
   if (!chatConfig.telegram?.bot_token) {
-    console.error(
-      'No Telegram bot token configured.\n\n' +
+    console.log(
+      'Telegram bot not configured — idling.\n\n' +
       'Set TELEGRAM_BOT_TOKEN environment variable, or add to ~/.agenticos/config.yaml:\n\n' +
       '  chat:\n' +
       '    telegram:\n' +
       '      bot_token: ${TELEGRAM_BOT_TOKEN}\n' +
-      '      allowed_user_ids: ["YOUR_USER_ID"]\n',
+      '      allowed_user_ids: ["YOUR_USER_ID"]\n\n' +
+      'Container will stay alive so the operator can fix the config and restart, ' +
+      'instead of restart-looping under "restart: unless-stopped".',
     );
-    process.exit(1);
+    await new Promise<void>(() => { /* idle forever */ });
+    return;
   }
 
   const tgConfig = chatConfig.telegram;

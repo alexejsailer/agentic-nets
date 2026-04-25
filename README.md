@@ -1,12 +1,97 @@
 # Agentic-Nets
 
-> **BETA — USE AT YOUR OWN RISK.** In active development; may contain bugs,
-> incomplete features, and breaking changes. No warranty. See
-> [LICENSE.md](LICENSE.md) and [PROPRIETARY-EULA.md](PROPRIETARY-EULA.md).
+<img src=".github/images/agentic-nets-icon.svg" alt="Agentic-Nets icon" width="56" />
+
+**Governed multi-agent runtime. Your agents stop running naked.**
+
+Agentic-Nets is a runtime where agents live inside formal Petri nets and use
+those nets as context. A net defines what an agent can see, what it can do,
+where outputs go, and how it communicates with other nets. One net can model a
+single guarded agent or several agents working together inside the same net.
+Multiple nets can model a development pipeline, a virtual agile team, or an
+entire product operating system. The same approach is not tied to software
+alone: you can model any domain, process, or industry with nets as long as
+structure, communication, coordination, and verification matter.
 
 [![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
 
 Watch the product preview on YouTube: [agentic-nets preview](https://www.youtube.com/watch?v=orI-u5YT7Go)
+
+If prompt-based agents feel powerful but structurally weak, this is the missing
+layer:
+
+- **Agents live in nets.** Context is structured state, not a fragile chat session.
+- **Nets talk to nets.** Teams, tools, approvals, memory, and pipelines become explicit handoffs.
+- **Everything stays inspectable.** Tokens, tool calls, events, and emissions remain queryable and replayable.
+- **The same model scales up.** Build one guarded developer agent or a whole product runtime with the same primitives.
+
+## What you can model with it
+
+- Virtual developers with explicit permissions, memory, and execution boundaries.
+- Virtual agile teams where planner, builder, reviewer, tester, and releaser agents coordinate through nets.
+- Smart development tools that behave like reusable nets instead of throwaway prompts.
+- Development pipelines that generate code, run checks, gate releases, and keep a durable audit trail.
+- Product-level systems where backlog, QA, docs, incidents, and operations communicate as structured nets.
+- Industry-specific operating models in software, finance, support, operations, research, healthcare, logistics, or any other domain that can be expressed as communicating nets.
+
+## Net of nets
+
+One net can contain one or many agents. Many nets can also work together as a
+larger runtime: one can guard, one can gather, one can synthesize, one can
+execute, and all of them can exchange structured state through explicit flows
+instead of hidden prompt handoffs.
+
+<img src=".github/images/agent-control-overview.png" alt="Agent Control view showing multiple cooperating nets in one runtime, including guardian, source gatherer, and knowledge crystallizer nets" width="100%" />
+
+## Example net
+
+This simple crawler net shows the model in practice: places hold the state,
+`http` fetches, an `agent` transition categorizes content, a `command`
+transition runs remote work through an executor, and `map` plus `pass`
+transitions route results through the graph.
+
+<img src=".github/images/simple-crawler-net.png" alt="Simple crawler net showing URLs flowing through HTTP, agent, command, map, and pass transitions" width="100%" />
+
+## How behavior is modeled
+
+Agentic-Nets uses **seven transition types**: `pass`, `map`, `http`, `llm`,
+`agent`, `command`, and `link`.
+
+- **`agent` transitions are the core runtime primitive.** They can mimic almost any agent behavior or mode, but inside a governed net with explicit inputs, outputs, permissions, and memory boundaries.
+- **`agent` transitions can also adapt the net itself.** If an agent has sufficient rights, it can read tokens in the net, create additional places and transitions, and extend the structure on demand instead of staying confined to a fixed graph.
+- **`command` transitions connect the net to remote execution.** They define which executor can run a command remotely and bring the result back into the net as structured state.
+- **Deterministic and non-deterministic transitions coexist.** Fixed logic can stay fixed, while open-ended reasoning stays open-ended, in the same runtime and on the same graph.
+- **This is what makes the model powerful across domains.** A net can combine several cooperating agents with deterministic control flow, verification, remote execution, and cross-net communication.
+
+## The nine production gaps Agentic-Nets closes
+
+1. **Invisible state.** Every intermediate value is a token in a typed place, queryable with ArcQL while the net runs.
+2. **Vanishing memory.** Memory is structured state. Agents read and write lessons through places and `EMIT_MEMORY`.
+3. **Weak observability.** State is event-sourced. Replay the log, inspect reductions, and ask what existed at decision time.
+4. **No permission model.** Role tiers from `r----` to `rwxhl` gate tools at dispatch, not in the prompt.
+5. **Secrets in the wrong place.** Vault keeps credentials outside tokens and events, scoped per transition and injected only at action time.
+6. **Unsafe execution boundary.** Remote executors poll over egress-only links; command work runs in scoped Docker tool containers.
+7. **Hard to explain why.** Tool calls, results, emissions, and event trails keep provenance attached to the actual work.
+8. **Poor reusability.** Agents are transitions with inscriptions. Export inscriptions or PNML and reuse the net elsewhere.
+9. **No reflexive model.** Builder agents can create nets, places, arcs, transitions, and inscriptions inside the same runtime.
+
+## Why this matters for coding agents
+
+Most coding agents disappear after they ship code. The prompt is gone, the
+checks are ad hoc, and the verification logic is not part of the product.
+
+Agentic-Nets lets an agent do more than implement a feature. It can also create
+the surrounding operating structure: unit tests, integration tests, and even a
+dedicated verification net that stays in the system and can be reused against
+future changes. That turns one-off AI output into durable runtime structure and
+addresses some of the biggest weaknesses of coding agents: weak handoffs,
+fragile memory, and missing long-term verification.
+
+**Full docs and install chapter:** [agentic-nets.com](https://agentic-nets.com) *(see also the [Install chapter in-repo](#-install-in-5-minutes))*.
+
+> **BETA — USE AT YOUR OWN RISK.** In active development; may contain bugs,
+> incomplete features, and breaking changes. No warranty. See
+> [LICENSE.md](LICENSE.md) and [PROPRIETARY-EULA.md](PROPRIETARY-EULA.md).
 
 ## What's open source, what's closed source, and who can use it
 
@@ -21,35 +106,11 @@ Both licenses include a strong **NO WARRANTY / BETA** disclaimer. Nothing here i
 
 ---
 
-**Governed multi-agent runtime. Your agents stop running naked.**
-
-Every agent lives inside a formal Petri net. The net's topology defines
-exactly what that agent can *see*, *do*, and *remember*. Four role-scoped
-autonomy levels (`r---` → `rwxh`). Token-level audit trail on every firing.
-A crystallization path from agent reasoning into deterministic code, on the
-same graph, without redeploy.
-
-**Full docs and install chapter:** [agentic-nets.com](https://agentic-nets.com) *(see also the [Install chapter in-repo](#-install-in-5-minutes))*.
-
----
-
 ## Welcome to Agentic-Nets
 
 **Prompts with tools get you started. Agentic-Nets makes agents operable.**
 
 > "Chat agents are great for exploration. Agentic-Nets are what you use when exploration becomes production work."
-
-### The nine production gaps Agentic-Nets closes
-
-1. **Invisible state.** Every intermediate value is a token in a typed place, queryable with ArcQL while the net runs.
-2. **Vanishing memory.** Memory is structured state. Agents read and write lessons through places and `EMIT_MEMORY`.
-3. **Weak observability.** State is event-sourced. Replay the log, inspect reductions, and ask what existed at decision time.
-4. **No permission model.** Role tiers from `r----` to `rwxhl` gate tools at dispatch, not in the prompt.
-5. **Secrets in the wrong place.** Vault keeps credentials outside tokens and events, scoped per transition and injected only at action time.
-6. **Unsafe execution boundary.** Remote executors poll over egress-only links; command work runs in scoped Docker tool containers.
-7. **Hard to explain why.** Tool calls, results, emissions, and event trails keep provenance attached to the actual work.
-8. **Poor reusability.** Agents are transitions with inscriptions. Export inscriptions or PNML and reuse the net elsewhere.
-9. **No reflexive model.** Builder agents can create nets, places, arcs, transitions, and inscriptions inside the same runtime.
 
 ---
 

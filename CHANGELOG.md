@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-04-25
+
+### Fixed
+- **Chat container restart loop on missing token** (`agentic-net-chat` —
+  `src/index.ts`). When `TELEGRAM_BOT_TOKEN` was empty (the default for
+  fresh installs and any deployment without an explicit token), the process
+  exited with code `1` and Docker's `restart: unless-stopped` policy spun
+  the container in a tight restart loop, polluting `docker logs` and burning
+  CPU. The container now stays alive in an idle state and prints a clear
+  hint so the operator can set the token and restart, without churn.
+
+### Changed
+- **README rewrite** with new positioning ("Governed multi-agent runtime.
+  Your agents stop running naked."), three new sections explaining what
+  nets model in practice ("What you can model with it", "Net of nets",
+  "Example net"), and embedded screenshots illustrating multi-net runtime
+  composition and a sample crawler net. Replaces the previous license-first
+  landing page.
+
+### Added
+- **Repository visual assets** (`.github/images/`): `agentic-nets-icon.svg`
+  (project icon), `agent-control-overview.png` (multi-net runtime view),
+  `simple-crawler-net.png` (example net diagram). Referenced from README.
+
 ## [2.2.0] - 2026-04-25
 
 ### Added
