@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-04-25
+
+### Added
+- **Configurable agent loop limits** (`agentic-net-cli`). `max_iterations` and
+  `max_tool_calls` are now first-class fields in the CLI profile config.
+  Previously hardcoded (ask: 30 iter / 24 tools; chat: 40 iter / 30 tools),
+  they now default to 100/100 and are overrideable per profile or via
+  `AGENTICOS_MAX_ITERATIONS` / `AGENTICOS_MAX_TOOL_CALLS` environment
+  variables. `agentic-net-cli config init` writes these fields into the
+  generated profile. `agentic-net-cli config show` displays current values.
+- **Token lock release on executor abort** (`agentic-net-executor`). A new
+  `POST /api/transitions/tokens/release` call to master is made when the
+  executor aborts a transition mid-flight. This removes the `_lock` reservation
+  property from tokens that were selected but not consumed, preventing them from
+  staying permanently locked after a stop.
+- **Local dev infrastructure compose** (`deployment/docker-compose.local-infra.yml`).
+  New compose file for Mac local development containing only the infrastructure
+  services (Grafana, Prometheus, Tempo, OTel Collector, OpenBao, OCI registry).
+  Native services (node, master, gateway, executor, blobstore, vault, GUI) are
+  expected to run via Maven/npm directly on the host. Replaces the earlier
+  full-stack compose for local workflows.
+- **README product preview video**. YouTube thumbnail and watch link added to
+  the repository landing page.
+
+### Fixed
+- **Executor stop race condition** (`agentic-net-executor` — `TransitionOrchestrator`).
+  Two guard layers now prevent a FIRE from executing when STOP has already
+  arrived: a pre-submit guard checks the local transition status before
+  submitting to the thread pool, and a post-submit guard re-checks inside the
+  worker thread before calling `runSingleWithBoundTokens`. The abort path also
+  calls `releaseTokens` on master to clean up any locks taken during the
+  now-cancelled firing.
+- **ConsumptionService refactored** (`agentic-net-executor`). The
+  `toTokenReferences` helper is now shared between consume and release paths,
+  removing duplicated parentPlace extraction logic and unifying log messages.
+
+### Changed
+- **Prometheus scrape config** updated to reflect the local-infra compose
+  topology (native services scraped via `host.docker.internal:<port>` rather
+  than container names).
+- **sa-blobstore single-node profile** (`application-single.properties`) updated
+  to avoid binding port 8080, which conflicts with agentic-net-node on the
+  same host.
+
 ## [2.1.10] - 2026-04-24
 
 ### Added
