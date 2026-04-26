@@ -2,6 +2,11 @@
 
 All notable changes to the AgenticNets open-source services are documented here.
 
+This file holds only the **current calendar quarter's** releases. Older
+quarters are archived under [`changelogs/`](changelogs/) — see
+[`changelogs/README.md`](changelogs/README.md) for the index. At the end of
+each quarter, the entries below get moved into a new `changelogs/CHANGELOG-YYYY-Qn.md`.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -405,50 +410,9 @@ makes the default cloud LLM profile work end-to-end out of the box.
 - Per-service READMEs for gateway / vault / cli / chat / blobstore.
 - GitHub issue templates: bug + feature.
 
-## [1.19.0] - 2026-03-23
+---
 
-### Added
-- **Persona framework**: Pluggable assistant personas (builder, observer, analyzer, debugger) with role-based tool filtering
-- **OBSERVE_MODEL tool**: Whole-model runtime snapshots for monitoring and debugging
-- **GUI persona selector**: Dropdown in universal assistant editor to switch between personas
-- **Version-pinned compose files**: All image tags use `AGENTICNETOS_VERSION` env var (no more `latest` drift)
-- **Automated version pinning**: Release pipeline now updates compose file versions
-- **CHANGELOG.md**: This file
-
-### Changed
-- Compose files now use `${AGENTICNETOS_VERSION:-1.19.0}` instead of hardcoded `1.2.0` or `latest`
-- `.env.template` includes `AGENTICNETOS_VERSION` variable
-
-## [1.18.0] - 2026-03-20
-
-### Added
-- Dev task nets
-- 5 new CLI tools (DELETE_PLACE, DELETE_ARC, param aliases, path auto-correction)
-
-## [1.15.0] - 2026-03-10
-
-### Changed
-- MasterPollingIntegrationTest updated for configuredModels parameter
-
-## [1.11.0] – [1.14.0]
-
-Rolling improvements across master, executor, and gateway stabilization; detailed history captured in git log.
-
-## [1.9.0] - 2026-02-20
-
-### Added
-- Dry-run transition support
-- Periodic scheduler for transitions
-- Improved agent prompts with deterministic-first guidance
-
-## [1.6.0] - 2026-02-10
-
-### Fixed
-- Bootstrap transitions node on fresh deploy for SET_INSCRIPTION
-- Rollup path traversal vulnerability (GHSA-mw96-cpmx-2vgc)
-- Graceful error handling for LIST_ALL_INSCRIPTIONS, GET_NET_STRUCTURE, NET_DOCTOR
-
-### Changed
-- Default Ollama model switched to kimi-k2.5:cloud
-- Increased chat iteration limits for complex workflows
-- Added AGENTICOS_PROVIDER env var to chat service
+Earlier 2026-Q1 releases (`v1.19.0`, `v1.18.0`, `v1.15.0`, `v1.11.0`–`v1.14.0`,
+`v1.9.0`, `v1.6.0`) are archived in
+[`changelogs/CHANGELOG-2026-Q1.md`](changelogs/CHANGELOG-2026-Q1.md), which
+also covers the pre-release dev history that produced the launch tag `v1.2.0`.

@@ -6,6 +6,15 @@ This is the **public, open-source** part of [AgenticNetOS](https://alexejsailer.
 
 Closed-source core services (node, master, gui) are distributed as pre-built Docker Hub images and governed by `PROPRIETARY-EULA.md`. All source code in this repo is licensed under `LICENSE.md` (BSL 1.1).
 
+## Changelog rotation
+
+`CHANGELOG.md` at the repo root holds **only the current calendar quarter's**
+releases. Older quarters live under [`changelogs/`](changelogs/) — see
+[`changelogs/README.md`](changelogs/README.md) for the rotation rule and
+quarterly archive index. The full convention is documented in the workspace
+root [`../CLAUDE.md`](../CLAUDE.md) under "Release Notes". Do not rename or
+move `CHANGELOG.md` — Jenkins `prepare-release` reads it by exact path.
+
 ## Repository Structure
 
 ```

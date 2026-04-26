@@ -247,6 +247,21 @@ Detailed install, env, verification, and troubleshooting:
 
 ---
 
+## Release Notes
+
+The active [`CHANGELOG.md`](CHANGELOG.md) tracks the **current calendar
+quarter**. Older quarters are archived under
+[`changelogs/`](changelogs/) ([index](changelogs/README.md)).
+
+| Quarter | Highlights |
+|---|---|
+| **Current** | [`CHANGELOG.md`](CHANGELOG.md) |
+| 2026 Q1 | First releases (`v1.6.0` → `v1.19.0`), repo split, `v1.2.0` launch — [archive](changelogs/CHANGELOG-2026-Q1.md) |
+| 2025 Q4 | Pre-release: distributed execution, agent transitions, outbound-only architecture, designtime API — [archive](changelogs/CHANGELOG-2025-Q4.md) |
+| 2025 Q3 | Pre-release: project foundations, multi-model architecture, NL→PNML, GUI editor — [archive](changelogs/CHANGELOG-2025-Q3.md) |
+
+---
+
 ## What makes this different
 
 |  | Prompt-with-tools frameworks | Agentic-Nets |
