@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.2] - 2026-04-30
 
+> The closed-source images shipped with this release (`agentic-net-node`,
+> `agentic-net-master`, `agentic-net-gui` on Docker Hub) carry several
+> bug fixes that are user-visible to anyone running the public compose.
+> They're listed under "Fixed (closed-source images)" below — the
+> source for those services lives in a separate private repo, so the
+> notes describe behavior changes rather than file-level diffs.
+
 ### Added
 - **`FOUNDATIONS.md`** at the repo root — a 13-row 1:1 architectural
   comparison between the author's 2012 KIT/AIFB diploma thesis
@@ -34,6 +41,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CHANGELOG.md` as before. See `changelogs/README.md` for the index;
   the rotation rule itself is documented in `../CLAUDE.md`. No code or
   service behavior is affected.
+
+### Fixed (closed-source images)
+- **Universal Assistant respects model switches** (`agentic-net-gui`).
+  Selecting an open Universal Assistant tab after switching the active
+  canvas to a different model previously kept the assistant bound to
+  the model it was first opened against, so every tool call (including
+  `LIST_ALL_SESSIONS`, `GET_NET_STRUCTURE`, `OBSERVE_MODEL`) ran against
+  the wrong model and returned an unrelated answer. The assistant now
+  follows the live workspace context — switch the canvas, send a
+  message, and the request goes out with the correct `modelId`.
+- **Activate / Deactivate model buttons update the UI immediately**
+  (`agentic-net-gui`, Session panel). The state chip and action button
+  used to keep showing the previous value after a successful
+  Activate/Deactivate request, even though the backend had already
+  transitioned. The chip and button now refresh as soon as the request
+  returns. The bulk action previously labelled "Catalogue All" is now
+  labelled "Unload All" with a clearer tooltip — it unloads loaded
+  models from memory so they become `CATALOGED`.
+- **Tool-net invocations resolve and poll correctly**
+  (`agentic-net-master`, `INVOKE_TOOL_NET`). Two silent failure modes
+  in tool-net invocations are fixed. The per-net manifest leaf is now
+  read by enumerating the net container's children instead of being
+  looked up as an inline property (it isn't one). The result-place
+  poll resolves runtime places under `/root/workspace/places/` to a
+  UUID up front using the full path, so polling no longer returns
+  empty when the result place lives outside `/sessions/`.
+- **Runtime-created models stay visible across unload cycles**
+  (`agentic-net-node`, model catalog). Models created at runtime via
+  the events API or directly through the mediator (without going
+  through disk-scan cataloguing) used to vanish from
+  `GET /api/admin/models` after an unload — they were dropped from
+  the in-memory registry but never written into the catalog as
+  `CATALOGED`. The catalog is now refreshed on list, runtime-created
+  models are explicitly registered on create, and unload promotes
+  them to `CATALOGED` instead of dropping them. They remain visible
+  without needing a node restart.
+- **`POST /api/admin/models/{modelId}/load` no longer wipes loaded
+  state** (`agentic-net-node`). When called against a model already
+  loaded in the registry, the endpoint used to re-invoke
+  `loadFromPersistence`, which in the absence of a snapshot reset the
+  model to version 0 ("No snapshot found, starting with empty state")
+  and discarded everything in memory. The endpoint is now a no-op for
+  already-loaded models — load only runs for cataloged-but-not-loaded
+  models that need to be brought into memory.
 
 ## [2.2.1] - 2026-04-25
 
