@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-04-30
+
+### Added
+- **`FOUNDATIONS.md`** at the repo root — a 13-row 1:1 architectural
+  comparison between the author's 2012 KIT/AIFB diploma thesis
+  ("Konzeption und Realisierung einer Simulationskomponente zur
+  risikobewussten Prozessanalyse") and Agentic-Nets today, covering
+  substrate, data model, query language, persistence, schema
+  enforcement, firing strategies, risk model, and modelling-tool
+  integration. Includes 14 figures from the original thesis under
+  `docs/foundations/` organised into five acts (architecture, query
+  language, authoring surface, risk extension, case study) with
+  fair-use academic-citation attribution to KIT-Horus / AIFB.
+
+### Changed
+- **CHANGELOG quarterly rotation applied.** Older `## [X.Y.Z]` entries
+  for releases predating the current quarter were moved out of
+  `CHANGELOG.md` into `changelogs/CHANGELOG-YYYY-Qn.md` archives. The
+  current quarter's entries (and `## [Unreleased]`) remain in
+  `CHANGELOG.md` as before. See `changelogs/README.md` for the index;
+  the rotation rule itself is documented in `../CLAUDE.md`. No code or
+  service behavior is affected.
+
 ## [2.2.1] - 2026-04-25
 
 ### Fixed
