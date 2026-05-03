@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### No code changes — paired with `core/` model backup pipeline addition
-The new periodic model backup feature ships in `core/agentic-net-node` and writes to `sa-blobstore` via its existing public REST API (`POST /api/blobs/...`). No changes to `sa-blobstore` itself were required — the timestamp-based ID strategy and prefix-based listing were already in place.
+## [2.3.0] - 2026-05-03
+
+### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes)
+The headline of v2.3.0 lives entirely in `core/`: the full eight-persona `safe-teams` SAFe agile-team model (Product Manager · Architect · Developer · QA · DevOps · Scrum Master · Release Train Engineer · Domain Expert) wired as a single Agentic-Net that turns one chat message into a real git commit, plus the agent loop hardening (null-property handling, fireOnce cancel reset, raised same-tool-call ceiling), the new Domain Expert persona registration, the periodic model backup pipeline (filesystem + sa-blobstore sinks), and node-side hard-delete on `DELETE /api/admin/models/{id}`. None of these touched the open-source services in this repo. The `safe-teams` developer chain does invoke the public `agentic-net-executor` and the model-backup pipeline writes via the public `sa-blobstore` REST API (`POST /api/blobs/...`) — both unchanged in v2.3.0; the existing surfaces were sufficient.
 
 ## [2.2.2] - 2026-04-30
 
