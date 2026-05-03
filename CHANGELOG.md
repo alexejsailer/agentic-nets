@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### No code changes — paired with `core/` model backup pipeline addition
+The new periodic model backup feature ships in `core/agentic-net-node` and writes to `sa-blobstore` via its existing public REST API (`POST /api/blobs/...`). No changes to `sa-blobstore` itself were required — the timestamp-based ID strategy and prefix-based listing were already in place.
+
 ## [2.2.2] - 2026-04-30
 
 > The closed-source images shipped with this release (`agentic-net-node`,
