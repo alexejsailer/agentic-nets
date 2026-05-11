@@ -31,6 +31,7 @@ volumes:
   registry-data:
   openbao-data:
   ollama-data:
+  executor-workspace:
 
 networks:
   agenticnetos-backend:
@@ -191,7 +192,7 @@ services:
       agenticnetos-registry:
         condition: service_healthy
     environment:
-      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.3.0}
+      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.4.0}
       AGENTICNETOS_REGISTRY_PORT: ${AGENTICNETOS_REGISTRY_PORT:-5001}
       AGENTICOS_TOOL_REGISTRY_HOST: ${AGENTICOS_TOOL_REGISTRY_HOST:-localhost:5001}
       AGENTICOS_TOOL_SOURCE_REGISTRY: ${AGENTICOS_TOOL_SOURCE_REGISTRY:-docker.io/alexejsailer}
@@ -214,7 +215,7 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-node
     depends_on:
       init-perms:
@@ -257,7 +258,7 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master
     depends_on:
       init-perms:
@@ -325,7 +326,9 @@ services:
     build:
       context: ../agentic-net-executor
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-executor
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.3.0}
+      additional_contexts:
+        scripts: ./scripts
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
     depends_on:
       init-perms:
@@ -343,8 +346,19 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
+      # Claude Code is installed in the image; ANTHROPIC_API_KEY is read by
+      # any `claude -p ...` invocation a CommandToken fires inside this
+      # container. Workspace clone is opt-in via GIT_REMOTE_URL — when set,
+      # the entrypoint clones the repo into /workspace on first start.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GIT_REMOTE_URL: ${EXECUTOR_GIT_REMOTE_URL:-}
+      GIT_SERVER_HOST: ${EXECUTOR_GIT_SERVER_HOST:-}
+      GIT_AUTHOR_EMAIL: ${EXECUTOR_GIT_AUTHOR_EMAIL:-executor@agenticos.local}
+      GIT_AUTHOR_NAME:  ${EXECUTOR_GIT_AUTHOR_NAME:-agenticos executor}
     volumes:
       - ./data/logs/executor:/app/logs
+      # Workspace lives in a named volume so it survives container recreation.
+      - executor-workspace:/workspace
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_EXECUTOR_PORT:-8084}:8084"
     networks:
@@ -419,7 +433,7 @@ services:
     build:
       context: ../agentic-net-vault
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-vault
-    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-vault
     depends_on:
       init-perms:
@@ -467,7 +481,7 @@ services:
     build:
       context: ../agentic-net-gateway
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-gateway
-    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gateway
     depends_on:
       init-perms:
@@ -520,7 +534,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gui
     depends_on:
       init-perms:
@@ -554,7 +568,7 @@ services:
     build:
       context: ../agentic-net-cli
       dockerfile: ../deployment/dockerfiles/Dockerfile.agentic-net-cli
-    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-cli
     depends_on:
       init-perms:
@@ -583,7 +597,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/dockerfiles/Dockerfile.agentic-net-chat
-    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-chat
     profiles:
       - telegram
@@ -634,7 +648,7 @@ services:
     build:
       context: ../sa-blobstore
       dockerfile: ../deployment/dockerfiles/Dockerfile.sa-blobstore
-    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.3.0}
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.4.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-blobstore
     depends_on:
       init-perms:

@@ -25,23 +25,61 @@ RUN ./mvnw clean package -DskipTests
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# Create non-root user for security
+# Create non-root user — entrypoint drops to this user via su-exec after
+# performing root-only setup (workspace ownership, ssh key permissions).
 RUN addgroup -S agenticnet && adduser -S -G agenticnet agenticnet
 
-# Set working directory
 WORKDIR /app
 
-# Install curl for health checks and bash for command execution
-RUN apk add --no-cache curl bash
+# Runtime tooling for CommandToken transitions that need a workspace:
+#   - curl, bash : healthchecks + general scripting
+#   - tini       : PID 1 reaper (the entrypoint exec-drops to su-exec, which
+#                  then becomes the JVM; tini reaps zombies cleanly)
+#   - su-exec    : drop privileges from root → agenticnet without the overhead
+#                  of su or sudo (alpine package, ~10 KB)
+#   - git, openssh-client : let CommandToken Claude Code subprocesses clone,
+#                  commit and push when a git remote is configured
+#   - nodejs, npm : prerequisites for the @anthropic-ai/claude-code CLI which
+#                  the developer transition shells out to via `claude -p ...`
+#
+# After installing claude-code globally, prune npm cache + apk cache to keep
+# the image manageable (still ~+250 MB vs the bare jre-alpine baseline; the
+# bulk is Node 22 + the claude-code dependency tree).
+RUN apk add --no-cache \
+        curl \
+        bash \
+        tini \
+        su-exec \
+        git \
+        openssh-client \
+        nodejs \
+        npm \
+    && npm install -g @anthropic-ai/claude-code \
+    && npm cache clean --force \
+    && rm -rf /var/cache/apk/* /root/.npm /tmp/*
+
+# Workspace + SSH-key mount points. /workspace is the named volume; the
+# entrypoint will chown it to agenticnet on every boot. /etc/ssh-team-key is
+# where the bare-repo private key is mounted read-only from the host.
+RUN mkdir -p /workspace /etc/ssh-team-key /home/agenticnet/.ssh \
+    && chown -R agenticnet:agenticnet /home/agenticnet \
+    && chmod 700 /home/agenticnet/.ssh
 
 # Copy JAR from builder stage
 COPY --from=builder /app/target/*.jar app.jar
-
-# Change ownership to non-root user
 RUN chown -R agenticnet:agenticnet /app
 
-# Switch to non-root user
-USER agenticnet
+# Copy the entrypoint that does workspace + SSH setup before the JVM starts.
+# `scripts` is a named build context (declared in docker-compose.yml's
+# additional_contexts:) so the script can live in deployment/scripts/ alongside
+# the other deployment helpers, outside the executor source tree.
+COPY --from=scripts executor-entrypoint.sh /usr/local/bin/executor-entrypoint.sh
+RUN chmod 755 /usr/local/bin/executor-entrypoint.sh
+
+# Note: USER agenticnet is intentionally NOT set here. The entrypoint runs as
+# root for setup steps (chown /workspace, install known_hosts, set ssh-key
+# permissions on the bind-mounted private key) and then exec-drops to
+# agenticnet via su-exec. Setting USER here would prevent those root steps.
 
 # Expose port
 EXPOSE 8084
@@ -53,5 +91,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # JVM optimization for containers
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:+UseContainerSupport"
 
-# Start the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# tini → entrypoint script → (after setup) → su-exec agenticnet → JVM
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/executor-entrypoint.sh"]

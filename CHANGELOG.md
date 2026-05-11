@@ -12,6 +12,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-05-11
+
+### Notes
+The headline change in 2.4.0 is a **per-agent-transition LLM tier selector** (`low` / `medium` / `high`) inside `agentic-net-master` — see [`core/CHANGELOG.md`](https://github.com/alexejsailer/AgenticNetOS-core/blob/main/CHANGELOG.md) for the full notes. Operators can now annotate each agent transition with `"action": {"tier": "low|medium|high"}` and the master picks the matching model via per-provider env vars (`CLAUDE_LOW_MODEL` / `OLLAMA_HIGH_MODEL` / …). Significantly reduces top-tier LLM quota burn on teams running many concurrent agent transitions.
+
+This release also bundles the open-source executor's Claude Code + workspace-clone capability that had accumulated since 2.3.0.
+
+### Added
+- **Executor — Claude Code + workspace clone (opt-in)**
+  (`deployment/dockerfiles/Dockerfile.agentic-net-executor`,
+  `deployment/scripts/executor-entrypoint.sh`,
+  `deployment/docker-compose.yml`). The executor image now ships with
+  `git`, `openssh-client`, `nodejs`, `npm` and `@anthropic-ai/claude-code`
+  installed globally, plus `tini` (PID 1 reaper) and `su-exec` (privilege
+  drop). A new entrypoint runs as root for setup — chown of the workspace
+  volume, ssh-keyscan against `$GIT_SERVER_HOST` to populate known_hosts,
+  sane permissions on a bind-mounted SSH private key — then `exec`-drops
+  to the `agenticnet` user via `su-exec` and starts the JVM. When
+  `EXECUTOR_GIT_REMOTE_URL` is set, the entrypoint clones the repo into
+  a named volume `executor-workspace` (mounted at `/workspace`) on first
+  start and `fetch --all`s on subsequent starts. When the env var is
+  empty (the default), the workspace stays empty and the executor JVM
+  starts normally — `claude`, `git` and `node` are still on `$PATH` for
+  any CommandToken that wants them. `ANTHROPIC_API_KEY` is now passed
+  to the executor too (was previously only master + chat). New opt-in
+  env vars: `EXECUTOR_GIT_REMOTE_URL`, `EXECUTOR_GIT_SERVER_HOST`,
+  `EXECUTOR_GIT_AUTHOR_{EMAIL,NAME}` (defaults to
+  `executor@agenticos.local` / `agenticos executor`). Image size growth:
+  ~+250 MB (Node 22 + claude-code dependency tree). Hub-only deployments
+  pick this up on the v2.4.0 publish; hybrid builds get it on next
+  `docker compose build executor`.
+
 ## [2.3.0] - 2026-05-03
 
 ### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes)
