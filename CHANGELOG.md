@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-05-13
+
+### Notes
+The headline change in 2.5.0 is a **deterministic auto-bootstrap of the `domain-expert` persona's memory layer** inside `agentic-net-master` — see [`core/CHANGELOG.md`](https://github.com/alexejsailer/AgenticNetOS-core/blob/main/CHANGELOG.md) for the full notes. When a user opens a `domain-expert` chat against any `modelId`, master now creates the persona's session + five runtime places + scheduled 4h maintainer transition before the LLM is invoked, so the persona always has a stable memory skeleton to fill in. Closes the failure mode where the persona improvised hallucinated stories instead of using the documented domain-net pattern.
+
+This release has no source changes in the open-source services in this repo — the images are rebuilt and tagged at `2.5.0` for release-cycle parity with the closed-source `agentic-net-master` upgrade. Operators upgrading `agentic-net-master` to `2.5.0` should redeploy the full stack via the public compose for consistency, but `agentic-net-gateway` / `-executor` / `-vault` / `-cli` / `-chat` / `sa-blobstore` images at `2.4.0` remain compatible.
+
 ## [2.4.0] - 2026-05-11
 
 ### Notes
