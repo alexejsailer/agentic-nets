@@ -65,6 +65,21 @@ export class GatewayClient {
     }
   }
 
+  /**
+   * Get a valid access token, blocking until one is acquired (or returning null
+   * if no secret is available). Public wrapper around the private ensureAuth,
+   * intended for callers that need to construct their own fetch requests
+   * (e.g. SSE streaming, which {@link masterApi} doesn't yet support).
+   */
+  async getAccessToken(): Promise<string | null> {
+    return this.ensureAuth();
+  }
+
+  /** Expose the gateway base URL so callers can construct raw URLs. */
+  getGatewayUrl(): string {
+    return this.gatewayUrl;
+  }
+
   /** Ensure a valid JWT is available, auto-acquiring if AGENTICOS_ADMIN_SECRET is set. */
   private async ensureAuth(): Promise<string | null> {
     const tokenStore = getTokenStore();

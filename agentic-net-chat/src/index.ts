@@ -1,19 +1,23 @@
 import { loadConfig, getActiveProfile, resolveProfile } from '@agenticos/cli/config/config';
 import { GatewayClient } from '@agenticos/cli/gateway/client';
-import { ToolExecutor } from '@agenticos/cli/agent/tool-executor';
-import { buildSystemPrompt, getToolSchemas } from '@agenticos/cli/agent/prompts';
-import { parseRole } from '@agenticos/cli/agent/roles';
-import { createLlmProvider, createHelperLlm } from '@agenticos/cli/commands/llm-factory';
 import { loadChatConfig } from './config.js';
-import { SessionManager } from './session/session-manager.js';
+import { PersonaClient } from './master/persona-client.js';
+import { ChatStateStore } from './chat-state.js';
 import { TelegramChannel } from './channel/telegram/telegram-channel.js';
 
+/**
+ * Entry point — start the Telegram bridge that relays user messages to master's
+ * persona endpoints (the same endpoints the GUI uses). The bot does not run a
+ * local agent loop; master is the agent runtime.
+ *
+ * <p>Defaults: persona = {@code domain-expert} (the generalist memory layer
+ * that auto-bootstraps per model), model = {@code AGENTICOS_MODEL} env var or
+ * {@code default}. Users can override per chat with {@code /persona} and
+ * {@code /model} commands.</p>
+ */
 export async function startChatBridge(): Promise<void> {
-  // Load AgenticNetOS CLI config
   const cliConfig = loadConfig();
   const profile = resolveProfile(getActiveProfile(cliConfig));
-
-  // Load chat-specific config
   const chatConfig = loadChatConfig();
 
   if (!chatConfig.telegram?.bot_token) {
@@ -33,63 +37,42 @@ export async function startChatBridge(): Promise<void> {
 
   const tgConfig = chatConfig.telegram;
 
-  // Create LLM provider (from CLI profile)
-  const providerName = profile.default_provider;
-  const llm = createLlmProvider(providerName, profile);
-
   const profileName = cliConfig.active_profile || 'local';
-
-  // Create gateway client (auto-acquires JWT via AGENTICOS_ADMIN_SECRET)
-  const client = new GatewayClient({
+  const gateway = new GatewayClient({
     gatewayUrl: profile.gateway_url,
     profileName,
     clientId: profile.client_id,
   });
 
-  // Create agent tools (from CLI profile)
-  const modelId = profile.model_id ?? 'default';
-  const role = parseRole(profile.default_role);
-  const sessionId = `${tgConfig.session_prefix}-shared`;
-  const helperLlm = createHelperLlm(profile);
-  const toolExecutor = new ToolExecutor(client, modelId, sessionId, helperLlm, llm);
-  const systemPrompt = buildSystemPrompt({ role, modelId, sessionId });
-  const toolSchemas = getToolSchemas(role);
+  const personaClient = new PersonaClient(gateway);
 
-  // Create session manager
-  const sessionManager = new SessionManager(
-    llm,
-    toolExecutor,
-    systemPrompt,
-    toolSchemas,
-    modelId,
-    tgConfig.session_prefix,
-    profile,
-    providerName,
-  );
+  const defaultPersona = process.env['AGENTICOS_PERSONA'] ?? 'domain-expert';
+  const defaultModelId = process.env['AGENTICOS_MODEL'] ?? profile.model_id ?? 'default';
 
-  // Create and start Telegram channel
+  const stateStore = new ChatStateStore({
+    persona: defaultPersona,
+    modelId: defaultModelId,
+  });
+
   const telegram = new TelegramChannel(
     tgConfig.bot_token,
     { allowedUserIds: tgConfig.allowed_user_ids },
-    sessionManager,
+    personaClient,
+    stateStore,
   );
 
-  // Graceful shutdown
   const shutdown = async () => {
     console.log('\nShutting down...');
     await telegram.stop();
-    sessionManager.destroy();
     process.exit(0);
   };
-
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  console.log(`AgenticNetOS Chat Bridge`);
+  console.log('AgenticNetOS Chat Bridge (master-persona mode)');
   console.log(`  Gateway:  ${profile.gateway_url}`);
-  console.log(`  Provider: ${providerName}`);
-  console.log(`  Model:    ${modelId}`);
-  console.log(`  Role:     ${profile.default_role}`);
+  console.log(`  Persona:  ${defaultPersona}`);
+  console.log(`  Model:    ${defaultModelId}`);
   console.log(`  Allowed:  ${tgConfig.allowed_user_ids.length > 0 ? tgConfig.allowed_user_ids.join(', ') : '(any)'}`);
   console.log();
 

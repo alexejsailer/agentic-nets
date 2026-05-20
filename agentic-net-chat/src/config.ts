@@ -43,10 +43,21 @@ export function loadChatConfig(): ChatConfig {
     chatConfig.telegram.allowed_user_ids = chatConfig.telegram.allowed_user_ids ?? [];
     chatConfig.telegram.session_prefix = chatConfig.telegram.session_prefix ?? 'tg';
   } else if (process.env['TELEGRAM_BOT_TOKEN']) {
-    // Minimal config from env vars only
+    // Minimal config from env vars only.
+    //
+    // Allowlist precedence:
+    //   1. TELEGRAM_BOT_ALLOWED_CHAT_IDS — the canonical name (matches the
+    //      env var used by deployment/.env.template and docker-compose.yml).
+    //   2. TELEGRAM_ALLOWED_USERS — legacy fallback (pre-2.5.1).
+    const allowlistRaw =
+      process.env['TELEGRAM_BOT_ALLOWED_CHAT_IDS'] ??
+      process.env['TELEGRAM_ALLOWED_USERS'] ??
+      '';
     chatConfig.telegram = {
       bot_token: process.env['TELEGRAM_BOT_TOKEN']!,
-      allowed_user_ids: process.env['TELEGRAM_ALLOWED_USERS']?.split(',').map(s => s.trim()) ?? [],
+      allowed_user_ids: allowlistRaw
+        ? allowlistRaw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+        : [],
       session_prefix: 'tg',
     };
   }
