@@ -137,22 +137,33 @@ export function registerPersonaCommand(
       outputInfo('  /personas    /persona <id>    /model <id>    /context    /clear    /quit');
       console.log();
 
-      const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+      // Auto-detect TTY mode: interactive line-editor when stdout is a TTY,
+      // plain line-reader when stdin is piped. Explicitly resume stdin in
+      // the piped case so readline isn't racing against the parseAsync hook.
+      if (!process.stdin.isTTY) {
+        process.stdin.resume();
+      }
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
       const prompt = () => {
         if (processing) return; // wait for current turn
+        if ((rl as any).closed) return; // /quit may have closed rl during a turn
         rl.setPrompt('> ');
         rl.prompt();
       };
-      prompt();
 
       rl.on('SIGINT', () => {
         console.log('\nBye!');
         rl.close();
+        // Hard-exit on Ctrl+C — abandon any in-flight SSE stream.
         process.exit(0);
       });
 
       rl.on('close', () => {
-        process.exit(0);
+        // Let the event loop drain naturally so queued 'line' handler
+        // microtasks (and any buffered stdout) get to run. Node exits
+        // automatically once there's nothing left to do. Calling
+        // process.exit(0) here kills pending microtasks — bad when
+        // stdin is piped (test harness, scripted input).
       });
 
       rl.on('line', async (raw: string) => {
@@ -264,6 +275,13 @@ Anything else is sent to the persona's agent loop on master.
           prompt();
         }
       });
+
+      // Kick off the first prompt only AFTER all listeners are registered,
+      // so piped stdin (test harness) doesn't lose its first line to a
+      // missing 'line' handler. Skip the visual prompt entirely when stdin
+      // isn't a TTY — scripted/piped input doesn't need it and rl.prompt()
+      // in non-TTY mode interacts oddly with stdin readiness.
+      if (process.stdin.isTTY) prompt();
     });
 }
 
