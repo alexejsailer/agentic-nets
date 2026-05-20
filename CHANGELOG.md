@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-05-19
+
+### Notes
+2.6.0 closes the GUI ↔ Telegram ↔ CLI symmetry triangle. With 2.5.1 the Telegram bot started calling master's persona endpoints; with 2.6.0 the CLI gets the same capability via a new `agenticos persona` command group. All three clients now talk to the same agent runtime (master), use the same persona registry, and inherit the same tier-based model selection — the GUI's Universal Assistant, the Telegram bot, and `agenticos persona chat` are now three faces of one engine.
+
+The existing `agenticos chat` and `agenticos ask` (client-side agent loop, choose your own LLM provider, role-filtered tools) are **unchanged**. The new `agenticos persona ...` is opt-in for users who want the master-side experience.
+
+### Added
+- **`agenticos persona` command group — CLI client of master's persona endpoints** (`agentic-net-cli/src/master/persona-client.ts` (new), `agentic-net-cli/src/commands/persona.ts` (new), `agentic-net-cli/src/index.ts`, `agentic-net-cli/package.json`). Three subcommands:
+  - `persona list` — `GET /api/assistant/p/personas`, renders as a table (or JSON in `--output json` / non-TTY mode).
+  - `persona ask <message> [--persona <id>] [--model <id>] [--session <id>] [--quiet]` — one-shot: `chat/start` then a single `agent-stream` turn. Prints text events as they stream; surfaces the completion summary if no mid-flight text was produced. Defaults: persona = `domain-expert`, model = `AGENTICOS_MODEL ?? profile model ?? "default"`.
+  - `persona chat [--persona <id>] [--model <id>] [--session <id>] [--quiet]` — interactive readline-based REPL. Slash commands: `/personas`, `/persona <id>`, `/model <id>` (both reset the conversation), `/context`, `/clear`, `/help`, `/quit`. Tool-call events are rendered as breadcrumbs unless `--quiet`. Restarting the CLI drops the local conversation pointer; master keeps its own history regardless.
+
+  The new `PersonaClient` (in `agentic-net-cli/src/master/`) is the canonical SSE consumer for the whole repo — `agentic-net-chat` (Telegram bridge) now imports it via the new `@agenticos/cli/master/persona-client` subpath export instead of carrying a duplicate copy. One source of truth for the bot and the CLI.
+
+### Changed
+- **`agentic-net-chat` — re-imports `PersonaClient` from `@agenticos/cli`** (`agentic-net-chat/src/channel/telegram/telegram-channel.ts`, `agentic-net-chat/src/index.ts`; `agentic-net-chat/src/master/persona-client.ts` deleted). The 2.5.1 chat package shipped a local `master/persona-client.ts` that was a direct copy of what the CLI now owns. The bot now imports the canonical version. No behavioural change.
+
 ## [2.5.1] - 2026-05-19
 
 ### Notes

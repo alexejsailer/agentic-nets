@@ -43,6 +43,7 @@
     "./llm/ollama": "./src/llm/ollama.ts",
     "./gateway/client": "./src/gateway/client.ts",
     "./gateway/auth": "./src/gateway/auth.ts",
+    "./master/persona-client": "./src/master/persona-client.ts",
     "./config/config": "./src/config/config.ts",
     "./llm/openai": "./src/llm/openai.ts",
     "./commands/llm-factory": "./src/commands/llm-factory.ts"

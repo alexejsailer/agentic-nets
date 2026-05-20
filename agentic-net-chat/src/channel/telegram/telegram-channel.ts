@@ -1,6 +1,6 @@
 import { Bot } from 'grammy';
 import type { ChannelSecurityConfig } from '../types.js';
-import { PersonaClient, AgentEvent } from '../../master/persona-client.js';
+import { PersonaClient, type AgentEvent } from '@agenticos/cli/master/persona-client';
 import { ChatStateStore } from '../../chat-state.js';
 import { splitMessage } from './message-splitter.js';
 

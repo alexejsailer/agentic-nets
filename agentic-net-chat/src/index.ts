@@ -1,7 +1,7 @@
 import { loadConfig, getActiveProfile, resolveProfile } from '@agenticos/cli/config/config';
 import { GatewayClient } from '@agenticos/cli/gateway/client';
 import { loadChatConfig } from './config.js';
-import { PersonaClient } from './master/persona-client.js';
+import { PersonaClient } from '@agenticos/cli/master/persona-client';
 import { ChatStateStore } from './chat-state.js';
 import { TelegramChannel } from './channel/telegram/telegram-channel.js';
 

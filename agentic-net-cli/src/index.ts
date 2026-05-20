@@ -16,6 +16,7 @@ import { registerSessionCommand } from './commands/session.js';
 import { registerTreeCommand } from './commands/tree.js';
 import { registerChatCommand } from './commands/chat.js';
 import { registerAskCommand } from './commands/ask.js';
+import { registerPersonaCommand } from './commands/persona.js';
 import { registerServiceCommand } from './commands/service.js';
 import { registerVersionCommand } from './commands/version.js';
 import { registerPackageCommand } from './commands/package.js';
@@ -88,6 +89,7 @@ export function createProgram(): Command {
   registerTreeCommand(program, getContext);
   registerChatCommand(program, getContext);
   registerAskCommand(program, getContext);
+  registerPersonaCommand(program, getContext);
   registerPackageCommand(program, getContext);
   registerChronicleCommand(program, getContext);
   registerServiceCommand(program);

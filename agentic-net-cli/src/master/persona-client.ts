@@ -1,4 +1,4 @@
-import { GatewayClient } from '@agenticos/cli/gateway/client';
+import { GatewayClient } from '../gateway/client.js';
 
 /**
  * Event types emitted by master's /api/assistant/p/.../agent-stream SSE endpoint.
@@ -33,20 +33,23 @@ export interface ChatStartResponse {
 }
 
 /**
- * Thin client over master's persona endpoints, talking through the gateway.
+ * Thin client over master's persona endpoints (the same endpoints the GUI's
+ * Universal Assistant uses), talking through the gateway.
  *
- * <p>The chat container is a Telegram-to-SSE adapter — it doesn't run an
- * agent loop locally. Master is the agent runtime. This client just:</p>
+ * <p>The client just:</p>
  *
  * <ol>
- *   <li>Lists personas (for {@code /persona} command auto-complete).</li>
+ *   <li>Lists personas (for {@code persona list} / tab completion).</li>
  *   <li>Starts a new conversation (POST chat/start).</li>
- *   <li>Streams agent events (SSE) so the Telegram channel can relay text and
- *       — optionally — surface tool-call breadcrumbs as breadcrumbs to the user.</li>
+ *   <li>Streams agent events (SSE) so the caller can render text + tool calls.</li>
  * </ol>
  *
  * <p>SSE is consumed directly via {@code fetch().body.getReader()} because the
  * existing {@link GatewayClient#masterApi} method only does request/response JSON.</p>
+ *
+ * <p>Used by both {@code agentic-net-cli} (interactive {@code persona chat} +
+ * one-shot {@code persona ask}) and {@code agentic-net-chat} (Telegram bridge).
+ * Keep the surface stable — the bot re-exports from here.</p>
  */
 export class PersonaClient {
   constructor(private readonly gateway: GatewayClient) {}
@@ -121,8 +124,6 @@ export class PersonaClient {
         const rawEvent = buffer.slice(0, sepIdx);
         buffer = buffer.slice(sepIdx + 2);
 
-        // An event may have multiple lines: "event: foo", "data: ...", "id: ...".
-        // We only need the data line(s) — concatenate them.
         const dataLines = rawEvent
           .split('\n')
           .filter((l) => l.startsWith('data:'))
