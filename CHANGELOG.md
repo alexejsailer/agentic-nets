@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-05-19
+
+### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).
+
+The 2.7.0 release lives entirely in `core/`: a new in-memory `TransitionUsageRegistry` + `/api/usage/...` REST surface in `agentic-net-master` plus a new "LLM Usage" workspace editor in `agentic-net-gui`. Operators can now see which transitions consume the most LLM tokens, how many iterations agents are running, which sessions are heaviest, and what's firing right now — through the workspace menu's new "Open LLM Usage" entry. No `agentic-nets/` services changed; the gateway's existing `/api/**` catch-all proxy already covers the new endpoints with no registration work.
+
 ## [2.6.0] - 2026-05-19
 
 ### Notes
