@@ -272,6 +272,11 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      # Models whose non-command transitions the master auto-fires (MasterPollingScheduler
+      # watch registry). Comma-separated. The in-memory active-model set is empty on restart,
+      # so any model that must self-run after a master restart MUST be listed here — otherwise
+      # only "default" is watched and its persona/pipeline transitions never fire on poll.
+      TRANSITION_MASTER_MODELS: ${TRANSITION_MASTER_MODELS:-default}
       BLOBSTORE_BASE_URL: http://sa-blobstore:8080
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
@@ -618,6 +623,11 @@ services:
       AGENTICOS_PROVIDER: ${LLM_PROVIDER:-ollama}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
+      # Which model + persona the Telegram bot routes messages to. Default is the
+      # sandbox `default` model + `domain-expert` (the model-agnostic router).
+      # Override per-deployment in .env (e.g. AGENTICOS_MODEL=safe-teams).
+      AGENTICOS_MODEL: ${AGENTICOS_MODEL:-default}
+      AGENTICOS_PERSONA: ${AGENTICOS_PERSONA:-domain-expert}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_HIGH_MODEL: ${ANTHROPIC_HIGH_MODEL:-claude-opus-4-7}
       ANTHROPIC_MEDIUM_MODEL: ${ANTHROPIC_MEDIUM_MODEL:-claude-sonnet-4-6}
