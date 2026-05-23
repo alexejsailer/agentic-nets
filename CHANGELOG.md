@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.4] - 2026-05-23
+
+### Added
+- **Telegram bot model + persona selection** (`agentic-net-chat` — `deployment/docker-compose.yml`, `docker-compose.hub-only.yml`). The chat service's compose env block now forwards `AGENTICOS_MODEL` (default `default`) and `AGENTICOS_PERSONA` (default `domain-expert`) into the container. Previously these were never passed through, so the bot silently used the `default` sandbox model even when `.env` set `AGENTICOS_MODEL`. Set `AGENTICOS_MODEL=<your-model>` in `.env` to route Telegram messages into that model's persona pipeline (e.g. a SAFe team), keeping the public-safe sandbox as the default.
+
+### Changed
+- **`TRANSITION_MASTER_MODELS` is now a deprecated startup fallback** (`deployment/.env.template`). Paired with the core 2.7.4 change where the master auto-fires transitions for every node-**ACTIVE** model: activate a model and its running transitions run, deactivate and they stop — no watch list to maintain, and it survives master restarts. The env var is only consulted as a one-time fallback if the master's first query for ACTIVE models fails. The template comment was updated to say so; no action needed for existing installs.
+
 ## [2.7.0] - 2026-05-19
 
 ### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).
