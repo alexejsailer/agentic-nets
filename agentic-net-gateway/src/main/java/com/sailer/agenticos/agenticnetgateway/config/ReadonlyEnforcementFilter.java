@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Blocks mutating requests carrying a readonly-scoped JWT.
@@ -25,6 +26,15 @@ import java.util.Set;
  * {@code OPTIONS}) on proxied API paths ({@code /api/**}, {@code /node-api/**},
  * {@code /vault-api/**}) and rejects everything else with {@code 403} and a
  * JSON body {@code {"error":"readonly_scope",...}}.
+ *
+ * <p>Narrow exceptions: readonly guests may call the legacy chat-send endpoints
+ * ({@code POST /api/chat/start} and {@code POST /api/chat/{sessionId}/message})
+ * and the pinned monitoring persona endpoints
+ * ({@code POST /api/assistant/p/domain-expert-readonly/{modelId}/chat/start} and
+ * {@code POST /api/assistant/p/domain-expert-readonly/{modelId}/chat/{conversationId}/agent-stream}).
+ * This lets the monitoring view talk to its read-only domain expert while all
+ * other writes (for example {@code /apply}, generic assistant execution, model
+ * mutation, transition control, etc.) remain blocked.
  *
  * <p>Runs after the OAuth2 JWT authentication filter so the {@link Authentication}
  * is available in the {@link SecurityContextHolder}. Requests that aren't
@@ -37,6 +47,12 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
 
     private static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
     private static final String READONLY_SCOPE = "readonly";
+
+    /** Legacy chat send endpoints still allowed for readonly monitoring guests. */
+    private static final Pattern READONLY_CHAT_SEND = Pattern.compile("^/api/chat/(start|[^/]+/message)$");
+    /** Actual pinned monitoring persona endpoints used by the GUI. */
+    private static final Pattern READONLY_MONITOR_PERSONA_CHAT =
+            Pattern.compile("^/api/assistant/p/domain-expert-readonly/[^/]+/chat/(start|[^/]+/agent-stream)$");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -68,6 +84,11 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
             return;
         }
 
+        if ("POST".equalsIgnoreCase(request.getMethod()) && isReadonlyAllowedPost(request.getRequestURI())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         logger.info("Rejecting {} {} for readonly subject={}",
                 request.getMethod(), request.getRequestURI(), jwt.getSubject());
         response.setStatus(HttpStatus.FORBIDDEN.value());
@@ -75,6 +96,12 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
         response.getWriter().write(
                 "{\"error\":\"readonly_scope\","
                         + "\"message\":\"This token is read-only; mutating requests are not permitted.\"}");
+    }
+
+    private static boolean isReadonlyAllowedPost(String uri) {
+        return uri != null
+                && (READONLY_CHAT_SEND.matcher(uri).matches()
+                || READONLY_MONITOR_PERSONA_CHAT.matcher(uri).matches());
     }
 
     private static boolean containsToken(String scope, String token) {

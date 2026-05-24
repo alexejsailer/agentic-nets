@@ -110,6 +110,87 @@ class ReadonlyEnforcementFilterTest {
     }
 
     @Test
+    void postChatStart_readonlyScope_isAllowed() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/chat/start");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void postChatMessage_readonlyScope_isAllowed() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/chat/sess-001/message");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void postChatApply_readonlyScope_stillBlocked() throws Exception {
+        // /apply mutates nets — the chat-send exception must NOT cover it.
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/chat/sess-001/apply");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, never()).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(res.getContentAsString()).contains("readonly_scope");
+    }
+
+    @Test
+    void postReadonlyMonitorPersonaStart_isAllowed() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/assistant/p/domain-expert-readonly/safe-teams/chat/start");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void postReadonlyMonitorPersonaAgentStream_isAllowed() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/assistant/p/domain-expert-readonly/safe-teams/chat/conv-001/agent-stream");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void postOtherPersonaAgentStream_readonlyScope_stillBlocked() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/assistant/p/builder/safe-teams/chat/conv-001/agent-stream");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, never()).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(res.getContentAsString()).contains("readonly_scope");
+    }
+
+    @Test
     void optionsRequest_readonlyScope_isAllowed() throws Exception {
         // CORS preflight must pass through even for readonly tokens.
         authenticate("agenticos readonly");
