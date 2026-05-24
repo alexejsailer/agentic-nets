@@ -12,9 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.7.4] - 2026-05-23
+## [2.7.4] - 2026-05-24
 
 ### Added
+- **Read-only enforcement for the guest monitoring view** (`agentic-net-gateway` — `config/ReadonlyEnforcementFilter.java`, `SecurityConfig.java`, `config/GatewayProperties.java`, `web/TokenController.java`). The `agenticos-readonly` OAuth2 client issues a JWT scoped `readonly`; the new filter (registered after bearer-token auth) lets such tokens do GET/HEAD/OPTIONS and the pinned `domain-expert-readonly` persona chat POSTs, and returns **403 `{"error":"readonly_scope"}`** for every other mutation. This is the server-side hard gate behind the new `/monitor` guest view (the GUI + read-only persona live in [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets)). 10 unit tests cover the allow/deny matrix.
 - **Telegram bot model + persona selection** (`agentic-net-chat` — `deployment/docker-compose.yml`, `docker-compose.hub-only.yml`). The chat service's compose env block now forwards `AGENTICOS_MODEL` (default `default`) and `AGENTICOS_PERSONA` (default `domain-expert`) into the container. Previously these were never passed through, so the bot silently used the `default` sandbox model even when `.env` set `AGENTICOS_MODEL`. Set `AGENTICOS_MODEL=<your-model>` in `.env` to route Telegram messages into that model's persona pipeline (e.g. a SAFe team), keeping the public-safe sandbox as the default.
 
 ### Changed
