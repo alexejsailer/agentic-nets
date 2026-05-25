@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.7.4] - 2026-05-24
+## [2.8.0] - 2026-05-25
 
 ### Added
 - **Read-only enforcement for the guest monitoring view** (`agentic-net-gateway` — `config/ReadonlyEnforcementFilter.java`, `SecurityConfig.java`, `config/GatewayProperties.java`, `web/TokenController.java`). The `agenticos-readonly` OAuth2 client issues a JWT scoped `readonly`; the new filter (registered after bearer-token auth) lets such tokens do GET/HEAD/OPTIONS and the pinned `domain-expert-readonly` persona chat POSTs, and returns **403 `{"error":"readonly_scope"}`** for every other mutation. This is the server-side hard gate behind the new `/monitor` guest view (the GUI + read-only persona live in [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets)). 10 unit tests cover the allow/deny matrix.
