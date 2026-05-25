@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-05-25
+
+### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).
+
+2.8.1 is a GUI-only patch in `core/`: polish to the read-only monitoring view (`/monitor`) — live-sync indicator fixes and the read-only Domain Expert's empty-state copy. No `agentic-nets/` services changed; the gateway's `ReadonlyEnforcementFilter` and `agenticos-readonly` client from 2.8.0 are unchanged. The version tag is created in both repos for parity.
+
 ## [2.8.0] - 2026-05-25
 
 ### Added
