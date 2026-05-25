@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-05-25
+
+### Fixed
+- **Readonly monitor guests can read live token counts** (`agentic-net-gateway` — `config/ReadonlyEnforcementFilter.java`). The filter blocked all POSTs for readonly-scoped sessions except a small allow-list, which excluded the token-count batch query the monitoring view's auto-refresh relies on — so a monitor guest's live token counts silently 403'd. Added `POST /node-api/models/{modelId}/children/count/batch` to the readonly allow-list (it's a read-only count query despite being a POST). The companion GUI fallback (legacy per-place reads when the batch is still blocked) lives in [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets). Allow/deny unit coverage extended.
+
 ## [2.8.1] - 2026-05-25
 
 ### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).

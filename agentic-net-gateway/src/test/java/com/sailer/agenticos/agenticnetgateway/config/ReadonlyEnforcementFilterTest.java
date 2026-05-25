@@ -136,6 +136,19 @@ class ReadonlyEnforcementFilterTest {
     }
 
     @Test
+    void postTokenCountBatch_readonlyScope_isAllowed() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/node-api/models/safe-teams/children/count/batch");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
     void postChatApply_readonlyScope_stillBlocked() throws Exception {
         // /apply mutates nets — the chat-send exception must NOT cover it.
         authenticate("agenticos readonly");

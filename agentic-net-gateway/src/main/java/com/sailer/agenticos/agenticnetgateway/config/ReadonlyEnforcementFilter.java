@@ -29,6 +29,8 @@ import java.util.regex.Pattern;
  *
  * <p>Narrow exceptions: readonly guests may call the legacy chat-send endpoints
  * ({@code POST /api/chat/start} and {@code POST /api/chat/{sessionId}/message})
+ * and the read-only token-count batch endpoint
+ * ({@code POST /node-api/models/{modelId}/children/count/batch})
  * and the pinned monitoring persona endpoints
  * ({@code POST /api/assistant/p/domain-expert-readonly/{modelId}/chat/start} and
  * {@code POST /api/assistant/p/domain-expert-readonly/{modelId}/chat/{conversationId}/agent-stream}).
@@ -50,6 +52,9 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
 
     /** Legacy chat send endpoints still allowed for readonly monitoring guests. */
     private static final Pattern READONLY_CHAT_SEND = Pattern.compile("^/api/chat/(start|[^/]+/message)$");
+    /** Token-count batch query used by readonly monitor auto-refresh. */
+    private static final Pattern READONLY_TOKEN_COUNT_BATCH =
+            Pattern.compile("^/node-api/models/[^/]+/children/count/batch$");
     /** Actual pinned monitoring persona endpoints used by the GUI. */
     private static final Pattern READONLY_MONITOR_PERSONA_CHAT =
             Pattern.compile("^/api/assistant/p/domain-expert-readonly/[^/]+/chat/(start|[^/]+/agent-stream)$");
@@ -101,6 +106,7 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
     private static boolean isReadonlyAllowedPost(String uri) {
         return uri != null
                 && (READONLY_CHAT_SEND.matcher(uri).matches()
+                || READONLY_TOKEN_COUNT_BATCH.matcher(uri).matches()
                 || READONLY_MONITOR_PERSONA_CHAT.matcher(uri).matches());
     }
 
