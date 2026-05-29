@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-05-29
+
+### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).
+
+2.9.0 lives entirely in `core/`: the read-only monitoring view's Console tab becomes a human-readable activity narrative. The transition firing engine in `agentic-net-master` now narrates each fire + its token flow into the event line, and `agentic-net-gui` adds a grouped "Story" view (default for monitor guests). No `agentic-nets/` services changed — the gateway's event-line GET/SSE endpoints were already readonly-allowed, so the new events flow through untouched. The version tag is created in both repos for parity.
+
 ## [2.8.2] - 2026-05-25
 
 ### Fixed
