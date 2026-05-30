@@ -64,7 +64,14 @@ public class MasterProxyController {
     );
 
     private static final Set<String> REQUEST_ONLY_EXCLUDE = Set.of(
-            "content-length", "content-type"
+            "content-length", "content-type",
+            // The gateway is the CORS boundary — it enforces CORS for the browser itself.
+            // Never forward the browser's Origin / CORS preflight headers to the internal
+            // master, or master's own CORS filter would re-evaluate (and reject) origins the
+            // gateway already allowed — e.g. a Tailscale IP on a remote-dev browser, which
+            // surfaces to the user as a 403 "Invalid CORS request" on POSTs only (GETs carry
+            // no Origin). Stripping them here lets master treat proxied calls as same-origin.
+            "origin", "access-control-request-method", "access-control-request-headers"
     );
 
     private final MasterRegistryService registryService;
