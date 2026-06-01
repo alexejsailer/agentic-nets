@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.9.0] - 2026-05-29
+## [2.9.0] - 2026-06-01
 
-### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).
+### Fixed
+- **Gateway no longer forwards the browser `Origin`/CORS headers to master** (`agentic-net-gateway` — `rest/MasterProxyController.java`). When the GUI/monitor was opened over a non-localhost origin (e.g. a Tailscale VPN IP), the gateway proxied the browser `Origin` to master, whose own localhost-only CORS filter re-rejected it → `403 "Invalid CORS request"` on POSTs only (reads carry no `Origin`, so it looked like a confusing partial outage — the monitor Agents chat failed with "Failed to start a new conversation" while the Console kept loading). The gateway is the CORS boundary, so it now strips `origin` / `access-control-request-method` / `access-control-request-headers` before proxying; master treats proxied calls as same-origin. The gateway's own `GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS` still governs which browser origins are allowed.
+
+### Notes
+The rest of 2.9.0 lives in `core/`: the read-only monitoring view's Console tab becomes a human-readable activity narrative (engine fire + token-flow narration, nested agent transcript, grouped "Story" view), plus monitor-hardening fixes (self-healing SSE, honest Live badge, read-only Domain Expert bootstrap, quiet scheduled coordinators) and a safe-teams demo-net cleanup. See `core/CHANGELOG.md` for the full list. The version tag is created in both repos for parity.
 
 2.9.0 lives entirely in `core/`: the read-only monitoring view's Console tab becomes a human-readable activity narrative. The transition firing engine in `agentic-net-master` now narrates each fire + its token flow into the event line, and `agentic-net-gui` adds a grouped "Story" view (default for monitor guests). No `agentic-nets/` services changed — the gateway's event-line GET/SSE endpoints were already readonly-allowed, so the new events flow through untouched. The version tag is created in both repos for parity.
 
