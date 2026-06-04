@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-06-04
+
+### Added
+- **Telegram voice-note transcription** (`agentic-net-chat` — `src/channel/telegram/telegram-channel.ts`, `deployment/dockerfiles/Dockerfile.agentic-net-chat`). Incoming Telegram voice notes (OGG/Opus) are transcoded to the 16 kHz mono 16-bit WAV that whisper.cpp requires — via `ffmpeg` writing to a **seekable temp file** (a piped WAV gets an invalid `0xFFFFFFFF` RIFF size that whisper.cpp rejects) — then sent to a whisper.cpp `/inference` backend at `WHISPER_URL`. The feature is **dormant when `WHISPER_URL` is unset** (no change to text chat); the chat image now bundles `ffmpeg`. Requires a reachable whisper backend to be functional end-to-end.
+
+### Notes
+The rest of 2.10.0 lives in `core/` — safe-teams demo-team deploy-tooling hardening (deterministic/portable git commit, host-templating for the staging container topology, QA-rework escalation, loud deploy assertions). No `agentic-nets` service code changed beyond the chat voice feature above; the gateway/executor/vault/cli/blobstore images are unchanged from 2.9.0. The version tag is created in both repos for parity. See [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets).
+
 ## [2.9.0] - 2026-06-01
 
 ### Fixed
