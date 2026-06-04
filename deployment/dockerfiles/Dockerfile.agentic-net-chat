@@ -25,6 +25,9 @@ RUN npx tsup
 
 FROM node:22-alpine AS runtime
 
+# ffmpeg: transcode Telegram voice notes (OGG/Opus) to the 16kHz WAV whisper.cpp needs.
+RUN apk add --no-cache ffmpeg
+
 # Create non-root user
 RUN addgroup -S agenticnet && adduser -S -G agenticnet agenticnet
 

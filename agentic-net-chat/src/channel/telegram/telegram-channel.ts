@@ -1,3 +1,7 @@
+import { spawn } from 'node:child_process';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Bot } from 'grammy';
 import type { ChannelSecurityConfig } from '../types.js';
 import { PersonaClient, type AgentEvent } from '@agenticos/cli/master/persona-client';
@@ -54,6 +58,73 @@ function escapeSegment(text: string, specialPattern: RegExp): string {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Transcode arbitrary audio to the 16 kHz mono 16-bit WAV that whisper.cpp's
+ * /inference endpoint requires. Telegram voice notes are OGG/Opus, which
+ * whisper-server cannot decode ("failed to open 'OggS' as WAV file") — so we
+ * convert with ffmpeg (piped via stdin/stdout) before sending.
+ */
+async function transcodeToWav(input: Buffer): Promise<Buffer> {
+  // Output to a temp FILE, not a pipe: ffmpeg can't seek back on a non-seekable
+  // pipe to fill the RIFF/data chunk sizes, so a piped WAV gets size 0xFFFFFFFF
+  // which whisper.cpp rejects ("failed to open 'RIFF...' as WAV file"). A file
+  // is seekable, so the header carries correct sizes.
+  const dir = await mkdtemp(join(tmpdir(), 'voice-'));
+  const outPath = join(dir, 'out.wav');
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const ff = spawn('ffmpeg', [
+        '-hide_banner', '-loglevel', 'error',
+        '-i', 'pipe:0',
+        '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le',
+        '-y', outPath,
+      ]);
+      const err: Buffer[] = [];
+      ff.stderr.on('data', (d: Buffer) => err.push(d));
+      ff.on('error', (e) => reject(new Error(`ffmpeg spawn failed (is ffmpeg installed?): ${e.message}`)));
+      ff.on('close', (code) =>
+        code === 0
+          ? resolve()
+          : reject(new Error(`ffmpeg exited ${code}: ${Buffer.concat(err).toString().slice(0, 200)}`)),
+      );
+      ff.stdin.on('error', () => { /* ignore EPIPE if ffmpeg exits early */ });
+      ff.stdin.end(input);
+    });
+    return await readFile(outPath);
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => { /* best-effort cleanup */ });
+  }
+}
+
+/**
+ * Download a Telegram-hosted voice file, transcode it to WAV, and post it to a
+ * whisper.cpp server's /inference endpoint (multipart, "file" field) → JSON { text }.
+ *
+ * Network errors and non-2xx responses surface to the caller so the chat
+ * handler can tell the user the transcription failed.
+ */
+async function transcribeVoice(whisperUrl: string, fileUrl: string): Promise<string> {
+  const audioRes = await fetch(fileUrl);
+  if (!audioRes.ok) {
+    throw new Error(`Telegram file download failed: ${audioRes.status}`);
+  }
+  const ogg = Buffer.from(await audioRes.arrayBuffer());
+  const wav = await transcodeToWav(ogg);
+
+  const form = new FormData();
+  form.append('file', new Blob([wav], { type: 'audio/wav' }), 'voice.wav');
+  form.append('response_format', 'json');
+
+  const endpoint = whisperUrl.replace(/\/+$/, '') + '/inference';
+  const res = await fetch(endpoint, { method: 'POST', body: form });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`whisper ${res.status}: ${body.slice(0, 200)}`);
+  }
+  const payload = (await res.json()) as { text?: string };
+  return (payload.text ?? '').trim();
 }
 
 /**
@@ -183,6 +254,40 @@ export class TelegramChannel {
       if (text.startsWith('/')) return; // commands handled above
 
       await this.handleUserMessage(chatId, text);
+    });
+
+    // Voice notes → transcribe via whisper sidecar, then reuse the text path.
+    // Disabled unless WHISPER_URL is set (so the public install stays unaware).
+    this.bot.on('message:voice', async (ctx) => {
+      const chatId = String(ctx.chat.id);
+      const whisperUrl = process.env['WHISPER_URL'];
+      if (!whisperUrl) {
+        await ctx.reply(
+          "Voice messages aren't enabled on this instance. Please send text.",
+        );
+        return;
+      }
+
+      await this.sendTypingAction(chatId);
+      let transcript: string;
+      try {
+        const file = await ctx.getFile();
+        const fileUrl = `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`;
+        transcript = await transcribeVoice(whisperUrl, fileUrl);
+      } catch (err: any) {
+        console.error('[Telegram] voice transcription failed:', err.message);
+        await ctx.reply(`Couldn't transcribe voice note: ${err.message}`);
+        return;
+      }
+
+      if (!transcript.trim()) {
+        await ctx.reply("Couldn't make out anything in that voice note.");
+        return;
+      }
+
+      // Forward the transcript straight into the normal agent path — a voice
+      // note behaves exactly like a typed message (no "Heard:" echo).
+      await this.handleUserMessage(chatId, transcript);
     });
 
     this.bot.catch((err) => {
