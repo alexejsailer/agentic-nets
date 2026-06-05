@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.1] - 2026-06-05
+
+### Changed
+- **Public deployment compose defaults bumped to 2.10.1** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `.env.template`). The `AGENTICNETOS_VERSION` default is now `2.10.1`, so a fresh `docker compose up` pulls the new release.
+
+### Notes
+No `agentic-nets` **service code** changed this cycle — the gateway/executor/vault/cli/chat/blobstore images are byte-identical to 2.10.0 and are republished under the `2.10.1` tag for a coherent umbrella version. The substantive 2.10.1 changes live in `core/` (master PNML-export / optimistic-lock / Remove fixes + safe-teams read-only Domain Expert request fidelity) — see [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets). The version tag is created in both repos for parity.
+
 ## [2.10.0] - 2026-06-04
 
 ### Added
