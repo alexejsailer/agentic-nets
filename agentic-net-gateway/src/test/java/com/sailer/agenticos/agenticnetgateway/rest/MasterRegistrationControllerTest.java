@@ -116,7 +116,8 @@ class MasterRegistrationControllerTest {
 
     @Test
     void listMasters_includesSeedMaster() throws Exception {
-        mockMvc.perform(get("/internal/masters"))
+        mockMvc.perform(get("/internal/masters")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
                 .andExpect(jsonPath("$[?(@.masterId == 'seed-master')]").exists());
@@ -135,15 +136,19 @@ class MasterRegistrationControllerTest {
                         ))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/internal/masters"))
+        mockMvc.perform(get("/internal/masters")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.masterId == 'list-test-master')]").exists());
     }
 
     @Test
     void internalEndpoints_noJwtRequired() throws Exception {
-        // /internal/* should be accessible without Authorization header
-        mockMvc.perform(get("/internal/masters"))
+        // /internal/* should be accessible without a JWT/Authorization header —
+        // it is gated only by the shared internal-secret header, not OAuth2.
+        // No .header(HttpHeaders.AUTHORIZATION, ...) is sent here on purpose.
+        mockMvc.perform(get("/internal/masters")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET))
                 .andExpect(status().isOk());
     }
 }
