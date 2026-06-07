@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.10.2] - 2026-06-07
+
+### Changed
+- **Public deployment compose defaults bumped to 2.10.2** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `.env.template`). `AGENTICNETOS_VERSION` now defaults to `2.10.2`.
+
+### Notes
+No `agentic-nets` service code changed this cycle — the open-source images are byte-identical to 2.10.1, republished under the `2.10.2` tag for a coherent umbrella version. The substantive 2.10.2 changes live in `core/` (master Ollama-quota circuit-breaker + log-volume reduction, and safe-teams idle-coordinator throttling). See [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets). The version tag is created in both repos for parity.
+
 ## [2.10.1] - 2026-06-05
 
 ### Changed
