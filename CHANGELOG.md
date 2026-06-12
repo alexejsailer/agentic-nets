@@ -12,6 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-06-13
+
+### Changed
+- **Public deployment compose defaults bumped to 2.11.0** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `.env.template`). `AGENTICNETOS_VERSION` now defaults to `2.11.0`, so a fresh `docker compose up` pulls the new release.
+
+### Test
+- **Gateway internal-secret header coverage** (`agentic-net-gateway`: `MasterRegistrationControllerTest`). Added a test asserting the gateway sends the internal-secret header on its `/internal/masters` discovery GETs. Test sources only, no image impact.
+
+### Notes
+No `agentic-nets` service code changed this cycle (the gateway change above is test-only); the gateway / executor / vault / cli / chat / blobstore images are functionally identical to 2.10.2 and are republished under the `2.11.0` tag for a coherent umbrella version. The substantive 2.11.0 changes live in `core/`: the **Genesis meta-agent**, the agent **inhabitant** capability (`U` role flag + `AWAIT_TOKEN` tool), the agent declared-preset firing-rule fix, and a GUI Impressum page. See [`core/CHANGELOG.md`](https://github.com/alexejsailer/agentic-nets). The version tag is created in both repos for parity.
+
 ## [2.10.2] - 2026-06-07
 
 ### Changed
