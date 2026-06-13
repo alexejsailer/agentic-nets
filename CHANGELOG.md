@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.11.1] - 2026-06-13
+
+### No code changes
+Released for version parity with `core` 2.11.1 (assistant answer-delivery, the delegation-collection gate, and a Genesis-aware Universal Assistant, all in `agentic-net-master`). See [`../core/CHANGELOG.md`](../core/CHANGELOG.md). Every open-source service image is byte-for-byte unchanged from 2.11.0.
+
 ## [2.11.0] - 2026-06-13
 
 ### Changed
