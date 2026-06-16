@@ -16,5 +16,13 @@ storage:
     wal:
       path: /var/tempo/wal
 
+# Bound on-disk trace growth. Without a compactor the local backend keeps every
+# block forever and the Docker VM disk fills (this was the Jenkins build-node
+# OFFLINE / tempo-data 48GB incident). Retain ~48h of traces for dev/staging.
+compactor:
+  compaction:
+    block_retention: 48h
+    compacted_block_retention: 1h
+
 usage_report:
   reporting_enabled: false

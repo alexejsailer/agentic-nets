@@ -2,6 +2,7 @@ package com.sailer.agenticos.agenticnetexecutor.transition.runtime;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sailer.agenticos.agenticnetexecutor.transition.TransitionDefinition;
 import com.sailer.agenticos.agenticnetexecutor.transition.TransitionInscription;
 import com.sailer.agenticos.agenticnetexecutor.transition.command.CommandActionExecutor;
@@ -52,6 +53,17 @@ public class TransitionActionExecutor {
                     .toList();
         }
 
+        // Inject resolved credentials (fetched from vault by master and passed in the context) as
+        // environment variables for the command, so a command transition can authenticate to an
+        // external API WITHOUT the secret appearing in the command string/argv, the inscription, or
+        // any token. The command references them as ordinary env vars (e.g. $apiKey).
+        Object credsAttr = context != null ? context.attribute("credentials") : null;
+        if (credsAttr instanceof Map<?, ?> credsMap && !credsMap.isEmpty()) {
+            inputTokens = inputTokens.stream()
+                    .map(token -> injectCredentialEnv(token, credsMap))
+                    .toList();
+        }
+
         CommandActionExecutor.CommandActionResult result = commandActionExecutor.execute(
                 commandAction, inputTokens, definition.transitionId());
 
@@ -66,6 +78,32 @@ public class TransitionActionExecutor {
         Map<String, List<EmissionPayload>> payloads = buildPayloads(definition, resultJson, bindings, "error");
         logger.info("🔍 ERROR PATH: buildPayloads returned {} postsets, keys={}", payloads.size(), payloads.keySet());
         return ActionResult.failure(payloads, Map.of("commandResult", resultJson));
+    }
+
+    /**
+     * Merge resolved credentials into a command token's args.env so they reach the child process as
+     * environment variables (never as argv/command-string text or a persisted token field). Returns
+     * a copy of the token with env merged.
+     */
+    private JsonNode injectCredentialEnv(JsonNode token, Map<?, ?> creds) {
+        if (token == null || !token.isObject()) {
+            return token;
+        }
+        ObjectNode copy = (ObjectNode) token.deepCopy();
+        JsonNode argsNode = copy.get("args");
+        ObjectNode args = (argsNode != null && argsNode.isObject())
+                ? (ObjectNode) argsNode : objectMapper.createObjectNode();
+        JsonNode envNode = args.get("env");
+        ObjectNode env = (envNode != null && envNode.isObject())
+                ? (ObjectNode) envNode : objectMapper.createObjectNode();
+        for (Map.Entry<?, ?> e : creds.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                env.put(String.valueOf(e.getKey()), String.valueOf(e.getValue()));
+            }
+        }
+        args.set("env", env);
+        copy.set("args", args);
+        return copy;
     }
 
     private Map<String, List<EmissionPayload>> buildPayloads(TransitionDefinition definition,

@@ -128,7 +128,7 @@ public class MasterProxyController {
                 .retrieve()
                 .bodyToFlux(String.class);
 
-        flux.subscribe(
+        reactor.core.Disposable subscription = flux.subscribe(
                 data -> {
                     try {
                         emitter.send(SseEmitter.event().data(data));
@@ -140,6 +140,13 @@ public class MasterProxyController {
                 emitter::completeWithError,
                 emitter::complete
         );
+
+        // Dispose the upstream master subscription when the downstream SSE ends.
+        // Without this, a client disconnect or proxy timeout leaks the master
+        // connection for the full proxy-timeout window (default 300s).
+        emitter.onTimeout(() -> { subscription.dispose(); emitter.complete(); });
+        emitter.onError(t -> subscription.dispose());
+        emitter.onCompletion(subscription::dispose);
 
         return emitter;
     }

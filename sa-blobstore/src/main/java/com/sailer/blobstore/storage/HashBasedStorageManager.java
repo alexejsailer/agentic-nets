@@ -172,8 +172,8 @@ public class HashBasedStorageManager {
         long cutoffTime = System.currentTimeMillis() - maxAge;
         int cleanedUp = 0;
 
-        try {
-            cleanedUp = (int) Files.walk(tempPath)
+        try (java.util.stream.Stream<java.nio.file.Path> paths = Files.walk(tempPath)) {
+            cleanedUp = (int) paths
                 .filter(Files::isRegularFile)
                 .filter(path -> {
                     try {
@@ -283,11 +283,13 @@ public class HashBasedStorageManager {
     public void cleanupEmptyTempDirectories() {
         try {
             if (Files.exists(tempPath)) {
-                Files.walk(tempPath)
-                    .filter(Files::isDirectory)
-                    .filter(dir -> !dir.equals(tempPath)) // Don't delete the root temp directory
-                    .sorted(java.util.Comparator.reverseOrder()) // Delete deepest directories first
-                    .forEach(this::cleanupEmptyDirectories);
+                try (java.util.stream.Stream<Path> paths = Files.walk(tempPath)) {
+                    paths
+                        .filter(Files::isDirectory)
+                        .filter(dir -> !dir.equals(tempPath)) // Don't delete the root temp directory
+                        .sorted(java.util.Comparator.reverseOrder()) // Delete deepest directories first
+                        .forEach(this::cleanupEmptyDirectories);
+                }
             }
         } catch (IOException e) {
             logger.warn("Failed to cleanup empty temp directories", e);
@@ -312,8 +314,8 @@ public class HashBasedStorageManager {
     }
 
     private boolean isDirectoryEmpty(Path directory) {
-        try {
-            return Files.list(directory).findFirst().isEmpty();
+        try (java.util.stream.Stream<Path> entries = Files.list(directory)) {
+            return entries.findFirst().isEmpty();
         } catch (IOException e) {
             return false;
         }

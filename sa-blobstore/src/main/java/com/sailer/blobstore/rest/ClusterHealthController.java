@@ -258,11 +258,13 @@ public class ClusterHealthController implements HealthIndicator {
                 return 0;
             }
             
-            return Files.walk(storagePath)
-                .filter(Files::isRegularFile)
-                .filter(path -> !path.getFileName().toString().startsWith("."))
-                .count();
-                
+            try (java.util.stream.Stream<Path> paths = Files.walk(storagePath)) {
+                return paths
+                    .filter(Files::isRegularFile)
+                    .filter(path -> !path.getFileName().toString().startsWith("."))
+                    .count();
+            }
+
         } catch (IOException e) {
             logger.warn("Failed to count blobs in storage", e);
             return -1;
