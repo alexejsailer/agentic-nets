@@ -1,0 +1,22 @@
+# =============================================================================
+# Test-stack override for the isolated `agenticos-test` dev stack
+# (ci/scripts/dev-stack-up.sh). The test stack never runs the ollama container
+# (deterministic cluster suites do not call the LLM), so drop master's hard
+# health-dependency on ollama. node + vault deps are kept so master still boots
+# against a real node and vault.
+# =============================================================================
+services:
+  agentic-net-master:
+    depends_on: !override
+      init-perms:
+        condition: service_completed_successfully
+      agentic-net-node:
+        condition: service_healthy
+      agentic-net-vault:
+        condition: service_healthy
+
+# Declare the isolated node-data named volume referenced via AGENTICNETOS_NODE_DATA_DIR
+# in .env.test (a bare name => named volume). Project-scoped (agenticos-test_test-node-data),
+# so the test node's data is isolated from the dev's ~/.agenticos and is chownable by init-perms.
+volumes:
+  test-node-data:
