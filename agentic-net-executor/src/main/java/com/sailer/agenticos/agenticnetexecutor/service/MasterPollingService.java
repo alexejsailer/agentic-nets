@@ -263,6 +263,7 @@ public class MasterPollingService {
             case UPDATE -> updateTransition(modelId, transitionCmd);
             case DELETE -> deleteTransition(modelId, transitionCmd);
             case FIRE -> fireTransition(modelId, transitionCmd);
+            case FIRE_ONCE -> fireOnceTransition(modelId, transitionCmd);
             case CONTINUE -> continueTransition(transitionId);
         };
     }
@@ -467,6 +468,33 @@ public class MasterPollingService {
         }
     }
 
+    /**
+     * One-shot fire from the master fireOnce endpoint. Identical to {@link #fireTransition}
+     * except it runs even when the transition's local status is STOPPED (fireOnce never
+     * STARTs the transition). Still async (virtual thread) so it never blocks the poll loop.
+     */
+    private Mono<String> fireOnceTransition(String modelId, TransitionWithCommand transitionCmd) {
+        String transitionId = transitionCmd.transitionId();
+        Map<String, List<Map<String, Object>>> boundTokens = transitionCmd.boundTokens();
+
+        logger.info("FIRE_ONCE command for transition {}:{}", modelId, transitionId);
+
+        if (!isCommandTransition(transitionCmd)) {
+            return Mono.just("rejected-non-command: " + transitionId);
+        }
+
+        if (boundTokens != null && !boundTokens.isEmpty()) {
+            transitionStore.get(modelId, transitionId).ifPresentOrElse(
+                definition -> orchestrator.executeWithBoundTokens(modelId, transitionId, boundTokens, true),
+                () -> logger.warn("Transition {}:{} not found for FIRE_ONCE", modelId, transitionId)
+            );
+            return Mono.just("fireOnce: " + transitionId + " (with " + boundTokens.size() + " preset bindings)");
+        } else {
+            logger.warn("FIRE_ONCE with no bound tokens for {}:{}", modelId, transitionId);
+            return Mono.just("fireOnce: " + transitionId + " (no tokens bound)");
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Master communication
     // -------------------------------------------------------------------------
@@ -603,6 +631,6 @@ public class MasterPollingService {
     ) {}
 
     public enum LifecycleCommand {
-        DEPLOY, START, STOP, RESTART, UPDATE, DELETE, FIRE, CONTINUE
+        DEPLOY, START, STOP, RESTART, UPDATE, DELETE, FIRE, FIRE_ONCE, CONTINUE
     }
 }

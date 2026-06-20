@@ -60,6 +60,15 @@ public class TransitionOrchestrator {
      * @param boundTokens Tokens bound by master for each preset
      */
     public void executeWithBoundTokens(String modelId, String transitionId, Map<String, List<Map<String, Object>>> boundTokens) {
+        executeWithBoundTokens(modelId, transitionId, boundTokens, false);
+    }
+
+    /**
+     * @param fireOnce when true this is a one-shot FIRE_ONCE from the master fireOnce endpoint:
+     *                 the local-status (STOPPED) guards are bypassed so a stopped command
+     *                 transition still runs exactly once. Still async so the poll loop never blocks.
+     */
+    public void executeWithBoundTokens(String modelId, String transitionId, Map<String, List<Map<String, Object>>> boundTokens, boolean fireOnce) {
         var maybeDefinition = transitionStore.get(modelId, transitionId);
         if (maybeDefinition.isEmpty()) {
             logger.warn("Cannot execute unknown transition: {}:{}", modelId, transitionId);
@@ -71,8 +80,8 @@ public class TransitionOrchestrator {
             return;
         }
         // Pre-submit stop guard: if STOP arrived (locally marked the transition STOPPED)
-        // before or alongside this FIRE, don't start the work.
-        if (!isRunnable(definition.status())) {
+        // before or alongside this FIRE, don't start the work. Skipped for one-shot fireOnce.
+        if (!fireOnce && !isRunnable(definition.status())) {
             logger.info("⏹️ Skipping FIRE for transition {}:{} — local status is {} (stop requested before submit)",
                     modelId, transitionId, definition.status());
             return;
@@ -93,12 +102,12 @@ public class TransitionOrchestrator {
                     return;
                 }
                 TransitionStatus latestStatus = latest.get().status();
-                if (!isRunnable(latestStatus)) {
+                if (!fireOnce && !isRunnable(latestStatus)) {
                     logger.info("⏹️ Skipping FIRE for transition {}:{} inside worker — local status is {} (stop requested after submit)",
                             modelId, transitionId, latestStatus);
                     return;
                 }
-                runSingleWithBoundTokens(latest.get(), boundTokens);
+                runSingleWithBoundTokens(latest.get(), boundTokens, null, fireOnce);
             } finally {
                 inFlight.remove(flightKey);
             }
@@ -129,17 +138,24 @@ public class TransitionOrchestrator {
             logger.warn("Rejecting executeOnceSync for non-command transition {}:{}", modelId, transitionId);
             return ActionResult.failure(Map.of(), Map.of("error", "Non-command actions run on master"));
         }
-        return runSingleWithBoundTokens(maybeDefinition.get(), boundTokens, credentialsOverride);
+        return runSingleWithBoundTokens(maybeDefinition.get(), boundTokens, credentialsOverride, true);
     }
 
     private ActionResult runSingleWithBoundTokens(TransitionDefinition definition,
                                                   Map<String, List<Map<String, Object>>> boundTokens) {
-        return runSingleWithBoundTokens(definition, boundTokens, null);
+        return runSingleWithBoundTokens(definition, boundTokens, null, false);
     }
 
     private ActionResult runSingleWithBoundTokens(TransitionDefinition definition,
                                                   Map<String, List<Map<String, Object>>> boundTokens,
                                                   Map<String, Object> credentialsOverride) {
+        return runSingleWithBoundTokens(definition, boundTokens, credentialsOverride, false);
+    }
+
+    private ActionResult runSingleWithBoundTokens(TransitionDefinition definition,
+                                                  Map<String, List<Map<String, Object>>> boundTokens,
+                                                  Map<String, Object> credentialsOverride,
+                                                  boolean fireOnce) {
         logger.info("🎯 Executing transition {} with bound tokens from master", definition.transitionId());
         Timer.Sample sample = Timer.start(meterRegistry);
         List<ReservedToken> reservedTokens = new ArrayList<>();
@@ -179,7 +195,7 @@ public class TransitionOrchestrator {
                        definition.transitionId(), selectedBindings.size());
             ActionResult result = actionExecutor.execute(definition, selectedBindings, context);
 
-            if (shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
+            if (!fireOnce && shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
                 releaseReservedTokensViaMaster(definition.transitionId(), reservedTokens);
                 logger.info("⏹️ Skipping post-action side effects for transition {}:{} because local status is no longer runnable",
                         definition.modelId(), definition.transitionId());
@@ -192,7 +208,7 @@ public class TransitionOrchestrator {
             // Finalize reserved preset tokens via master.
             performConsumptionViaMaster(definition, selectedBindings);
 
-            if (shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
+            if (!fireOnce && shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
                 logger.info("⏹️ Transition {}:{} became non-runnable during finalization — skipping local bookkeeping",
                         definition.modelId(), definition.transitionId());
                 return result;
@@ -213,7 +229,7 @@ public class TransitionOrchestrator {
                     definition.modelId(), definition.transitionId(), result.success());
             return result;
         } catch (Exception e) {
-            if (shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
+            if (!fireOnce && shouldAbortAfterAction(definition.modelId(), definition.transitionId())) {
                 releaseReservedTokensViaMaster(definition.transitionId(), reservedTokens);
                 logger.info("⏹️ Transition {}:{} stopped during command execution — preserving stop and releasing reservations",
                         definition.modelId(), definition.transitionId());
