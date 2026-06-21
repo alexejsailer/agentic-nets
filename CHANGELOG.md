@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-06-21
+
+### Added
+- **Executor `FIRE_ONCE` one-shot** (`agentic-net-executor` — `MasterPollingService`, `TransitionOrchestrator`). The executor handles the new `FIRE_ONCE` lifecycle command: it runs a command transition exactly once even when its local status is STOPPED ("Run Once" / `fireOnce`), via a guard-bypassing async path that never blocks the poll loop. Pairs with the master-side "Run once for commands" in `core` 2.12.0.
+- **Local source-built test stack** (`deployment`). A compose override to build and run the stack from current source for local QA / integration runs (used by the new `agenticos-test-integration` CI tier).
+
+### Changed
+- **Public deployment compose defaults bumped to 2.12.0** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `.env.template`). `AGENTICNETOS_VERSION` now defaults to `2.12.0`, so a fresh `docker compose up` pulls the new release.
+
+### Fixed
+- **Command transitions can authenticate via vault without leaking the secret** (`agentic-net-executor` — `TransitionActionExecutor`). Vault credentials are injected into a command transition as environment variables, so the secret never touches argv, the inscription, or a token.
+- **Gateway SSE connection leak** (`agentic-net-gateway` — `MasterProxyController`). The upstream `Flux` is disposed on SSE timeout / error / completion (previously leaked the master connection ~300s per disconnect).
+- **BlobStore file-descriptor leaks** (`sa-blobstore`). `Files.walk` / `Files.list` calls are wrapped in try-with-resources.
+- **Trace-disk growth bounded** (`monitoring` — `tempo.yaml`). Added a compactor `block_retention` so trace storage cannot grow without bound.
+
 ## [2.11.1] - 2026-06-13
 
 ### No code changes
