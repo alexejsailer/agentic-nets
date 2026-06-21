@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-06-21
+
+### Changed
+- **Default Ollama model → `glm-5.2:cloud`** (`deployment/.env.template`; all tiers). `OLLAMA_MODEL` + `OLLAMA_HIGH/MEDIUM/LOW_MODEL` defaults switch from `deepseek-v3.1:671b-cloud` to `glm-5.2:cloud`; prior values kept commented for easy revert.
+- **Public deployment compose defaults bumped to 2.13.0** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `.env.template`). `AGENTICNETOS_VERSION` now defaults to `2.13.0`.
+
+### Notes
+No `agentic-nets` service code changed this cycle (the change above is a config default); the gateway / executor / vault / cli / chat / blobstore images are functionally identical to 2.12.0 and are republished under the `2.13.0` tag for a coherent umbrella version. The substantive 2.13.0 changes live in `core/` (Place Content Analysis, the `DESCRIBE_PLACE` agent tool, what-fires-next + per-tool usage stats, GUI Agenda/Console/token-flow, and the default-model switch). See [`../core/CHANGELOG.md`](../core/CHANGELOG.md).
+
 ## [2.12.0] - 2026-06-21
 
 ### Added
