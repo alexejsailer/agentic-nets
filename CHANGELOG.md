@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-06-22
+
+### Changed
+- **Deployment images pinned to `2.14.0`** (`deployment/` — `.env.template`, `docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`). No open-source service code changed this cycle; the release tracks core's new agent capability flags (`T` tooling, `C` coordinate), the Forge tool-net meta-agent, and the persona consolidation into a single Universal Assistant front door. See the core service release notes for details.
+
 ## [2.13.0] - 2026-06-21
 
 ### Changed
