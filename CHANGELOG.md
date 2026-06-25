@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-06-25
+
+### Changed
+- **Deployment images pinned to `2.15.0`** (`deployment/` — `.env.template`, `docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`). No open-source service code changed this cycle; the release tracks core's **self-improving tool-net library** (a usage ledger + schema-enforced invocation, lifecycle promotion `draft → blessed`, self-healing health, and a crystallization loop that feeds proposals back to Forge), **tool-net awareness** for `T`-capable agents, and **runtime/agent delete-operation fixes**. See the core service release notes for details.
+
 ## [2.14.0] - 2026-06-22
 
 ### Changed
