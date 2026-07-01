@@ -4,6 +4,13 @@
 
 **Governed multi-agent runtime. Your agents stop running naked.**
 
+**The no-code backend for building agent harnesses.** Everything a harness needs
+— tools, control flow, memory, execution, agents, and guardrails — you assemble
+by prompting and chatting, not by writing code. Build one guarded agent or a
+whole virtual product team the same way, and drive it all remotely — even from
+your phone — through the Claude Code integration. You never open an editor; you
+describe what you want and the runtime builds it.
+
 Agentic-Nets is a runtime where agents live inside formal Petri nets and use
 those nets as context. A net defines what an agent can see, what it can do,
 where outputs go, and how it communicates with other nets. One net can model a
@@ -24,6 +31,16 @@ layer:
 - **Nets talk to nets.** Teams, tools, approvals, memory, and pipelines become explicit handoffs.
 - **Everything stays inspectable.** Tokens, tool calls, events, and emissions remain queryable and replayable.
 - **The same model scales up.** Build one guarded developer agent or a whole product runtime with the same primitives.
+
+## See it running in production
+
+Not slideware — these are live systems, each one Agentic-Nets running a real
+harness end to end:
+
+- **[forum.agentic-nets.com](https://forum.agentic-nets.com)** — a real product forum. A feature request posted here is picked up by a virtual team net, triaged, built, tested, deployed, and reported back on the thread — automatically, with every lifecycle milestone posted as it happens.
+- **[gitanalytics.agentic-nets.com](https://gitanalytics.agentic-nets.com)** — the actual product that team is building: a live git-commit-analytics service whose new endpoints are shipped by agents, not people.
+- **The `safe-teams` net** — the virtual agile team that connects the two: PM, Architect, Developer, QA, DevOps, and RTE agents coordinating through a single net — intake → design → code (a real `command` transition runs the coding CLI on an executor) → QA gate → deploy → status. One harness turns a forum post into a shipped, verified feature.
+- **[agentic-nets.com](https://agentic-nets.com)** — full documentation, the concept chapters, and the product tour.
 
 ## What you can model with it
 
@@ -62,6 +79,53 @@ Agentic-Nets uses **seven transition types**: `pass`, `map`, `http`, `llm`,
 - **`command` transitions connect the net to remote execution.** They define which executor can run a command remotely and bring the result back into the net as structured state.
 - **Deterministic and non-deterministic transitions coexist.** Fixed logic can stay fixed, while open-ended reasoning stays open-ended, in the same runtime and on the same graph.
 - **This is what makes the model powerful across domains.** A net can combine several cooperating agents with deterministic control flow, verification, remote execution, and cross-net communication.
+
+## Everything a harness needs — assembled by prompting
+
+A production agent **harness** is all the scaffolding *around* the model: the
+tools it can call, the control flow between steps, the memory it keeps, where it
+runs, who is allowed to do what, and how you see what happened afterwards. Most
+teams hand-write that harness in code and re-write it for every new agent.
+Agentic-Nets gives you every one of those pieces as a first-class primitive you
+**build by describing it** — and each piece is inspectable, reusable, and
+governed by default.
+
+| A harness needs… | …you get it as (no code) |
+|---|---|
+| **Tools** | Reusable **tool-nets** (self-describing capability nets you invoke, version, and share), **Docker tool containers** agents start on demand, and `http` / `command` transitions |
+| **Control flow** | **Nets** wired from seven transition types — deterministic (`pass` / `map` / `http`) and AI (`llm` / `agent`) lanes on the same graph, with conditional routing and capacity gates |
+| **Agents** | **`agent` transitions** and ready-made **assistant personas** — a Universal Assistant front door, a Workflow Builder, a Genesis specialist-builder, plus operator / domain-expert roles |
+| **Memory & state** | **Places + tokens** — typed, timestamped state queryable live with **ArcQL** — and `EMIT_MEMORY`, instead of a chat session that vanishes |
+| **Execution** | Distributed **executors** that poll egress-only (firewall-friendly, deployable anywhere) and run scoped work in **Docker** |
+| **Governance** | **`rwxhludct` capability roles** enforced at dispatch (not in the prompt) and **Vault** secrets injected only at action time |
+| **Observability** | **Event-sourced history** — replay the log, watch the live event-line, and ask what existed at any decision point |
+| **Reuse & export** | Export **inscriptions / PNML**, publish to the **tool-net library**, and drop the same net into another model or deployment |
+| **Self-extension** | **Builder / Forge** agents that create new places, transitions, and whole tool-nets *inside the running system* — the harness grows itself |
+
+### Drive it your way — no code, any LLM
+
+You never write code, and you are not tied to one vendor or one interface.
+
+**In the Studio (the GUI).** Watch every net, token, tool call, and event as it
+happens, and set the whole thing up by clicking — create models, sessions, nets,
+places, transitions, and inscriptions, deploy them, and adapt anything live. The
+Studio ships **several built-in assistant agents** — a Universal Assistant front
+door, a Workflow Builder that lays down and deploys whole nets from plain
+language, a Genesis specialist-builder, plus operator and domain-expert roles —
+so you get the same *"just describe it"* power as an external coding agent, right
+inside the product. The **Forge** meta-agent builds new reusable tool-nets on
+demand.
+
+**From Claude Code (remote).** The `agenticos-control` plugin (dedicated
+net-designer and net-operator agents, a control skill, and slash commands) plus
+Claude Code's **Remote Control** let you drive the entire system — build nets,
+run pipelines, even cut a release — **from anywhere, including your phone**,
+purely by chatting. See [Drive it from Claude Code](#drive-it-from-claude-code).
+
+**Bring your own model.** Nothing is vendor-locked. Point `LLM_PROVIDER` at
+Claude, OpenAI, or a local **Ollama** model (fully offline) — the same nets,
+personas, and tools run on whatever LLM you choose, and you can even route cheap
+deterministic steps to one model and deep reasoning to another.
 
 ## The nine production gaps Agentic-Nets closes
 
@@ -244,6 +308,56 @@ The `.env.template` is fully commented. The most important variables are:
 
 Detailed install, env, verification, and troubleshooting:
 [deployment/README.md](deployment/README.md).
+
+---
+
+## Drive it from Claude Code
+
+The [`agenticos-control`](claude-plugin/agenticos-control) **Claude Code plugin** turns any Claude Code
+session into a full control surface for a running stack: inspect nets, read and edit places and tokens, call
+the designtime and runtime REST APIs, fire and diagnose transitions, author nets, drive the Universal
+Assistant / Genesis / Forge personas, and export net diagrams. It is **CLI-first** (it uses the `agenticos`
+CLI when it is installed) with a **curl fallback**, and works both **locally** (direct to the services) and
+**remotely** (through the gateway's OAuth2, so you can drive the whole thing from anywhere, even your phone).
+
+**Install it.** From any Claude Code session:
+
+```
+/plugin marketplace add alexejsailer/agentic-nets
+/plugin install agenticos-control@agentic-nets
+```
+
+(Working from a local clone instead? `/plugin marketplace add ./agentic-nets`.)
+
+**Point it at your stack.** The plugin auto-detects gateway mode when a secret is present, otherwise direct
+mode. For the local Docker stack (whose gateway is published on `127.0.0.1:8083`), reuse the same admin
+secret the Studio login uses:
+
+```bash
+export AGENTICOS_GATEWAY_URL=http://localhost:8083
+export AGENTICOS_GATEWAY_SECRET_FILE=deployment/data/gateway/jwt/admin-secret
+```
+
+For a same-network setup where master and node are reachable directly, set
+`AGENTICOS_MASTER=http://localhost:8082` and `AGENTICOS_NODE=http://localhost:8080` and leave the secret
+unset. Secrets are read only from an env var or a file, the JWT stays in-process, and nothing is ever printed
+or written to disk.
+
+**Use it.** The plugin ships a skill, two agents (`agenticos-net-designer`, `agenticos-net-operator`), and
+slash commands:
+
+| Command | What it does |
+|---|---|
+| `/agenticos-doctor` | Preflight the connection (resolved mode/auth/targets + reachability, no secrets) |
+| `/agenticos-inspect <modelId> [sessionId] [netId]` | Snapshot transitions and states, a session's nets, a net's places and live token counts |
+| `/agenticos-fire <modelId> <transitionId>` | Fire a transition once (handles the stop/fire/start dance) |
+| `/agenticos-persona <universal\|genesis\|...> <modelId> "<prompt>"` | Drive a persona and stream its reply |
+| `/agenticos-forge <modelId> "<intent>"` | Build a reusable tool-net from a plain-language intent |
+| `/agenticos-export <modelId> <sessionId> <netId>` | Export a net to JSON or PNML (then render a diagram) |
+
+Or just describe what you want: the skill routes structural work to the designer agent and diagnosis to the
+operator agent. Full details, the REST/API reference, and the environment-variable table are in the plugin's
+own [README](claude-plugin/agenticos-control/README.md).
 
 ---
 
