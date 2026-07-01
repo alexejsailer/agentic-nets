@@ -1,0 +1,24 @@
+{
+  "name": "agenticos-control",
+  "version": "0.1.0",
+  "description": "Full control surface for AgenticOS / AgenticNetOS from any Claude Code session: inspect Agentic-Nets, read places and tokens, drive the designtime and runtime REST APIs, fire and diagnose transitions, author nets, drive the Universal Assistant / Genesis / Forge personas, and export net diagrams. CLI-first (the agenticos binary) with a curl fallback in direct or gateway-OAuth2 mode.",
+  "author": {
+    "name": "Alexej Sailer",
+    "url": "https://agentic-nets.com"
+  },
+  "homepage": "https://github.com/alexejsailer/agentic-nets/tree/main/claude-plugin/agenticos-control",
+  "repository": "https://github.com/alexejsailer/agentic-nets",
+  "license": "BUSL-1.1",
+  "keywords": [
+    "agenticos",
+    "agentic-nets",
+    "petri-net",
+    "workflow",
+    "llm-agents",
+    "rest-api",
+    "persona",
+    "genesis",
+    "forge",
+    "cli"
+  ]
+}

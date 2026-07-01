@@ -1,0 +1,53 @@
+Business Source License 1.1
+
+BETA SOFTWARE - PROVIDED AS-IS WITH ABSOLUTELY NO WARRANTY.
+
+License: Business Source License 1.1
+Licensor: Alexej Sailer
+Licensed Work: agenticos-control - a Claude Code plugin for the AgenticNetOS
+               Agentic-Nets platform (part of the agentic-nets repository).
+Change Date: 2030-02-22
+Change License: Apache License, Version 2.0
+
+Terms
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work. The
+Licensor may make an Additional Use Grant, below.
+
+You may not make production use of the Licensed Work for a commercial purpose
+without a commercial license from the Licensor.
+
+- "Production use" means using the Licensed Work or any derivative in a live
+  environment that serves end users or generates revenue.
+- "Commercial purpose" means use primarily intended for or directed toward
+  commercial advantage or monetary compensation.
+
+Additional Use Grant
+
+Non-production use is always permitted, including development and testing,
+personal and educational use, evaluation and proof-of-concept, academic
+research, and internal prototyping.
+
+Change Date
+
+On the Change Date (2030-02-22), the Licensed Work will be made available under
+the Change License (Apache License 2.0), and the above production-use
+restriction will no longer apply.
+
+Notices
+
+You must not remove or obscure any licensing, copyright, or notices of the
+Licensor in the Licensed Work.
+
+NO WARRANTY
+
+THE LICENSED WORK IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN
+THE LICENSED WORK.
+
+Copyright (c) 2025-2026 Alexej Sailer. All rights reserved.
