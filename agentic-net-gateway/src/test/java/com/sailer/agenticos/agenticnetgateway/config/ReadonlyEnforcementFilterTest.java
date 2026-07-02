@@ -216,6 +216,38 @@ class ReadonlyEnforcementFilterTest {
         verify(chain, times(1)).doFilter(req, res);
     }
 
+    @Test
+    void lookAlikeScopeContainingReadonlySubstring_isNotTreatedAsReadonly() throws Exception {
+        // Guards whole-token matching: the scope contains the substring "readonly" but only inside a
+        // larger token ("readonlyplus"), never as a standalone scope. A naive scope.contains("readonly")
+        // refactor would wrongly block this token's writes. A POST must pass through untouched.
+        authenticate("agenticos readonlyplus write");
+        MockHttpServletRequest req = request("POST", "/api/models");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void readonlyAsOneOfSeveralWhitespaceTokens_isEnforced() throws Exception {
+        // The mirror case: "readonly" as a genuine standalone token among others must still be enforced,
+        // so the whole-token match can't be "fixed" by only ever comparing the first/last scope token.
+        authenticate("openid readonly profile");
+        MockHttpServletRequest req = request("POST", "/api/models");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, never()).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(res.getContentAsString()).contains("readonly_scope");
+    }
+
     private static MockHttpServletRequest request(String method, String uri) {
         MockHttpServletRequest req = new MockHttpServletRequest(method, uri);
         req.setRequestURI(uri);
