@@ -1,0 +1,14 @@
+{
+  "id": "blank",
+  "name": "Blank canvas",
+  "description": "An empty net with one input and one output place — a canvas for add_place / add_transition.",
+  "version": "0.1.0",
+  "net": { "netId": "canvas", "name": "Canvas" },
+  "places": [
+    { "placeId": "p-in", "label": "in", "x": 100, "y": 100 },
+    { "placeId": "p-out", "label": "out", "x": 400, "y": 100 }
+  ],
+  "transitions": [],
+  "arcs": [],
+  "tags": ["starter"]
+}

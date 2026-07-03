@@ -46,7 +46,9 @@
     "./master/persona-client": "./src/master/persona-client.ts",
     "./config/config": "./src/config/config.ts",
     "./llm/openai": "./src/llm/openai.ts",
-    "./commands/llm-factory": "./src/commands/llm-factory.ts"
+    "./commands/llm-factory": "./src/commands/llm-factory.ts",
+    "./gateway/master-api": "./src/gateway/master-api.ts",
+    "./gateway/node-api": "./src/gateway/node-api.ts"
   },
   "files": [
     "dist",

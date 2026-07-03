@@ -1,0 +1,216 @@
+{
+  "id": "dev-team",
+  "name": "Dev team (token-free)",
+  "description": "The safe-team pattern without server-side LLM cost: a persistent development pipeline (backlog -> task-ready -> in-progress -> review -> done) where YOU, the connected coding agent, are the worker. The net provides durable state, WIP limits, an audit trail and a scheduled digest; you pull tasks, do the work with your own reasoning, and advance them. Workflow: query_tokens p-team-task-ready -> fire_once t-team-claim -> do the work -> memory-write your result token to p-team-review (or use query_tokens + fire_once t-team-submit) -> fire_once t-team-complete after review.",
+  "version": "0.1.0",
+  "params": {
+    "digestCron": { "description": "When the digest heartbeat ticks", "default": "0 0 9 * * *" }
+  },
+  "net": { "netId": "dev-team", "name": "Dev Team Pipeline" },
+  "places": [
+    { "placeId": "p-team-backlog", "label": "backlog", "x": 100, "y": 100 },
+    { "placeId": "p-team-task-ready", "label": "task ready (WIP-limited)", "x": 400, "y": 100 },
+    { "placeId": "p-team-in-progress", "label": "in progress", "x": 700, "y": 100 },
+    { "placeId": "p-team-review", "label": "review", "x": 1000, "y": 100 },
+    { "placeId": "p-team-done", "label": "done", "x": 1300, "y": 100 },
+    { "placeId": "p-team-log", "label": "team log / digests", "x": 700, "y": 260 },
+    { "placeId": "p-worker-charter", "label": "worker charter", "x": 100, "y": 260 }
+  ],
+  "transitions": [
+    {
+      "transitionId": "t-team-groom",
+      "label": "groom backlog into ready tasks",
+      "x": 250,
+      "y": 100,
+      "agentId": "agentic-net-master",
+      "start": true,
+      "inscription": {
+        "id": "t-team-groom",
+        "kind": "map",
+        "label": "groom backlog into ready tasks",
+        "presets": {
+          "input": { "placeId": "p-team-backlog", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+        },
+        "postsets": { "out": { "placeId": "p-team-task-ready", "capacity": 5 } },
+        "action": {
+          "type": "map",
+          "template": {
+            "kind": "task",
+            "title": "${input.data.title}",
+            "description": "${input.data.description}",
+            "status": "ready"
+          }
+        },
+        "emit": [{ "to": "out", "from": "@response" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-team-claim",
+      "label": "claim next task (fire manually)",
+      "x": 550,
+      "y": 100,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-team-claim",
+        "kind": "map",
+        "label": "claim next task (fire manually)",
+        "presets": {
+          "input": { "placeId": "p-team-task-ready", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+        },
+        "postsets": { "out": { "placeId": "p-team-in-progress", "capacity": 3 } },
+        "action": {
+          "type": "map",
+          "template": {
+            "kind": "task",
+            "title": "${input.data.title}",
+            "description": "${input.data.description}",
+            "status": "in-progress"
+          }
+        },
+        "emit": [{ "to": "out", "from": "@response" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-team-submit",
+      "label": "submit for review (fire manually)",
+      "x": 850,
+      "y": 100,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-team-submit",
+        "kind": "map",
+        "label": "submit for review (fire manually)",
+        "presets": {
+          "input": { "placeId": "p-team-in-progress", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+        },
+        "postsets": { "out": { "placeId": "p-team-review", "capacity": 10 } },
+        "action": {
+          "type": "map",
+          "template": {
+            "kind": "task",
+            "title": "${input.data.title}",
+            "description": "${input.data.description}",
+            "result": "${input.data.result}",
+            "status": "review"
+          }
+        },
+        "emit": [{ "to": "out", "from": "@response" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-team-complete",
+      "label": "complete after review (fire manually)",
+      "x": 1150,
+      "y": 100,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-team-complete",
+        "kind": "map",
+        "label": "complete after review (fire manually)",
+        "presets": {
+          "input": { "placeId": "p-team-review", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+        },
+        "postsets": { "out": { "placeId": "p-team-done" } },
+        "action": {
+          "type": "map",
+          "template": {
+            "kind": "task",
+            "title": "${input.data.title}",
+            "description": "${input.data.description}",
+            "result": "${input.data.result}",
+            "status": "done"
+          }
+        },
+        "emit": [{ "to": "out", "from": "@response" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-team-digest",
+      "label": "daily digest heartbeat",
+      "x": 700,
+      "y": 180,
+      "agentId": "agentic-net-master",
+      "start": true,
+      "inscription": {
+        "id": "t-team-digest",
+        "kind": "map",
+        "label": "daily digest heartbeat",
+        "schedule": { "type": "cron", "cron": "${digestCron}" },
+        "presets": {
+          "done": { "placeId": "p-team-done", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+        },
+        "postsets": { "out": { "placeId": "p-team-log", "capacity": 30 } },
+        "action": {
+          "type": "map",
+          "template": {
+            "kind": "digest",
+            "note": "Daily digest tick: review p-team-done and p-team-in-progress, then plan today's work.",
+            "lastDoneTitle": "${done.data.title}"
+          }
+        },
+        "emit": [{ "to": "out", "from": "@response" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-link-charter-backlog",
+      "label": "the worker grooms the backlog",
+      "x": 100,
+      "y": 180,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-link-charter-backlog",
+        "kind": "link",
+        "label": "the worker grooms the backlog",
+        "presets": {
+          "from": { "placeId": "p-worker-charter", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+        },
+        "postsets": { "to": { "placeId": "p-team-backlog" } }
+      }
+    }
+  ],
+  "arcs": [
+    { "arcId": "a-groom-in", "sourceId": "p-team-backlog", "targetId": "t-team-groom" },
+    { "arcId": "a-groom-out", "sourceId": "t-team-groom", "targetId": "p-team-task-ready" },
+    { "arcId": "a-claim-in", "sourceId": "p-team-task-ready", "targetId": "t-team-claim" },
+    { "arcId": "a-claim-out", "sourceId": "t-team-claim", "targetId": "p-team-in-progress" },
+    { "arcId": "a-submit-in", "sourceId": "p-team-in-progress", "targetId": "t-team-submit" },
+    { "arcId": "a-submit-out", "sourceId": "t-team-submit", "targetId": "p-team-review" },
+    { "arcId": "a-complete-in", "sourceId": "p-team-review", "targetId": "t-team-complete" },
+    { "arcId": "a-complete-out", "sourceId": "t-team-complete", "targetId": "p-team-done" },
+    { "arcId": "a-digest-in", "sourceId": "p-team-done", "targetId": "t-team-digest" },
+    { "arcId": "a-digest-out", "sourceId": "t-team-digest", "targetId": "p-team-log" },
+    { "arcId": "a-lcb-in", "sourceId": "p-worker-charter", "targetId": "t-link-charter-backlog" },
+    { "arcId": "a-lcb-out", "sourceId": "t-link-charter-backlog", "targetId": "p-team-backlog" }
+  ],
+  "seedTokens": [
+    {
+      "placeId": "p-worker-charter",
+      "name": "worker-charter",
+      "data": {
+        "persona": "Worker",
+        "role": "The connected coding agent works this pipeline. Loop: query_tokens p-team-task-ready -> fire_once t-team-claim -> do the work with your own tools -> add the result to the in-progress token's story (or write a result token) -> fire_once t-team-submit -> after human/agent review, fire_once t-team-complete.",
+        "source": "template"
+      }
+    },
+    {
+      "placeId": "p-team-backlog",
+      "name": "sample-task",
+      "data": {
+        "kind": "task",
+        "title": "Try the pipeline",
+        "description": "Claim this task (fire_once t-team-claim), then submit and complete it to see the flow end to end.",
+        "status": "backlog"
+      }
+    }
+  ],
+  "tags": ["starter", "development", "token-free"]
+}

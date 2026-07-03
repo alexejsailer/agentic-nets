@@ -23,7 +23,7 @@ DOCKERFILES_DIR="$DEPLOY_DIR/dockerfiles"
 
 HUB_PREFIX="alexejsailer/agenticnetos"
 
-SERVICES=(gateway executor vault cli chat blobstore tool-echo tool-crawler tool-rss tool-search tool-reddit tool-secured-api)
+SERVICES=(gateway executor vault cli chat mcp blobstore tool-echo tool-crawler tool-rss tool-search tool-reddit tool-secured-api)
 
 context_for() {
   case "$1" in
@@ -32,6 +32,7 @@ context_for() {
     vault) echo "agentic-net-vault" ;;
     cli) echo "agentic-net-cli" ;;
     chat) echo "." ;;
+    mcp) echo "." ;;
     blobstore) echo "sa-blobstore" ;;
     tool-echo) echo "agentic-net-tools/agenticos-tool-echo" ;;
     tool-crawler) echo "agentic-net-tools/agenticos-tool-crawler" ;;
@@ -50,6 +51,7 @@ dockerfile_for() {
     vault) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-vault" ;;
     cli) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-cli" ;;
     chat) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-chat" ;;
+    mcp) echo "${DOCKERFILES_DIR}/Dockerfile.agentic-net-mcp" ;;
     blobstore) echo "${DOCKERFILES_DIR}/Dockerfile.sa-blobstore" ;;
     tool-echo) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-echo/Dockerfile" ;;
     tool-crawler) echo "${REPO_ROOT}/agentic-net-tools/agenticos-tool-crawler/Dockerfile" ;;

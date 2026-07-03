@@ -1,0 +1,240 @@
+/**
+ * Memory layer — the headline: Agentic-Nets as structured working memory.
+ *
+ * Conventions: memory places are `p-mem-{inbox|notes|decisions|knowledge|archive}`
+ * in the runtime places container; short names are accepted everywhere. Tokens
+ * carry `{kind:'memory', text?, ...data, tags?, createdAt, source:'mcp'}`.
+ *
+ * memory_write works WITHOUT the working-memory template deployed (it auto-creates
+ * the runtime place); deploying the template later upgrades the very same places
+ * with the scheduled distill/reaper machinery — ids match by design.
+ */
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { AppContext } from '../context.js';
+import { wrapTool } from '../scope.js';
+import { buildLinkInscription, assignInscription } from '../inscriptions.js';
+import { discoverLinkEdges, ensurePlacesContainer } from '../tree.js';
+
+export const MEMORY_PLACES = ['inbox', 'notes', 'decisions', 'knowledge', 'archive'] as const;
+
+export function resolveMemoryPlace(name?: string): string {
+  const n = (name ?? 'notes').trim();
+  if ((MEMORY_PLACES as readonly string[]).includes(n)) return `p-mem-${n}`;
+  return n; // power users can target any runtime place verbatim
+}
+
+function placePath(placeId: string): string {
+  return `root/workspace/places/${placeId}`;
+}
+
+/**
+ * Human-readable preview of a token: prefers text fields, and unwraps the
+ * double-JSON-encoded `value` that llm-emitted tokens carry (engine quirk).
+ */
+export function previewOf(token: any): string {
+  const data = token?.data ?? token ?? {};
+  if (typeof data.text === 'string') return data.text.slice(0, 300);
+  let v = data.value;
+  for (let i = 0; i < 3 && typeof v === 'string'; i++) {
+    const s = v.trim();
+    if (!(s.startsWith('"') || s.startsWith('{') || s.startsWith('['))) break;
+    try {
+      v = JSON.parse(s);
+    } catch {
+      break;
+    }
+  }
+  if (typeof v === 'string') return v.slice(0, 300);
+  if (v && typeof v === 'object') {
+    const firstString = Object.values(v).find((x) => typeof x === 'string') as string | undefined;
+    if (firstString) return firstString.slice(0, 300);
+    return JSON.stringify(v).slice(0, 300);
+  }
+  return JSON.stringify(data).slice(0, 300);
+}
+
+async function ensurePlace(ctx: AppContext, model: string, placeId: string): Promise<void> {
+  // Virgin models have no tree at all — build the container chain first so
+  // memory_write works as the very first call ever made against a model.
+  await ensurePlacesContainer(ctx, model);
+  const res = await ctx.executorFor(model).execute('CREATE_RUNTIME_PLACE', { placeId });
+  if (!res.success) throw new Error(`could not ensure place '${placeId}': ${res.error}`);
+}
+
+export async function linkPlaces(
+  ctx: AppContext,
+  model: string,
+  from: string,
+  to: string,
+  label: string,
+): Promise<string> {
+  await ensurePlace(ctx, model, from);
+  await ensurePlace(ctx, model, to);
+  const tid = `t-link-${from.replace(/^p-/, '')}-${to.replace(/^p-/, '')}`;
+  const inscription = buildLinkInscription(tid, label, from, to, ctx.hostFor(model));
+  // Links are pure structure: assigned, NEVER started.
+  await assignInscription(ctx, model, inscription, 'agentic-net-master');
+  return tid;
+}
+
+export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
+  const { scope, config } = ctx;
+  const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
+    ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
+    : {};
+
+  server.registerTool(
+    'memory_write',
+    {
+      title: 'Write to working memory',
+      description:
+        'Store a memory token in a place. Places: inbox (raw capture), notes (default), decisions, knowledge, archive — or any custom place id. Optionally link the target place to related places in the same call.',
+      inputSchema: {
+        text: z.string().optional().describe('The memory as prose (stored as {text})'),
+        data: z.record(z.any()).optional().describe('Structured fields to store alongside/instead of text'),
+        place: z.string().optional().describe('inbox | notes | decisions | knowledge | archive | custom place id (default notes)'),
+        tags: z.array(z.string()).optional(),
+        links: z
+          .array(z.object({ to: z.string(), label: z.string().optional() }))
+          .optional()
+          .describe('Link the target place to other places (navigable via memory_graph)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'memory_write', mutates: true }, async (model, args) => {
+      if (!args.text && !args.data) throw new Error('provide text and/or data');
+      const placeId = resolveMemoryPlace(args.place);
+      await ensurePlace(ctx, model, placeId);
+      const data = {
+        kind: 'memory',
+        ...(args.text ? { text: args.text } : {}),
+        ...(args.data ?? {}),
+        ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
+        createdAt: new Date().toISOString(),
+        source: 'mcp',
+      };
+      const res = await ctx.executorFor(model).execute('CREATE_TOKEN', { placePath: placePath(placeId), data });
+      if (!res.success) throw new Error(res.error ?? 'CREATE_TOKEN failed');
+      const linked: string[] = [];
+      for (const link of args.links ?? []) {
+        const to = resolveMemoryPlace(link.to);
+        linked.push(await linkPlaces(ctx, model, placeId, to, link.label ?? `${placeId} relates to ${to}`));
+      }
+      return { stored: true, place: placeId, token: res.data, ...(linked.length ? { links: linked } : {}) };
+    }),
+  );
+
+  server.registerTool(
+    'memory_recall',
+    {
+      title: 'Recall from working memory',
+      description:
+        'Search memory places. Query forms: an ArcQL string starting with "FROM " (passed through, e.g. FROM $ WHERE $.kind=="memory" LIMIT 10), or a plain substring matched case-insensitively across token fields. Searches all memory places unless `place` narrows it.',
+      inputSchema: {
+        query: z.string().describe('ArcQL (starts with "FROM ") or a plain substring'),
+        place: z.string().optional().describe('Limit to one place (short or full id)'),
+        limit: z.number().optional().describe('Max matches to return (default 20)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'memory_recall', mutates: false }, async (model, args) => {
+      const places = args.place
+        ? [resolveMemoryPlace(args.place)]
+        : MEMORY_PLACES.map((p) => `p-mem-${p}`);
+      const isArcql = /^\s*FROM\s/i.test(args.query);
+      const limit = args.limit ?? 20;
+      const matches: any[] = [];
+      for (const placeId of places) {
+        const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+          placePath: placePath(placeId),
+          query: isArcql ? args.query : 'FROM $ LIMIT 100',
+          maxValueLength: 400,
+        });
+        if (!res.success) continue; // place may not exist yet
+        const tokens: any[] = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.results ?? res.data?.tokens ?? []);
+        for (const t of tokens) {
+          if (!isArcql) {
+            const hay = JSON.stringify(t).toLowerCase();
+            if (!hay.includes(String(args.query).toLowerCase())) continue;
+          }
+          matches.push({ place: placeId, preview: previewOf(t), token: t });
+          if (matches.length >= limit) break;
+        }
+        if (matches.length >= limit) break;
+      }
+      return { query: args.query, matches, count: matches.length };
+    }),
+  );
+
+  server.registerTool(
+    'memory_link',
+    {
+      title: 'Link memory places',
+      description:
+        'Create a navigable knowledge-graph edge between two places (a kind:link transition — pure structure, it never fires). Traversed by memory_graph.',
+      inputSchema: {
+        from: z.string().describe('Source place (short or full id)'),
+        to: z.string().describe('Target place (short or full id)'),
+        label: z.string().optional().describe('Edge semantics, e.g. "decision derives from note"'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'memory_link', mutates: true }, async (model, args) => {
+      const from = resolveMemoryPlace(args.from);
+      const to = resolveMemoryPlace(args.to);
+      const tid = await linkPlaces(ctx, model, from, to, args.label ?? `${from} -> ${to}`);
+      return { linked: true, from, to, transitionId: tid };
+    }),
+  );
+
+  server.registerTool(
+    'memory_graph',
+    {
+      title: 'Walk the memory graph',
+      description: 'Return the navigable context graph around a place: nodes (places with token counts) and labeled edges (link transitions).',
+      inputSchema: {
+        start: z.string().optional().describe('Start place (default inbox)'),
+        depth: z.number().optional().describe('Traversal depth (default 2)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'memory_graph', mutates: false }, async (model, args) => {
+      const start = resolveMemoryPlace(args.start ?? 'inbox');
+      const depth = args.depth ?? 2;
+      // Version-independent: link edges are read straight from the canonical
+      // inscription leaves on node (no master graph endpoint required).
+      const allEdges = await discoverLinkEdges(ctx, model);
+      const adjacency = new Map<string, Set<string>>();
+      for (const e of allEdges) {
+        if (!adjacency.has(e.from)) adjacency.set(e.from, new Set());
+        if (!adjacency.has(e.to)) adjacency.set(e.to, new Set());
+        adjacency.get(e.from)!.add(e.to);
+        adjacency.get(e.to)!.add(e.from); // navigable both ways
+      }
+      const reachable = new Set<string>([start]);
+      let frontier = [start];
+      for (let d = 0; d < depth; d++) {
+        const next: string[] = [];
+        for (const n of frontier) {
+          for (const m of adjacency.get(n) ?? []) {
+            if (!reachable.has(m)) {
+              reachable.add(m);
+              next.push(m);
+            }
+          }
+        }
+        frontier = next;
+      }
+      const edges = allEdges.filter((e) => reachable.has(e.from) && reachable.has(e.to));
+      const nodes = [] as any[];
+      for (const p of reachable) {
+        const count = await ctx.node.getChildrenCount(model, placePath(p)).catch(() => -1);
+        nodes.push({ placeId: p, tokenCount: count });
+      }
+      return { start, depth, nodes, edges };
+    }),
+  );
+}

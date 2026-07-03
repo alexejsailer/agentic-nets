@@ -1,0 +1,102 @@
+{
+  "id": "brain",
+  "name": "Brain (ideation)",
+  "description": "A divergent-ideation lane (the pattern proven on the AgenticNetOS staging safe-team): drop a topic into the inbox and a grounded LLM panel brainstorms candidates, then a critic pass stress-tests them into a shortlist. This template DOES run server-side LLM calls (the configured Ollama/Claude provider).",
+  "version": "0.1.0",
+  "params": {
+    "panelPrompt": {
+      "description": "The divergent panel instruction",
+      "default": "You are a small panel of complementary experts brainstorming on the topic below. Ground yourselves in the CONTEXT if present. Produce 3-5 distinct, concrete candidate ideas as a JSON array of objects with keys: title, summary, whyItMatters, complexity (S|M|L). Output ONLY the JSON array. TOPIC: ${input.data.text}"
+    },
+    "criticPrompt": {
+      "description": "The convergent critic instruction",
+      "default": "You are the CRITIC. Below is a JSON array of candidate ideas. Delete weak, vague or duplicate entries; keep the strongest 1-3 in the SAME schema; sharpen their summaries. Output ONLY the surviving JSON array. CANDIDATES: ${input.data.value}"
+    }
+  },
+  "net": { "netId": "brain", "name": "Brain" },
+  "places": [
+    { "placeId": "p-brain-context", "label": "context (grounding)", "x": 100, "y": 40 },
+    { "placeId": "p-brain-inbox", "label": "topic inbox", "x": 100, "y": 160 },
+    { "placeId": "p-brain-ideas", "label": "raw ideas", "x": 450, "y": 160 },
+    { "placeId": "p-brain-shortlist", "label": "shortlist (vetted)", "x": 800, "y": 160 }
+  ],
+  "transitions": [
+    {
+      "transitionId": "t-brain-panel",
+      "label": "divergent panel",
+      "x": 275,
+      "y": 160,
+      "agentId": "agentic-net-master",
+      "start": true,
+      "inscription": {
+        "id": "t-brain-panel",
+        "kind": "llm",
+        "label": "divergent panel",
+        "presets": {
+          "input": { "placeId": "p-brain-inbox", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+        },
+        "postsets": { "out": { "placeId": "p-brain-ideas", "capacity": 10 } },
+        "action": { "type": "llm", "nl": "${panelPrompt}", "timeoutMs": 240000 },
+        "emit": [{ "to": "out", "from": "@response.raw" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-brain-critic",
+      "label": "critic (convergent pass)",
+      "x": 625,
+      "y": 160,
+      "agentId": "agentic-net-master",
+      "start": true,
+      "inscription": {
+        "id": "t-brain-critic",
+        "kind": "llm",
+        "label": "critic (convergent pass)",
+        "presets": {
+          "input": { "placeId": "p-brain-ideas", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+        },
+        "postsets": { "out": { "placeId": "p-brain-shortlist", "capacity": 10 } },
+        "action": { "type": "llm", "nl": "${criticPrompt}", "timeoutMs": 240000 },
+        "emit": [{ "to": "out", "from": "@response.raw" }],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-link-context-inbox",
+      "label": "context grounds topics",
+      "x": 100,
+      "y": 100,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-link-context-inbox",
+        "kind": "link",
+        "label": "context grounds topics",
+        "presets": {
+          "from": { "placeId": "p-brain-context", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+        },
+        "postsets": { "to": { "placeId": "p-brain-inbox" } }
+      }
+    }
+  ],
+  "arcs": [
+    { "arcId": "a-panel-in", "sourceId": "p-brain-inbox", "targetId": "t-brain-panel" },
+    { "arcId": "a-panel-out", "sourceId": "t-brain-panel", "targetId": "p-brain-ideas" },
+    { "arcId": "a-critic-in", "sourceId": "p-brain-ideas", "targetId": "t-brain-critic" },
+    { "arcId": "a-critic-out", "sourceId": "t-brain-critic", "targetId": "p-brain-shortlist" },
+    { "arcId": "a-lci-in", "sourceId": "p-brain-context", "targetId": "t-link-context-inbox" },
+    { "arcId": "a-lci-out", "sourceId": "t-link-context-inbox", "targetId": "p-brain-inbox" }
+  ],
+  "seedTokens": [
+    {
+      "placeId": "p-brain-context",
+      "name": "how-this-works",
+      "data": {
+        "kind": "context",
+        "text": "Write grounding context tokens here (vision, constraints, prior art). Drop topics as {text} tokens into p-brain-inbox; the panel brainstorms into p-brain-ideas and the critic keeps the strongest in p-brain-shortlist.",
+        "source": "template"
+      }
+    }
+  ],
+  "tags": ["starter", "ideation", "llm"]
+}

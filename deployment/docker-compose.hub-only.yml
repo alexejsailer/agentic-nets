@@ -629,6 +629,38 @@ services:
           memory: ${AGENTICNETOS_CHAT_MEMORY_LIMIT:-512M}
           cpus: "${AGENTICNETOS_CHAT_CPU_LIMIT:-0.5}"
 
+  # Agentic-Nets MCP server (@agenticnets/mcp) — streamable-HTTP endpoint so MCP
+  # clients (Claude Code/Desktop, Cursor, ...) can use this stack as working
+  # memory + net builder. Opt-in: COMPOSE_PROFILES=mcp and set AGENTICOS_MCP_HTTP_TOKEN.
+  agentic-net-mcp:
+    image: alexejsailer/agenticnetos-mcp:${AGENTICNETOS_VERSION:-2.17.0}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-mcp
+    profiles:
+      - mcp
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+      agentic-net-gateway:
+        condition: service_healthy
+    environment:
+      AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
+      AGENTICOS_GATEWAY_SECRET_FILE: /app/gateway-data/jwt/admin-secret
+      AGENTICOS_MODELS: ${AGENTICOS_MCP_MODELS:-default}
+      AGENTICOS_MODE: ${AGENTICOS_MCP_MODE:-rw}
+      AGENTICOS_SESSION: ${AGENTICOS_MCP_SESSION:-mcp}
+      AGENTICOS_NODE_HOST: agentic-net-node:8080
+      AGENTICOS_MCP_TRANSPORT: http
+      AGENTICOS_MCP_HTTP_PORT: "8091"
+      AGENTICOS_MCP_HTTP_TOKEN: ${AGENTICOS_MCP_HTTP_TOKEN:-}
+    volumes:
+      - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MCP_PORT:-8091}:8091"
+    networks:
+      - agenticnetos-clients
+    restart: unless-stopped
+    logging: *default-logging
+
   sa-blobstore:
     image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.17.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-blobstore
