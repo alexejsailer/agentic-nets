@@ -1,7 +1,7 @@
 {
   "name": "@agenticnets/mcp",
   "version": "0.1.0",
-  "description": "Agentic-Nets MCP server — working memory that runs. Petri-net-backed structured memory, net building, and observability for MCP clients (Claude Code, Claude Desktop, Cursor, ...).",
+  "description": "Agentic-Nets MCP server \u2014 working memory that runs. Petri-net-backed structured memory, net building, and observability for MCP clients (Claude Code, Claude Desktop, Cursor, ...).",
   "type": "module",
   "bin": {
     "agenticnets-mcp": "./dist/bin/agenticnets-mcp.js"
@@ -20,12 +20,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@agenticos/cli": "file:../agentic-net-cli",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "yaml": "^2.9.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@agenticos/cli": "file:../agentic-net-cli",
     "@types/node": "^22.12.0",
     "tsup": "^8.3.6",
     "typescript": "^5.7.3",
