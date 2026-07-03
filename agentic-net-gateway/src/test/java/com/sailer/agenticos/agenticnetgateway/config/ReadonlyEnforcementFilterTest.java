@@ -164,6 +164,50 @@ class ReadonlyEnforcementFilterTest {
     }
 
     @Test
+    void postArcqlQuery_readonlyScope_isAllowed_node() throws Exception {
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/node-api/arcql/query/safe-teams");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void postArcqlQuery_readonlyScope_isAllowed_masterAndProxyAndRuntime() throws Exception {
+        for (String uri : new String[] {
+                "/api/arcql/query/safe-teams",
+                "/api/proxy/arcql/safe-teams/query",
+                "/api/runtime/places/p-mem-notes/tokens/query"}) {
+            authenticate("agenticos readonly");
+            MockHttpServletRequest req = request("POST", uri);
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+            filter.doFilter(req, res, chain);
+            verify(chain, times(1)).doFilter(req, res);
+            assertThat(res.getStatus()).as(uri).isEqualTo(HttpStatus.OK.value());
+        }
+    }
+
+    @Test
+    void postTokenCreate_readonlyScope_stillBlocked() throws Exception {
+        // Creating a token mutates — the arcql-query exception must NOT cover token writes.
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("POST", "/api/runtime/places/p-mem-notes/tokens");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, never()).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(res.getContentAsString()).contains("readonly_scope");
+    }
+
+    @Test
     void postReadonlyMonitorPersonaStart_isAllowed() throws Exception {
         authenticate("agenticos readonly");
         MockHttpServletRequest req = request("POST", "/api/assistant/p/domain-expert-readonly/safe-teams/chat/start");

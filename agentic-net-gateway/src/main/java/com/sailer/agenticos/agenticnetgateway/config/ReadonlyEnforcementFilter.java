@@ -58,6 +58,17 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
     /** Actual pinned monitoring persona endpoints used by the GUI. */
     private static final Pattern READONLY_MONITOR_PERSONA_CHAT =
             Pattern.compile("^/api/assistant/p/domain-expert-readonly/[^/]+/chat/(start|[^/]+/agent-stream)$");
+    /**
+     * ArcQL query endpoints. These are POST only because the query travels in the body, but they are
+     * strictly read operations (token selection — never a mutation), so a readonly guest may call them.
+     * Covers node-direct ({@code /node-api/arcql/query/{modelId}}), master ({@code /api/arcql/query/{modelId}}),
+     * the master proxy ({@code /api/proxy/arcql/{modelId}/query}), and the runtime place query
+     * ({@code /api/runtime/places/{placeId}/tokens/query}).
+     */
+    private static final Pattern READONLY_ARCQL_QUERY = Pattern.compile(
+            "^/(api|node-api)/arcql/query/[^/]+$"
+            + "|^/api/proxy/arcql/[^/]+/query$"
+            + "|^/api/runtime/places/[^/]+/tokens/query$");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -107,7 +118,8 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
         return uri != null
                 && (READONLY_CHAT_SEND.matcher(uri).matches()
                 || READONLY_TOKEN_COUNT_BATCH.matcher(uri).matches()
-                || READONLY_MONITOR_PERSONA_CHAT.matcher(uri).matches());
+                || READONLY_MONITOR_PERSONA_CHAT.matcher(uri).matches()
+                || READONLY_ARCQL_QUERY.matcher(uri).matches());
     }
 
     private static boolean containsToken(String scope, String token) {
