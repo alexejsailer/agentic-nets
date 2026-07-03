@@ -18,7 +18,8 @@
   "files": [
     "dist",
     "README.md",
-    "DESIGN.md"
+    "DESIGN.md",
+    "LICENSE.md"
   ],
   "scripts": {
     "build": "tsup",
