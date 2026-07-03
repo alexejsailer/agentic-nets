@@ -8,7 +8,7 @@ AgenticNetOS can be driven from Claude Code today only via the agenticos-control
 
 **"Working memory that runs."** Against passive memory servers (mem0, KG stores, vector DBs), Agentic-Nets memory is:
 1. **Structured & navigable** — tokens in event-sourced places, ArcQL-queryable, connected by link transitions into a traversable graph. (Honest positioning: *structured* working memory; no vector search in v0.1 — `memory_recall` does ArcQL + in-process matching.)
-2. **Alive between sessions** — scheduled transitions distill/consolidate/act on what the client wrote (nightly distill net, reaper, digests). No other memory server *thinks while you're gone*.
+2. **Alive between sessions** — scheduled/continuous transitions distill/consolidate/act on what the client wrote (always-on distiller, digests). No other memory server *thinks while you're gone*.
 3. **Crystallizing** — exploration hardens into capability: scaffold a tool-net once, `invoke_tool_net` deterministically forever at zero LLM cost. "Chat agents explore; Agentic-Nets operate."
 
 Secondary: full observability (`event_trail` — auditably answer "why does my memory say X"), formal Petri-net semantics (capacity/consumption/reservations), multi-agent sharing (Claude Code + Telegram bot + GUI on one substrate).
@@ -25,7 +25,7 @@ Secondary: full observability (`event_trail` — auditably answer "why does my m
 
 | Template | What the user gets |
 |---|---|
-| `working-memory` (default demo) | `p-mem-inbox/notes/decisions/knowledge/archive` + link graph; `t-mem-distill` (llm kind, nightly cron: summarizes inbox → notes/knowledge); `t-mem-reaper` (map kind, weekly: stale → archive). Note-taking / second-brain case. |
+| `working-memory` (default demo) | `p-mem-inbox/notes/decisions/knowledge/archive` + link graph; `t-mem-distill` (llm kind, always-on: summarizes each inbox capture → notes) + link graph incl. an archive place for future bounding. Note-taking / second-brain case. (An automatic keep-newest-N reaper needs count-aware script logic — a v0.2 template enhancement; recall already caps result size so growth never breaks recall.) |
 | `dev-team` | **The safe-team pattern, token-free**: pipeline structure (backlog → task-ready → in-progress → review → done places, deterministic routing maps, scheduled digest/status net, persona charter places) with **the connected coding agent as the worker** — Claude Code pulls tasks via MCP, does the work with its own reasoning, writes results back. Zero server-side LLM tokens; the net provides persistence, state, audit trail, scheduling. |
 | `brain` | The staging-proven divergent-ideation pattern: vision/context places, persona charters, scheduled llm consolidation (port of `consolidate_context_inscription()` from `core/scripts/deploy-shared-cognition.py`). Burns server-side LLM by design. |
 | `blank` | Net + `p-in`/`p-out` — a canvas for the net-building tools. |
@@ -78,7 +78,7 @@ agentic-net-mcp/
 
 ## Key design points (from the design pass — implementation-ready)
 
-- **Memory conventions**: session `mcp`, net `memory`, places `p-mem-*`; short names accepted (`notes` → `p-mem-notes`); token shape `{kind:'memory', text?, ...data, tags?, createdAt, source:'mcp'}`. `memory_write` works *without* the template (auto-creates runtime place); `deploy_template('working-memory')` later upgrades the same places with distill/reaper (ids match by design).
+- **Memory conventions**: session `mcp`, net `memory`, places `p-mem-*`; short names accepted (`notes` → `p-mem-notes`); token shape `{kind:'memory', text?, ...data, tags?, createdAt, source:'mcp'}`. `memory_write` works *without* the template (auto-creates runtime place); `deploy_template('working-memory')` later upgrades the same places with the distiller (ids match by design).
 - **`memory_link`** = kind:link transition assign (NEVER started) with mandatory `presets.from.arcql: "FROM $ LIMIT 1"` (the empty-arcql 400-spam engine gotcha — also enforced by `validateBlueprint()`); designtime mirror + inscription leaf (delete-then-createLeaf; updateProperty 400s) when places are in the net's PNML.
 - **`memory_recall`**: `FROM `-prefixed → ArcQL passthrough; otherwise bounded fetch + in-process field/substring match (ArcQL operator surface deliberately not over-trusted in v0.1).
 - **`memory_graph`**: `GET_LINKED_PLACES` (supports depth) normalized to `{nodes:[{placeId,label,tokenCount}], edges:[{from,to,label}]}`.

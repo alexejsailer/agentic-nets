@@ -7,7 +7,7 @@
  *
  * memory_write works WITHOUT the working-memory template deployed (it auto-creates
  * the runtime place); deploying the template later upgrades the very same places
- * with the scheduled distill/reaper machinery — ids match by design.
+ * with the always-on distiller — ids match by design.
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -159,31 +159,36 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         : MEMORY_PLACES.map((p) => `p-mem-${p}`);
       const isArcql = /^\s*FROM\s/i.test(args.query);
       const limit = args.limit ?? 20;
-      const matches: any[] = [];
-      for (const placeId of places) {
-        let tokens: any[];
-        if (isArcql) {
-          // ArcQL passthrough travels as POST — available in rw mode; the gateway's
-          // readonly scope rejects it (plain-substring queries work in both modes).
-          const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
-            placePath: placePath(placeId),
-            query: args.query,
-            maxValueLength: 400,
-          });
-          if (!res.success) continue; // place may not exist yet
-          tokens = Array.isArray(res.data) ? res.data : (res.data?.results ?? res.data?.tokens ?? []);
-        } else {
-          tokens = await fetchTokens(ctx, model, placeId).catch(() => []);
-        }
-        for (const t of tokens) {
-          if (!isArcql) {
-            const hay = JSON.stringify(t).toLowerCase();
-            if (!hay.includes(String(args.query).toLowerCase())) continue;
+      const needle = String(args.query).toLowerCase();
+
+      // Fetch every place concurrently (was N sequential round-trips), then merge
+      // in deterministic place-order so results are stable across runs.
+      const perPlace = await Promise.all(
+        places.map(async (placeId) => {
+          if (isArcql) {
+            // ArcQL travels as POST — rw only; the gateway's readonly scope rejects it
+            // (plain-substring queries work in both modes via the GET endpoint).
+            const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+              placePath: placePath(placeId),
+              query: args.query,
+              maxValueLength: 400,
+            });
+            const toks = res.success
+              ? (Array.isArray(res.data) ? res.data : (res.data?.results ?? res.data?.tokens ?? []))
+              : [];
+            return { placeId, tokens: toks };
           }
+          return { placeId, tokens: await fetchTokens(ctx, model, placeId).catch(() => []) };
+        }),
+      );
+
+      const matches: any[] = [];
+      outer: for (const { placeId, tokens } of perPlace) {
+        for (const t of tokens) {
+          if (!isArcql && !JSON.stringify(t).toLowerCase().includes(needle)) continue;
           matches.push({ place: placeId, preview: previewOf(t), token: t });
-          if (matches.length >= limit) break;
+          if (matches.length >= limit) break outer;
         }
-        if (matches.length >= limit) break;
       }
       return { query: args.query, matches, count: matches.length };
     }),

@@ -23,7 +23,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       title: 'Deploy a starter template',
       description:
         `Deploy a pre-built net into a model. Templates: ${Object.keys(TEMPLATES).join(', ')}. ` +
-        'working-memory = the second-brain setup (memory places + nightly LLM distill + reaper); ' +
+        'working-memory = the second-brain setup (memory places + an always-on LLM distiller); ' +
         'dev-team = a token-free development pipeline where YOU (the connected agent) are the worker; ' +
         'brain = scheduled LLM ideation/consolidation; blank = an empty canvas. Idempotent — re-deploys skip existing elements and never duplicate seeds.',
       inputSchema: {
