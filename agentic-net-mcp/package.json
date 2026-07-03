@@ -2,9 +2,18 @@
   "name": "@agenticnets/mcp",
   "version": "0.1.0",
   "description": "Agentic-Nets MCP server \u2014 working memory that runs. Petri-net-backed structured memory, net building, and observability for MCP clients (Claude Code, Claude Desktop, Cursor, ...).",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alexejsailer/agentic-nets.git",
+    "directory": "agentic-net-mcp"
+  },
+  "homepage": "https://github.com/alexejsailer/agentic-nets/tree/main/agentic-net-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/alexejsailer/agentic-nets/issues"
+  },
   "type": "module",
   "bin": {
-    "agenticnets-mcp": "./dist/bin/agenticnets-mcp.js"
+    "agenticnets-mcp": "dist/bin/agenticnets-mcp.js"
   },
   "files": [
     "dist",
