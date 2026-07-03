@@ -94,9 +94,19 @@ export function wrapTool(scope: ModelScope, mode: 'rw' | 'readonly', spec: ToolS
       if (err instanceof ReadonlyError) {
         return textResult({ code: err.code, error: err.message }, true);
       }
-      // GatewayError from @agenticos/cli carries status + body
+      // GatewayError from @agenticos/cli carries status + body. Empty-body errors
+      // (common on 404) render as a bare "Gateway 404: " — add a hint so the client
+      // LLM isn't left guessing.
       if (err?.name === 'GatewayError') {
-        return textResult({ code: 'GATEWAY_ERROR', status: err.status, error: String(err.message).slice(0, 500) }, true);
+        const body = String(err.body ?? '').trim();
+        const hint =
+          body ||
+          (err.status === 404
+            ? 'resource not found — check the id/path'
+            : err.status === 403
+              ? 'forbidden (readonly mode blocks writes; ArcQL POSTs are readonly-blocked)'
+              : 'no response body');
+        return textResult({ code: 'GATEWAY_ERROR', status: err.status, error: hint.slice(0, 500) }, true);
       }
       return textResult({ code: 'TOOL_ERROR', error: String(err?.message ?? err).slice(0, 500) }, true);
     }

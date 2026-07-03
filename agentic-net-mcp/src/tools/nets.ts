@@ -224,8 +224,31 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         inputSchema: { transitionId: z.string(), ...modelParam },
       },
       wrapTool(scope, config.mode, { name, mutates: true }, async (model, args) => {
-        const res = await ctx.executorFor(model).execute(tool, { transitionId: args.transitionId });
-        if (!res.success) throw new Error(res.error ?? `${tool} failed`);
+        // An unknown transition surfaces differently per lifecycle op (fire → empty 404,
+        // start/stop → 500 with "Path segment … not found") — normalize all of them to
+        // one actionable message instead of raw gateway noise.
+        const notFound = (e: any) =>
+          e?.name === 'GatewayError' &&
+          (e.status === 404 || /not found|no such/i.test(String(e.body ?? e.message ?? '')));
+        let res;
+        try {
+          res = await ctx.executorFor(model).execute(tool, { transitionId: args.transitionId });
+        } catch (err: any) {
+          if (notFound(err)) {
+            throw new Error(
+              `Transition '${args.transitionId}' not found in model '${model}'. Check the id with net_overview.`,
+            );
+          }
+          throw err;
+        }
+        if (!res.success) {
+          if (/not found|no such/i.test(res.error ?? '')) {
+            throw new Error(
+              `Transition '${args.transitionId}' not found in model '${model}'. Check the id with net_overview.`,
+            );
+          }
+          throw new Error(res.error ?? `${tool} failed for '${args.transitionId}'`);
+        }
         return res.data ?? { ok: true };
       }),
     );

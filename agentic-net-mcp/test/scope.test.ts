@@ -55,7 +55,7 @@ describe('wrapTool', () => {
   });
 
   it('maps GatewayError to a tool-level error with status', async () => {
-    const err = Object.assign(new Error('Gateway 503: down'), { name: 'GatewayError', status: 503 });
+    const err = Object.assign(new Error('Gateway 503: down'), { name: 'GatewayError', status: 503, body: 'down' });
     const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, async () => {
       throw err;
     });
@@ -64,5 +64,26 @@ describe('wrapTool', () => {
     const body = JSON.parse(res.content[0].text);
     expect(body.code).toBe('GATEWAY_ERROR');
     expect(body.status).toBe(503);
+    expect(body.error).toBe('down');
+  });
+
+  it('gives an empty-body 404 an actionable hint instead of a bare status', async () => {
+    const err = Object.assign(new Error('Gateway 404: '), { name: 'GatewayError', status: 404, body: '' });
+    const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, async () => {
+      throw err;
+    });
+    const res = await wrapped({});
+    const body = JSON.parse(res.content[0].text);
+    expect(body.error).toMatch(/not found/i);
+    expect(body.error).not.toBe('');
+  });
+
+  it('hints at readonly/ArcQL when a 403 has no body', async () => {
+    const err = Object.assign(new Error('Gateway 403: '), { name: 'GatewayError', status: 403, body: '' });
+    const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, async () => {
+      throw err;
+    });
+    const res = await wrapped({});
+    expect(JSON.parse(res.content[0].text).error).toMatch(/readonly/i);
   });
 });
