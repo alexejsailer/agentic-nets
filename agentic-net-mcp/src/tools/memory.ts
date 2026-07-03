@@ -70,11 +70,15 @@ export function previewOf(token: any): string {
 }
 
 async function ensurePlace(ctx: AppContext, model: string, placeId: string): Promise<void> {
+  // Hot-path short-circuit: a place confirmed earlier this session needs no
+  // re-check (the cache only ever avoids redundant work — see markPlaceKnown).
+  if (ctx.placeKnown(model, placeId)) return;
   // Virgin models have no tree at all — build the container chain first so
   // memory_write works as the very first call ever made against a model.
   await ensurePlacesContainer(ctx, model);
   const res = await ctx.executorFor(model).execute('CREATE_RUNTIME_PLACE', { placeId });
   if (!res.success) throw new Error(`could not ensure place '${placeId}': ${res.error}`);
+  ctx.markPlaceKnown(model, placeId);
 }
 
 export async function linkPlaces(
