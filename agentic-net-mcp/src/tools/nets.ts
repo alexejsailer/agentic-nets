@@ -349,9 +349,13 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Scaffold a reusable tool-net',
       description:
-        'Crystallization step 1: create a reusable tool-net SKELETON (net container, input/output places, trigger transition, arcs, manifest) in a tools-tagged session. Returns the transitionId to complete — the working inscription is NOT created here (that is the v0.2 one-call flow); for a runnable tool now, prefer building it with add_transition on a normal net, then invoke_tool_net.',
+        'Crystallize a capability into a reusable, invocable tool-net (net + input/output places + trigger + manifest) in a tools-tagged session. With `transitionKind` (command/http/llm) the trigger is pre-wired invoke-green by construction — the tool is immediately callable with invoke_tool_net (command runs input.command on the executor; http calls input.url; llm answers input.prompt). Omit transitionKind only if you will wire the inscription yourself.',
       inputSchema: {
         name: z.string().describe("Short tool name, e.g. 'weather-fetch'"),
+        transitionKind: z
+          .enum(['command', 'http', 'llm'])
+          .optional()
+          .describe('Pre-wire an invoke-green pipeline for this kind (recommended). Input shape: command⇒{command}, http⇒{url}, llm⇒{prompt}'),
         description: z.string().optional().describe('One sentence: what the tool does'),
         tags: z.array(z.string()).optional().describe('Manifest tags'),
         inputSchema: z.record(z.any()).optional().describe('JSON Schema for the input token'),

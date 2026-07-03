@@ -70,6 +70,19 @@ describe('advertised tool surface', () => {
     }
   });
 
+  it('scaffold_tool_net exposes transitionKind (pre-wired crystallization)', async () => {
+    const client = await connectedClient(makeConfig());
+    const { tools } = await client.listTools();
+    const scaffold = tools.find((t) => t.name === 'scaffold_tool_net');
+    const props = (scaffold!.inputSchema as any).properties;
+    expect(Object.keys(props)).toContain('transitionKind');
+    expect(props.transitionKind.enum ?? props.transitionKind.anyOf).toBeTruthy();
+    // invoke_tool_net is typed (netId, not opaque params)
+    const invoke = tools.find((t) => t.name === 'invoke_tool_net');
+    expect(Object.keys((invoke!.inputSchema as any).properties)).toContain('netId');
+    expect(Object.keys((invoke!.inputSchema as any).properties)).not.toContain('params');
+  });
+
   it('readonly: only the five read tools are registered at all', async () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();

@@ -69,9 +69,11 @@ accumulate in the out place -> add_transition kind:llm reading the out place to 
 net_overview (statuses) -> query_tokens on the input place (token waiting? shape right?) ->
 event_trail q:<transitionId> (what happened on last fire?) -> stop_transition, fire_once, start.
 
-## Crystallizing
-When a multi-step pattern works twice the same way, scaffold_tool_net (command/http/llm kinds are
-pre-wired invoke-green) and switch call sites to invoke_tool_net.`,
+## Crystallizing (scaffold once, invoke forever)
+When a capability is worth reusing, scaffold_tool_net with transitionKind=command|http|llm — the
+trigger is pre-wired invoke-green by construction (input shapes: command⇒{command}, http⇒{url},
+llm⇒{prompt}). Then invoke_tool_net {netId, input} calls it deterministically at zero LLM cost; the
+master handles correlation/fire/poll. Discover existing tool-nets via agenticnets://tool-nets.`,
   },
   security: {
     title: 'Scope & security model',
