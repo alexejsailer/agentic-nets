@@ -136,7 +136,8 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         const to = resolveMemoryPlace(link.to);
         linked.push(await linkPlaces(ctx, model, placeId, to, link.label ?? `${placeId} relates to ${to}`));
       }
-      return { stored: true, place: placeId, token: res.data, ...(linked.length ? { links: linked } : {}) };
+      // Return a clean result — not the raw node event (version/eventResults/… is noise).
+      return { stored: true, place: placeId, ...(linked.length ? { links: linked } : {}) };
     }),
   );
 

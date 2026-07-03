@@ -92,6 +92,28 @@ One readonly limitation: ArcQL queries travel as POST, which the readonly gatewa
 plain-substring recall and `query_tokens` without an `arcql` argument work (they use GET endpoints);
 ArcQL passthrough needs `rw` mode.
 
+## Security
+
+Verified posture (adversarial probe: 194 KB of server output + stderr audited):
+
+- **Secrets never surface.** The gateway secret is read only from `AGENTICOS_ADMIN_SECRET` /
+  `AGENTICOS_GATEWAY_SECRET_FILE`, held in-process, and never appears in any tool output, error, or
+  log line — including error paths. The JWT is auto-acquired and cached; it is not returned to the client.
+- **Input is stored as data, not evaluated.** Unicode, emoji, quotes, newlines, and `${...}` /
+  backtick sequences round-trip intact as literal token content — they are never interpolated or
+  executed by the memory tools. Large tokens are accepted; recall previews are bounded (≤300 chars).
+- **Model allowlist** is enforced in-process on every call (out-of-list → `MODEL_NOT_ALLOWED`); a
+  single-model config exposes no `model` param at all. Honest boundary: the underlying gateway
+  credential is not model-scoped (the platform has no per-model authz yet), so this guards against
+  client/LLM mistakes and prompt injection — not a malicious operator of this process.
+- **Readonly is gateway-enforced** (not just tool-filtered): `AGENTICOS_MODE=readonly` authenticates
+  as the `agenticos-readonly` client, so mutations are rejected by the gateway itself.
+
+⚠️ **Command tool-nets run arbitrary shell.** `scaffold_tool_net` with `transitionKind=command` (and
+any command-kind transition you build) executes its input on the distributed executor — that is the
+feature, but it means an `rw` connection can run shell there. Only grant `rw` to trusted clients; use
+`readonly` for untrusted or shared bindings, and scope `AGENTICOS_MODELS` to a dedicated model.
+
 ## Running in the compose stack (HTTP transport)
 
 The deployment stack ships an opt-in `agentic-net-mcp` service:
