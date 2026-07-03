@@ -30,6 +30,7 @@ agentic-nets/
 ├── agentic-net-vault/                    # Secrets management via OpenBao (Spring Boot, Java 21)
 ├── agentic-net-cli/                      # CLI tool (TypeScript, Node.js 22)
 ├── agentic-net-chat/                     # Telegram bot (TypeScript, Node.js 22)
+├── agentic-net-mcp/                      # MCP server (TypeScript, Node.js 22)
 ├── sa-blobstore/                      # Blob storage (Spring Boot, Java 21)
 │
 ├── deployment/
@@ -168,6 +169,65 @@ claude -p 'prompt' --no-session-persistence < /dev/null
 
 **Note on Docker build context**: The chat Dockerfile uses the repo root as build context (not just `agentic-net-chat/`) because it needs to copy `agentic-net-cli/` for the workspace dependency.
 
+### agentic-net-mcp
+
+**Purpose**: MCP (Model Context Protocol) server — exposes an AgenticNetOS stack to any MCP client
+(Claude Code, Claude Desktop, Cursor, agent frameworks) as **persistent working memory that runs**
+plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
+
+- **Technology**: TypeScript, Node.js 22, `@modelcontextprotocol/sdk`; reuses `@agenticos/cli`'s
+  `GatewayClient`/`MasterApi`/`NodeApi`/`ToolExecutor` via `file:../agentic-net-cli` (bundled inline
+  by tsup `noExternal` — same pattern as chat, including the repo-root Docker build context)
+- **Build / test**: `cd agentic-net-mcp && npm install && npx tsup && npm test` (32 hermetic vitest
+  tests: scope guard, blueprint invariants, protocol registration shapes, template executor)
+- **Transports**: stdio (default; `npx @agenticnets/mcp`, `claude mcp add`) and streamable HTTP
+  (`AGENTICOS_MCP_TRANSPORT=http`, bearer-token-protected `POST /mcp` — used by the compose service)
+- **Tools (18, curated — deliberately NOT the raw agent-tool catalog)**:
+  memory layer `memory_write` / `memory_recall` / `memory_link` / `memory_graph`;
+  net-building `deploy_template`, `create_net`, `add_place`, `add_transition` (kind-aware pre-wired
+  inscriptions: map/llm/http/command/link), `set_schedule`, `fire_once`, `start/stop_transition`,
+  `create_persona`, `scaffold_tool_net`, `invoke_tool_net`;
+  observability `net_overview`, `query_tokens`, `event_trail`
+- **Starter templates** (`deploy_template`, idempotent; params via `agenticnets://templates`):
+  `working-memory` (memory places + link graph + always-on LLM distiller; param `distillPrompt`),
+  `dev-team` (token-free pipeline — the CONNECTED AGENT is the worker; param `digestCron`),
+  `brain` (LLM panel + critic; params `panelPrompt`/`criticPrompt`), `blank`
+- **Teach-the-client**: rich `instructions` at initialize + `agenticnets://docs/{concepts,arcql,recipes,security}`
+  resources + prompts (`setup-working-memory`, `work-dev-team-backlog`, `capture-session`, `debug-net`)
+- **License**: `"SEE LICENSE IN LICENSE.md"` in package.json
+
+#### Configuration (env-first, no config files)
+
+| Env | Meaning | Default |
+|---|---|---|
+| `AGENTICOS_MODELS` | **Required.** Model allowlist (comma-separated); first = default. Single model ⇒ tools expose NO `model` param; multiple ⇒ optional `model` validated per call (`MODEL_NOT_ALLOWED` otherwise) | — (fail-fast) |
+| `AGENTICOS_GATEWAY_URL` | Gateway base (all traffic goes through `/api` + `/node-api`) | `http://localhost:8083` |
+| `AGENTICOS_ADMIN_SECRET` / `AGENTICOS_GATEWAY_SECRET_FILE` | Client secret for the mode's client id | — (required) |
+| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the 5 read tools AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations | `rw` |
+| `AGENTICOS_SESSION` | Session name for MCP-created nets/places | `mcp` |
+| `AGENTICOS_NODE_HOST` | Host injected into inscription presets/postsets (`{model}@{host}`); in-compose: `agentic-net-node:8080` | `localhost:8080` |
+| `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |
+
+Compose keys (`deployment/.env`): `AGENTICOS_MCP_MODELS` / `_MODE` / `_SESSION` / `_HTTP_TOKEN`
+(generate: `openssl rand -hex 24`), `AGENTIC_NET_MCP_PORT` (8091). Service is opt-in:
+`COMPOSE_PROFILES=mcp docker compose -f docker-compose.hub-only.yml up -d agentic-net-mcp`.
+
+Ready-to-paste (Claude Code, local stack):
+```bash
+claude mcp add agenticnets \
+  -e AGENTICOS_GATEWAY_URL=http://localhost:8083 \
+  -e AGENTICOS_ADMIN_SECRET=$(cat deployment/data/gateway/jwt/admin-secret) \
+  -e AGENTICOS_MODELS=my-memory \
+  -- npx @agenticnets/mcp
+```
+
+**Deliberately NOT configurable**: the 18-tool surface (curation is the reliability feature), the
+`p-mem-*` memory-place conventions (templates upgrade the same places the tools write to), and the
+engine-gotcha defaults baked into inscriptions (non-empty preset arcql, llm `timeoutMs` 240s,
+catch-all emits). **Scoping honesty**: the allowlist is enforced in-process; the underlying gateway
+credential is NOT model-scoped (no per-model authz exists in the platform yet) — it protects against
+client/LLM mistakes and prompt injection, not a malicious operator of the MCP process.
+
 ### agentic-net-vault (Port 8085)
 
 **Purpose**: Secrets management service for transition credentials. Wraps OpenBao (open-source Vault fork) as the secrets backend.
@@ -303,6 +363,7 @@ Configs in `monitoring/config/`, Grafana dashboards in `monitoring/grafana-provi
 | 8085 | agentic-net-vault |
 | 4200 | agentic-net-gui (closed-source, Hub) |
 | 8090 | sa-blobstore |
+| 8091 | agentic-net-mcp (HTTP transport, opt-in `mcp` profile) |
 | 3000 | Grafana |
 | 9090 | Prometheus |
 | 3200 | Tempo |

@@ -46,6 +46,9 @@ services:
   # ===========================================================================
 
   tempo:
+    # Opt-in since 2026-07-03: monitoring idles at multiple CPU cores locally
+    # (tempo ingest-overload spiral: 847% CPU). Enable: COMPOSE_PROFILES=monitoring
+    profiles: ["monitoring"]
     image: ${TEMPO_IMAGE:-grafana/tempo:2.10.4}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-tempo
     command: ["-config.file=/etc/tempo.yaml"]
@@ -62,6 +65,9 @@ services:
       disable: true
 
   otel-collector:
+    # Opt-in since 2026-07-03: monitoring idles at multiple CPU cores locally
+    # (tempo ingest-overload spiral: 847% CPU). Enable: COMPOSE_PROFILES=monitoring
+    profiles: ["monitoring"]
     image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.135.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
@@ -81,6 +87,9 @@ services:
       disable: true
 
   prometheus:
+    # Opt-in since 2026-07-03: monitoring idles at multiple CPU cores locally
+    # (tempo ingest-overload spiral: 847% CPU). Enable: COMPOSE_PROFILES=monitoring
+    profiles: ["monitoring"]
     image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.11.2}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-prometheus
     command:
@@ -113,6 +122,9 @@ services:
       start_period: 20s
 
   grafana:
+    # Opt-in since 2026-07-03: monitoring idles at multiple CPU cores locally
+    # (tempo ingest-overload spiral: 847% CPU). Enable: COMPOSE_PROFILES=monitoring
+    profiles: ["monitoring"]
     image: ${GRAFANA_IMAGE:-grafana/grafana:13.0.1}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-grafana
     environment:
