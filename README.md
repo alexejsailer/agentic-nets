@@ -370,6 +370,7 @@ quarter**. Older quarters are archived under
 | Quarter | Highlights |
 |---|---|
 | **Current** | [`CHANGELOG.md`](CHANGELOG.md) |
+| 2026 Q2 | Gateway/vault maturation, tool-net library + Forge, capability flags, `glm-5.2:cloud` default — [archive](changelogs/CHANGELOG-2026-Q2.md) |
 | 2026 Q1 | First releases (`v1.6.0` → `v1.19.0`), repo split, `v1.2.0` launch — [archive](changelogs/CHANGELOG-2026-Q1.md) |
 | 2025 Q4 | Pre-release: distributed execution, agent transitions, outbound-only architecture, designtime API — [archive](changelogs/CHANGELOG-2025-Q4.md) |
 | 2025 Q3 | Pre-release: project foundations, multi-model architecture, NL→PNML, GUI editor — [archive](changelogs/CHANGELOG-2025-Q3.md) |
