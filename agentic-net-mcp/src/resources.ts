@@ -138,6 +138,17 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerResource(
+    'tool-nets',
+    'agenticnets://tool-nets',
+    { title: 'Tool-net library', description: 'Reusable tool-nets you can invoke_tool_net', mimeType: 'application/json' },
+    async (uri) => {
+      const res = await ctx.executorFor(ctx.scope.defaultModel).execute('LIST_TOOL_NETS', {}).catch(() => null);
+      const data = res?.success ? res.data : { note: 'no tool-nets found or library unavailable', tools: [] };
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(data, null, 1) }] };
+    },
+  );
+
+  server.registerResource(
     'docs',
     new ResourceTemplate('agenticnets://docs/{topic}', {
       list: async () => ({

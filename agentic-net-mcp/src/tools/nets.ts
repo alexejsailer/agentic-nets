@@ -344,35 +344,56 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
-  for (const [name, tool, description, mutates] of [
-    [
-      'scaffold_tool_net',
-      'SCAFFOLD_TOOL_NET',
-      'Crystallize a capability: scaffold a reusable tool-net (kind-aware: command/http/llm pipelines pre-wired, invoke-ready by construction).',
-      true,
-    ],
-    [
-      'invoke_tool_net',
-      'INVOKE_TOOL_NET',
-      'Invoke a tool-net from the library synchronously with an input object — deterministic reuse at zero LLM cost.',
-      true,
-    ],
-  ] as const) {
-    server.registerTool(
-      name,
-      {
-        title: description.split(':')[0],
-        description,
-        inputSchema: {
-          params: z.record(z.any()).describe('Passthrough parameters for the underlying agent tool'),
-          ...modelParam,
-        },
+  server.registerTool(
+    'scaffold_tool_net',
+    {
+      title: 'Scaffold a reusable tool-net',
+      description:
+        'Crystallization step 1: create a reusable tool-net SKELETON (net container, input/output places, trigger transition, arcs, manifest) in a tools-tagged session. Returns the transitionId to complete — the working inscription is NOT created here (that is the v0.2 one-call flow); for a runnable tool now, prefer building it with add_transition on a normal net, then invoke_tool_net.',
+      inputSchema: {
+        name: z.string().describe("Short tool name, e.g. 'weather-fetch'"),
+        description: z.string().optional().describe('One sentence: what the tool does'),
+        tags: z.array(z.string()).optional().describe('Manifest tags'),
+        inputSchema: z.record(z.any()).optional().describe('JSON Schema for the input token'),
+        outputSchema: z.record(z.any()).optional().describe('JSON Schema for the output token'),
+        toolSessionId: z.string().optional().describe("Target session (default 'tools', auto-created)"),
+        ...modelParam,
       },
-      wrapTool(scope, config.mode, { name, mutates }, async (model, args) => {
-        const res = await ctx.executorFor(model).execute(tool, args.params ?? {});
-        if (!res.success) throw new Error(res.error ?? `${tool} failed`);
-        return res.data ?? { ok: true };
-      }),
-    );
-  }
+    },
+    wrapTool(scope, config.mode, { name: 'scaffold_tool_net', mutates: true }, async (model, args) => {
+      const { model: _m, ...params } = args;
+      const res = await ctx.executorFor(model).execute('SCAFFOLD_TOOL_NET', {
+        toolSessionId: args.toolSessionId ?? 'tools',
+        ...params,
+      });
+      if (!res.success) throw new Error(res.error ?? 'SCAFFOLD_TOOL_NET failed');
+      return res.data ?? { ok: true };
+    }),
+  );
+
+  server.registerTool(
+    'invoke_tool_net',
+    {
+      title: 'Invoke a tool-net',
+      description:
+        'Synchronously call an existing tool-net by id: writes an input token, fires the trigger, polls the correlated result, and returns its data — deterministic reuse at zero LLM cost. Discover available tool-nets via the agenticnets://{model}/tool-nets resource.',
+      inputSchema: {
+        netId: z.string().describe('Tool-net identifier'),
+        input: z.record(z.any()).optional().describe("Input payload matching the tool-net's input schema"),
+        sessionId: z.string().optional().describe(`Session holding the tool-net (default: ${config.session}, then 'tools')`),
+        timeoutMs: z.number().optional().describe('Polling timeout (default 30000)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'invoke_tool_net', mutates: true }, async (model, args) => {
+      const res = await ctx.executorFor(model).execute('INVOKE_TOOL_NET', {
+        netId: args.netId,
+        sessionId: args.sessionId ?? config.session,
+        ...(args.input ? { input: args.input } : {}),
+        ...(args.timeoutMs != null ? { timeoutMs: args.timeoutMs } : {}),
+      });
+      if (!res.success) throw new Error(res.error ?? 'INVOKE_TOOL_NET failed');
+      return res.data ?? { ok: true };
+    }),
+  );
 }
