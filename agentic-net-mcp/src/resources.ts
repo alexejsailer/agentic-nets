@@ -84,7 +84,11 @@ GATEWAY itself rejects mutations (403), and mutating tools are not even register
 
 Honest boundary: the underlying gateway credential is not model-scoped (the platform has no
 per-model authorization yet), so the allowlist protects against client/LLM mistakes and prompt
-injection — not against a malicious operator of this process. Never ask for or echo secrets.`,
+injection — not against a malicious operator of this process. Never ask for or echo secrets.
+
+Readonly limitation: ArcQL queries travel as POST, which the gateway's readonly scope rejects —
+plain-substring memory_recall and query_tokens WITHOUT an arcql argument work fine in readonly
+(they use GET endpoints); pass ArcQL only in rw mode.`,
   },
 };
 

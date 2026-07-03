@@ -6,6 +6,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
+import { fetchTokens } from './memory.js';
 
 export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
@@ -49,6 +50,12 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'query_tokens', mutates: false }, async (model, args) => {
+      // Without ArcQL, use the GET runtime endpoint — works under the gateway's
+      // readonly scope too (ArcQL travels as POST, which readonly rejects).
+      if (!args.arcql && !String(args.place).includes('/')) {
+        const tokens = await fetchTokens(ctx, model, args.place);
+        return { place: args.place, resultCount: tokens.length, results: tokens };
+      }
       const placePath = String(args.place).includes('/') ? args.place : `root/workspace/places/${args.place}`;
       const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
         placePath,

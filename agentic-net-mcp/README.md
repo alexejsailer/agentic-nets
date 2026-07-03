@@ -88,6 +88,10 @@ not against a malicious operator of this process.
 `agenticos-readonly` client — mutations are rejected by the gateway itself, not just by this server.
 Point `AGENTICOS_ADMIN_SECRET` at the readonly client's secret.
 
+One readonly limitation: ArcQL queries travel as POST, which the readonly gateway scope rejects —
+plain-substring recall and `query_tokens` without an `arcql` argument work (they use GET endpoints);
+ArcQL passthrough needs `rw` mode.
+
 ## Running in the compose stack (HTTP transport)
 
 The deployment stack ships an opt-in `agentic-net-mcp` service:

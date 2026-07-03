@@ -29,11 +29,26 @@ function placePath(placeId: string): string {
 }
 
 /**
+ * Readonly-safe token fetch: the gateway's readonly scope blocks POST (which is
+ * how ArcQL travels), so plain reads go through the GET runtime endpoint instead.
+ */
+export async function fetchTokens(ctx: AppContext, model: string, placeId: string, size = 200): Promise<any[]> {
+  const res = await ctx.client.masterApi('GET', `/runtime/places/${placeId}/tokens`, undefined, {
+    modelId: model,
+    size: String(size),
+  });
+  return res?.tokens ?? res?.results ?? [];
+}
+
+/**
  * Human-readable preview of a token: prefers text fields, and unwraps the
  * double-JSON-encoded `value` that llm-emitted tokens carry (engine quirk).
  */
 export function previewOf(token: any): string {
-  const data = token?.data ?? token ?? {};
+  // Tokens come in two shapes: {data:{...}} (ArcQL results) and {data:{}, properties:{...}}
+  // or {properties:{...}} (GET runtime endpoint / API-created) — read whichever has content.
+  const d = token?.data && Object.keys(token.data).length ? token.data : undefined;
+  const data = d ?? token?.properties ?? token ?? {};
   if (typeof data.text === 'string') return data.text.slice(0, 300);
   let v = data.value;
   for (let i = 0; i < 3 && typeof v === 'string'; i++) {
@@ -146,15 +161,20 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       const limit = args.limit ?? 20;
       const matches: any[] = [];
       for (const placeId of places) {
-        const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
-          placePath: placePath(placeId),
-          query: isArcql ? args.query : 'FROM $ LIMIT 100',
-          maxValueLength: 400,
-        });
-        if (!res.success) continue; // place may not exist yet
-        const tokens: any[] = Array.isArray(res.data)
-          ? res.data
-          : (res.data?.results ?? res.data?.tokens ?? []);
+        let tokens: any[];
+        if (isArcql) {
+          // ArcQL passthrough travels as POST — available in rw mode; the gateway's
+          // readonly scope rejects it (plain-substring queries work in both modes).
+          const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+            placePath: placePath(placeId),
+            query: args.query,
+            maxValueLength: 400,
+          });
+          if (!res.success) continue; // place may not exist yet
+          tokens = Array.isArray(res.data) ? res.data : (res.data?.results ?? res.data?.tokens ?? []);
+        } else {
+          tokens = await fetchTokens(ctx, model, placeId).catch(() => []);
+        }
         for (const t of tokens) {
           if (!isArcql) {
             const hay = JSON.stringify(t).toLowerCase();
