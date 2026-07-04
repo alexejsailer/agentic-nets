@@ -2,7 +2,12 @@
 
 <img src=".github/images/agentic-nets-icon.svg" alt="Agentic-Nets icon" width="56" />
 
-**Governed multi-agent runtime. Your agents stop running naked.**
+[![CI](https://github.com/alexejsailer/agentic-nets/actions/workflows/ci.yml/badge.svg)](https://github.com/alexejsailer/agentic-nets/actions/workflows/ci.yml)
+[![License: BSL 1.1](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE.md)
+[![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
+[![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
+
+**Governed multi-agent runtime for stateful, permission-scoped, replayable AI agents.**
 
 **The no-code backend for building agent harnesses.** Everything a harness needs
 — tools, control flow, memory, execution, agents, and guardrails — you assemble
@@ -20,6 +25,16 @@ entire product operating system. The same approach is not tied to software
 alone: you can model any domain, process, or industry with nets as long as
 structure, communication, coordination, and verification matter.
 
+## At a glance
+
+| Question | Answer |
+|---|---|
+| What is it? | A Petri-net runtime for agents, tools, memory, remote execution, and audit trails. |
+| Why does it exist? | To make agent systems inspectable, permission-scoped, replayable, and reusable instead of hidden inside chat state. |
+| What is public in this repo? | Licensed public source for the gateway, executor, vault, CLI, chat bot, blobstore, tool containers, deployment, and monitoring. |
+| What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
+| Current status | Beta. Suitable for evaluation, local experiments, early adopters, and contributors who are comfortable with a fast-moving stack. |
+
 [![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
 
 Watch the product preview on YouTube: [agentic-nets preview](https://www.youtube.com/watch?v=orI-u5YT7Go)
@@ -31,6 +46,46 @@ layer:
 - **Nets talk to nets.** Teams, tools, approvals, memory, and pipelines become explicit handoffs.
 - **Everything stays inspectable.** Tokens, tool calls, events, and emissions remain queryable and replayable.
 - **The same model scales up.** Build one guarded developer agent or a whole product runtime with the same primitives.
+
+## Start here
+
+| Goal | Link |
+|---|---|
+| Start locally without reading everything | [Quick local run](#quick-local-run) |
+| Try the local stack | [Install in 5 minutes](#install-in-5-minutes) |
+| See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
+| Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
+| Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
+| Ask questions or discuss use cases | [GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions) or [forum.agentic-nets.com](https://forum.agentic-nets.com) |
+| Report a security issue | [SECURITY.md](SECURITY.md) |
+
+> **Licensing note.** Agentic-Nets is a hybrid stack. Public components in this
+> repository are licensed under BSL 1.1 and convert to Apache 2.0 on
+> 2030-02-22. The orchestration core ships as closed-source Docker Hub images
+> under the Proprietary EULA. See [licensing](#licensing) before production use.
+
+## Quick local run
+
+This starts the lightweight local stack from Docker Hub. Use the longer install
+section if you want monitoring, local public-service builds, Ollama cloud-model
+login details, or troubleshooting notes.
+
+```bash
+git clone https://github.com/alexejsailer/agentic-nets.git
+cd agentic-nets/deployment
+
+cp .env.template .env
+# Edit .env and choose one provider:
+# LLM_PROVIDER=claude + ANTHROPIC_API_KEY=...
+# LLM_PROVIDER=openai + OPENAI_API_KEY=...
+# LLM_PROVIDER=ollama for the bundled Ollama container
+
+docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
+
+cat data/gateway/jwt/admin-secret
+open http://localhost:4200
+```
 
 ## See it running in production
 
@@ -50,6 +105,19 @@ harness end to end:
 - Development pipelines that generate code, run checks, gate releases, and keep a durable audit trail.
 - Product-level systems where backlog, QA, docs, incidents, and operations communicate as structured nets.
 - Industry-specific operating models in software, finance, support, operations, research, healthcare, logistics, or any other domain that can be expressed as communicating nets.
+
+## Who this is for
+
+- Builders who want agents to operate inside explicit state machines instead of loose prompt loops.
+- Teams that need remote execution, approvals, secrets, and audit trails around autonomous work.
+- Product engineers turning one-off agent workflows into reusable internal systems.
+- Researchers and tool builders exploring Petri nets as a runtime model for agent coordination.
+
+## Probably not for you if
+
+- You only need a one-off chat wrapper or a single scripted LLM call.
+- You require every runtime component to be permissively licensed today.
+- You need certified production software for regulated environments without doing your own validation.
 
 ## Net of nets
 
@@ -151,52 +219,38 @@ future changes. That turns one-off AI output into durable runtime structure and
 addresses some of the biggest weaknesses of coding agents: weak handoffs,
 fragile memory, and missing long-term verification.
 
-**Full docs and install chapter:** [agentic-nets.com](https://agentic-nets.com) *(see also the [Install chapter in-repo](#-install-in-5-minutes))*.
+**Full docs and install chapter:** [agentic-nets.com](https://agentic-nets.com) *(see also the [Install chapter in-repo](#install-in-5-minutes))*.
 
 > **BETA — USE AT YOUR OWN RISK.** In active development; may contain bugs,
 > incomplete features, and breaking changes. No warranty. See
 > [LICENSE.md](LICENSE.md) and [PROPRIETARY-EULA.md](PROPRIETARY-EULA.md).
 
-## What's open source, what's closed source, and who can use it
+## What's public, what's closed, and who can use it
 
-Agentic-Nets ships as a **hybrid stack** — mixed open-source services and closed-source Docker Hub images. Read this before deploying.
+Agentic-Nets ships as a **hybrid stack** — licensed public components in this
+repo plus closed-source Docker Hub images for the core runtime. Read this
+before deploying.
 
 | Layer | What | License | Who can use it |
 |---|---|---|---|
-| **Open source** (source code in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
+| **Public components** (source in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
 | **Closed source** (Docker Hub images only — no source in this repo) | `alexejsailer/agenticnetos-node`, `alexejsailer/agenticnetos-master`, `alexejsailer/agenticnetos-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
 
 Both licenses include a strong **NO WARRANTY / BETA** disclaimer. Nothing here is certified for regulated environments out of the box — you are responsible for your own risk assessment. If you are unsure whether your intended use counts as commercial production, **ask before deploying**.
 
 ---
 
-## Welcome to Agentic-Nets
+## Problem it solves
 
-**Prompts with tools get you started. Agentic-Nets makes agents operable.**
+Prompts with tools get you started. Production agent systems need more than
+that: durable state, bounded permissions, visible handoffs, scoped execution,
+secret management, and a way to replay what happened after the chat has gone
+away.
 
-> "Chat agents are great for exploration. Agentic-Nets are what you use when exploration becomes production work."
-
----
-
-## It's 3 AM
-
-An agent you deployed last week is running autonomously. It's calling your
-customer database. It's pushing code. It's executing shell commands on a
-payment server. The logs say it did 27 tasks and made 41 API calls.
-
-Then your phone buzzes. The agent hit a rate limit, retried 43 times, burned
-$200 in credits. Worse, it opened a PR overwriting a critical config file.
-CI picked it up. Deployment started. Nobody was watching.
-
-You want to understand what happened. You open the conversation. It's gone.
-The session expired. The agent's reasoning — *why* it retried, *what* data
-it saw, *what* alternatives it considered — all vanished. The logs show
-**what** happened, not **why**.
-
-This is the state of most agent frameworks today. They solve the *"how do I
-call an LLM"* problem brilliantly and leave three problems unsolved:
-**invisible state**, **ephemeral memory**, **ungoverned execution**.
-Agentic-Nets is built to solve exactly those three.
+Most agent frameworks solve the *"how do I call an LLM"* problem and leave the
+operating model to application code. Agentic-Nets makes that operating model
+explicit: agents read tokens from places, write tokens to places, call only the
+tools their role permits, and leave an event trail behind.
 
 ---
 
@@ -292,7 +346,7 @@ arcs, inscriptions, and deploy the result in the active model/session.
 |---|---|---|
 | `deployment/docker-compose.hub-only.yml` | Complete local stack from Docker Hub, including monitoring | You want the production-like local setup |
 | `deployment/docker-compose.hub-only.no-monitoring.yml` | Complete runtime stack from Docker Hub, no monitoring | You want a lighter laptop setup |
-| `deployment/docker-compose.yml` | Closed-source core images from Docker Hub + open-source services built locally | You are developing this repo |
+| `deployment/docker-compose.yml` | Closed-source core images from Docker Hub + public services built locally | You are developing this repo |
 
 The `.env.template` is fully commented. The most important variables are:
 
@@ -387,8 +441,8 @@ quarter**. Older quarters are archived under
 | **What did it actually do?** | Chat transcript | Token trail with full provenance |
 | **How does it get cheaper?** | It doesn't | Crystallization — agent steps collapse into deterministic transitions |
 
-Hallucination isn't prevented by prompt engineering; it's prevented by the
-graph.
+The graph gives hallucination less room to become uncontrolled action: inputs,
+permissions, and outputs are explicit.
 
 ---
 
@@ -399,8 +453,8 @@ graph.
   +--------------+  +--------------+  +--------------+  +---------------+
   | agentic-net  |  | agentic-net  |  | agentic-net  |  | agentic-net   |
   | gui (4200)   |  | cli          |  | chat         |  | executor      |
-  | Closed-src   |  | Open-src     |  | (Telegram)   |  |  (8084)       |
-  |              |  |              |  | Open-src     |  | Open-src      |
+  | Closed core  |  | Public src   |  | (Telegram)   |  |  (8084)       |
+  |              |  |              |  | Public src   |  | Public src    |
   +------+-------+  +------+-------+  +------+-------+  +------+--------+
          |                 |                 |                 |
          | JWT             | JWT             | JWT             | JWT *
@@ -417,12 +471,12 @@ graph.
                                     |  cli, chat, executor)
                                     v
                          +-------------------+
-                         | agentic-net-      |   Open-source (this repo)
+                         | agentic-net-      |   Public source (BSL 1.1)
                          | gateway (8083)    |   OAuth2 + JWT router
                          +---+------------+--+
                              |            |
                 +------------v+         +-v---------------+
-                | agentic-net |         | agentic-net     |   Closed-source (Docker Hub)
+                | agentic-net |         | agentic-net     |   Closed source (Docker Hub)
                 | master      |<------->| node            |   orchestration + state engine
                 |  (8082)     |         |  (8080)         |
                 +--+--------+-+         +-----------------+
@@ -432,7 +486,7 @@ graph.
                    |        |    not client-exposed)
                    |        |
           +--------v--+  +--v-----------+
-          | agentic-  |  | sa-blobstore |   Open-source (this repo)
+          | agentic-  |  | sa-blobstore |   Public source (BSL 1.1)
           | net-vault |  |  (8090)      |   backend data tier
           |  (8085)   |  | large tokens |
           | secrets   |  | + knowledge  |
@@ -467,7 +521,7 @@ anywhere:
 | **Direct** | Same network as master | `http://agentic-net-master:8082` | None (internal) |
 | **Gateway** | Remote / different network | `http://<gateway-host>:8083` | JWT (auto-acquired) |
 
-### Open-source services (this repo)
+### Public services (this repo)
 
 | Service | Purpose | Port |
 |---------|---------|------|
@@ -499,7 +553,7 @@ Full architecture deep dive: see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
 agentic-nets/
-├── LICENSE.md                    # BSL 1.1 (open-source code)
+├── LICENSE.md                    # BSL 1.1 for public code in this repo
 ├── PROPRIETARY-EULA.md           # EULA for Docker Hub images
 ├── README.md                     # (this file)
 ├── ARCHITECTURE.md               # Deep dive: transitions, ArcQL, coordination
@@ -520,9 +574,9 @@ agentic-nets/
 │   ├── docker-compose.hub-only.yml  # All services from Docker Hub + monitoring
 │   ├── docker-compose.hub-only.no-monitoring.yml  # Runtime stack without monitoring
 │   ├── .env.template             # Environment config template
-│   ├── dockerfiles/              # Build files for open-source services
+│   ├── dockerfiles/              # Build files for public services
 │   └── scripts/
-│       ├── build-and-push.sh     # Build & push open-source images
+│       ├── build-and-push.sh     # Build & push public service images
 │       └── seed-tool-registry.sh # Mirror/build Docker tools into local registry
 │
 └── monitoring/
@@ -536,8 +590,8 @@ agentic-nets/
 
 Dual-license model:
 
-- **Source code in this repo** — [BSL 1.1](LICENSE.md). Free for development,
-  testing, personal, educational, evaluation. Commercial production use
+- **Public code in this repo** — [BSL 1.1](LICENSE.md). Free for development,
+  testing, personal, educational, and evaluation use. Commercial production use
   requires a commercial license. Converts to Apache 2.0 on 2030-02-22.
 - **Closed-source Docker Hub images** (`agenticnetos-node`, `agenticnetos-master`,
   `agenticnetos-gui`) — [Proprietary EULA](PROPRIETARY-EULA.md). Free for

@@ -1,0 +1,64 @@
+name: Feature request
+description: Propose a capability or product improvement.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Good feature requests explain the workflow you are trying to model and why a net-native solution helps.
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario
+      description: What are you trying to build or operate?
+      placeholder: "I want a net that..."
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is awkward, slow, unsafe, or impossible today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed capability
+      description: Describe the smallest useful shape of the solution.
+    validations:
+      required: true
+  - type: checkboxes
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - label: Public service code in this repo
+        - label: Gateway / authentication
+        - label: Executor / command transitions
+        - label: Vault / credentials
+        - label: CLI
+        - label: Chat / Telegram
+        - label: Blobstore
+        - label: Deployment / Docker Compose
+        - label: Monitoring
+        - label: Closed-core image behavior
+        - label: Documentation
+  - type: textarea
+    id: net_native
+    attributes:
+      label: Net-native framing
+      description: Could this be a tool-net, transition behavior, persona capability, inscription pattern, or deployment primitive?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds, prior art, or other designs you rejected.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues before opening this one.
+          required: true

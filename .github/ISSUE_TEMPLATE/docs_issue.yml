@@ -1,0 +1,46 @@
+name: Documentation issue
+description: Report unclear, missing, stale, or broken documentation.
+title: "[docs] "
+labels: ["documentation"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Documentation area
+      options:
+        - README
+        - deployment guide
+        - architecture docs
+        - service README
+        - Claude Code plugin docs
+        - hosted docs / website
+        - examples / screenshots
+        - other
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: Link to the section, file, heading, or page.
+      placeholder: "README.md#install-in-5-minutes"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is wrong, missing, confusing, or outdated?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix
+      description: Optional wording, structure, link, or example that would help.
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to open a docs PR for this.

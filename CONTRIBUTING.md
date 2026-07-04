@@ -1,6 +1,8 @@
 # Contributing to AgenticNetOS Agentic-Nets
 
-Thank you for your interest in contributing to AgenticNetOS. This document provides guidelines for contributing to the open-source components of the project.
+Thank you for your interest in contributing to AgenticNetOS. This document
+provides guidelines for contributing to the public components in this
+repository.
 
 ## License
 
@@ -83,7 +85,7 @@ docker compose -f docker-compose.hub-only.yml up -d
 # Option B: All pre-built images, lighter — no Grafana/Prometheus/Tempo
 docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
-# Option C: Hybrid — build open-source locally, closed-source from Hub
+# Option C: Hybrid — build public services locally, closed-source core from Hub
 docker compose up -d
 ```
 

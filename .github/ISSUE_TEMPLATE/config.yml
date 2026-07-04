@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a technical question in GitHub Discussions
+    url: https://github.com/alexejsailer/agentic-nets/discussions
+    about: Use Discussions for implementation questions, modeling approaches, and design exploration.
+  - name: Ask a question or discuss a use case
+    url: https://forum.agentic-nets.com
+    about: Use the public forum for modeling questions, product discussions, and community support.
+  - name: Read the hosted docs
+    url: https://agentic-nets.com
+    about: Start with the hosted docs and product tour before opening a support issue.
+  - name: Report a security vulnerability
+    url: https://github.com/alexejsailer/agentic-nets/security/policy
+    about: Please report vulnerabilities privately instead of opening a public issue.

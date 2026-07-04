@@ -1,0 +1,103 @@
+name: Bug report
+description: Report a reproducible problem in a public Agentic-Nets component.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please keep security issues out of public issues and follow SECURITY.md instead.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Pick the most relevant public component.
+      options:
+        - gateway
+        - executor
+        - vault
+        - cli
+        - chat
+        - blobstore
+        - tools
+        - deployment
+        - monitoring
+        - docs
+        - closed-core image behavior
+        - unknown / cross-component
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Use AGENTICNETOS_VERSION, a Docker image tag, or a commit SHA.
+      placeholder: "2.17.0 or b5a2b04"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment mode
+      options:
+        - docker-compose hub-only
+        - docker-compose hub-only without monitoring
+        - docker-compose hybrid
+        - local source build
+        - staging / server deployment
+        - other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "macOS 15 arm64, Docker Desktop 4.x"
+    validations:
+      required: true
+  - type: input
+    id: llm
+    attributes:
+      label: LLM provider and model
+      description: Required only when the issue involves LLM, agent, CLI, chat, or transition behavior.
+      placeholder: "ollama deepseek-v3.1:671b-cloud, claude, openai, none"
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the minimum steps. If a net is involved, attach the inscription JSON or PNML.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste only relevant excerpts. Remove secrets, tokens, API keys, and private data.
+      render: shell
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues before opening this one.
+          required: true
+        - label: I removed secrets, tokens, API keys, and private data from logs.
+          required: true
