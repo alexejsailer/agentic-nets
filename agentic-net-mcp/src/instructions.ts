@@ -67,9 +67,11 @@ hub_publish {kind:"net"|"session"|"model", name, version, tokens} turns a net / 
 into a versioned, shareable artifact stored independently (it survives deletion of the source).
 tokens = none (structure+inscriptions), config (default — also *-config/*-charter place tokens + tokens
 marked config:"true", the stuff a net needs to run), or all. Credentials are always scrubbed.
-hub_search browses the local catalog (or a peer's with the remote param). hub_install {name, version,
-targetModelId?} installs it — model artifacts create a NEW model (pass a fresh targetModelId) and join
-your allowlist immediately. Federate with hub_add_remote {name, url}: register a peer instance to
+hub_search browses the local catalog (or a peer's with the remote param) — compact, paginated with
+limit/offset, and reports the true total. hub_show {name, version?} inspects ONE artifact before you
+commit: all versions, kind, visibility, token policy, readme, size, and a shape summary. hub_install
+{name, version, targetModelId?} installs it — model artifacts create a NEW model (pass a fresh
+targetModelId) and join your allowlist immediately. Federate with hub_add_remote {name, url}: register a peer instance to
 search + install its PUBLIC artifacts (the peer must run with AGENTICOS_HUB_PUBLIC_CATALOG=true; your
 own instance only serves anonymous reads when that flag is on — otherwise no token ⇒ nothing).
 

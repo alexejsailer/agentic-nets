@@ -70,6 +70,7 @@ const CURATED = [
   // NetHub
   'hub_publish',
   'hub_search',
+  'hub_show',
   'hub_install',
   'hub_add_remote',
 ].sort();
@@ -110,7 +111,7 @@ describe('advertised tool surface', () => {
     // Model-AGNOSTIC tools have no model param by design: list_models surveys
     // the whole stack; create_model takes the NEW id; hub_search/hub_add_remote
     // are cross-instance, not model-scoped.
-    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_add_remote']);
+    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_show', 'hub_add_remote']);
     for (const t of tools) {
       if (modelAgnostic.has(t.name)) continue;
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).toContain('model');

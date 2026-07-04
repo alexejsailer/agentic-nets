@@ -108,6 +108,65 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerTool(
+    'hub_show',
+    {
+      title: 'Inspect a NetHub artifact before installing',
+      description:
+        'Show one artifact in detail so you can decide whether to install it: all published versions, kind, visibility, token policy, description, readme, tags, origin, size, and a shape summary (nodes/nets/tokens). Local registry only.',
+      inputSchema: {
+        name: z.string(),
+        version: z.string().optional().describe('Version or "latest" (default latest)'),
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'hub_show', mutates: false }, async (_model, args) => {
+      const versionsResp = await ctx.master.hubVersions(args.name);
+      const versions: string[] = Array.isArray(versionsResp?.versions) ? versionsResp.versions : [];
+      const pkg = await ctx.master.hubArtifact(args.name, args.version ?? 'latest');
+
+      const m = pkg?.manifest ?? {};
+      const kind = pkg?.kind ?? (Array.isArray(pkg?.nets) ? 'session' : pkg?.model ? 'model' : 'net');
+      const visibility = pkg?.visibility ?? (pkg?.public === false ? 'private' : 'public');
+
+      const countNodes = (n: any): number => {
+        if (!n || typeof n !== 'object') return 0;
+        let c = 1;
+        if (Array.isArray(n.children)) for (const ch of n.children) c += countNodes(ch);
+        return c;
+      };
+      const tokenCount = (t: any): number =>
+        t && typeof t === 'object'
+          ? Object.values(t).reduce((s: number, a: any) => s + (Array.isArray(a) ? a.length : 0), 0)
+          : 0;
+
+      const shape: Record<string, number> = {};
+      if (pkg?.model?.root) shape.modelNodes = countNodes(pkg.model.root);
+      if (Array.isArray(pkg?.nets)) shape.nets = pkg.nets.length;
+      const tk = tokenCount(pkg?.tokens);
+      if (tk) shape.tokens = tk;
+
+      let sizeBytes = 0;
+      try { sizeBytes = Buffer.byteLength(JSON.stringify(pkg), 'utf8'); } catch { /* ignore */ }
+
+      return {
+        name: args.name,
+        version: m.version ?? args.version ?? versions[versions.length - 1],
+        kind,
+        visibility,
+        tokenPolicy: pkg?.tokenPolicy ?? pkg?.tokens ?? 'unknown',
+        description: m.description || pkg?.description || undefined,
+        readme: pkg?.readme || m.readme || undefined, // readme is a top-level package field
+        tags: Array.isArray(m.tags) && m.tags.length ? m.tags : undefined,
+        author: m.author || undefined,
+        createdAt: m.createdAt || undefined,
+        origin: pkg?.origin || undefined,
+        sizeBytes,
+        versions,
+        shape: Object.keys(shape).length ? shape : undefined,
+      };
+    }),
+  );
+
+  server.registerTool(
     'hub_install',
     {
       title: 'Install a NetHub artifact',

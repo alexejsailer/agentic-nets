@@ -199,6 +199,10 @@ export class MasterApi {
     return this.client.masterApi('GET', `/hub/artifacts/${name}/versions/${version}`);
   }
 
+  async hubVersions(name: string): Promise<any> {
+    return this.client.masterApi('GET', `/hub/artifacts/${name}/versions`);
+  }
+
   async hubUnpublish(name: string, version: string): Promise<any> {
     return this.client.masterApi('DELETE', `/hub/artifacts/${name}/versions/${version}`);
   }
