@@ -23,9 +23,11 @@ are gone. ${models}
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
   related context with memory_graph; connect places with memory_link.
-- Give the user a ready-made system: deploy_template (working-memory | dev-team | brain | blank).
-  dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
-  fire_once t-team-claim, do the work, fire_once t-team-submit / t-team-complete.
+- Give the user a ready-made system: deploy_template (working-memory | dev-team | brain | watcher
+  | blank). dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
+  fire_once t-team-claim, do the work, fire_once t-team-submit / t-team-complete. watcher is the
+  zero-LLM overnight sentinel: cron-probes a URL and POSTs a webhook alert when it is not 200
+  (params: url, webhook, cron, label) — deploy it when the user wants "tell me when it breaks".
 - Build automation: add_place + add_transition (kinds: map=deterministic transform, llm=one AI
   call, http=API call, command=shell via executor, agent=autonomous multi-step persona,
   link=pure structure edge). Transitions you schedule (scheduleCron/intervalMs) keep running
@@ -55,6 +57,15 @@ surgery (SET_INSCRIPTION, ADAPT_INSCRIPTIONS, CREATE/DELETE_PLACE|ARC|NET|TOKEN)
 debris nets), packages (PACKAGE_SEARCH/PUBLISH/INSTALL), Docker/registry ops, EXPORT_PNML backup,
 raw HTTP_CALL, and more — see the agenticnets://tool-catalog resource for the complete list.
 Anything the platform can do, you can do here; nothing requires dropping to raw REST.
+
+## Hosting transitions HERE (client-side LLM — no server-side model needed)
+host_transition executes an llm/agent transition IN THIS PROCESS instead of on master, using the
+LLM this side already has (default: the local claude binary). Build the lane with add_transition
+{kind:"llm"|"agent", start:false} — start:false means master never runs it — then host_transition
+{transitionId, mode:"watch"} to keep working arriving tokens, or mode:"once" for a single
+execution. Stats live in net_stats.hosted; stop with unhost_transition. Honest rule: hosted lanes
+run only while this session is connected — tokens wait safely in the input place meanwhile. Put
+lanes that must run 24/7 unattended on master (llm kind with a server-side model) instead.
 
 ## Scheduling — nets that run while everyone sleeps
 Any non-link transition accepts a schedule: scheduleCron (6-field cron: sec min hour day month

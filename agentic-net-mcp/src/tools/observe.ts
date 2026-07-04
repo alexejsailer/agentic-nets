@@ -173,12 +173,18 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         ? { count: Array.isArray(tn) ? tn.length : (tn.tools?.length ?? tn.count ?? 0), library: tn }
         : { count: 0, note: 'tool-net library unavailable' };
 
+      // --- transitions hosted by THIS process (client-side LLM execution) ---
+      const hosted = [...ctx.hostedRunners.values()]
+        .filter((r) => r.model === model)
+        .map((r) => ({ transitionId: r.transitionId, intervalMs: r.intervalMs, ...r.stats }));
+
       return {
         model,
         // paused = nothing is polling: no transition can fire until resume_model / start_transition.
         paused: txList.length > 0 && running.length === 0,
         transitions: { total: txList.length, byStatus, running, notRunning },
         scheduled,
+        ...(hosted.length ? { hosted } : {}),
         llm: {
           eventsScanned: events.length,
           calls: llmTx.reduce((n, t) => n + t.calls, 0),

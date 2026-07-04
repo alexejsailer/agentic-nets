@@ -182,7 +182,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   tests: scope guard, blueprint invariants, protocol registration shapes, template executor)
 - **Transports**: stdio (default; `npx @agenticnets/mcp`, `claude mcp add`) and streamable HTTP
   (`AGENTICOS_MCP_TRANSPORT=http`, bearer-token-protected `POST /mcp` — used by the compose service)
-- **Tools (87 = 26 curated lowercase + 61 native UPPERCASE)**. Native layer = FULL platform parity:
+- **Tools (89 = 28 curated lowercase + 61 native UPPERCASE)**. Native layer = FULL platform parity:
   every ToolExecutor tool (the same catalog agent transitions use in-net) auto-registered from the
   CLI's `getAvailableTools(FULL)` + `buildToolSchemas` with real descriptions/schemas — new platform
   tools appear automatically after a catalog sync; excluded only `THINK`/`DONE`/`FAIL` (agent-loop
@@ -197,6 +197,12 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   model control **`pause_model`** (kill switch — stops ALL running transitions, writes an audit
   `pause-record` token to `p-mcp-control`) / **`resume_model`** (restores exactly the paused set;
   command lanes re-register RUNNING on the executor's next poll, ~seconds — trust `resumedCount`);
+  client-hosted execution **`host_transition`** / **`unhost_transition`** (an llm/agent transition
+  built with `start:false` is NEVER on master — the MCP process itself executes it via the CLI's
+  `executeTransitionLocally` on `AGENTICOS_LLM_PROVIDER` (default `claude-code` = local `claude`
+  binary; also ollama/anthropic/openai + `AGENTICOS_LLM_MODEL`/`_TIER`); `mode:watch` polls the
+  inbox, `mode:once` single-shot; stats in `net_stats.hosted`; hosted lanes run only while the
+  session is connected — tokens wait safely otherwise);
   observability/debugging `net_overview`, `query_tokens`, `event_trail`, **`net_stats`** (LLM
   consumption + running/error transitions + **`scheduled`** cron/interval list + `paused` flag +
   tool-net usage + recent errors — the no-logs cockpit),
@@ -212,7 +218,14 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 - **Starter templates** (`deploy_template`, idempotent; params via `agenticnets://templates`):
   `working-memory` (memory places + link graph + always-on LLM distiller; param `distillPrompt`),
   `dev-team` (token-free pipeline — the CONNECTED AGENT is the worker; param `digestCron`),
-  `brain` (LLM panel + critic; params `panelPrompt`/`criticPrompt`), `blank`
+  `brain` (LLM panel + critic; params `panelPrompt`/`criticPrompt`), `watcher` (zero-LLM cron
+  sentinel: probe url → log + webhook alert on non-200; params `url`/`webhook`/`cron`/`label`),
+  `blank`
+- **Claude Code hooks** (`agentic-net-mcp/hooks/`, fail-open, config `~/.agenticnets/hooks.env`):
+  `agenticnets-recall.sh` (SessionStart → injects newest decisions/notes as additionalContext) +
+  `agenticnets-capture.sh` (SessionEnd → session summary token to `p-mem-inbox`; distiller makes it
+  durable). Gotcha pair: hook stdin must be `cat`-ed into a var BEFORE `python3 - <<HEREDOC` (the
+  heredoc consumes stdin), and master's token POST body is `{"data":{...}}` (TokenCreateRequest).
 - **Teach-the-client**: rich `instructions` at initialize + `agenticnets://docs/{concepts,arcql,recipes,security}`
   resources + prompts (`setup-working-memory`, `work-dev-team-backlog`, `capture-session`, `debug-net`)
 - **License**: `"SEE LICENSE IN LICENSE.md"` in package.json

@@ -36,7 +36,7 @@ Then, in Claude Code:
 > *"What did we decide about bundling?"* → `memory_recall` returns the **distilled** note — cleaned up
 > server-side by the always-on distiller transition while you kept working.
 
-## Tools (87 = 26 curated + 61 native)
+## Tools (89 = 28 curated + 61 native)
 
 Two layers, one server:
 
@@ -52,6 +52,7 @@ Two layers, one server:
 | **Memory** | `memory_write` · `memory_recall` · `memory_link` · `memory_graph` |
 | **Net building** | `deploy_template` · `create_net` · `add_place` · `add_transition` (kind-aware: map/llm/http/command/**agent**/link, pre-wired inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · **`spawn_persona`** · `scaffold_tool_net` · `invoke_tool_net` · **`crystallize_session`** |
 | **Model control** | **`pause_model`** (kill switch: stop ALL running transitions, audit-recorded) · **`resume_model`** (restore exactly the paused set) |
+| **Client-hosted execution** | **`host_transition`** (run an llm/agent transition IN the MCP process on the client side's own LLM — default the local `claude` binary; `watch` polls its inbox, `once` executes now) · **`unhost_transition`** |
 | **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
 | **Native catalog (61)** | Structure: `CREATE/DELETE_NET·PLACE·TRANSITION·ARC·TOKEN`, `SET_INSCRIPTION`, `ADAPT_INSCRIPTIONS` · Reads: `QUERY_TOKENS`, `GET_NET_STRUCTURE`, `LIST_*`, `FIND_*`, `EXTRACT_*`, `EXPORT_PNML` · Diagnosis: `NET_DOCTOR`, `VERIFY_NET`, `VERIFY_RUNTIME_BINDINGS`, `VERIFY_INSCRIPTION`, `DIAGNOSE/DRY_RUN_TRANSITION` · Lifecycle: `DEPLOY/START/STOP_TRANSITION`, `FIRE_ONCE`, `EXECUTE_TRANSITION(_SMART)` · Tool-nets: `SCAFFOLD/REGISTER/DESCRIBE/INVOKE_TOOL_NET`, `LIST_TOOL_NETS` · Packages: `PACKAGE_SEARCH/PUBLISH/INSTALL` · Infra: `DOCKER_RUN/STOP/LIST/LOGS`, `REGISTRY_*`, `HTTP_CALL` · Sessions: `CREATE_SESSION`, `TAG_SESSION`, `LIST_ALL_SESSIONS`, … (excluded: `THINK`/`DONE`/`FAIL` — agent-loop-only primitives) |
 
@@ -70,6 +71,11 @@ Four capabilities the extra tools unlock:
 - **`pause_model`** / **`resume_model`** give the user the **off switch**: pause stops every running
   transition (zero fires, zero LLM spend, schedules frozen) and records the set as an audit token in
   `p-mcp-control`; resume restores exactly that set. `net_stats.paused` is the verification.
+- **`host_transition`** inverts where AI runs: an llm/agent transition that is *never started on
+  master* gets executed **by this MCP process**, on the LLM the client side already has
+  (`AGENTICOS_LLM_PROVIDER` — default `claude-code`, i.e. your own `claude` binary and subscription;
+  or ollama/anthropic/openai). Zero server-side LLM setup. Hosted lanes run while the session is
+  connected; tokens arriving meanwhile wait safely in the input place. Stats: `net_stats.hosted`.
 
 Plus **resources** (`agenticnets://models`, `agenticnets://templates`, `agenticnets://tool-nets`,
 `agenticnets://docs/{concepts,arcql,recipes,security}`) and **prompts** (`setup-working-memory`,
@@ -84,6 +90,7 @@ Agentic-Nets well without reading any docs.
 | `working-memory` | Memory places + link graph + an **always-on LLM distiller** (raw inbox capture → durable note) — the second-brain setup. |
 | `dev-team` | **Token-free development pipeline** (backlog → ready → in-progress → review → done, WIP limits, daily digest) where *your connected agent is the worker* — the net provides persistence, state, and audit; zero server-side LLM cost. |
 | `brain` | Divergent ideation: topic inbox → LLM panel → critic pass → vetted shortlist (this one runs server-side LLM calls). |
+| `watcher` | **Zero-LLM overnight sentinel**: cron-probes a URL, logs every result, POSTs `{"text": "..."}` to a webhook when the probe is not 200. Params: `url`, `webhook`, `cron`, `label`. "It tells you when it breaks." |
 | `blank` | An empty canvas for `add_place` / `add_transition`. |
 
 Deploys are idempotent: re-running skips existing elements and never duplicates seed tokens.
@@ -100,6 +107,23 @@ Deploys are idempotent: re-running skips existing elements and never duplicates 
 | `AGENTICOS_NODE_HOST` | host injected into inscriptions | `localhost:8080` |
 | `AGENTICOS_MCP_TRANSPORT` | `stdio` \| `http` | `stdio` |
 | `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport port + required bearer token | `8091` / — |
+| `AGENTICOS_LLM_PROVIDER` | LLM used when **this process** executes hosted transitions (`host_transition`): `claude-code` (local `claude` binary — your subscription), `ollama`, `claude`/`anthropic`, `openai` | `claude-code` |
+| `AGENTICOS_LLM_MODEL` / `AGENTICOS_LLM_TIER` | model + tier for the hosted-execution provider | provider default / `medium` |
+
+## Claude Code hooks: memory with zero discipline
+
+`hooks/` ships two fail-open scripts that make working memory automatic:
+
+- **`agenticnets-recall.sh`** (SessionStart) — injects your newest decisions + notes as session
+  context, so every session starts warm.
+- **`agenticnets-capture.sh`** (SessionEnd) — writes one capture token (first ask + final outcome +
+  cwd/branch) to `p-mem-inbox`; the working-memory distiller turns it into a durable note on its
+  next tick. No LLM in the hook itself.
+
+Setup: create `~/.agenticnets/hooks.env` (`AGENTICOS_GATEWAY_URL`, `AGENTICOS_ADMIN_SECRET` or
+`AGENTICOS_GATEWAY_SECRET_FILE`, `AGENTICOS_MEMORY_MODEL`) and register both scripts in
+`~/.claude/settings.json` under `hooks.SessionStart` / `hooks.SessionEnd` (`type: "command"`).
+Both scripts exit 0 on ANY failure with bounded timeouts — a memory hiccup never blocks a session.
 
 ### Model scoping
 

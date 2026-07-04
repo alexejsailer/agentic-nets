@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from './context.js';
 import { buildInstructions } from './instructions.js';
 import { registerCatalogTools } from './tools/catalog.js';
+import { registerHostedTools } from './tools/hosted.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
@@ -35,6 +36,8 @@ export function createServer(ctx: AppContext): McpServer {
   } else {
     registerMemoryTools(server, ctx);
     registerNetTools(server, ctx);
+    // Client-hosted llm/agent execution — this process as the transition runner.
+    registerHostedTools(server, ctx);
     // Full native parity: every ToolExecutor tool, canonical UPPERCASE names.
     registerCatalogTools(server, ctx);
   }

@@ -3,8 +3,8 @@ import { TEMPLATES } from '../src/templates/index.js';
 import { validateBlueprint, BlueprintError } from '../src/templates/types.js';
 
 describe('blueprint registry', () => {
-  it('ships exactly the four v0.1 templates', () => {
-    expect(Object.keys(TEMPLATES).sort()).toEqual(['blank', 'brain', 'dev-team', 'working-memory']);
+  it('ships exactly the five templates', () => {
+    expect(Object.keys(TEMPLATES).sort()).toEqual(['blank', 'brain', 'dev-team', 'watcher', 'working-memory']);
   });
 
   for (const [id, bp] of Object.entries(TEMPLATES)) {

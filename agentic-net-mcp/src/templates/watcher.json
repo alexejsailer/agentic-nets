@@ -1,0 +1,89 @@
+{
+  "id": "watcher",
+  "name": "Overnight watcher",
+  "description": "Zero-LLM scheduled sentinel: probes a URL on a cron, logs every result, and POSTs a JSON alert to a webhook when the probe is not 200. Runs server-side forever — the 'it tells me when something breaks' net. Params: url, webhook (empty = log only), cron, label.",
+  "version": "0.1.0",
+  "params": {
+    "url": {
+      "description": "URL to probe (expects HTTP 200 when healthy)",
+      "default": "http://localhost:8082/api/health"
+    },
+    "webhook": {
+      "description": "Webhook that receives {\"text\": \"...\"} on failure (Slack-compatible). Empty = log only.",
+      "default": ""
+    },
+    "cron": {
+      "description": "6-field cron for the probe tick",
+      "default": "0 */5 * * * *"
+    },
+    "label": {
+      "description": "Short name used in log lines and alerts",
+      "default": "watch"
+    }
+  },
+  "net": { "netId": "watcher", "name": "Overnight Watcher" },
+  "places": [
+    { "placeId": "p-watch-cmd", "label": "probe config (command token)", "x": 100, "y": 100 },
+    { "placeId": "p-watch-log", "label": "probe log", "x": 500, "y": 100 }
+  ],
+  "transitions": [
+    {
+      "transitionId": "t-watch-probe",
+      "label": "probe ${label}",
+      "x": 300,
+      "y": 100,
+      "agentId": "agentic-net-executor-default",
+      "start": true,
+      "inscription": {
+        "id": "t-watch-probe",
+        "kind": "command",
+        "label": "probe ${label}",
+        "schedule": { "type": "cron", "cron": "${cron}" },
+        "presets": {
+          "input": {
+            "placeId": "p-watch-cmd",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": false,
+            "optional": true
+          }
+        },
+        "postsets": { "log": { "placeId": "p-watch-log", "capacity": 200 } },
+        "action": {
+          "type": "command",
+          "inputPlace": "input",
+          "groupBy": "executor",
+          "dispatch": [{ "executor": "bash", "channel": "default" }],
+          "await": "ALL",
+          "timeoutMs": 60000
+        },
+        "emit": [{ "to": "log", "from": "@result" }],
+        "mode": "SINGLE"
+      }
+    }
+  ],
+  "arcs": [
+    { "arcId": "a-watch-in", "sourceId": "p-watch-cmd", "targetId": "t-watch-probe" },
+    { "arcId": "a-watch-out", "sourceId": "t-watch-probe", "targetId": "p-watch-log" }
+  ],
+  "seedTokens": [
+    {
+      "placeId": "p-watch-cmd",
+      "name": "watch-probe-config",
+      "data": {
+        "kind": "command",
+        "id": "watch-probe-${label}",
+        "executor": "bash",
+        "command": "exec",
+        "args": {
+          "command": "s=$(curl -sf -o /dev/null -w '%{http_code}' -m 10 '${url}' 2>/dev/null); s=${s:-000}; echo \"[${label}] ${url} -> $s\"; if [ \"$s\" != \"200\" ] && [ -n '${webhook}' ]; then curl -sf -m 10 -X POST -H 'Content-Type: application/json' -d \"{\\\"text\\\":\\\"[${label}] ALERT: ${url} -> $s\\\"}\" '${webhook}' >/dev/null 2>&1 || true; fi",
+          "timeoutMs": 30000,
+          "captureStderr": true
+        },
+        "expect": "text",
+        "meta": { "correlationId": "watch-${label}" }
+      }
+    }
+  ],
+  "tags": ["watcher", "sentinel", "zero-llm"]
+}

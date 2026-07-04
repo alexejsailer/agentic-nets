@@ -19,6 +19,8 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
     nodeHost: 'localhost:8080',
     transport: 'stdio',
     httpPort: 0,
+    llmProvider: 'claude-code',
+    llmTier: 'medium',
     ...over,
   };
 }
@@ -56,6 +58,8 @@ const CURATED = [
   'stop_transition',
   'pause_model',
   'resume_model',
+  'host_transition',
+  'unhost_transition',
   'create_persona',
   'spawn_persona',
   'scaffold_tool_net',

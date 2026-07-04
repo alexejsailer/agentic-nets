@@ -48,7 +48,9 @@
     "./llm/openai": "./src/llm/openai.ts",
     "./commands/llm-factory": "./src/commands/llm-factory.ts",
     "./gateway/master-api": "./src/gateway/master-api.ts",
-    "./gateway/node-api": "./src/gateway/node-api.ts"
+    "./gateway/node-api": "./src/gateway/node-api.ts",
+    "./agent/transition-executor": "./src/agent/transition-executor.ts",
+    "./llm/claude-code": "./src/llm/claude-code.ts"
   },
   "files": [
     "dist",

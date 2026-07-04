@@ -1,7 +1,7 @@
 {
   "name": "@agenticnets/mcp",
   "version": "0.1.0",
-  "description": "Agentic-Nets MCP server \u2014 working memory that runs. Petri-net-backed structured memory, net building, and observability for MCP clients (Claude Code, Claude Desktop, Cursor, ...).",
+  "description": "Agentic-Nets MCP server — working memory that runs. Petri-net-backed structured memory, net building, and observability for MCP clients (Claude Code, Claude Desktop, Cursor, ...).",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alexejsailer/agentic-nets.git",
@@ -31,7 +31,10 @@
     "prepack": "npm run build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "ollama": "^0.6.3",
+    "openai": "^6.45.0",
     "yaml": "^2.9.0",
     "zod": "^3.24.0"
   },

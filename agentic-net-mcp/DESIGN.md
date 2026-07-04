@@ -102,3 +102,51 @@ agentic-net-mcp/
 - **Integration (local dev stack, `AGENTICOS_IT=1`)**: deploy `blank`; `memory_write` → `memory_recall` roundtrip; `memory_link` → `memory_graph` shows the edge; `event_trail` non-empty; readonly client 403s on write.
 - **Live demo path**: `claude mcp add agenticnets -e AGENTICOS_GATEWAY_URL=... -e AGENTICOS_ADMIN_SECRET=... -e AGENTICOS_MODELS=my-notes -- npx @agenticnets/mcp`; then in Claude Code: remember something → recall it → `deploy_template working-memory` → confirm the distill transition ticks on schedule (master log / event trail).
 - **Compose**: `docker compose up agenticnetos-mcp` → HTTP transport reachable on 127.0.0.1 with token; bind from Claude Code via URL config.
+
+---
+
+# Phase 2 additions (2026-07-04)
+
+## Client-hosted transitions (IMPLEMENTED: host_transition / unhost_transition)
+
+The inversion that makes llm/agent transitions free to run: the transition is deliberately NOT
+started on master; this MCP process is its executor, via the CLI's `executeTransitionLocally`
+(preset binding → sub-agent loop → postset emission) on the provider configured by
+`AGENTICOS_LLM_PROVIDER` (default **claude-code** — the user's own `claude` binary and
+subscription; also ollama / anthropic / openai). `mode:"watch"` polls the input place on an
+interval; `mode:"once"` executes a single waiting token. Honest semantics: hosted lanes run only
+while the session is connected — tokens wait safely in the input place otherwise; keep 24/7 lanes
+on master. Observability: `net_stats.hosted` (ticks/executions/successes/failures/lastError).
+
+## Net Hub — a package manager for AgenticOS (DESIGN)
+
+**Goal.** A hub server ("NetHub") where people publish, search, and install Agentic-Nets artifacts —
+templates, tool-nets, persona nets, whole models — so any local AgenticOS (and any MCP client bound
+to one) can `hub_search` → `hub_install` a running system in one call. npm for nets.
+
+**What already exists (the hub is mostly assembly, not invention):**
+- Package registry inside master: `PACKAGE_SEARCH / PACKAGE_PUBLISH / PACKAGE_INSTALL` (+ REST:
+  create/publish/search/info/versions/upload/import) with scopes designtime|runtime|complete and
+  **CredentialScrubber on every scope** (secrets stripped at export; `${...}` refs kept).
+- `EXPORT_PNML` / net export for single-net artifacts; templates as validated JSON blueprints.
+- Gateway with admin/readonly OAuth2 clients — a hub is a stack whose readonly client is public.
+
+**MVP (no new server software):** the hub IS a hosted AgenticOS instance.
+1. Operate a public stack (e.g. hub.agentic-nets.com) with a dedicated `hub` model; its package
+   registry is the catalog. Anonymous read via the readonly client; publish via issued tokens.
+2. MCP tools (small additions): `hub_search {query, tags}` → gateway readonly search on the hub;
+   `hub_install {name, version}` → download package from hub → `PACKAGE_INSTALL` into the LOCAL
+   model (scrubbed, schema-checked); `hub_publish {netId|template, name, version, tags}` →
+   package locally (scrubber runs) → upload to hub with a publish token.
+3. Seed catalog: working-memory, dev-team, brain, watcher, research pipeline, ops-sentinel,
+   notify tool-nets.
+
+**V2 hardening:** static GitHub-backed index as a zero-infra mirror (packages.json + tarballs);
+signatures/checksums on artifacts; license + provenance fields in the manifest; install-time
+static verification (verify_inscription across all transitions, no command-kind without explicit
+consent flag); download counts/ratings back onto the hub model as tokens — the hub dogfoods nets.
+
+**Trust model:** installs are data + inscriptions, never executed at install time; command-kind
+content requires an explicit `--allow-commands` acknowledgement at install; scrubber guarantees
+no credentials leave a publisher's stack; readonly hub client means the catalog itself cannot be
+mutated by consumers.

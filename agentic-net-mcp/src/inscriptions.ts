@@ -136,13 +136,20 @@ export function buildHttpInscription(opts: BuildOpts) {
   };
 }
 
-/** Consumes COMMAND-SHAPED tokens (kind/id/executor/command/args) and emits @result. */
+/**
+ * Consumes COMMAND-SHAPED tokens (kind/id/executor/command/args) and emits @result.
+ * Scheduled command transitions (watchers/sentinels) re-read a persistent config
+ * token each tick instead of consuming it — the staging sentinel pattern.
+ */
 export function buildCommandInscription(opts: BuildOpts) {
   return {
     id: opts.id,
     kind: 'command',
     label: opts.label ?? opts.id,
-    presets: { input: preset(opts.inputPlace, opts.host) },
+    ...schedule(opts),
+    presets: {
+      input: preset(opts.inputPlace, opts.host, opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {}),
+    },
     postsets: { log: { placeId: opts.outputPlace, host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) } },
     action: {
       type: 'command',

@@ -24,6 +24,15 @@ export interface McpConfig {
   httpPort: number;
   /** Bearer token required on the HTTP transport (ignored for stdio). */
   httpToken?: string;
+  /**
+   * LLM provider used when THIS process executes hosted llm/agent transitions
+   * (host_transition): 'claude-code' shells out to the local `claude` binary
+   * (the user's own subscription — zero server-side LLM setup), or
+   * ollama | claude | openai | codex. Model/tier are optional overrides.
+   */
+  llmProvider: string;
+  llmModel?: string;
+  llmTier: 'low' | 'medium' | 'high';
 }
 
 export class ConfigError extends Error {}
@@ -65,6 +74,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     throw new ConfigError('AGENTICOS_MCP_HTTP_TOKEN is required for the http transport.');
   }
 
+  const llmTier = (env.AGENTICOS_LLM_TIER ?? 'medium') as 'low' | 'medium' | 'high';
+  if (!['low', 'medium', 'high'].includes(llmTier)) {
+    throw new ConfigError(`AGENTICOS_LLM_TIER must be low|medium|high, got '${llmTier}'`);
+  }
+
   return {
     gatewayUrl: env.AGENTICOS_GATEWAY_URL ?? 'http://localhost:8083',
     models,
@@ -74,5 +88,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     transport,
     httpPort: Number(env.AGENTICOS_MCP_HTTP_PORT ?? '8091'),
     httpToken,
+    llmProvider: env.AGENTICOS_LLM_PROVIDER ?? 'claude-code',
+    llmModel: env.AGENTICOS_LLM_MODEL || undefined,
+    llmTier,
   };
 }
