@@ -31,7 +31,7 @@ structure, communication, coordination, and verification matter.
 |---|---|
 | What is it? | A Petri-net runtime for agents, tools, memory, remote execution, and audit trails. |
 | Why does it exist? | To make agent systems inspectable, permission-scoped, replayable, and reusable instead of hidden inside chat state. |
-| What is public in this repo? | Licensed public source for the gateway, executor, vault, CLI, chat bot, blobstore, tool containers, deployment, and monitoring. |
+| What is public in this repo? | Licensed public source for the gateway, executor, vault, CLI, chat bot, MCP server, blobstore, tool containers, deployment, and monitoring. |
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
 | Current status | Beta. Suitable for evaluation, local experiments, early adopters, and contributors who are comfortable with a fast-moving stack. |
 
@@ -57,6 +57,7 @@ layer:
 | Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
 | Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
+| Connect any MCP client (working memory + net workbench) | [Connect over MCP](#or-connect-over-mcp--agentic-nets-as-working-memory--a-net-workbench) |
 | Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
 | Ask questions or discuss use cases | [GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions) or [forum.agentic-nets.com](https://forum.agentic-nets.com) |
 | Report a security issue | [SECURITY.md](SECURITY.md) |
@@ -437,6 +438,36 @@ slash commands:
 Or just describe what you want: the skill routes structural work to the designer agent and diagnosis to the
 operator agent. Full details, the REST/API reference, and the environment-variable table are in the plugin's
 own [README](claude-plugin/agenticos-control/README.md).
+
+### Or connect over MCP — Agentic-Nets as working memory + a net workbench
+
+The [`agentic-net-mcp`](agentic-net-mcp) server exposes a running stack to **any MCP client** (Claude Code,
+Claude Desktop, Cursor, or your own agent framework) over the [Model Context Protocol](https://modelcontextprotocol.io).
+Where the plugin is a curl/CLI control surface, the MCP server is a **native tool protocol** — the client calls
+Agentic-Nets as first-class tools, and gets **persistent, structured working memory that keeps working between
+sessions**.
+
+- **Memory that runs.** `memory_write` / `memory_recall` over event-sourced places, with an always-on server-side
+  distiller that turns raw captures into durable notes while you are gone. A `SessionStart`/`SessionEnd` hook pair
+  makes it *automatic* — every Claude Code session starts warm and ends archived, with no discipline required.
+- **Build and run nets from the client.** Deploy starter templates (working-memory, dev-team, brain, watcher),
+  spawn autonomous **persona** workers that run in parallel server-side, **crystallize** a session's steps into a
+  replayable zero-LLM tool-net, and even **host** an llm/agent transition *in the client itself* using the LLM you
+  already have (e.g. your local `claude`) — no server-side model required.
+- **Full platform parity + control.** All ~90 tools: the curated ergonomic layer **plus the complete native
+  tool catalog**, model lifecycle (`create_model` / `list_models`), a `pause_model` kill switch, and a no-logs
+  cockpit (`net_stats`, `diagnose_transition`). Scoped to an allowlist, with a gateway-enforced `readonly` mode.
+
+```bash
+claude mcp add agenticnets \
+  -e AGENTICOS_GATEWAY_URL=http://localhost:8083 \
+  -e AGENTICOS_ADMIN_SECRET=$(cat deployment/data/gateway/jwt/admin-secret) \
+  -e AGENTICOS_MODELS=my-memory \
+  -- npx @agenticnets/mcp
+```
+
+Then just tell your assistant to *"remember this"* or *"set up my working memory"*. Full tool list, configuration,
+templates, hooks, and security model are in the server's own [README](agentic-net-mcp/README.md).
 
 ---
 
