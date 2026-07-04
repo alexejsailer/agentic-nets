@@ -59,17 +59,51 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Search the NetHub catalog',
       description:
-        'Browse published artifacts — local by default, or a peer instance when `remote` names a registered remote. Filter by kind (net|session|model), free-text search, and tags.',
+        'Browse published artifacts — local by default, or a peer instance when the remote param names a registered remote. Filter by kind (net|session|model), free-text search, and tags. Returns a compact list plus the true total; page with offset when more exist.',
       inputSchema: {
         kind: z.enum(['net', 'session', 'model']).optional(),
         search: z.string().optional(),
         tags: z.string().optional().describe('Comma-separated'),
         remote: z.string().optional().describe('A registered remote to browse instead of local'),
+        limit: z.number().int().positive().max(200).optional().describe('Max results per page (default 25)'),
+        offset: z.number().int().nonnegative().optional().describe('Skip N results — page through a large catalog'),
       },
     },
     wrapTool(scope, config.mode, { name: 'hub_search', mutates: false }, async (_model, args) => {
-      const opts = { kind: args.kind, search: args.search, tags: args.tags };
-      return args.remote ? ctx.master.hubRemoteCatalog(args.remote, opts) : ctx.master.hubCatalog(opts);
+      const limit = args.limit ?? 25;
+      const offset = args.offset ?? 0;
+      const raw = args.remote
+        ? await ctx.master.hubRemoteCatalog(args.remote, { kind: args.kind, search: args.search, tags: args.tags })
+        : await ctx.master.hubCatalog({ kind: args.kind, search: args.search, tags: args.tags, limit, offset });
+
+      const artifacts: any[] = Array.isArray(raw?.artifacts) ? raw.artifacts : [];
+      const total: number = typeof raw?.total === 'number' ? raw.total : artifacts.length;
+      const compact = artifacts.map((a) => ({
+        name: a.name,
+        version: a.latestVersion ?? a.version,
+        kind: a.kind ?? 'net',
+        visibility: a.visibility ?? 'public',
+        description: a.description || undefined,
+        tags: Array.isArray(a.tags) && a.tags.length ? a.tags : undefined,
+      }));
+
+      const out: Record<string, unknown> = {
+        source: args.remote ? `remote:${args.remote}` : 'local',
+        total,
+        returned: compact.length,
+        offset,
+        artifacts: compact,
+      };
+      const seen = offset + compact.length;
+      if (total > seen) {
+        out.more = args.remote
+          ? `+${total - seen} more not shown — narrow with search/kind/tags (remote paging unsupported)`
+          : `+${total - seen} more — page with offset=${seen}`;
+      }
+      if (compact.length === 0) {
+        out.hint = 'No artifacts match. Try hub_search with no filters, or a different kind/search.';
+      }
+      return out;
     }),
   );
 
