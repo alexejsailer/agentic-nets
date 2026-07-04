@@ -8,6 +8,7 @@ import type { AppContext } from './context.js';
 import { buildInstructions } from './instructions.js';
 import { registerCatalogTools } from './tools/catalog.js';
 import { registerHostedTools } from './tools/hosted.js';
+import { registerHubTools } from './tools/hub.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
@@ -36,6 +37,8 @@ export function createServer(ctx: AppContext): McpServer {
   } else {
     registerMemoryTools(server, ctx);
     registerNetTools(server, ctx);
+    // NetHub — publish/discover/install artifacts across instances.
+    registerHubTools(server, ctx);
     // Client-hosted llm/agent execution — this process as the transition runner.
     registerHostedTools(server, ctx);
     // Full native parity: every ToolExecutor tool, canonical UPPERCASE names.

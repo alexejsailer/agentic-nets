@@ -71,6 +71,7 @@
       "placeId": "p-watch-cmd",
       "name": "watch-probe-config",
       "data": {
+        "config": "true",
         "kind": "command",
         "id": "watch-probe-${label}",
         "executor": "bash",

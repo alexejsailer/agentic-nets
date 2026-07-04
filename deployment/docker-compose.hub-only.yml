@@ -484,6 +484,7 @@ services:
       AGENTICOS_ADMIN_SECRET: ${AGENTICOS_ADMIN_SECRET:-}
       GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
       GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS: "${GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
+      AGENTICOS_HUB_PUBLIC_CATALOG: "${AGENTICOS_HUB_PUBLIC_CATALOG:-false}"
       GATEWAY_JWT_KEY_DIR: /app/data/jwt
       LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318

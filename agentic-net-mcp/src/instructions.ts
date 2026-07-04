@@ -62,6 +62,17 @@ transitions. DELETE_TRANSITION deregisters a single runtime transition (stop + r
 inscription/status/assignment) — use it to clear transitions left STOPPED behind a deleted net so
 net_stats stays honest. Irreversible; re-assign to recreate.
 
+## NetHub — share and install nets, sessions, whole models
+hub_publish {kind:"net"|"session"|"model", name, version, tokens} turns a net / session / whole model
+into a versioned, shareable artifact stored independently (it survives deletion of the source).
+tokens = none (structure+inscriptions), config (default — also *-config/*-charter place tokens + tokens
+marked config:"true", the stuff a net needs to run), or all. Credentials are always scrubbed.
+hub_search browses the local catalog (or a peer's with the remote param). hub_install {name, version,
+targetModelId?} installs it — model artifacts create a NEW model (pass a fresh targetModelId) and join
+your allowlist immediately. Federate with hub_add_remote {name, url}: register a peer instance to
+search + install its PUBLIC artifacts (the peer must run with AGENTICOS_HUB_PUBLIC_CATALOG=true; your
+own instance only serves anonymous reads when that flag is on — otherwise no token ⇒ nothing).
+
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine
 gotchas absorbed — prefer them for the flows they cover. The UPPERCASE tools are the FULL native

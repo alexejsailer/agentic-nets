@@ -9,13 +9,41 @@
       "default": "You maintain a personal working memory. Rewrite the following raw capture as ONE durable, self-contained note that will still make sense months from now: keep concrete facts, names, decisions and reasons; drop filler. Reply with only the note text. RAW CAPTURE: ${input.data.text}"
     }
   },
-  "net": { "netId": "memory", "name": "Working Memory" },
+  "net": {
+    "netId": "memory",
+    "name": "Working Memory"
+  },
   "places": [
-    { "placeId": "p-mem-inbox", "label": "inbox (raw captures)", "x": 100, "y": 100 },
-    { "placeId": "p-mem-notes", "label": "notes (distilled)", "x": 400, "y": 100 },
-    { "placeId": "p-mem-decisions", "label": "decisions", "x": 700, "y": 40 },
-    { "placeId": "p-mem-knowledge", "label": "knowledge", "x": 700, "y": 160 },
-    { "placeId": "p-mem-archive", "label": "archive", "x": 400, "y": 240 }
+    {
+      "placeId": "p-mem-inbox",
+      "label": "inbox (raw captures)",
+      "x": 100,
+      "y": 100
+    },
+    {
+      "placeId": "p-mem-notes",
+      "label": "notes (distilled)",
+      "x": 400,
+      "y": 100
+    },
+    {
+      "placeId": "p-mem-decisions",
+      "label": "decisions",
+      "x": 700,
+      "y": 40
+    },
+    {
+      "placeId": "p-mem-knowledge",
+      "label": "knowledge",
+      "x": 700,
+      "y": 160
+    },
+    {
+      "placeId": "p-mem-archive",
+      "label": "archive",
+      "x": 400,
+      "y": 240
+    }
   ],
   "transitions": [
     {
@@ -30,11 +58,30 @@
         "kind": "llm",
         "label": "distill raw captures into notes",
         "presets": {
-          "input": { "placeId": "p-mem-inbox", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": true }
+          "input": {
+            "placeId": "p-mem-inbox",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": true
+          }
         },
-        "postsets": { "out": { "placeId": "p-mem-notes", "capacity": 200 } },
-        "action": { "type": "llm", "nl": "${distillPrompt}", "timeoutMs": 240000 },
-        "emit": [{ "to": "out", "from": "@response.raw" }],
+        "postsets": {
+          "out": {
+            "placeId": "p-mem-notes",
+            "capacity": 200
+          }
+        },
+        "action": {
+          "type": "llm",
+          "nl": "${distillPrompt}",
+          "timeoutMs": 240000
+        },
+        "emit": [
+          {
+            "to": "out",
+            "from": "@response.raw"
+          }
+        ],
         "mode": "SINGLE"
       }
     },
@@ -50,9 +97,19 @@
         "kind": "link",
         "label": "notes ground decisions",
         "presets": {
-          "from": { "placeId": "p-mem-notes", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+          "from": {
+            "placeId": "p-mem-notes",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": false,
+            "optional": true
+          }
         },
-        "postsets": { "to": { "placeId": "p-mem-decisions" } }
+        "postsets": {
+          "to": {
+            "placeId": "p-mem-decisions"
+          }
+        }
       }
     },
     {
@@ -67,9 +124,19 @@
         "kind": "link",
         "label": "notes feed knowledge",
         "presets": {
-          "from": { "placeId": "p-mem-notes", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+          "from": {
+            "placeId": "p-mem-notes",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": false,
+            "optional": true
+          }
         },
-        "postsets": { "to": { "placeId": "p-mem-knowledge" } }
+        "postsets": {
+          "to": {
+            "placeId": "p-mem-knowledge"
+          }
+        }
       }
     },
     {
@@ -84,32 +151,78 @@
         "kind": "link",
         "label": "notes age into archive",
         "presets": {
-          "from": { "placeId": "p-mem-notes", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+          "from": {
+            "placeId": "p-mem-notes",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": false,
+            "optional": true
+          }
         },
-        "postsets": { "to": { "placeId": "p-mem-archive" } }
+        "postsets": {
+          "to": {
+            "placeId": "p-mem-archive"
+          }
+        }
       }
     }
   ],
   "arcs": [
-    { "arcId": "a-distill-in", "sourceId": "p-mem-inbox", "targetId": "t-mem-distill" },
-    { "arcId": "a-distill-out", "sourceId": "t-mem-distill", "targetId": "p-mem-notes" },
-    { "arcId": "a-lnd-in", "sourceId": "p-mem-notes", "targetId": "t-link-notes-decisions" },
-    { "arcId": "a-lnd-out", "sourceId": "t-link-notes-decisions", "targetId": "p-mem-decisions" },
-    { "arcId": "a-lnk-in", "sourceId": "p-mem-notes", "targetId": "t-link-notes-knowledge" },
-    { "arcId": "a-lnk-out", "sourceId": "t-link-notes-knowledge", "targetId": "p-mem-knowledge" },
-    { "arcId": "a-lna-in", "sourceId": "p-mem-notes", "targetId": "t-link-notes-archive" },
-    { "arcId": "a-lna-out", "sourceId": "t-link-notes-archive", "targetId": "p-mem-archive" }
+    {
+      "arcId": "a-distill-in",
+      "sourceId": "p-mem-inbox",
+      "targetId": "t-mem-distill"
+    },
+    {
+      "arcId": "a-distill-out",
+      "sourceId": "t-mem-distill",
+      "targetId": "p-mem-notes"
+    },
+    {
+      "arcId": "a-lnd-in",
+      "sourceId": "p-mem-notes",
+      "targetId": "t-link-notes-decisions"
+    },
+    {
+      "arcId": "a-lnd-out",
+      "sourceId": "t-link-notes-decisions",
+      "targetId": "p-mem-decisions"
+    },
+    {
+      "arcId": "a-lnk-in",
+      "sourceId": "p-mem-notes",
+      "targetId": "t-link-notes-knowledge"
+    },
+    {
+      "arcId": "a-lnk-out",
+      "sourceId": "t-link-notes-knowledge",
+      "targetId": "p-mem-knowledge"
+    },
+    {
+      "arcId": "a-lna-in",
+      "sourceId": "p-mem-notes",
+      "targetId": "t-link-notes-archive"
+    },
+    {
+      "arcId": "a-lna-out",
+      "sourceId": "t-link-notes-archive",
+      "targetId": "p-mem-archive"
+    }
   ],
   "seedTokens": [
     {
       "placeId": "p-mem-knowledge",
       "name": "how-this-works",
       "data": {
+        "config": "true",
         "kind": "memory",
         "text": "This model is a working memory. Raw captures go to p-mem-inbox (memory_write place:inbox) and are distilled into p-mem-notes automatically by t-mem-distill. Durable decisions belong in p-mem-decisions, long-lived facts in p-mem-knowledge. Use memory_recall to search and memory_graph to navigate.",
         "source": "template"
       }
     }
   ],
-  "tags": ["starter", "memory"]
+  "tags": [
+    "starter",
+    "memory"
+  ]
 }

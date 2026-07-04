@@ -67,6 +67,11 @@ const CURATED = [
   'scaffold_tool_net',
   'invoke_tool_net',
   'crystallize_session',
+  // NetHub
+  'hub_publish',
+  'hub_search',
+  'hub_install',
+  'hub_add_remote',
 ].sort();
 
 describe('advertised tool surface', () => {
@@ -78,7 +83,7 @@ describe('advertised tool surface', () => {
     for (const c of CURATED) expect(names, `curated ${c}`).toContain(c);
     // Native (UPPERCASE) layer: full platform parity — spot-check breadth across groups
     // and assert the agent-loop-only primitives are excluded.
-    for (const n of ['NET_DOCTOR', 'DELETE_NET', 'DELETE_TRANSITION', 'SET_INSCRIPTION', 'QUERY_TOKENS', 'PACKAGE_SEARCH', 'DOCKER_LIST', 'HTTP_CALL', 'EXPORT_PNML']) {
+    for (const n of ['NET_DOCTOR', 'DELETE_NET', 'DELETE_TRANSITION', 'SET_INSCRIPTION', 'QUERY_TOKENS', 'PACKAGE_SEARCH', 'HUB_PUBLISH', 'HUB_INSTALL', 'HUB_REMOTE_ADD', 'DOCKER_LIST', 'HTTP_CALL', 'EXPORT_PNML']) {
       expect(names, `native ${n}`).toContain(n);
     }
     for (const excluded of ['THINK', 'DONE', 'FAIL']) expect(names).not.toContain(excluded);
@@ -103,8 +108,9 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ models: ['m1', 'm2'] }));
     const { tools } = await client.listTools();
     // Model-AGNOSTIC tools have no model param by design: list_models surveys
-    // the whole stack; create_model takes the NEW id as modelId.
-    const modelAgnostic = new Set(['list_models', 'create_model']);
+    // the whole stack; create_model takes the NEW id; hub_search/hub_add_remote
+    // are cross-instance, not model-scoped.
+    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_add_remote']);
     for (const t of tools) {
       if (modelAgnostic.has(t.name)) continue;
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).toContain('model');

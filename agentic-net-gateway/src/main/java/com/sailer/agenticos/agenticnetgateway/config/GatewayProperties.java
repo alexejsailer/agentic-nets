@@ -26,6 +26,11 @@ public class GatewayProperties {
     private String internalSecret = "";
     private int masterHeartbeatTtlSeconds = 60;
     private int proxyFanOutTimeoutSeconds = 30;
+    /**
+     * When true, expose the NetHub PUBLIC catalog anonymously (GET /api/hub/public/**) AND the
+     * package-registry GET browse — the "public hub" opt-in. Default OFF: no token ⇒ nothing.
+     */
+    private boolean hubPublicCatalog = false;
 
     public String getMasterUrl() {
         return masterUrl;
@@ -153,5 +158,13 @@ public class GatewayProperties {
 
     public void setProxyFanOutTimeoutSeconds(int proxyFanOutTimeoutSeconds) {
         this.proxyFanOutTimeoutSeconds = proxyFanOutTimeoutSeconds;
+    }
+
+    public boolean isHubPublicCatalog() {
+        return hubPublicCatalog;
+    }
+
+    public void setHubPublicCatalog(boolean hubPublicCatalog) {
+        this.hubPublicCatalog = hubPublicCatalog;
     }
 }

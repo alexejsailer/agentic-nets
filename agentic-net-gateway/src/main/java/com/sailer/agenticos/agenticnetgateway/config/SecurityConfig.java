@@ -23,8 +23,12 @@ import java.util.List;
  *   /oauth2/**              — Token issuance and JWKS
  *   /actuator/**            — Health and metrics
  *   /api/health/**          — Service health checks
- *   GET /api/packages/**    — Public catalog browsing (read-only)
+ *   GET /api/hub/public/**  — NetHub public catalog (ONLY when gateway.hub.public-catalog=true)
+ *   GET /api/packages/**    — Package browsing (ONLY when gateway.hub.public-catalog=true)
  *   /internal/masters/**    — Shared-secret protected master registry
+ *
+ * With gateway.hub.public-catalog=false (the default), NOTHING under /api is anonymous:
+ * every request needs a JWT ("no token ⇒ nothing").
  *
  * Protected endpoints (JWT required):
  *   /api/**                 — Master API (proxied)
@@ -42,13 +46,16 @@ public class SecurityConfig {
     private final TokenRateLimiter tokenRateLimiter;
     private final ReadonlyEnforcementFilter readonlyEnforcementFilter;
     private final List<String> allowedOriginPatterns;
+    private final boolean hubPublicCatalog;
 
     public SecurityConfig(TokenRateLimiter tokenRateLimiter,
                           ReadonlyEnforcementFilter readonlyEnforcementFilter,
-                          @Value("${gateway.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String allowedOriginPatterns) {
+                          @Value("${gateway.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String allowedOriginPatterns,
+                          @Value("${gateway.hub.public-catalog:false}") boolean hubPublicCatalog) {
         this.tokenRateLimiter = tokenRateLimiter;
         this.readonlyEnforcementFilter = readonlyEnforcementFilter;
         this.allowedOriginPatterns = parseCsv(allowedOriginPatterns);
+        this.hubPublicCatalog = hubPublicCatalog;
     }
 
     @Bean
@@ -58,20 +65,26 @@ public class SecurityConfig {
                 .addFilterAfter(readonlyEnforcementFilter, BearerTokenAuthenticationFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                        auth
                         .requestMatchers("/oauth2/token").permitAll()
                         .requestMatchers("/oauth2/jwks").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/api/health/**").permitAll()
-                        // Package registry — read-only browsing is public, mutations require JWT
-                        .requestMatchers(HttpMethod.GET, "/api/packages/**").permitAll()
+                        .requestMatchers("/api/health/**").permitAll();
+                        // Opt-in public hub: anonymous GET of the NetHub public catalog + package
+                        // browse. OFF by default (must precede the /api/** catch-all to take effect).
+                        if (hubPublicCatalog) {
+                            auth.requestMatchers(HttpMethod.GET, "/api/hub/public/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/packages/**").permitAll();
+                        }
+                        auth
                         // All other /api/** endpoints require JWT authentication
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/node-api/**").authenticated()
                         .requestMatchers("/vault-api/**").authenticated()
                         .requestMatchers("/internal/masters/**").permitAll()
-                        .anyRequest().denyAll()
-                )
+                        .anyRequest().denyAll();
+                })
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .cors(cors -> cors.configurationSource(req -> {
                     var c = new CorsConfiguration();

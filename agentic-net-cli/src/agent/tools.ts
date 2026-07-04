@@ -50,6 +50,14 @@ export type AgentTool =
   | 'PACKAGE_SEARCH'
   | 'PACKAGE_PUBLISH'
   | 'PACKAGE_INSTALL'
+  // NetHub (R/W flag) — publish/discover/install net|session|model artifacts across instances
+  | 'HUB_PUBLISH'
+  | 'HUB_CATALOG'
+  | 'HUB_INSTALL'
+  | 'HUB_UNPUBLISH'
+  | 'HUB_REMOTE_ADD'
+  | 'HUB_REMOTE_LIST'
+  | 'HUB_REMOTE_REMOVE'
   // Registry Discovery (R flag)
   | 'REGISTRY_LIST_IMAGES'
   | 'REGISTRY_GET_IMAGE_INFO'
@@ -558,6 +566,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         sessionId: { type: 'string', description: 'Session containing the net' },
         description: { type: 'string', description: 'Package description' },
         tags: { type: 'array', items: { type: 'string' }, description: 'Tags for discovery' },
+        scope: { type: 'string', description: 'designtime (structure only) | runtime (+inscriptions, default) | complete (+tokens)' },
       },
       required: ['name', 'version', 'netId'],
     },
@@ -572,6 +581,89 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         targetSessionId: { type: 'string', description: 'Session to install into' },
       },
       required: ['name', 'version'],
+    },
+  },
+  HUB_PUBLISH: {
+    description: 'Publish a NetHub artifact (net | session | model) as a versioned, shareable package. tokens=none|config|all controls whether config/data tokens ship (default config: config-named places + marked tokens only). visibility=public|private.',
+    schema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', description: 'net | session | model (default inferred from source)' },
+        name: { type: 'string', description: 'Artifact name' },
+        version: { type: 'string', description: 'Semantic version (e.g., 1.0.0)' },
+        modelId: { type: 'string', description: 'Source model (defaults to current model)' },
+        sessionId: { type: 'string', description: 'Source session (net/session kinds)' },
+        netId: { type: 'string', description: 'Source net (net kind)' },
+        tokens: { type: 'string', description: 'none | config (default) | all' },
+        configPlaces: { type: 'array', items: { type: 'string' }, description: 'Override config-token place globs/ids (default *-config,*-charter)' },
+        visibility: { type: 'string', description: 'public (default) | private' },
+        description: { type: 'string' },
+        tags: { type: 'array', items: { type: 'string' } },
+        readme: { type: 'string' },
+      },
+      required: ['name', 'version'],
+    },
+  },
+  HUB_CATALOG: {
+    description: 'Browse the NetHub catalog. Without remote: local published artifacts. With remote: a peer instance\'s public catalog. Filter by kind (net|session|model), search text, and tags.',
+    schema: {
+      type: 'object',
+      properties: {
+        kind: { type: 'string', description: 'Filter by kind: net | session | model' },
+        search: { type: 'string', description: 'Text search across name/description' },
+        tags: { type: 'string', description: 'Comma-separated tag filter' },
+        remote: { type: 'string', description: 'Name of a registered remote to browse instead of local' },
+      },
+      required: [],
+    },
+  },
+  HUB_INSTALL: {
+    description: 'Install a NetHub artifact into this stack. source=local (default) or a remote name. Model artifacts create/replace a whole model (targetModelId required, mode CREATE_NEW default); net/session artifacts import into targetSessionId.',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Artifact name' },
+        version: { type: 'string', description: 'Version or "latest"' },
+        source: { type: 'string', description: 'local (default) | a registered remote name' },
+        targetModelId: { type: 'string', description: 'Target model (required for kind=model)' },
+        targetSessionId: { type: 'string', description: 'Target session (net/session kinds)' },
+        mode: { type: 'string', description: 'model-kind only: CREATE_NEW (default) | REPLACE' },
+      },
+      required: ['name', 'version'],
+    },
+  },
+  HUB_UNPUBLISH: {
+    description: 'Remove a published NetHub artifact version from the local registry.',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Artifact name' },
+        version: { type: 'string', description: 'Version to unpublish' },
+      },
+      required: ['name', 'version'],
+    },
+  },
+  HUB_REMOTE_ADD: {
+    description: 'Register a peer AgenticOS instance URL as a NetHub remote so you can browse and install its public artifacts.',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Short remote name (e.g., "team-alpha")' },
+        url: { type: 'string', description: 'Absolute base URL, e.g., https://alpha.example.com:8083' },
+      },
+      required: ['name', 'url'],
+    },
+  },
+  HUB_REMOTE_LIST: {
+    description: 'List registered NetHub remotes (peer instances).',
+    schema: { type: 'object', properties: {}, required: [] },
+  },
+  HUB_REMOTE_REMOVE: {
+    description: 'Remove a registered NetHub remote.',
+    schema: {
+      type: 'object',
+      properties: { name: { type: 'string', description: 'Remote name to remove' } },
+      required: ['name'],
     },
   },
   DEPLOY_TRANSITION: {

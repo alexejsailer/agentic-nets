@@ -169,6 +169,71 @@ export class MasterApi {
     });
   }
 
+  // ---- NetHub (/api/hub) ----
+  async hubPublish(params: {
+    kind?: string; // net | session | model
+    name: string;
+    version: string;
+    description?: string;
+    tags?: string[];
+    readme?: string;
+    visibility?: string; // public | private
+    tokens?: string; // none | config | all
+    configPlaces?: string[];
+    source: { modelId: string; sessionId?: string; netId?: string };
+  }): Promise<any> {
+    return this.client.masterApi('POST', '/hub/publish', params);
+  }
+
+  async hubCatalog(params?: { kind?: string; search?: string; tags?: string; limit?: number; offset?: number }): Promise<any> {
+    const q: Record<string, string> = {};
+    if (params?.kind) q.kind = params.kind;
+    if (params?.search) q.search = params.search;
+    if (params?.tags) q.tags = params.tags;
+    if (params?.limit) q.limit = String(params.limit);
+    if (params?.offset) q.offset = String(params.offset);
+    return this.client.masterApi('GET', '/hub/catalog', undefined, q);
+  }
+
+  async hubArtifact(name: string, version: string): Promise<any> {
+    return this.client.masterApi('GET', `/hub/artifacts/${name}/versions/${version}`);
+  }
+
+  async hubUnpublish(name: string, version: string): Promise<any> {
+    return this.client.masterApi('DELETE', `/hub/artifacts/${name}/versions/${version}`);
+  }
+
+  async hubInstall(params: {
+    source?: string; // "local" | remote name
+    name: string;
+    version: string;
+    targetModelId?: string;
+    targetSessionId?: string;
+    mode?: string; // model-kind: CREATE_NEW | REPLACE
+  }): Promise<any> {
+    return this.client.masterApi('POST', '/hub/install', params);
+  }
+
+  async hubListRemotes(): Promise<any> {
+    return this.client.masterApi('GET', '/hub/remotes');
+  }
+
+  async hubAddRemote(name: string, url: string): Promise<any> {
+    return this.client.masterApi('POST', '/hub/remotes', { name, url });
+  }
+
+  async hubRemoveRemote(name: string): Promise<any> {
+    return this.client.masterApi('DELETE', `/hub/remotes/${name}`);
+  }
+
+  async hubRemoteCatalog(remoteName: string, params?: { kind?: string; search?: string; tags?: string }): Promise<any> {
+    const q: Record<string, string> = {};
+    if (params?.kind) q.kind = params.kind;
+    if (params?.search) q.search = params.search;
+    if (params?.tags) q.tags = params.tags;
+    return this.client.masterApi('GET', `/hub/remotes/${remoteName}/catalog`, undefined, q);
+  }
+
   // ---- Transition validation ----
   async dryRunTransition(transitionId: string, modelId: string): Promise<any> {
     return this.client.masterApi('POST', `/transitions/${transitionId}/dry-run`, undefined, { modelId });

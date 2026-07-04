@@ -216,6 +216,19 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerResource(
+    'hub',
+    'agenticnets://hub',
+    { title: 'NetHub — local catalog + remotes', description: 'Published artifacts on this instance and the registered peer remotes', mimeType: 'application/json' },
+    async (uri) => {
+      const [catalog, remotes] = await Promise.all([
+        ctx.master.hubCatalog().catch(() => ({ note: 'hub catalog unavailable' })),
+        ctx.master.hubListRemotes().catch(() => ({ remotes: [] })),
+      ]);
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify({ catalog, remotes }, null, 1) }] };
+    },
+  );
+
+  server.registerResource(
     'tool-nets',
     'agenticnets://tool-nets',
     { title: 'Tool-net library', description: 'Reusable tool-nets you can invoke_tool_net', mimeType: 'application/json' },

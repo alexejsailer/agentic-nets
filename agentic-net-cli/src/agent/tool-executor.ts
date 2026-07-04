@@ -225,6 +225,20 @@ export class ToolExecutor {
           return this.executePackagePublish(params);
         case 'PACKAGE_INSTALL':
           return this.executePackageInstall(params);
+        case 'HUB_PUBLISH':
+          return this.executeHubPublish(params);
+        case 'HUB_CATALOG':
+          return this.executeHubCatalog(params);
+        case 'HUB_INSTALL':
+          return this.executeHubInstall(params);
+        case 'HUB_UNPUBLISH':
+          return this.executeHubUnpublish(params);
+        case 'HUB_REMOTE_ADD':
+          return this.executeHubRemoteAdd(params);
+        case 'HUB_REMOTE_LIST':
+          return this.executeHubRemoteList();
+        case 'HUB_REMOTE_REMOVE':
+          return this.executeHubRemoteRemove(params);
         case 'REGISTRY_LIST_IMAGES':
           return this.executeRegistryListImages(params);
         case 'REGISTRY_GET_IMAGE_INFO':
@@ -1889,11 +1903,13 @@ export class ToolExecutor {
       return { success: false, error: 'PACKAGE_PUBLISH requires name, version, and netId' };
     }
     try {
-      // First create the package metadata, then publish
+      // First create the package metadata, then publish.
+      // Scope must be one of designtime|runtime|complete — master 400s on
+      // anything else (the old hard-coded 'user' broke every publish).
       await this.masterApi.createPackage({
         name,
         version,
-        scope: 'user',
+        scope: (params.scope as string) || 'runtime',
         description: params.description,
         tags: params.tags,
         source: {
@@ -1925,6 +1941,105 @@ export class ToolExecutor {
       return { success: true, data };
     } catch (err: any) {
       return { success: false, error: `PACKAGE_INSTALL failed: ${err.message || err}` };
+    }
+  }
+
+  // ---- NetHub ----
+
+  private async executeHubPublish(params: Record<string, any>): Promise<ToolResult> {
+    const { name, version } = params;
+    if (!name || !version) return { success: false, error: 'HUB_PUBLISH requires name and version' };
+    try {
+      const data = await this.masterApi.hubPublish({
+        kind: params.kind,
+        name,
+        version,
+        description: params.description,
+        tags: params.tags,
+        readme: params.readme,
+        visibility: params.visibility,
+        tokens: params.tokens,
+        configPlaces: params.configPlaces,
+        source: {
+          modelId: params.modelId || this.modelId,
+          sessionId: params.sessionId || this.sessionId || 'system/alive',
+          netId: params.netId,
+        },
+      });
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `HUB_PUBLISH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeHubCatalog(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const opts = { kind: params.kind, search: params.search, tags: params.tags };
+      const data = params.remote
+        ? await this.masterApi.hubRemoteCatalog(params.remote, opts)
+        : await this.masterApi.hubCatalog(opts);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `HUB_CATALOG failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeHubInstall(params: Record<string, any>): Promise<ToolResult> {
+    const { name, version } = params;
+    if (!name || !version) return { success: false, error: 'HUB_INSTALL requires name and version' };
+    try {
+      const data = await this.masterApi.hubInstall({
+        source: params.source,
+        name,
+        version,
+        targetModelId: params.targetModelId || this.modelId,
+        targetSessionId: params.targetSessionId || this.sessionId || 'system/alive',
+        mode: params.mode,
+      });
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `HUB_INSTALL failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeHubUnpublish(params: Record<string, any>): Promise<ToolResult> {
+    const { name, version } = params;
+    if (!name || !version) return { success: false, error: 'HUB_UNPUBLISH requires name and version' };
+    try {
+      await this.masterApi.hubUnpublish(name, version);
+      return { success: true, data: { unpublished: `${name}@${version}` } };
+    } catch (err: any) {
+      return { success: false, error: `HUB_UNPUBLISH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeHubRemoteAdd(params: Record<string, any>): Promise<ToolResult> {
+    const { name, url } = params;
+    if (!name || !url) return { success: false, error: 'HUB_REMOTE_ADD requires name and url' };
+    try {
+      const data = await this.masterApi.hubAddRemote(name, url);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `HUB_REMOTE_ADD failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeHubRemoteList(): Promise<ToolResult> {
+    try {
+      const data = await this.masterApi.hubListRemotes();
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `HUB_REMOTE_LIST failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeHubRemoteRemove(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'HUB_REMOTE_REMOVE requires name' };
+    try {
+      await this.masterApi.hubRemoveRemote(params.name);
+      return { success: true, data: { removed: params.name } };
+    } catch (err: any) {
+      return { success: false, error: `HUB_REMOTE_REMOVE failed: ${err.message || err}` };
     }
   }
 
