@@ -230,11 +230,13 @@ export class MasterApi {
     return this.client.masterApi('DELETE', `/hub/remotes/${name}`);
   }
 
-  async hubRemoteCatalog(remoteName: string, params?: { kind?: string; search?: string; tags?: string }): Promise<any> {
+  async hubRemoteCatalog(remoteName: string, params?: { kind?: string; search?: string; tags?: string; limit?: number; offset?: number }): Promise<any> {
     const q: Record<string, string> = {};
     if (params?.kind) q.kind = params.kind;
     if (params?.search) q.search = params.search;
     if (params?.tags) q.tags = params.tags;
+    if (params?.limit) q.limit = String(params.limit);
+    if (params?.offset !== undefined) q.offset = String(params.offset);
     return this.client.masterApi('GET', `/hub/remotes/${remoteName}/catalog`, undefined, q);
   }
 

@@ -73,7 +73,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       const limit = args.limit ?? 25;
       const offset = args.offset ?? 0;
       const raw = args.remote
-        ? await ctx.master.hubRemoteCatalog(args.remote, { kind: args.kind, search: args.search, tags: args.tags })
+        ? await ctx.master.hubRemoteCatalog(args.remote, { kind: args.kind, search: args.search, tags: args.tags, limit, offset })
         : await ctx.master.hubCatalog({ kind: args.kind, search: args.search, tags: args.tags, limit, offset });
 
       const artifacts: any[] = Array.isArray(raw?.artifacts) ? raw.artifacts : [];
@@ -96,9 +96,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       };
       const seen = offset + compact.length;
       if (total > seen) {
-        out.more = args.remote
-          ? `+${total - seen} more not shown — narrow with search/kind/tags (remote paging unsupported)`
-          : `+${total - seen} more — page with offset=${seen}`;
+        out.more = `+${total - seen} more — page with offset=${seen}`;
       }
       if (compact.length === 0) {
         out.hint = 'No artifacts match. Try hub_search with no filters, or a different kind/search.';
