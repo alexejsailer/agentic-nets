@@ -57,9 +57,46 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     ({ netId }) =>
       userMessage(
         `Diagnose ${netId ? `net "${netId}"` : 'my nets'} on Agentic-Nets, step by step: net_overview for structure and ` +
-          `transition statuses; query_tokens on the input places of anything suspicious (is a token waiting? is its shape ` +
-          `what the inscription expects?); event_trail filtered by the transition id for the last fire's story; then propose ` +
-          `the fix — and if it is safe (stop/fire_once/start, or a set_schedule), apply it and verify.`,
+          `transition statuses; net_stats for what is running / erroring / consuming LLM; query_tokens on the input places ` +
+          `of anything suspicious (is a token waiting? is its shape what the inscription expects?); event_trail filtered by ` +
+          `the transition id for the last fire's story; verify_inscription / dry_run_transition / diagnose_transition on the ` +
+          `stuck transition. Then propose the fix — and if it is safe (stop/fire_once/start, or a set_schedule), apply it and verify.`,
+      ),
+  );
+
+  server.registerPrompt(
+    'spawn-worker',
+    {
+      title: 'Spawn an autonomous worker persona',
+      description: 'Stand up a self-driving persona net and give it a first task',
+      argsSchema: {
+        role: z.string().describe('What the worker is responsible for'),
+        name: z.string().optional().describe('Short id (default derived from the role)'),
+      },
+    },
+    ({ role, name }) =>
+      userMessage(
+        `Spawn an autonomous worker persona on Agentic-Nets for this responsibility: "${role}". ` +
+          `Call spawn_persona (name ${name ? `"${name}"` : 'a short id you choose'}, role as above; pick capability ` +
+          `"reason" unless it clearly needs to run commands, then "execute"; tier "high" if it needs strong reasoning). ` +
+          `Then give it a first concrete task with memory_write place:"p-<name>-task", wait a few seconds, and show me its ` +
+          `output with query_tokens on p-<name>-output. Explain that it now runs server-side in parallel and I can add more tasks anytime.`,
+      ),
+  );
+
+  server.registerPrompt(
+    'monitor-personas',
+    {
+      title: 'Monitor running personas & nets',
+      description: 'Give a live cockpit view of what is running, consuming LLM, or erroring',
+      argsSchema: {},
+    },
+    () =>
+      userMessage(
+        `Give me a live status of my Agentic-Nets: call net_stats and summarize which transitions are RUNNING vs ` +
+          `stopped/error, which are consuming LLM (calls/errors/avgMs), any recent errors, and the tool-net library. ` +
+          `For anything erroring, drill in with event_trail and diagnose_transition and tell me what is wrong and the fix — ` +
+          `using only the API, no logs.`,
       ),
   );
 }

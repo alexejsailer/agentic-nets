@@ -9,7 +9,87 @@ import { wrapTool } from '../scope.js';
 import { agentFor, assignInscription, buildInscription, persistInscriptionLeaf } from '../inscriptions.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
-import { linkPlaces } from './memory.js';
+import { fetchTokens, linkPlaces } from './memory.js';
+
+/**
+ * Compile a session's deterministic steps into one bash script — the replayable
+ * artifact behind crystallize_session. Steps are shell strings, {command}, or
+ * {method,url,headers,body} (compiled to curl). `set -e` makes the replay fail
+ * fast, exactly like the original run.
+ */
+export function compileSteps(steps: any[]): { script: string; count: number } {
+  const lines: string[] = ['set -e'];
+  let n = 0;
+  for (const s of steps ?? []) {
+    if (typeof s === 'string') {
+      lines.push(s);
+      n++;
+      continue;
+    }
+    if (s?.note) lines.push(`# ${String(s.note).replace(/\n/g, ' ')}`);
+    if (s?.command) {
+      lines.push(String(s.command));
+      n++;
+    } else if (s?.url) {
+      const method = String(s.method ?? 'GET').toUpperCase();
+      const hdrs = s.headers
+        ? Object.entries(s.headers)
+            .map(([k, v]) => `-H ${JSON.stringify(`${k}: ${v}`)}`)
+            .join(' ')
+        : '';
+      const body = s.body != null ? ` -d ${JSON.stringify(typeof s.body === 'string' ? s.body : JSON.stringify(s.body))}` : '';
+      lines.push(`curl -sS -X ${method} ${hdrs} ${JSON.stringify(String(s.url))}${body}`.replace(/\s+/g, ' '));
+      n++;
+    }
+  }
+  return { script: lines.join('\n'), count: n };
+}
+
+/**
+ * Ready-made persona archetypes for spawn_persona — the platform's "available
+ * personas" (developer, reviewer, researcher, operator, universal assistant)
+ * expressed as sensible capability/tier/instruction defaults. The specific
+ * `role` and any explicit arg always override the preset.
+ */
+export const PERSONA_PRESETS: Record<
+  string,
+  { role: string; capability: 'reason' | 'execute'; tier?: 'worker' | 'high'; framing: string }
+> = {
+  developer: {
+    role: 'Implement the requested code change in the target repository',
+    capability: 'execute',
+    tier: 'high',
+    framing:
+      'You are a careful software DEVELOPER. Make the SMALLEST correct change that satisfies the task; where it helps, run commands / tool-nets to check your work; report exactly what you changed. Do not touch version control unless explicitly told to.',
+  },
+  reviewer: {
+    role: 'Critically review the provided work for correctness, risks, and gaps',
+    capability: 'reason',
+    tier: 'high',
+    framing:
+      'You are a rigorous REVIEWER. Judge the input for correctness, edge cases, security, and gaps; return concrete, actionable findings (not vague praise). State clearly whether it should ship.',
+  },
+  researcher: {
+    role: 'Investigate the question and return a grounded summary',
+    capability: 'execute',
+    tier: 'high',
+    framing:
+      'You are a RESEARCHER. Investigate using available tools; distinguish what you verified from what you inferred; return a concise, grounded summary with the evidence you relied on.',
+  },
+  operator: {
+    role: 'Inspect system state and take safe corrective action',
+    capability: 'execute',
+    tier: 'worker',
+    framing:
+      'You are an OPERATOR. Inspect the current state, take only SAFE corrective actions, and report precisely what you observed and did. When in doubt, describe the fix instead of applying it.',
+  },
+  assistant: {
+    role: 'Understand the task and produce a helpful result',
+    capability: 'reason',
+    tier: 'worker',
+    framing: 'You are a helpful universal ASSISTANT. Understand the task and produce a clear, concise, directly useful result.',
+  },
+};
 
 export function registerNetTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
@@ -95,18 +175,22 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Add a transition (pre-wired by kind)',
       description:
-        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call: prompt template, optional model override), http (API call), command (executes command-shaped tokens on the executor), link (pure structure edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
+        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call: prompt template, optional model override), http (API call), command (executes command-shaped tokens on the executor), agent (autonomous multi-step persona — rwxhlud role gating, tier-selected LLM, watches its input place), link (pure structure edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
       inputSchema: {
         netId: z.string(),
         transitionId: z.string().describe('Convention: t-<name>'),
-        kind: z.enum(['map', 'llm', 'http', 'command', 'link']),
+        kind: z.enum(['map', 'llm', 'http', 'command', 'agent', 'link']),
         inputPlace: z.string(),
         outputPlace: z.string(),
         label: z.string().optional(),
         x: z.number().optional(),
         y: z.number().optional(),
-        prompt: z.string().optional().describe('llm: the instruction; ${input.data.field} interpolates token fields'),
+        prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
         llmModel: z.string().optional().describe('llm: per-transition model override (e.g. glm-5.2:cloud)'),
+        role: z.string().optional().describe('agent: rwxhlud capability flags (default rw-- = reason+write; rwxhl = may run commands / invoke tool-nets)'),
+        tier: z.string().optional().describe('agent: LLM tier — omit for the worker model, "high" for the thinking model'),
+        maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
+        autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
         url: z.string().optional().describe('http: target URL (default ${input.data.url})'),
         method: z.string().optional().describe('http: default GET'),
         template: z.record(z.any()).optional().describe('map: the output template object'),
@@ -167,6 +251,13 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         intervalMs: args.intervalMs,
         timeoutMs: args.timeoutMs,
         capacity: args.capacity,
+        // agent
+        netModel: model,
+        role: args.role,
+        nl: args.prompt,
+        tier: args.tier,
+        maxIterations: args.maxIterations,
+        autoEmit: args.autoEmit,
       });
       await assignInscription(ctx, model, inscription, agentFor(args.kind));
       await persistInscriptionLeaf(ctx, model, args.netId, args.transitionId, inscription);
@@ -253,6 +344,91 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       }),
     );
   }
+
+  server.registerTool(
+    'pause_model',
+    {
+      title: 'Pause the model (stop ALL running transitions)',
+      description:
+        'The model-wide kill switch: stops EVERY running transition, so nothing can fire — no LLM consumption, no schedules ticking, no commands executing — until you resume. Writes an audit record token (place p-mcp-control) capturing exactly what was running, so resume_model restores precisely that set. Use it before walking away, when a net misbehaves, or to freeze LLM spend instantly. Per-lane alternative: stop_transition.',
+      inputSchema: { ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'pause_model', mutates: true }, async (model) => {
+      const txRes = await ctx.client.masterApi('GET', '/runtime/transitions', undefined, { modelId: model });
+      const txList: any[] = Array.isArray(txRes) ? txRes : (txRes?.transitions ?? txRes?.results ?? []);
+      const running = txList
+        .filter((t) => String(t.status ?? t.state ?? '').toUpperCase() === 'RUNNING')
+        .map((t) => String(t.transitionId ?? t.id ?? t.name));
+      const stopped: string[] = [];
+      const failed: any[] = [];
+      for (const tid of running) {
+        try {
+          await ctx.master.stopTransition(tid, model);
+          stopped.push(tid);
+        } catch (e: any) {
+          failed.push({ transitionId: tid, error: String(e?.message ?? e).slice(0, 150) });
+        }
+      }
+      // Audit record — the pause is itself a token with provenance, and the
+      // resume contract: resume_model restarts exactly this set.
+      const executor = ctx.executorFor(model);
+      await executor.execute('CREATE_RUNTIME_PLACE', { placeId: 'p-mcp-control' }).catch(() => undefined);
+      await executor
+        .execute('CREATE_TOKEN', {
+          placePath: 'root/workspace/places/p-mcp-control',
+          data: { kind: 'pause-record', transitions: JSON.stringify(stopped), pausedAt: new Date().toISOString(), source: 'mcp' },
+        })
+        .catch(() => undefined);
+      return {
+        model,
+        paused: true,
+        stoppedCount: stopped.length,
+        transitions: stopped,
+        ...(failed.length ? { failed } : {}),
+        note: 'Nothing fires until resume_model (restores this exact set) or start_transition (single lane).',
+      };
+    }),
+  );
+
+  server.registerTool(
+    'resume_model',
+    {
+      title: 'Resume the model (restart the paused set)',
+      description:
+        'Undo pause_model: restarts exactly the transitions recorded by the most recent pause (or an explicit list you pass). Link transitions are never touched (they never run). Command lanes may take a few seconds to show RUNNING again (the executor re-registers on its next poll) — trust the resumedCount, or re-check net_stats after ~10s.',
+      inputSchema: {
+        transitions: z.array(z.string()).optional().describe('Explicit set to start (default: the latest pause-record from p-mcp-control)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'resume_model', mutates: true }, async (model, args) => {
+      let list: string[] = args.transitions ?? [];
+      if (!list.length) {
+        const toks = await fetchTokens(ctx, model, 'p-mcp-control').catch(() => []);
+        const recs = toks
+          .map((t: any) => (t?.data && Object.keys(t.data).length ? t.data : (t?.properties ?? {})))
+          .filter((d: any) => d.kind === 'pause-record');
+        recs.sort((a: any, b: any) => String(b.pausedAt ?? '').localeCompare(String(a.pausedAt ?? '')));
+        try {
+          list = JSON.parse(recs[0]?.transitions ?? '[]');
+        } catch {
+          list = [];
+        }
+      }
+      if (!list.length) throw new Error('nothing to resume: no pause-record in p-mcp-control and no explicit transitions given');
+      const resumed: string[] = [];
+      const failed: any[] = [];
+      for (const tid of list) {
+        try {
+          await ctx.master.startTransition(tid, model);
+          resumed.push(tid);
+        } catch (e: any) {
+          failed.push({ transitionId: tid, error: String(e?.message ?? e).slice(0, 150) });
+        }
+      }
+      return { model, resumedCount: resumed.length, transitions: resumed, ...(failed.length ? { failed } : {}) };
+    }),
+  );
 
   server.registerTool(
     'create_persona',
@@ -345,6 +521,150 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerTool(
+    'spawn_persona',
+    {
+      title: 'Spawn an autonomous worker persona',
+      description:
+        'Stand up a COMPLETE self-driving persona net (like a safe-team developer): charter + task inbox + an agent-kind transition that watches the inbox and works each task autonomously (multi-step, tools, tier-selected LLM) + an output place. STARTED by default, so it runs server-side in parallel with everything else — spawn several and they work concurrently while you keep going here. Use a `preset` (developer | reviewer | researcher | operator | assistant) for a ready-made archetype, or give your own role. Feed it with memory_write place:"p-<name>-task" (or query_tokens/net_stats to watch it). capability:"execute" grants command/tool-net access (rwxhl); default "reason" is rw-- (safe).',
+      inputSchema: {
+        name: z.string().describe('Short id, e.g. "dev" or "researcher"'),
+        preset: z
+          .enum(['developer', 'reviewer', 'researcher', 'operator', 'assistant'])
+          .optional()
+          .describe('Ready-made persona archetype — fills capability/tier/instruction (and a default role). Your own role/instruction/capability/tier override it.'),
+        role: z.string().optional().describe('What this persona is responsible for (required unless a preset is given)'),
+        instruction: z.string().optional().describe('Full agent instruction (nl). Default: a solid charter built from role + preset framing + capability.'),
+        capability: z.enum(['reason', 'execute']).optional().describe('reason (rw--, default) or execute (rwxhl — may run commands / invoke tool-nets)'),
+        tier: z.enum(['worker', 'high']).optional().describe('LLM tier: worker (default) or high (the thinking model)'),
+        scheduleCron: z.string().optional().describe('6-field cron — makes the persona self-initiate periodically (default: reactive, fires when a task lands)'),
+        intervalMs: z.number().optional().describe('Alternative to cron for a periodic persona'),
+        maxIterations: z.number().optional().describe('Max reasoning steps per task (default 12)'),
+        capacity: z.number().optional().describe('Output place capacity / backpressure (default 50)'),
+        netId: z.string().optional().describe('Net id (default persona-<name>)'),
+        start: z.boolean().optional().describe('Start the worker immediately (default true)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'spawn_persona', mutates: true }, async (model, args) => {
+      const id = String(args.name).toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const netId = args.netId ?? `persona-${id}`;
+      const executor = ctx.executorFor(model);
+      const host = ctx.hostFor(model);
+      const preset = args.preset ? PERSONA_PRESETS[args.preset] : undefined;
+      const responsibility = args.role ?? preset?.role;
+      if (!responsibility) throw new Error('provide `role` (or a `preset` that supplies one)');
+      const capability = args.capability ?? preset?.capability ?? 'reason';
+      const tier = args.tier ?? preset?.tier; // 'worker' | 'high' | undefined
+      const roleFlags = capability === 'execute' ? 'rwxhl' : 'rw--';
+      const charter = `p-${id}-charter`;
+      const task = `p-${id}-task`;
+      const output = `p-${id}-output`;
+      const workTid = `t-${id}-work`;
+      const created: string[] = [];
+
+      await ctx.master
+        .createNet({ modelId: model, sessionId: config.session, netId, name: `Persona ${args.name}` })
+        .catch(() => undefined);
+
+      for (const [placeId, x, y] of [
+        [charter, 100, 100],
+        [task, 100, 260],
+        [output, 520, 260],
+      ] as const) {
+        await ctx.master
+          .createPlace(netId, { modelId: model, sessionId: config.session, placeId, label: placeId, x, y, tokens: 0 })
+          .catch(() => undefined);
+        const res = await executor.execute('CREATE_RUNTIME_PLACE', { placeId });
+        if (!res.success) throw new Error(res.error ?? `place ${placeId} failed`);
+        created.push(placeId);
+      }
+
+      // Identity token in the charter (idempotent).
+      const charterCount = await ctx.node.getChildrenCount(model, `root/workspace/places/${charter}`).catch(() => 0);
+      if (charterCount === 0) {
+        await executor.execute('CREATE_TOKEN', {
+          placePath: `root/workspace/places/${charter}`,
+          data: {
+            persona: args.name,
+            role: responsibility,
+            capability,
+            tier: tier ?? 'worker',
+            ...(args.preset ? { preset: args.preset } : {}),
+            createdAt: new Date().toISOString(),
+            source: 'mcp',
+          },
+        });
+      }
+
+      const nl =
+        args.instruction ??
+        `You are the "${args.name}" persona. Your responsibility: ${responsibility}.\n\n` +
+          (preset ? preset.framing + '\n\n' : '') +
+          `A task token has landed in your inbox. Read it (the bound input is \${input.data}), do the work using your reasoning` +
+          (capability === 'execute'
+            ? ` and — where it helps — real tools: you MAY run commands and DESCRIBE_TOOL_NET / INVOKE_TOOL_NET (session "tools", same model) to ground your work; never let a tool error block you (fail open).`
+            : `.`) +
+          `\n\nProduce ONE concise, self-contained result token that captures your output and a short rationale. If the task is unclear or blocked, still emit a result token that states exactly what is missing. Work until the task is complete, then finish.`;
+
+      const workTransition = { modelId: model, sessionId: config.session, transitionId: workTid, label: `${args.name} works`, x: 300, y: 260 };
+      await ctx.master.createTransition(netId, workTransition).catch(() => undefined);
+      await ctx.master
+        .createArc(netId, { modelId: model, sessionId: config.session, arcId: `a-${workTid}-in`, sourceId: task, targetId: workTid })
+        .catch(() => undefined);
+      await ctx.master
+        .createArc(netId, { modelId: model, sessionId: config.session, arcId: `a-${workTid}-out`, sourceId: workTid, targetId: output })
+        .catch(() => undefined);
+
+      const inscription = buildInscription('agent', {
+        id: workTid,
+        label: `${args.name} works`,
+        description: `Autonomous ${capability} persona: ${responsibility}`,
+        host,
+        inputPlace: task,
+        outputPlace: output,
+        netModel: model,
+        role: roleFlags,
+        nl,
+        tier: tier === 'high' ? 'high' : undefined,
+        maxIterations: args.maxIterations,
+        capacity: args.capacity ?? 50,
+        scheduleCron: args.scheduleCron,
+        intervalMs: args.intervalMs,
+      });
+      await assignInscription(ctx, model, inscription, agentFor('agent'));
+      await persistInscriptionLeaf(ctx, model, netId, workTid, inscription);
+
+      let started = false;
+      if (args.start !== false) {
+        await ctx.master.startTransition(workTid, model);
+        started = true;
+      }
+      // Charter is navigable from the memory graph.
+      await linkPlaces(ctx, model, charter, 'p-mem-knowledge', `${args.name} charter informs knowledge`).catch(() => undefined);
+
+      return {
+        persona: args.name,
+        netId,
+        ...(args.preset ? { preset: args.preset } : {}),
+        role: roleFlags,
+        capability,
+        tier: tier ?? 'worker',
+        charter,
+        taskPlace: task,
+        outputPlace: output,
+        transition: workTid,
+        started,
+        created,
+        howToUse: {
+          giveTask: `memory_write { place: "${task}", text: "<the task>" }  (or query_tokens/net_overview to inspect)`,
+          readResults: `query_tokens { place: "${output}" }`,
+          monitor: `net_stats  ·  event_trail { q: "${workTid}" }  ·  diagnose_transition { transitionId: "${workTid}" }`,
+        },
+      };
+    }),
+  );
+
+  server.registerTool(
     'scaffold_tool_net',
     {
       title: 'Scaffold a reusable tool-net',
@@ -390,14 +710,100 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'invoke_tool_net', mutates: true }, async (model, args) => {
-      const res = await ctx.executorFor(model).execute('INVOKE_TOOL_NET', {
-        netId: args.netId,
-        sessionId: args.sessionId ?? config.session,
-        ...(args.input ? { input: args.input } : {}),
-        ...(args.timeoutMs != null ? { timeoutMs: args.timeoutMs } : {}),
-      });
-      if (!res.success) throw new Error(res.error ?? 'INVOKE_TOOL_NET failed');
-      return res.data ?? { ok: true };
+      // Honor the documented "default: <session>, then 'tools'" fallback: scaffold_tool_net
+      // defaults tools into session 'tools', so a bare invoke must look there too when the
+      // manifest isn't in the primary session. An explicit sessionId is used verbatim.
+      const sessions = args.sessionId
+        ? [args.sessionId]
+        : [config.session, 'tools'].filter((s, i, a) => a.indexOf(s) === i);
+      let lastErr = 'INVOKE_TOOL_NET failed';
+      for (const sessionId of sessions) {
+        const res = await ctx.executorFor(model).execute('INVOKE_TOOL_NET', {
+          netId: args.netId,
+          sessionId,
+          ...(args.input ? { input: args.input } : {}),
+          ...(args.timeoutMs != null ? { timeoutMs: args.timeoutMs } : {}),
+        });
+        // INVOKE_TOOL_NET double-wraps: transport res.success can be true while the
+        // INNER payload is {success:false, error:"tool-manifest not found ..."} — so
+        // "found the tool" means both are ok. Only then return; else fall through.
+        const inner: any = res?.data;
+        if (res.success && inner?.success !== false) return inner ?? { ok: true };
+        lastErr = inner?.error ?? res.error ?? 'INVOKE_TOOL_NET failed';
+        // Only try the next session when the tool-net simply isn't in this one.
+        if (!/not found/i.test(lastErr)) break;
+      }
+      throw new Error(lastErr);
+    }),
+  );
+
+  server.registerTool(
+    'crystallize_session',
+    {
+      title: 'Crystallize this session into memory + a replayable tool-net',
+      description:
+        'Record what a session did — the summary/decisions AND the concrete deterministic steps (the API calls / commands) — into working memory, and (when steps are given) crystallize those steps into a reusable command tool-net you can replay later at zero LLM cost. Steps are shell strings, {command}, or {method,url,headers,body} (compiled to curl). Returns the memory record + the tool-net id and the exact invoke_tool_net input that replays it. This is "capture what we did so next time Claude just runs it and pings for the result".',
+      inputSchema: {
+        title: z.string().describe('Short name for this crystallized workflow'),
+        summary: z.string().optional().describe('What was discussed / decided (prose)'),
+        steps: z
+          .array(z.any())
+          .optional()
+          .describe('Deterministic replay steps: shell strings, {command}, or {method,url,headers,body}'),
+        tags: z.array(z.string()).optional(),
+        bake: z.boolean().optional().describe('Build the replay tool-net from steps (default true when steps are given)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'crystallize_session', mutates: true }, async (model, args) => {
+      const executor = ctx.executorFor(model);
+      const decisions = 'p-mem-decisions';
+      await executor.execute('CREATE_RUNTIME_PLACE', { placeId: decisions }).catch(() => undefined);
+      const { script, count } = compileSteps(args.steps ?? []);
+      const record = {
+        kind: 'session-crystal',
+        title: args.title,
+        ...(args.summary ? { summary: args.summary } : {}),
+        ...(args.steps ? { steps: JSON.stringify(args.steps) } : {}),
+        ...(count ? { replayCommand: script } : {}),
+        ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
+        createdAt: new Date().toISOString(),
+        source: 'mcp',
+      };
+      const rec = await executor.execute('CREATE_TOKEN', { placePath: `root/workspace/places/${decisions}`, data: record });
+      if (!rec.success) throw new Error(rec.error ?? 'recording the session failed');
+
+      let toolNet: any;
+      if (count && args.bake !== false) {
+        const slug =
+          String(args.title)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 40) || 'session';
+        const res = await executor.execute('SCAFFOLD_TOOL_NET', {
+          toolSessionId: 'tools',
+          name: `session-${slug}`,
+          transitionKind: 'command',
+          description: `Deterministic replay of session "${args.title}" (${count} step${count === 1 ? '' : 's'})`,
+          tags: ['session-crystal', ...(args.tags ?? [])],
+        });
+        toolNet = res.success
+          ? {
+              netId: res.data?.netId,
+              replay: { netId: res.data?.netId, sessionId: 'tools', input: { command: script } },
+              note: 'Replay deterministically (zero LLM): invoke_tool_net with the fields in `replay`.',
+            }
+          : { note: `tool-net scaffold failed: ${res.error}`, replayCommand: script };
+      }
+
+      return {
+        crystallized: true,
+        recordedTo: decisions,
+        title: args.title,
+        steps: count,
+        ...(toolNet ? { toolNet } : count ? { replayCommand: script } : {}),
+      };
     }),
   );
 }

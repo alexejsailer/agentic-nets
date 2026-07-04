@@ -36,16 +36,44 @@ Then, in Claude Code:
 > *"What did we decide about bundling?"* → `memory_recall` returns the **distilled** note — cleaned up
 > server-side by the always-on distiller transition while you kept working.
 
-## Tools (18, curated)
+## Tools (87 = 26 curated + 61 native)
+
+Two layers, one server:
+
+- **Curated (lowercase)** — the ergonomic layer: pre-wired inscriptions, session fallbacks, engine
+  gotchas absorbed. Prefer these for the flows they cover.
+- **Native (UPPERCASE)** — **full platform parity**: every tool the Agentic-Nets ToolExecutor
+  implements (the exact catalog agent transitions use in-net), auto-registered with its real
+  description and schema. New platform tools appear here automatically on the next catalog sync.
+  Browse them via the `agenticnets://tool-catalog` resource.
 
 | Layer | Tools |
 |---|---|
 | **Memory** | `memory_write` · `memory_recall` · `memory_link` · `memory_graph` |
-| **Net building** | `deploy_template` · `create_net` · `add_place` · `add_transition` (kind-aware, pre-wired inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · `scaffold_tool_net` · `invoke_tool_net` |
-| **Observability** | `net_overview` · `query_tokens` · `event_trail` |
+| **Net building** | `deploy_template` · `create_net` · `add_place` · `add_transition` (kind-aware: map/llm/http/command/**agent**/link, pre-wired inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · **`spawn_persona`** · `scaffold_tool_net` · `invoke_tool_net` · **`crystallize_session`** |
+| **Model control** | **`pause_model`** (kill switch: stop ALL running transitions, audit-recorded) · **`resume_model`** (restore exactly the paused set) |
+| **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
+| **Native catalog (61)** | Structure: `CREATE/DELETE_NET·PLACE·TRANSITION·ARC·TOKEN`, `SET_INSCRIPTION`, `ADAPT_INSCRIPTIONS` · Reads: `QUERY_TOKENS`, `GET_NET_STRUCTURE`, `LIST_*`, `FIND_*`, `EXTRACT_*`, `EXPORT_PNML` · Diagnosis: `NET_DOCTOR`, `VERIFY_NET`, `VERIFY_RUNTIME_BINDINGS`, `VERIFY_INSCRIPTION`, `DIAGNOSE/DRY_RUN_TRANSITION` · Lifecycle: `DEPLOY/START/STOP_TRANSITION`, `FIRE_ONCE`, `EXECUTE_TRANSITION(_SMART)` · Tool-nets: `SCAFFOLD/REGISTER/DESCRIBE/INVOKE_TOOL_NET`, `LIST_TOOL_NETS` · Packages: `PACKAGE_SEARCH/PUBLISH/INSTALL` · Infra: `DOCKER_RUN/STOP/LIST/LOGS`, `REGISTRY_*`, `HTTP_CALL` · Sessions: `CREATE_SESSION`, `TAG_SESSION`, `LIST_ALL_SESSIONS`, … (excluded: `THINK`/`DONE`/`FAIL` — agent-loop-only primitives) |
 
-Plus **resources** (`agenticnets://models`, `agenticnets://templates`, `agenticnets://docs/{concepts,arcql,recipes,security}`)
-and **prompts** (`setup-working-memory`, `work-dev-team-backlog`, `capture-session`, `debug-net`).
+Four capabilities the extra tools unlock:
+
+- **`spawn_persona`** stands up a *complete self-driving worker net* (charter + task inbox + a started
+  `agent` transition + output). Feed it `memory_write place:"p-<name>-task"` and it works each task
+  autonomously, server-side — spawn several and they run **in parallel** while you keep working.
+- **`crystallize_session`** records what a session did (summary + the concrete API-calls/commands) into
+  memory *and* bakes the steps into a replayable command tool-net — "capture what we did so next time
+  you just run it and ping for the result".
+- **`net_stats`** + the diagnostics are a **no-logs cockpit**: what's RUNNING vs erroring, what is
+  **scheduled** to fire unattended (cron/interval — your overnight autonomy, visible), LLM consumption
+  per transition, recent errors, and per-transition `verify`/`dry-run`/`diagnose` — debug a net purely
+  through the API, with no container or source access.
+- **`pause_model`** / **`resume_model`** give the user the **off switch**: pause stops every running
+  transition (zero fires, zero LLM spend, schedules frozen) and records the set as an audit token in
+  `p-mcp-control`; resume restores exactly that set. `net_stats.paused` is the verification.
+
+Plus **resources** (`agenticnets://models`, `agenticnets://templates`, `agenticnets://tool-nets`,
+`agenticnets://docs/{concepts,arcql,recipes,security}`) and **prompts** (`setup-working-memory`,
+`work-dev-team-backlog`, `capture-session`, `debug-net`, `spawn-worker`, `monitor-personas`).
 The server also ships rich `instructions` at initialize, so your client knows how to use
 Agentic-Nets well without reading any docs.
 
@@ -83,14 +111,15 @@ not against a malicious operator of this process.
 
 ### Readonly mode
 
-`AGENTICOS_MODE=readonly` registers **only** the read tools (`memory_recall`, `memory_graph`,
-`net_overview`, `query_tokens`, `event_trail`) *and* authenticates with the gateway's
-`agenticos-readonly` client — mutations are rejected by the gateway itself, not just by this server.
-Point `AGENTICOS_ADMIN_SECRET` at the readonly client's secret.
+`AGENTICOS_MODE=readonly` registers **only** the six GET-safe read tools (`memory_recall`,
+`memory_graph`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`) *and* authenticates with
+the gateway's `agenticos-readonly` client — mutations are rejected by the gateway itself, not just by
+this server. Point `AGENTICOS_ADMIN_SECRET` at the readonly client's secret.
 
-One readonly limitation: ArcQL queries travel as POST, which the readonly gateway scope rejects —
+Readonly limitations: ArcQL queries travel as POST, which the readonly gateway scope rejects —
 plain-substring recall and `query_tokens` without an `arcql` argument work (they use GET endpoints);
-ArcQL passthrough needs `rw` mode.
+ArcQL passthrough needs `rw` mode. The native UPPERCASE catalog and the POST-based diagnostics are
+also rw-only (many would 403 at the gateway in readonly, so they are not advertised at all).
 
 ## Security
 
@@ -111,8 +140,14 @@ Verified posture (adversarial probe: 194 KB of server output + stderr audited):
 
 ⚠️ **Command tool-nets run arbitrary shell.** `scaffold_tool_net` with `transitionKind=command` (and
 any command-kind transition you build) executes its input on the distributed executor — that is the
-feature, but it means an `rw` connection can run shell there. Only grant `rw` to trusted clients; use
-`readonly` for untrusted or shared bindings, and scope `AGENTICOS_MODELS` to a dedicated model.
+feature, but it means an `rw` connection can run shell there — up to and including **spawning full
+Claude Code instances** (`claude -p '…' --allowedTools … < /dev/null`) as net workers. Only grant `rw`
+to trusted clients; use `readonly` for untrusted or shared bindings, and scope `AGENTICOS_MODELS` to a
+dedicated model.
+
+⚠️ **Scheduled transitions act unattended.** Anything armed with `scheduleCron`/`intervalMs` keeps
+firing server-side — overnight, with no client connected, possibly spending LLM. `net_stats.scheduled`
+lists everything armed; `pause_model` freezes it all instantly.
 
 ## Running in the compose stack (HTTP transport)
 

@@ -182,12 +182,33 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   tests: scope guard, blueprint invariants, protocol registration shapes, template executor)
 - **Transports**: stdio (default; `npx @agenticnets/mcp`, `claude mcp add`) and streamable HTTP
   (`AGENTICOS_MCP_TRANSPORT=http`, bearer-token-protected `POST /mcp` — used by the compose service)
-- **Tools (18, curated — deliberately NOT the raw agent-tool catalog)**:
+- **Tools (87 = 26 curated lowercase + 61 native UPPERCASE)**. Native layer = FULL platform parity:
+  every ToolExecutor tool (the same catalog agent transitions use in-net) auto-registered from the
+  CLI's `getAvailableTools(FULL)` + `buildToolSchemas` with real descriptions/schemas — new platform
+  tools appear automatically after a catalog sync; excluded only `THINK`/`DONE`/`FAIL` (agent-loop
+  primitives); rw-mode only; browsable via the `agenticnets://tool-catalog` resource. Curated layer:
   memory layer `memory_write` / `memory_recall` / `memory_link` / `memory_graph`;
   net-building `deploy_template`, `create_net`, `add_place`, `add_transition` (kind-aware pre-wired
-  inscriptions: map/llm/http/command/link), `set_schedule`, `fire_once`, `start/stop_transition`,
-  `create_persona`, `scaffold_tool_net`, `invoke_tool_net`;
-  observability `net_overview`, `query_tokens`, `event_trail`
+  inscriptions: map/llm/http/command/**agent**/link), `set_schedule`, `fire_once`, `start/stop_transition`,
+  `create_persona`, **`spawn_persona`** (complete self-driving agent-persona net — charter + task inbox +
+  started `agent` transition + output; run several in parallel), `scaffold_tool_net`, `invoke_tool_net`,
+  **`crystallize_session`** (record a session's summary + steps to memory AND bake the steps into a
+  replayable command tool-net);
+  model control **`pause_model`** (kill switch — stops ALL running transitions, writes an audit
+  `pause-record` token to `p-mcp-control`) / **`resume_model`** (restores exactly the paused set;
+  command lanes re-register RUNNING on the executor's next poll, ~seconds — trust `resumedCount`);
+  observability/debugging `net_overview`, `query_tokens`, `event_trail`, **`net_stats`** (LLM
+  consumption + running/error transitions + **`scheduled`** cron/interval list + `paused` flag +
+  tool-net usage + recent errors — the no-logs cockpit),
+  **`verify_inscription`** / **`dry_run_transition`** / **`diagnose_transition`** (per-transition
+  diagnosis; rw-only — they travel as POST, readonly registers only `net_stats` from this group).
+  The server `instructions` + recipes teach clients: 6-field cron scheduling (nets act overnight —
+  always tell the user what you armed), spawning full Claude Code instances via command transitions
+  (`claude -p '…' --allowedTools … --no-session-persistence < /dev/null` — stdin redirect mandatory),
+  and the model-control contract ("switch it off" ⇒ `pause_model`, verify `net_stats.paused`).
+  **agent-persona note**: `spawn_persona` workers auto-route via `autoEmit:true`, so `verify_inscription`
+  reports a benign `MISSING_EMIT` warning on them (expected, not a failure — proven: task in → agent
+  fires → result auto-lands in the output place).
 - **Starter templates** (`deploy_template`, idempotent; params via `agenticnets://templates`):
   `working-memory` (memory places + link graph + always-on LLM distiller; param `distillPrompt`),
   `dev-team` (token-free pipeline — the CONNECTED AGENT is the worker; param `digestCron`),
@@ -203,7 +224,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 | `AGENTICOS_MODELS` | **Required.** Model allowlist (comma-separated); first = default. Single model ⇒ tools expose NO `model` param; multiple ⇒ optional `model` validated per call (`MODEL_NOT_ALLOWED` otherwise) | — (fail-fast) |
 | `AGENTICOS_GATEWAY_URL` | Gateway base (all traffic goes through `/api` + `/node-api`) | `http://localhost:8083` |
 | `AGENTICOS_ADMIN_SECRET` / `AGENTICOS_GATEWAY_SECRET_FILE` | Client secret for the mode's client id | — (required) |
-| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the 5 read tools AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations | `rw` |
+| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the 6 GET-based read tools (`memory_recall`, `memory_graph`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`) AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations (the POST-based `diagnose/dry-run/verify` diagnostics are rw-only) | `rw` |
 | `AGENTICOS_SESSION` | Session name for MCP-created nets/places | `mcp` |
 | `AGENTICOS_NODE_HOST` | Host injected into inscription presets/postsets (`{model}@{host}`); in-compose: `agentic-net-node:8080` | `localhost:8080` |
 | `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |
@@ -221,9 +242,10 @@ claude mcp add agenticnets \
   -- npx @agenticnets/mcp
 ```
 
-**Deliberately NOT configurable**: the 18-tool surface (curation is the reliability feature), the
-`p-mem-*` memory-place conventions (templates upgrade the same places the tools write to), and the
-engine-gotcha defaults baked into inscriptions (non-empty preset arcql, llm `timeoutMs` 240s,
+**Deliberately NOT configurable**: the tool surface itself (two fixed layers — curated lowercase +
+full native catalog; the native list tracks the platform catalog automatically, not an env toggle),
+the `p-mem-*` memory-place conventions (templates upgrade the same places the tools write to), and
+the engine-gotcha defaults baked into inscriptions (non-empty preset arcql, llm `timeoutMs` 240s,
 catch-all emits). **Scoping honesty**: the allowlist is enforced in-process; the underlying gateway
 credential is NOT model-scoped (no per-model authz exists in the platform yet) — it protects against
 client/LLM mistakes and prompt injection, not a malicious operator of the MCP process.

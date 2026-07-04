@@ -29,6 +29,7 @@ function preset(placeId: string, host: string, over: Partial<PresetSpec> = {}): 
 export interface BuildOpts {
   id: string;
   label?: string;
+  description?: string;
   host: string;
   inputPlace: string;
   outputPlace: string;
@@ -47,6 +48,13 @@ export interface BuildOpts {
   template?: Record<string, any>;
   /** output capacity */
   capacity?: number;
+  /** agent — autonomous multi-step persona (rwxhlud capability gating + tier-selected LLM) */
+  netModel?: string;
+  role?: string;
+  nl?: string;
+  tier?: string;
+  maxIterations?: number;
+  autoEmit?: boolean;
 }
 
 function schedule(opts: BuildOpts): Record<string, any> {
@@ -149,6 +157,43 @@ export function buildCommandInscription(opts: BuildOpts) {
   };
 }
 
+/**
+ * Autonomous multi-step AGENT persona — the shape the safe-team personas use
+ * (t-dev-plan etc.). `role` is rwxhlud capability gating (rw-- = reason+write,
+ * rwxhl = may execute commands / invoke tool-nets). `action.modelId` is the net
+ * model; `tier` selects the LLM (default = worker, "high" = the thinking model).
+ * autoEmit:true routes the agent's final result to the single postset — a
+ * self-driving worker: STARTED, it watches its input place and processes each
+ * task token that lands there, in parallel with everything else running.
+ */
+export function buildAgentInscription(opts: BuildOpts) {
+  return {
+    id: opts.id,
+    kind: 'agent',
+    label: opts.label ?? opts.id,
+    ...(opts.description ? { description: opts.description } : {}),
+    role: opts.role ?? 'rw--',
+    ...schedule(opts),
+    presets: {
+      input: preset(opts.inputPlace, opts.host, opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {}),
+    },
+    postsets: postset(opts),
+    action: {
+      type: 'agent',
+      modelId: opts.netModel ?? opts.host.split('@')[0],
+      maxIterations: opts.maxIterations ?? 12,
+      autoEmit: opts.autoEmit ?? true,
+      nl:
+        opts.nl ??
+        opts.prompt ??
+        'Process the bound input token and produce a concise, self-contained result token. Input: ${input.data}',
+      ...(opts.tier ? { tier: opts.tier } : {}),
+      timeoutMs: opts.timeoutMs ?? 240000,
+    },
+    mode: 'SINGLE',
+  };
+}
+
 export function buildInscription(kind: string, opts: BuildOpts): Record<string, any> {
   switch (kind) {
     case 'link':
@@ -161,8 +206,10 @@ export function buildInscription(kind: string, opts: BuildOpts): Record<string, 
       return buildHttpInscription(opts);
     case 'command':
       return buildCommandInscription(opts);
+    case 'agent':
+      return buildAgentInscription(opts);
     default:
-      throw new Error(`Unsupported transition kind '${kind}' (supported: link, map, llm, http, command)`);
+      throw new Error(`Unsupported transition kind '${kind}' (supported: link, map, llm, http, command, agent)`);
   }
 }
 

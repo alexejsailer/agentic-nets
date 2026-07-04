@@ -32,13 +32,20 @@ async function connectedClient(config: McpConfig) {
 }
 
 const CURATED = [
+  // observability (also available in readonly, except the POST-based diagnostics)
   'net_overview',
   'query_tokens',
   'event_trail',
+  'net_stats',
+  'diagnose_transition',
+  'dry_run_transition',
+  'verify_inscription',
+  // memory
   'memory_write',
   'memory_recall',
   'memory_link',
   'memory_graph',
+  // net building
   'deploy_template',
   'create_net',
   'add_place',
@@ -47,19 +54,43 @@ const CURATED = [
   'fire_once',
   'start_transition',
   'stop_transition',
+  'pause_model',
+  'resume_model',
   'create_persona',
+  'spawn_persona',
   'scaffold_tool_net',
   'invoke_tool_net',
+  'crystallize_session',
 ].sort();
 
 describe('advertised tool surface', () => {
-  it('rw single-model: exactly the 18 curated tools, NO model param anywhere', async () => {
+  it('rw single-model: curated tools + FULL native catalog, NO model param anywhere', async () => {
     const client = await connectedClient(makeConfig());
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(CURATED);
+    const names = tools.map((t) => t.name);
+    // Curated (lowercase) layer: all present.
+    for (const c of CURATED) expect(names, `curated ${c}`).toContain(c);
+    // Native (UPPERCASE) layer: full platform parity — spot-check breadth across groups
+    // and assert the agent-loop-only primitives are excluded.
+    for (const n of ['NET_DOCTOR', 'DELETE_NET', 'SET_INSCRIPTION', 'QUERY_TOKENS', 'PACKAGE_SEARCH', 'DOCKER_LIST', 'HTTP_CALL', 'EXPORT_PNML']) {
+      expect(names, `native ${n}`).toContain(n);
+    }
+    for (const excluded of ['THINK', 'DONE', 'FAIL']) expect(names).not.toContain(excluded);
+    const native = names.filter((n) => n === n.toUpperCase() && /_|^[A-Z]+$/.test(n));
+    expect(native.length).toBeGreaterThanOrEqual(60); // 64 catalog − 3 loop-only ≥ 61
+    expect(names.length).toBe(CURATED.length + native.length); // no strays
     for (const t of tools) {
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).not.toContain('model');
     }
+  });
+
+  it('native catalog schemas keep param metadata (descriptions + required)', async () => {
+    const client = await connectedClient(makeConfig());
+    const { tools } = await client.listTools();
+    const qt = tools.find((t) => t.name === 'QUERY_TOKENS');
+    const props = (qt!.inputSchema as any).properties;
+    expect(Object.keys(props).length).toBeGreaterThan(0);
+    expect((qt!.inputSchema as any).required?.length ?? 0).toBeGreaterThan(0);
   });
 
   it('rw multi-model: every tool gains an optional model param', async () => {
@@ -83,11 +114,11 @@ describe('advertised tool surface', () => {
     expect(Object.keys((invoke!.inputSchema as any).properties)).not.toContain('params');
   });
 
-  it('readonly: only the five read tools are registered at all', async () => {
+  it('readonly: only the read tools are registered (GET-based; POST diagnostics excluded)', async () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['event_trail', 'memory_graph', 'memory_recall', 'net_overview', 'query_tokens'].sort(),
+      ['event_trail', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
     );
   });
 
@@ -111,7 +142,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig());
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name).sort()).toEqual(
-      ['capture-session', 'debug-net', 'setup-working-memory', 'work-dev-team-backlog'].sort(),
+      ['capture-session', 'debug-net', 'monitor-personas', 'setup-working-memory', 'spawn-worker', 'work-dev-team-backlog'].sort(),
     );
   });
 

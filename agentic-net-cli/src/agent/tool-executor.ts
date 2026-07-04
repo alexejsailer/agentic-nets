@@ -1138,7 +1138,11 @@ export class ToolExecutor {
     const path = `root/workspace/sessions/${sessionId}/workspace-nets/${params.netId}`;
     const info = await this.nodeApi.resolve(this.modelId, path);
     if (info?.id) {
-      await this.nodeApi.executeEvents(this.modelId, [{ eventType: 'deleteNode', id: info.id }]);
+      // Node's event API requires parentId (+name) on deleteNode — a bare {id}
+      // 400s. resolve() returns a children-listing entry, which carries both.
+      await this.nodeApi.executeEvents(this.modelId, [
+        { eventType: 'deleteNode', parentId: info.parentId, id: info.id, name: info.name ?? params.netId },
+      ]);
     }
     return { success: true, data: { deleted: params.netId } };
   }
@@ -1204,7 +1208,9 @@ export class ToolExecutor {
       const placePath = `root/workspace/sessions/${sessionId}/workspace-nets/${netId}/pnml/net/places/${placeId}`;
       const info = await this.nodeApi.resolve(this.modelId, placePath);
       if (info?.id) {
-        await this.nodeApi.executeEvents(this.modelId, [{ eventType: 'deleteNode', id: info.id }]);
+        await this.nodeApi.executeEvents(this.modelId, [
+          { eventType: 'deleteNode', parentId: info.parentId, id: info.id, name: info.name ?? placeId },
+        ]);
         return { success: true, data: { deleted: true, placeId, netId } };
       }
       return { success: true, data: { deleted: false, placeId, message: 'Could not resolve place path for deletion' } };
@@ -1225,7 +1231,9 @@ export class ToolExecutor {
       const arcPath = `root/workspace/sessions/${sessionId}/workspace-nets/${netId}/pnml/net/arcs/${arcId}`;
       const info = await this.nodeApi.resolve(this.modelId, arcPath);
       if (info?.id) {
-        await this.nodeApi.executeEvents(this.modelId, [{ eventType: 'deleteNode', id: info.id }]);
+        await this.nodeApi.executeEvents(this.modelId, [
+          { eventType: 'deleteNode', parentId: info.parentId, id: info.id, name: info.name ?? arcId },
+        ]);
         return { success: true, data: { deleted: true, arcId, netId } };
       }
       return { success: true, data: { deleted: false, arcId, message: `Arc '${arcId}' not found in net '${netId}'` } };

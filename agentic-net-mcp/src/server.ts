@@ -6,6 +6,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from './context.js';
 import { buildInstructions } from './instructions.js';
+import { registerCatalogTools } from './tools/catalog.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
@@ -34,6 +35,8 @@ export function createServer(ctx: AppContext): McpServer {
   } else {
     registerMemoryTools(server, ctx);
     registerNetTools(server, ctx);
+    // Full native parity: every ToolExecutor tool, canonical UPPERCASE names.
+    registerCatalogTools(server, ctx);
   }
 
   return server;
