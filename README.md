@@ -54,6 +54,7 @@ layer:
 | Start locally without reading everything | [Quick local run](#quick-local-run) |
 | Try the local stack | [Install in 5 minutes](#install-in-5-minutes) |
 | See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
+| Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
 | Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
 | Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
@@ -96,6 +97,30 @@ harness end to end:
 - **[gitanalytics.agentic-nets.com](https://gitanalytics.agentic-nets.com)** — the actual product that team is building: a live git-commit-analytics service whose new endpoints are shipped by agents, not people.
 - **The `safe-teams` net** — the virtual agile team that connects the two: PM, Architect, Developer, QA, DevOps, and RTE agents coordinating through a single net — intake → design → code (a real `command` transition runs the coding CLI on an executor) → QA gate → deploy → status. One harness turns a forum post into a shipped, verified feature.
 - **[agentic-nets.com](https://agentic-nets.com)** — full documentation, the concept chapters, and the product tour.
+
+## Public read-only live demo
+
+You can open the live Studio in monitor mode and watch the `safe-teams` net
+working without admin access:
+
+1. Open [agentic-nets.com/#/monitor](https://agentic-nets.com/#/monitor).
+2. Paste this public read-only demo token into the login form:
+
+   ```text
+   07a9af1d663f899f79f08ca56050a977d41472e34cc0dd0f74abe046446f78f9
+   ```
+
+3. Keep **Read-only access (no writes)** enabled and log in.
+
+The monitor view is scoped to the `safe-teams` model. It lets guests inspect
+the live net, token counts, event story, console, agenda, and current handoffs.
+Read-only sessions cannot edit nets, fire transitions, deploy changes, or use
+write-capable assistant personas.
+
+You can still ask questions from the monitor. The chat is pinned to the
+**Domain Expert (read-only)** persona, which can explain what is happening in
+the visible system. The normal Universal Assistant, Workflow Builder, Genesis,
+and other write-capable personas are reserved for authenticated Studio use.
 
 ## What you can model with it
 
