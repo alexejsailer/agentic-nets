@@ -182,7 +182,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   tests: scope guard, blueprint invariants, protocol registration shapes, template executor)
 - **Transports**: stdio (default; `npx @agenticnets/mcp`, `claude mcp add`) and streamable HTTP
   (`AGENTICOS_MCP_TRANSPORT=http`, bearer-token-protected `POST /mcp` — used by the compose service)
-- **Tools (89 = 28 curated lowercase + 61 native UPPERCASE)**. Native layer = FULL platform parity:
+- **Tools (92 = 31 curated lowercase + 61 native UPPERCASE)**. Native layer = FULL platform parity:
   every ToolExecutor tool (the same catalog agent transitions use in-net) auto-registered from the
   CLI's `getAvailableTools(FULL)` + `buildToolSchemas` with real descriptions/schemas — new platform
   tools appear automatically after a catalog sync; excluded only `THINK`/`DONE`/`FAIL` (agent-loop
@@ -197,6 +197,14 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   model control **`pause_model`** (kill switch — stops ALL running transitions, writes an audit
   `pause-record` token to `p-mcp-control`) / **`resume_model`** (restores exactly the paused set;
   command lanes re-register RUNNING on the executor's next poll, ~seconds — trust `resumedCount`);
+  model lifecycle **`list_models`** (all models + per-connection `allowed` flag) / **`create_model`**
+  (mint a NEW model + optional template deploy; joins the session allowlist so scope.multiModel becomes
+  true and every tool exposes the `model` param even for a 1-model config; gated by
+  `AGENTICOS_ALLOW_MODEL_CREATE`, rw-only) — so the COMPLETE AgenticOS feature set (models/sessions/
+  nets/tokens) is reachable via MCP; **`DELETE_TRANSITION`** deregisters an orphaned runtime transition
+  (stop+remove inscription/status/assignment; DELETE_NET gained `deleteTransitions:true`) — needed a
+  new CLI `MasterApi.deleteTransition` (DELETE /runtime/transitions/{id}); **known gap**: node admin
+  model *removal* 500s/404s through the gateway proxy (create works, remove deferred);
   client-hosted execution **`host_transition`** / **`unhost_transition`** (an llm/agent transition
   built with `start:false` is NEVER on master — the MCP process itself executes it via the CLI's
   `executeTransitionLocally` on `AGENTICOS_LLM_PROVIDER` (default `claude-code` = local `claude`

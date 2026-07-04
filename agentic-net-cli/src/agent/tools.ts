@@ -28,6 +28,7 @@ export type AgentTool =
   | 'CREATE_SESSION'
   | 'CREATE_NET'
   | 'DELETE_NET'
+  | 'DELETE_TRANSITION'
   | 'CREATE_PLACE'
   | 'CREATE_TRANSITION'
   | 'CREATE_ARC'
@@ -318,14 +319,25 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   DELETE_NET: {
-    description: 'Delete a net from the session.',
+    description: 'Delete a net from the session. With deleteTransitions:true, also deregisters each of the net’s RUNTIME transitions on master (stop + delete inscription/status/assignment) so no stopped registrations linger.',
     schema: {
       type: 'object',
       properties: {
         netId: { type: 'string', description: 'Net ID to delete' },
         sessionId: { type: 'string', description: 'Session ID' },
+        deleteTransitions: { type: 'boolean', description: 'Also deregister the net’s runtime transitions (default false — transitions may be shared across nets)' },
       },
       required: ['netId'],
+    },
+  },
+  DELETE_TRANSITION: {
+    description: 'Deregister a RUNTIME transition entirely: stops it (best-effort) and removes its node (inscription, status, assignedAgent, metrics) from the model. Use to clean up transitions left behind by deleted nets. Irreversible — re-assign to recreate.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Runtime transition ID to deregister' },
+      },
+      required: ['transitionId'],
     },
   },
   CREATE_PLACE: {

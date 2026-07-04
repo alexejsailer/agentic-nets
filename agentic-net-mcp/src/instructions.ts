@@ -48,6 +48,20 @@ are gone. ${models}
   wiring check), dry_run_transition (simulate a fire), diagnose_transition (health + bindings).
   net_overview gives structure. This is your whole cockpit for the parallel personas you spawned.
 
+## Models — the whole stack, through the protocol
+list_models shows every model node knows, each with an "allowed" flag (which ones THIS connection may
+target). create_model (rw, when enabled) mints a brand-new model — optionally deploying a starter
+template into it in the same call — and it joins this session's allowlist immediately, so any tool
+can target it with the model param. Master auto-discovers active models within ~10s and begins
+polling their transitions. Sessions: CREATE_SESSION. Nets: create_net. Everything AgenticOS can do
+is reachable here — nothing requires the raw REST API.
+
+## Cleaning up — no orphaned registrations
+DELETE_NET removes a net's structure; pass deleteTransitions:true to ALSO deregister its runtime
+transitions. DELETE_TRANSITION deregisters a single runtime transition (stop + remove
+inscription/status/assignment) — use it to clear transitions left STOPPED behind a deleted net so
+net_stats stays honest. Irreversible; re-assign to recreate.
+
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine
 gotchas absorbed — prefer them for the flows they cover. The UPPERCASE tools are the FULL native

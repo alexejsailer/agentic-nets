@@ -165,6 +165,8 @@ export class ToolExecutor {
           return this.executeCreateNet(params);
         case 'DELETE_NET':
           return this.executeDeleteNet(params);
+        case 'DELETE_TRANSITION':
+          return this.executeDeleteTransition(params);
         case 'CREATE_PLACE':
           return this.executeCreatePlace(params);
         case 'CREATE_TRANSITION':
@@ -1136,6 +1138,27 @@ export class ToolExecutor {
     // Delete net by removing tree structure
     const sessionId = params.sessionId || this.sessionId || 'system/alive';
     const path = `root/workspace/sessions/${sessionId}/workspace-nets/${params.netId}`;
+
+    // Optionally deregister the net's RUNTIME transitions first (they are
+    // model-global and would otherwise linger as stopped registrations).
+    // Opt-in because transitions can be shared across nets.
+    const deregistered: string[] = [];
+    if (params.deleteTransitions) {
+      const pnmlTransitions = await this.nodeApi
+        .getChildren(this.modelId, `${path}/pnml/net/transitions`)
+        .catch(() => []);
+      for (const t of pnmlTransitions ?? []) {
+        if (!t?.name) continue;
+        try {
+          await this.masterApi.stopTransition(t.name, this.modelId).catch(() => undefined);
+          await this.masterApi.deleteTransition(t.name, this.modelId);
+          deregistered.push(t.name);
+        } catch {
+          // Best-effort: a transition may never have been runtime-registered.
+        }
+      }
+    }
+
     const info = await this.nodeApi.resolve(this.modelId, path);
     if (info?.id) {
       // Node's event API requires parentId (+name) on deleteNode — a bare {id}
@@ -1144,7 +1167,25 @@ export class ToolExecutor {
         { eventType: 'deleteNode', parentId: info.parentId, id: info.id, name: info.name ?? params.netId },
       ]);
     }
-    return { success: true, data: { deleted: params.netId } };
+    return {
+      success: true,
+      data: { deleted: params.netId, ...(deregistered.length ? { deregisteredTransitions: deregistered } : {}) },
+    };
+  }
+
+  private async executeDeleteTransition(params: Record<string, any>): Promise<ToolResult> {
+    const transitionId = params.transitionId;
+    if (!transitionId) {
+      return { success: false, error: 'DELETE_TRANSITION requires transitionId' };
+    }
+    try {
+      // Stop first so master is not mid-poll on the node we are about to remove.
+      await this.masterApi.stopTransition(transitionId, this.modelId).catch(() => undefined);
+      await this.masterApi.deleteTransition(transitionId, this.modelId);
+      return { success: true, data: { deregistered: transitionId } };
+    } catch (err: any) {
+      return { success: false, error: `DELETE_TRANSITION failed: ${err.message || err}` };
+    }
   }
 
   private async executeCreatePlace(params: Record<string, any>): Promise<ToolResult> {

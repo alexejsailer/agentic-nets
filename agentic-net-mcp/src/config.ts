@@ -33,6 +33,12 @@ export interface McpConfig {
   llmProvider: string;
   llmModel?: string;
   llmTier: 'low' | 'medium' | 'high';
+  /**
+   * Allow create_model to mint NEW models at runtime (they join the allowlist
+   * for this session). Default true in rw mode; always false in readonly.
+   * Set AGENTICOS_ALLOW_MODEL_CREATE=false for a strictly-frozen allowlist.
+   */
+  allowModelCreate: boolean;
 }
 
 export class ConfigError extends Error {}
@@ -91,5 +97,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     llmProvider: env.AGENTICOS_LLM_PROVIDER ?? 'claude-code',
     llmModel: env.AGENTICOS_LLM_MODEL || undefined,
     llmTier,
+    allowModelCreate: mode === 'rw' && env.AGENTICOS_ALLOW_MODEL_CREATE !== 'false',
   };
 }

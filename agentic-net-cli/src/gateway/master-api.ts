@@ -86,6 +86,11 @@ export class MasterApi {
     return this.client.masterApi('POST', `/transitions/${id}/fireOnce`, { modelId });
   }
 
+  /** Deregister a RUNTIME transition entirely (inscription, status, assignment, metrics). */
+  async deleteTransition(id: string, modelId: string): Promise<any> {
+    return this.client.masterApi('DELETE', `/runtime/transitions/${id}`, undefined, { modelId });
+  }
+
   async assignTransition(params: {
     modelId: string;
     transitionId: string;

@@ -17,12 +17,25 @@ export interface ModelScope {
   multiModel: boolean;
 }
 
-export function scopeFromConfig(config: Pick<McpConfig, 'models'>): ModelScope {
+export function scopeFromConfig(
+  config: Pick<McpConfig, 'models'> & Partial<Pick<McpConfig, 'allowModelCreate'>>,
+): ModelScope {
   return {
     allowed: [...config.models],
     defaultModel: config.models[0],
-    multiModel: config.models.length > 1,
+    // With model creation enabled, tools must expose a `model` param even for a
+    // single-model allowlist — otherwise a freshly created model would be
+    // unreachable (schemas are fixed at registration time).
+    multiModel: config.models.length > 1 || config.allowModelCreate === true,
   };
+}
+
+/**
+ * Grow the allowlist at runtime — ONLY for models created through create_model
+ * in this session. Never widens access to pre-existing, un-listed models.
+ */
+export function grantModel(scope: ModelScope, modelId: string): void {
+  if (!scope.allowed.includes(modelId)) scope.allowed.push(modelId);
 }
 
 export class ScopeError extends Error {

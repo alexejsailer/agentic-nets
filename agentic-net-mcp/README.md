@@ -36,7 +36,7 @@ Then, in Claude Code:
 > *"What did we decide about bundling?"* → `memory_recall` returns the **distilled** note — cleaned up
 > server-side by the always-on distiller transition while you kept working.
 
-## Tools (89 = 28 curated + 61 native)
+## Tools (92 = 31 curated + 61 native)
 
 Two layers, one server:
 
@@ -51,7 +51,8 @@ Two layers, one server:
 |---|---|
 | **Memory** | `memory_write` · `memory_recall` · `memory_link` · `memory_graph` |
 | **Net building** | `deploy_template` · `create_net` · `add_place` · `add_transition` (kind-aware: map/llm/http/command/**agent**/link, pre-wired inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · **`spawn_persona`** · `scaffold_tool_net` · `invoke_tool_net` · **`crystallize_session`** |
-| **Model control** | **`pause_model`** (kill switch: stop ALL running transitions, audit-recorded) · **`resume_model`** (restore exactly the paused set) |
+| **Model lifecycle** | **`list_models`** (every model + an `allowed` flag) · **`create_model`** (mint a NEW model, optionally deploy a template into it; joins the allowlist for this session — rw, gated by `AGENTICOS_ALLOW_MODEL_CREATE`) |
+| **Model control** | **`pause_model`** (kill switch: stop ALL running transitions, audit-recorded) · **`resume_model`** (restore exactly the paused set) · **`DELETE_TRANSITION`** (deregister an orphaned runtime transition) |
 | **Client-hosted execution** | **`host_transition`** (run an llm/agent transition IN the MCP process on the client side's own LLM — default the local `claude` binary; `watch` polls its inbox, `once` executes now) · **`unhost_transition`** |
 | **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
 | **Native catalog (61)** | Structure: `CREATE/DELETE_NET·PLACE·TRANSITION·ARC·TOKEN`, `SET_INSCRIPTION`, `ADAPT_INSCRIPTIONS` · Reads: `QUERY_TOKENS`, `GET_NET_STRUCTURE`, `LIST_*`, `FIND_*`, `EXTRACT_*`, `EXPORT_PNML` · Diagnosis: `NET_DOCTOR`, `VERIFY_NET`, `VERIFY_RUNTIME_BINDINGS`, `VERIFY_INSCRIPTION`, `DIAGNOSE/DRY_RUN_TRANSITION` · Lifecycle: `DEPLOY/START/STOP_TRANSITION`, `FIRE_ONCE`, `EXECUTE_TRANSITION(_SMART)` · Tool-nets: `SCAFFOLD/REGISTER/DESCRIBE/INVOKE_TOOL_NET`, `LIST_TOOL_NETS` · Packages: `PACKAGE_SEARCH/PUBLISH/INSTALL` · Infra: `DOCKER_RUN/STOP/LIST/LOGS`, `REGISTRY_*`, `HTTP_CALL` · Sessions: `CREATE_SESSION`, `TAG_SESSION`, `LIST_ALL_SESSIONS`, … (excluded: `THINK`/`DONE`/`FAIL` — agent-loop-only primitives) |
@@ -109,6 +110,7 @@ Deploys are idempotent: re-running skips existing elements and never duplicates 
 | `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport port + required bearer token | `8091` / — |
 | `AGENTICOS_LLM_PROVIDER` | LLM used when **this process** executes hosted transitions (`host_transition`): `claude-code` (local `claude` binary — your subscription), `ollama`, `claude`/`anthropic`, `openai` | `claude-code` |
 | `AGENTICOS_LLM_MODEL` / `AGENTICOS_LLM_TIER` | model + tier for the hosted-execution provider | provider default / `medium` |
+| `AGENTICOS_ALLOW_MODEL_CREATE` | register `create_model` and let it mint new models at runtime (rw only). `false` = strictly-frozen allowlist | `true` (rw) |
 
 ## Claude Code hooks: memory with zero discipline
 
@@ -140,10 +142,20 @@ not against a malicious operator of this process.
 the gateway's `agenticos-readonly` client — mutations are rejected by the gateway itself, not just by
 this server. Point `AGENTICOS_ADMIN_SECRET` at the readonly client's secret.
 
-Readonly limitations: ArcQL queries travel as POST, which the readonly gateway scope rejects —
-plain-substring recall and `query_tokens` without an `arcql` argument work (they use GET endpoints);
-ArcQL passthrough needs `rw` mode. The native UPPERCASE catalog and the POST-based diagnostics are
-also rw-only (many would 403 at the gateway in readonly, so they are not advertised at all).
+ArcQL under readonly: read-only ArcQL query POSTs (`/arcql/query/*`, `/proxy/arcql/*/query`) ARE
+allowed by the gateway's readonly scope — recall and `query_tokens` work with or without an `arcql`
+argument. The native UPPERCASE catalog and the POST-based diagnostics remain rw-only (they mutate or
+travel as non-whitelisted POSTs, so they are not advertised in readonly).
+
+### Gateway auth — verified live
+
+Every gateway endpoint sits behind OAuth2. Probed against a live stack:
+
+| Caller | Reads | Mutations (write / start-stop / delete / create-model) |
+|---|---|---|
+| **No token** | **401** | **401** — nothing works unauthenticated (only `/api/health` is public) |
+| **Readonly token** (`agenticos-readonly`) | **200** (incl. ArcQL query POSTs) | **403** — rejected by the gateway itself |
+| **Admin token** (`agenticos-admin`) | 200 | 200 |
 
 ## Security
 

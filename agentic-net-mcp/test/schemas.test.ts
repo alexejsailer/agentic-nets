@@ -21,6 +21,7 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
     httpPort: 0,
     llmProvider: 'claude-code',
     llmTier: 'medium',
+    allowModelCreate: false,
     ...over,
   };
 }
@@ -39,6 +40,7 @@ const CURATED = [
   'query_tokens',
   'event_trail',
   'net_stats',
+  'list_models',
   'diagnose_transition',
   'dry_run_transition',
   'verify_inscription',
@@ -76,7 +78,7 @@ describe('advertised tool surface', () => {
     for (const c of CURATED) expect(names, `curated ${c}`).toContain(c);
     // Native (UPPERCASE) layer: full platform parity — spot-check breadth across groups
     // and assert the agent-loop-only primitives are excluded.
-    for (const n of ['NET_DOCTOR', 'DELETE_NET', 'SET_INSCRIPTION', 'QUERY_TOKENS', 'PACKAGE_SEARCH', 'DOCKER_LIST', 'HTTP_CALL', 'EXPORT_PNML']) {
+    for (const n of ['NET_DOCTOR', 'DELETE_NET', 'DELETE_TRANSITION', 'SET_INSCRIPTION', 'QUERY_TOKENS', 'PACKAGE_SEARCH', 'DOCKER_LIST', 'HTTP_CALL', 'EXPORT_PNML']) {
       expect(names, `native ${n}`).toContain(n);
     }
     for (const excluded of ['THINK', 'DONE', 'FAIL']) expect(names).not.toContain(excluded);
@@ -97,12 +99,30 @@ describe('advertised tool surface', () => {
     expect((qt!.inputSchema as any).required?.length ?? 0).toBeGreaterThan(0);
   });
 
-  it('rw multi-model: every tool gains an optional model param', async () => {
+  it('rw multi-model: every model-scoped tool gains an optional model param', async () => {
     const client = await connectedClient(makeConfig({ models: ['m1', 'm2'] }));
     const { tools } = await client.listTools();
+    // Model-AGNOSTIC tools have no model param by design: list_models surveys
+    // the whole stack; create_model takes the NEW id as modelId.
+    const modelAgnostic = new Set(['list_models', 'create_model']);
     for (const t of tools) {
+      if (modelAgnostic.has(t.name)) continue;
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).toContain('model');
     }
+  });
+
+  it('allowModelCreate: create_model registered, and even single-model configs expose the model param', async () => {
+    const client = await connectedClient(makeConfig({ allowModelCreate: true }));
+    const { tools } = await client.listTools();
+    const names = tools.map((t) => t.name);
+    expect(names).toContain('create_model');
+    // A freshly created model must be reachable => model param exists everywhere.
+    const write = tools.find((t) => t.name === 'memory_write');
+    expect(Object.keys((write!.inputSchema as any).properties)).toContain('model');
+    // And with creation disabled it is absent entirely (frozen allowlist).
+    const frozen = await connectedClient(makeConfig());
+    const { tools: frozenTools } = await frozen.listTools();
+    expect(frozenTools.map((t) => t.name)).not.toContain('create_model');
   });
 
   it('scaffold_tool_net exposes transitionKind (pre-wired crystallization)', async () => {
@@ -122,7 +142,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['event_trail', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
+      ['event_trail', 'list_models', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
     );
   });
 

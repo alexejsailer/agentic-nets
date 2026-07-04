@@ -9,6 +9,7 @@ import { wrapTool } from '../scope.js';
 import { agentFor, assignInscription, buildInscription, persistInscriptionLeaf } from '../inscriptions.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
+import { grantModel } from '../scope.js';
 import { fetchTokens, linkPlaces } from './memory.js';
 
 /**
@@ -118,6 +119,59 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       return new TemplateExecutor(ctx, model).deploy(blueprint, args.params ?? {});
     }),
   );
+
+  if (config.allowModelCreate) {
+    server.registerTool(
+      'create_model',
+      {
+        title: 'Create a NEW model',
+        description:
+          'Mint a brand-new model on the stack (node registers + persists it; master auto-discovers it within ~10s and starts polling its transitions). The new model joins THIS connection\'s allowlist immediately, so every tool can target it via the `model` param. Optionally deploy a starter template into it in the same call. Disable this capability with AGENTICOS_ALLOW_MODEL_CREATE=false.',
+        inputSchema: {
+          modelId: z.string().describe('New model id, e.g. "team-alpha" (lowercase letters, digits, dashes)'),
+          name: z.string().optional().describe('Display name (default: the modelId)'),
+          description: z.string().optional(),
+          template: z
+            .enum(Object.keys(TEMPLATES) as [string, ...string[]])
+            .optional()
+            .describe('Deploy a starter template into the new model right away (e.g. working-memory)'),
+        },
+      },
+      wrapTool(scope, config.mode, { name: 'create_model', mutates: true }, async (_model, args) => {
+        const modelId = String(args.modelId).trim();
+        if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(modelId)) {
+          throw new Error('modelId must be lowercase letters/digits/dashes (max 64, starting alphanumeric)');
+        }
+        if (scope.allowed.includes(modelId)) {
+          throw new Error(`model '${modelId}' is already in the allowlist — target it directly`);
+        }
+        try {
+          await ctx.client.nodeApi('POST', '/admin/models', {
+            modelId,
+            name: args.name ?? modelId,
+            description: args.description ?? `Created via MCP session '${config.session}'`,
+          });
+        } catch (err: any) {
+          if (err?.status === 400) {
+            throw new Error(`model '${modelId}' could not be created — it likely already exists (list_models to check)`);
+          }
+          throw err;
+        }
+        grantModel(scope, modelId);
+        let template: any;
+        if (args.template) {
+          const blueprint = TEMPLATES[args.template as keyof typeof TEMPLATES];
+          template = await new TemplateExecutor(ctx, modelId).deploy(blueprint, {});
+        }
+        return {
+          created: modelId,
+          allowed: true,
+          note: 'Master auto-discovers active models within ~10s. The allowlist grew for THIS session only — add the id to AGENTICOS_MODELS to make it permanent.',
+          ...(template ? { template } : {}),
+        };
+      }),
+    );
+  }
 
   server.registerTool(
     'create_net',

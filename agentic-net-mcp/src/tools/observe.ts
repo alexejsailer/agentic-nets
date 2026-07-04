@@ -198,6 +198,30 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+  server.registerTool(
+    'list_models',
+    {
+      title: 'List models on the stack',
+      description:
+        "All models node knows about (id, name, state) with an `allowed` flag showing which ones THIS connection may target. Models outside the allowlist are visible but not targetable — create_model minted models join the allowlist automatically.",
+      inputSchema: {},
+    },
+    wrapTool(scope, config.mode, { name: 'list_models', mutates: false }, async () => {
+      const res = await ctx.client.nodeApi('GET', '/admin/models');
+      const models: any[] = Array.isArray(res) ? res : (res?.models ?? []);
+      return {
+        count: models.length,
+        models: models.map((m: any) => ({
+          modelId: m.modelId ?? m.id,
+          name: m.name,
+          state: m.state ?? m.status,
+          allowed: scope.allowed.includes(m.modelId ?? m.id),
+        })),
+        allowlist: scope.allowed,
+      };
+    }),
+  );
+
   // Master-side diagnostics — debug a net WITHOUT source or log access. These
   // travel as POST, which the readonly gateway scope rejects (like ArcQL), so
   // they are only registered in rw mode. net_stats (all GET) stays readonly-safe.
