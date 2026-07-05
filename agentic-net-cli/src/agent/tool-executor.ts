@@ -274,13 +274,43 @@ export class ToolExecutor {
         case 'FAIL':
           return { success: false, error: params.error };
         default:
-          return { success: false, error: `Unknown tool: ${tool}` };
+          // Any tool without a bespoke CLI handler (event line, knowledge, model
+          // observation, coordination, tool-net library, await, ...) is routed through
+          // the master's generic executor endpoint — the SAME AgentToolExecutor the
+          // agents use. This gives the CLI/MCP parity with the agent tool surface and
+          // auto-covers future master tools without a CLI change.
+          return this.executeViaMaster(tool, params);
       }
     } catch (err: any) {
       const message = err.message || String(err);
       const stack = err.stack ? `\n${err.stack}` : '';
       console.error(`[tool-executor] ${tool} failed: ${message}${stack}`);
       return { success: false, error: message };
+    }
+  }
+
+  /**
+   * Run a tool through the master's generic executor endpoint
+   * (`POST /api/agent/tools/{name}/execute`). Used for tools that have no bespoke
+   * CLI handler, so the CLI/MCP execute them via the exact same in-JVM
+   * AgentToolExecutor the agents use.
+   */
+  private async executeViaMaster(tool: AgentTool, params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const body: Record<string, any> = { modelId: this.modelId, params };
+      if (this.sessionId) body.sessionId = this.sessionId;
+      const resp: any = await this.masterApi.post(
+        `/agent/tools/${encodeURIComponent(tool)}/execute`,
+        body,
+      );
+      if (resp && typeof resp === 'object' && 'success' in resp) {
+        return resp.success
+          ? { success: true, data: resp.result }
+          : { success: false, error: resp.error ?? `Tool ${tool} failed` };
+      }
+      return { success: true, data: resp };
+    } catch (err: any) {
+      return { success: false, error: err?.message ?? String(err) };
     }
   }
 

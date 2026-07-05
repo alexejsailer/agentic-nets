@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "//": "Reference template — start.sh renders a concrete opencode.json from this shape. Placeholders in __UPPER__ are filled by start.sh from your environment. You can also copy this by hand into your project's opencode.json.",
+  "instructions": ["__ABS_PATH__/AGENTS.md"],
+  "mcp": {
+    "agenticnets": {
+      "type": "local",
+      "command": ["node", "__ABS_PATH__/../../agentic-net-mcp/dist/bin/agenticnets-mcp.js"],
+      "environment": {
+        "AGENTICOS_GATEWAY_URL": "http://localhost:8083",
+        "AGENTICOS_MODELS": "__YOUR_MODEL_ALLOWLIST__",
+        "AGENTICOS_MODE": "rw",
+        "AGENTICOS_SESSION": "opencode",
+        "AGENTICOS_GATEWAY_SECRET_FILE": "__PATH_TO_gateway_admin-secret__"
+      },
+      "enabled": true
+    }
+  }
+}

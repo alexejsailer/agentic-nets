@@ -6,6 +6,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from './context.js';
 import { buildInstructions } from './instructions.js';
+import { registerAgentTools } from './tools/agents.js';
 import { registerCatalogTools } from './tools/catalog.js';
 import { registerHostedTools } from './tools/hosted.js';
 import { registerHubTools } from './tools/hub.js';
@@ -37,6 +38,8 @@ export function createServer(ctx: AppContext): McpServer {
   } else {
     registerMemoryTools(server, ctx);
     registerNetTools(server, ctx);
+    // Invoke the platform agents (builder/operator/genesis/...) — same agent loop as the GUI.
+    registerAgentTools(server, ctx);
     // NetHub — publish/discover/install artifacts across instances.
     registerHubTools(server, ctx);
     // Client-hosted llm/agent execution — this process as the transition runner.

@@ -92,6 +92,23 @@ export type AgentTool =
   | 'REGISTER_TOOL_NET'
   | 'INVOKE_TOOL_NET'
   | 'SCAFFOLD_TOOL_NET'
+  // Master-parity tools (routed through the generic /api/agent/tools/{name}/execute
+  // endpoint into the SAME AgentToolExecutor the agents use). Kept in lockstep with
+  // the master AgentTool enum via agent-tool-catalog.json.
+  | 'TOOLNET_HEALTH'
+  | 'TOOLNET_CANDIDATES'
+  | 'PROMOTE_TOOL_NET'
+  | 'DESCRIBE_PLACE'
+  | 'OBSERVE_MODEL'
+  | 'SEARCH_KNOWLEDGE'
+  | 'READ_BLOB_TEXT'
+  | 'QUERY_EVENTS'
+  | 'GET_EVENT_FACETS'
+  | 'GET_EVENT_TRAIL'
+  | 'AWAIT_TOKEN'
+  | 'INVOKE_PERSONA'
+  | 'DELEGATE_TASK'
+  | 'COLLECT_RESULTS'
   // Control
   | 'DONE'
   | 'FAIL';
@@ -847,6 +864,169 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         attempted: { type: 'string', description: 'What was attempted' },
       },
       required: ['error'],
+    },
+  },
+  // --- Master-parity tools (schemas mirror agent-tool-catalog.json; dispatch routes
+  //     through the generic /api/agent/tools/{name}/execute endpoint) ---
+  SEARCH_KNOWLEDGE: {
+    description: "Search the AgenticNetOS knowledge graph for docs, examples, patterns, and known issues by keyword. Returns matching tokens with summaries and blob URNs for full content.",
+    schema: {
+      type: 'object',
+      properties: {
+        query: {"type": "string", "description": "Search keywords (e.g., 'arcql where clause', 'http retry pattern')"},
+        category: {"type": "string", "description": "Optional category filter: architecture, transition-types, inscription-language, patterns, known-issues, operations"},
+        limit: {"type": "integer", "description": "Max results to return (default 10)"},
+      },
+      required: ["query"],
+    },
+  },
+  READ_BLOB_TEXT: {
+    description: "Fetch text content from a blobstore URN, optionally searching within it for relevant paragraphs.",
+    schema: {
+      type: 'object',
+      properties: {
+        blobUrn: {"type": "string", "description": "Blob URN (e.g., 'urn:agenticos:blob:2025-01-23/abc123')"},
+        maxLength: {"type": "integer", "description": "Max characters to return (default 4000)"},
+        searchFor: {"type": "string", "description": "Optional keyword; returns only paragraphs containing this term"},
+      },
+      required: ["blobUrn"],
+    },
+  },
+  OBSERVE_MODEL: {
+    description: "Get whole-model runtime snapshot: all transition statuses, place token counts, health summary with bottleneck detection.",
+    schema: {
+      type: 'object',
+      properties: {
+        includeTokenCounts: {"type": "boolean", "description": "Include per-place token counts (default true)"},
+      },
+      required: [],
+    },
+  },
+  DESCRIBE_PLACE: {
+    description: "One-call place navigation: a place's tokens (name+preview), the transitions that produce to it (inbound) and consume from it (outbound), and the places it links to. Use this to understand a place and decide what to do, instead of chaining GET_PLACE_INFO + QUERY_TOKENS + GET_PLACE_CONNECTIONS + GET_LINKED_PLACES",
+    schema: {
+      type: 'object',
+      properties: {
+        placeId: {"type": "string", "description": "Place id or path to describe (its tokens, inbound/outbound transitions, and linked places)."},
+      },
+      required: ["placeId"],
+    },
+  },
+  QUERY_EVENTS: {
+    description: "Query the event line for recent backend events with filters. Returns compact event summaries showing what happened (token operations, transition firings, errors). Use to understand what occurred during execution.",
+    schema: {
+      type: 'object',
+      properties: {
+        category: {"type": "string", "description": "Filter by event category: mutation, query, validation, agent, http, llm"},
+        status: {"type": "string", "description": "Filter by status: success, error, info"},
+        type: {"type": "string", "description": "Filter by event type (e.g., execute-events, tool-call)"},
+        q: {"type": "string", "description": "Free-text search across summary, category, type, attributes"},
+        limit: {"type": "integer", "description": "Max events to return (default 20, max 50)"},
+        verbose: {"type": "boolean", "description": "If true, includes attributes, details, tags, sessionId (default false)"},
+      },
+      required: [],
+    },
+  },
+  GET_EVENT_FACETS: {
+    description: "Get aggregated event counts grouped by category, status, and type. Quick overview of recent activity volume and error rates.",
+    schema: {
+      type: 'object',
+      properties: {
+        sessionId: {"type": "string", "description": "Optional: scope facets to a specific session"},
+        workspaceNetId: {"type": "string", "description": "Optional: scope facets to a specific workspace net"},
+      },
+      required: [],
+    },
+  },
+  GET_EVENT_TRAIL: {
+    description: "Trace a specific operation end-to-end by its correlationId. Returns all related events in chronological order with full attributes.",
+    schema: {
+      type: 'object',
+      properties: {
+        correlationId: {"type": "string", "description": "The correlation ID to trace (found in QUERY_EVENTS results)"},
+        limit: {"type": "integer", "description": "Max events to return (default 50)"},
+      },
+      required: ["correlationId"],
+    },
+  },
+  TOOLNET_HEALTH: {
+    description: "Report the health of the tool-net library: each tool-net classified healthy / degraded / unknown from its usage ledger (success rate), or actively by re-invoking its manifest example. Use to decide what to repair or retire.",
+    schema: {
+      type: 'object',
+      properties: {
+        active: {"type": "boolean", "description": "If true, re-invoke each tool-net's manifest example to test it live (default false, ledger-only)."},
+        apply: {"type": "boolean", "description": "If true, deprecate the rotted tool-nets. Default false."},
+      },
+      required: [],
+    },
+  },
+  TOOLNET_CANDIDATES: {
+    description: "Library self-improvement proposals derived from usage: crystallize (a tool agents call repeatedly that a tool-net could absorb, carries a ready Forge prompt), promote (hot + reliable, bless), retire (failing, repair). Use to decide what to build, bless, or retire.",
+    schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  AWAIT_TOKEN: {
+    description: "Block until a token matching an ArcQL filter appears in a place, or a timeout elapses (capped at 300s). Best practice: put a correlation field (e.g. requestId) on whatever you fired, then await exactly it. A timeout returns matched=false and is NOT an error: either await again or journal the pending state.",
+    schema: {
+      type: 'object',
+      properties: {
+        placePath: {"type": "string", "description": "Place to watch, e.g. root/workspace/places/p-genesis-reply (a bare place name like p-genesis-reply is auto-corrected)"},
+        arcql: {"type": "string", "description": "ArcQL filter for the awaited token, e.g. FROM $ WHERE $.requestId==\"req-42\" LIMIT 1. Defaults to FROM $ LIMIT 1 (any token)."},
+        timeoutMs: {"type": "integer", "description": "Max wait in milliseconds. Default 60000, clamped to [1000, 300000]."},
+        pollIntervalMs: {"type": "integer", "description": "Poll interval in milliseconds. Default 1500, clamped to [500, 30000]."},
+      },
+      required: ["placePath"],
+    },
+  },
+  PROMOTE_TOOL_NET: {
+    description: "Move a tool-net through its lifecycle by rewriting its manifest status: draft -> active -> blessed (curated/trusted), or deprecated. Bless a tool-net that has proven reliable; deprecate one that has rotted.",
+    schema: {
+      type: 'object',
+      properties: {
+        sessionId: {"type": "string", "description": "Session holding the tool-net."},
+        netId: {"type": "string", "description": "Tool-net id."},
+        status: {"type": "string", "description": "New lifecycle status.", "enum": ["draft", "active", "blessed", "deprecated"]},
+      },
+      required: ["sessionId", "netId", "status"],
+    },
+  },
+  INVOKE_PERSONA: {
+    description: "Delegate a task to a specific persona (builder, operator, chronicle, domain-expert, genesis). Returns taskId immediately. Use COLLECT_RESULTS to get the outcome.",
+    schema: {
+      type: 'object',
+      properties: {
+        persona: {"type": "string", "description": "Persona to invoke: 'builder', 'operator', 'chronicle', 'domain-expert', or 'genesis'"},
+        prompt: {"type": "string", "description": "Specific task description for the persona"},
+        modelId: {"type": "string", "description": "Target model ID (defaults to current model)"},
+        sessionId: {"type": "string", "description": "Target session ID (defaults to current session)"},
+      },
+      required: ["persona", "prompt"],
+    },
+  },
+  DELEGATE_TASK: {
+    description: "Spawn a focused Operator child to work on a specific task in parallel. Returns immediately with a taskId. Use COLLECT_RESULTS to get the outcome. Max 5 concurrent children.",
+    schema: {
+      type: 'object',
+      properties: {
+        prompt: {"type": "string", "description": "Specific task description for the child agent. Be precise about which transitions, places, or nets to work on."},
+        scope: {"type": "string", "description": "Optional scope hint (net name or place name) to focus the child's work"},
+        maxIterations: {"type": "integer", "description": "Max iterations for the child agent (default 15). Increase for complex tasks."},
+      },
+      required: ["prompt"],
+    },
+  },
+  COLLECT_RESULTS: {
+    description: "Wait for all delegated child tasks to complete and collect their results. Call this after spawning children with DELEGATE_TASK.",
+    schema: {
+      type: 'object',
+      properties: {
+        taskIds: {"type": "array", "items": {"type": "string"}, "description": "Array of taskId strings returned by DELEGATE_TASK calls"},
+        timeoutMs: {"type": "integer", "description": "Max wait time in milliseconds (default 120000 = 2 minutes)"},
+      },
+      required: ["taskIds"],
     },
   },
   // --- Generated from agent-tool-catalog.json ---

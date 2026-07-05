@@ -31,6 +31,12 @@ const READ_TOOLS = new Set<AgentTool>([
   'HUB_CATALOG', 'HUB_REMOTE_LIST',
   'DRY_RUN_TRANSITION',
   'VERIFY_INSCRIPTION', 'DIAGNOSE_TRANSITION',
+  // Master-parity read/observability tools (event line, knowledge, model snapshot,
+  // place navigation, tool-net library health) — routed through the master executor.
+  'DESCRIBE_PLACE', 'OBSERVE_MODEL',
+  'SEARCH_KNOWLEDGE', 'READ_BLOB_TEXT',
+  'QUERY_EVENTS', 'GET_EVENT_FACETS', 'GET_EVENT_TRAIL',
+  'TOOLNET_HEALTH', 'TOOLNET_CANDIDATES', 'AWAIT_TOKEN',
 ]);
 
 const WRITE_TOOLS = new Set<AgentTool>([
@@ -41,12 +47,16 @@ const WRITE_TOOLS = new Set<AgentTool>([
   'PACKAGE_PUBLISH', 'PACKAGE_INSTALL',
   'HUB_PUBLISH', 'HUB_INSTALL', 'HUB_UNPUBLISH', 'HUB_REMOTE_ADD', 'HUB_REMOTE_REMOVE',
   'TAG_SESSION', 'REGISTER_TOOL_NET', 'SCAFFOLD_TOOL_NET',
+  'PROMOTE_TOOL_NET',
 ]);
 
 const EXECUTE_TOOLS = new Set<AgentTool>([
   'DEPLOY_TRANSITION', 'START_TRANSITION', 'STOP_TRANSITION', 'FIRE_ONCE', 'EXECUTE_TRANSITION', 'EXECUTE_TRANSITION_SMART',
   'DOCKER_RUN', 'DOCKER_STOP', 'DOCKER_LIST', 'DOCKER_LOGS',
   'INVOKE_TOOL_NET',
+  // Master-parity coordination tools (delegate to / invoke personas, collect results) —
+  // routed through the master executor.
+  'INVOKE_PERSONA', 'DELEGATE_TASK', 'COLLECT_RESULTS',
 ]);
 
 const CONTROL_TOOLS = new Set<AgentTool>(['THINK', 'DONE', 'FAIL']);
