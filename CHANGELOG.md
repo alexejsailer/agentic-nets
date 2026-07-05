@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-07-05
+
+### Added
+- **MCP server — NetHub tools + major capability expansion** (`agentic-net-mcp`, now 104 tools). Curated NetHub tools: `hub_publish` (net/session/model, versioned, credential-scrubbed), `hub_search` (compact, paginated, true totals — local or a peer via `remote`), `hub_show` (inspect an artifact's versions / kind / token policy / readme / size before installing), `hub_install` (a model artifact creates a new model that is immediately targetable), `hub_add_remote` (P2P federation). Plus client-hosted transitions (`host_transition`/`unhost_transition` — the MCP process runs llm/agent lanes locally via the CLI), autonomous personas (`spawn_persona`), session crystallization, a model kill switch (`pause_model`/`resume_model`), full model lifecycle (`create_model`/`list_models`), and `DELETE_TRANSITION`. The native UPPERCASE tool layer now tracks the full platform catalog automatically.
+- **NetHub client surface + gateway opt-in public catalog** (`agentic-net-cli` `HUB_*` tools; `agentic-net-gateway`). Gateway `gateway.hub.public-catalog` (`AGENTICOS_HUB_PUBLIC_CATALOG`, default `false`) permits anonymous GET `/api/hub/public/**` and folds `/api/packages/**` GET under the same flag — the default is now "no token ⇒ nothing".
+
+### Changed
+- **Default Ollama models migrated off retiring cloud models** (`agentic-net-cli` config; `deployment/.env.template`, `deployment/README.md`). Matching core: tiers on `deepseek-v4-pro:cloud` (low `deepseek-v4-flash:cloud`), post-THINK `glm-5.2:cloud`, replacing the retiring `deepseek-v3.1:671b` / `gemini-3-flash-preview` / `qwen3-coder:480b`.
+
+### Fixed
+- **MCP `hub_search` output** (`agentic-net-mcp`). Returns a compact projection with `limit`/`offset` paging (local and remote) and an honest "showing N of M / how to page" hint, instead of dumping up to 50 full artifact objects with a page-size `total`.
+
 ## [2.17.0] - 2026-07-03
 
 ### Added
