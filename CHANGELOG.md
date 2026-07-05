@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.2] - 2026-07-05
+
+### Changed
+- **Deployment pinned to 2.18.2** (`deployment/` — `.env.template`, `docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`). `AGENTICNETOS_VERSION` now defaults to `2.18.2` so `docker compose up` runs the current image set, which includes the `agentic-net-master` hotfixes 2.18.1–2.18.2 (reject unavailable tool calls; knowledge-seed docs work under `java -jar` + classpath fallback — see `core/CHANGELOG.md`). The open-source services (gateway, executor, vault, cli, chat, blobstore) are unchanged from 2.18.0 and are republished under the 2.18.2 tag for a consistent, reproducible set.
+
 ## [2.18.0] - 2026-07-05
 
 ### Added
