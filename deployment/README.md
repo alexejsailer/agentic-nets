@@ -119,7 +119,7 @@ This is the fastest path for the Universal Assistant and Builder personas.
 
 An Ollama container (`agenticnetos-ollama`) ships inside the compose stack — you do **not** need to install Ollama on your host.
 
-The default `.env.template` model is `deepseek-v3.1:671b-cloud`, a cloud-suffixed Ollama model routed through `ollama.com`. After `docker compose up -d`, authenticate the bundled Ollama container once:
+The default `.env.template` model is `deepseek-v4-pro:cloud`, a cloud-suffixed Ollama model routed through `ollama.com`. After `docker compose up -d`, authenticate the bundled Ollama container once:
 
 ```bash
 docker exec -it agenticnetos-ollama ollama signin
@@ -176,8 +176,8 @@ OPENAI_API_KEY=sk-...
 | `ANTHROPIC_API_KEY` | Claude only | empty | Anthropic API key. |
 | `OPENAI_API_KEY` | OpenAI only | empty | OpenAI API key. |
 | `OLLAMA_BASE_URL` | Ollama only | `http://ollama:11434` | Ollama endpoint reachable from containers. Points at the bundled `agenticnetos-ollama` service. Override for host-Ollama (Docker Desktop: `http://host.docker.internal:11434`; Linux: `http://172.17.0.1:11434`). |
-| `OLLAMA_MODEL` | Ollama only | `deepseek-v3.1:671b-cloud` | Single model used by master. Requires `ollama signin`; change to a pulled local tag for offline use. |
-| `OLLAMA_HIGH_MODEL`, `OLLAMA_MEDIUM_MODEL`, `OLLAMA_LOW_MODEL` | Ollama only | `deepseek-v3.1:671b-cloud` | Tiered model routing for CLI/chat. Requires `ollama signin`; change to pulled local tags for offline use. |
+| `OLLAMA_MODEL` | Ollama only | `deepseek-v4-pro:cloud` | Single model used by master. Requires `ollama signin`; change to a pulled local tag for offline use. |
+| `OLLAMA_HIGH_MODEL`, `OLLAMA_MEDIUM_MODEL`, `OLLAMA_LOW_MODEL` | Ollama only | `deepseek-v4-pro:cloud` (low=`deepseek-v4-flash:cloud`) | Tiered model routing for CLI/chat. Requires `ollama signin`; change to pulled local tags for offline use. |
 | `AGENTICOS_ADMIN_SECRET` | Shared envs | generated | Gateway admin client secret. Empty means auto-generate under `data/gateway/jwt/admin-secret`. |
 | `AGENTICOS_SETTINGS_KEY` | Shared envs | empty | Stable encryption key for persisted settings/credentials. |
 | `OPENBAO_DEV_ROOT_TOKEN` | Yes | `agenticos-dev-token` | OpenBao dev token used by the local vault stack. Change before sharing. |

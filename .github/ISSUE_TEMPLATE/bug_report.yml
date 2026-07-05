@@ -60,7 +60,7 @@ body:
     attributes:
       label: LLM provider and model
       description: Required only when the issue involves LLM, agent, CLI, chat, or transition behavior.
-      placeholder: "ollama deepseek-v3.1:671b-cloud, claude, openai, none"
+      placeholder: "ollama deepseek-v4-pro:cloud, claude, openai, none"
   - type: textarea
     id: expected
     attributes:

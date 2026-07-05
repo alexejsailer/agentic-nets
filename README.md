@@ -302,7 +302,7 @@ cp .env.template .env
 # 3. Edit .env and choose ONE provider:
 #    Claude: LLM_PROVIDER=claude + ANTHROPIC_API_KEY=sk-ant-...
 #    Ollama: LLM_PROVIDER=ollama (bundled container — no host install required).
-#            Default model: deepseek-v3.1:671b-cloud (routes through ollama.com,
+#            Default model: deepseek-v4-pro:cloud (routes through ollama.com,
 #            requires a one-time login — see step 5). To run fully offline instead,
 #            set OLLAMA_MODEL (and the HIGH/MEDIUM/LOW tiers) to a local tag
 #            like llama3.2 before starting the stack.

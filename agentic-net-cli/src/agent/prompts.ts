@@ -335,8 +335,8 @@ Agent transitions (\`kind: "agent"\`) can declare **two** LLM models and a point
   "role": "rwxh",
   "llmMode": "api",
   "binary": "claude",
-  "toolsModel": "kimi-k2.5:cloud",
-  "thinkingModel": "deepseek-v3.1:671b-cloud",
+  "toolsModel": "deepseek-v4-pro:cloud",
+  "thinkingModel": "glm-5.2:cloud",
   "activeTier": "tools"
 }
 \`\`\`
@@ -356,7 +356,7 @@ SET_INSCRIPTION({ transitionId: "<id>", patch: { "action": { "activeTier": "thin
 Takes effect on the NEXT fire. The currently running fire finishes on the pre-flip tier.
 
 Model naming:
-- \`llmMode=api\` + Ollama master → Ollama model names (\`kimi-k2.5:cloud\`, \`deepseek-v3.1:671b-cloud\`, \`llama3.2\`)
+- \`llmMode=api\` + Ollama master → Ollama model names (\`deepseek-v4-pro:cloud\`, \`deepseek-v4-flash:cloud\`, \`glm-5.2:cloud\`)
 - \`llmMode=api\` + Anthropic master → \`claude-haiku-4-5\`, \`claude-sonnet-4-6\`
 - \`llmMode=bash\` + \`binary=claude\` → \`haiku\`, \`sonnet\`, \`opus\` (Claude Code short names; no API key — uses master host's \`claude\` OAuth)
 - \`llmMode=bash\` + \`binary=codex\` → Codex CLI model names
