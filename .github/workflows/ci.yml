@@ -111,7 +111,10 @@ jobs:
         run: docker build --no-cache -f deployment/dockerfiles/Dockerfile.agentic-net-gateway -t agenticos-gateway:ci agentic-net-gateway/
 
       - name: Build Docker image - executor
-        run: docker build --no-cache -f deployment/dockerfiles/Dockerfile.agentic-net-executor -t agenticos-executor:ci agentic-net-executor/
+        # The executor Dockerfile pulls its entrypoint from a named build context
+        # ("scripts"), declared via additional_contexts in docker-compose.yml. A plain
+        # `docker build` must supply it explicitly or `COPY --from=scripts …` fails.
+        run: docker build --no-cache --build-context scripts=deployment/scripts -f deployment/dockerfiles/Dockerfile.agentic-net-executor -t agenticos-executor:ci agentic-net-executor/
 
       - name: Build Docker image - vault
         run: docker build --no-cache -f deployment/dockerfiles/Dockerfile.agentic-net-vault -t agenticos-vault:ci agentic-net-vault/
