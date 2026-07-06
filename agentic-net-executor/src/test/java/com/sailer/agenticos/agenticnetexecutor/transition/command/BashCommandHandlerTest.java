@@ -21,8 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BashCommandHandlerTest {
 
     private final ObjectMapper om = new ObjectMapper();
-    // blobStoreClient is only used for binaryUrn results, which none of these tokens request → null is safe.
-    private final BashCommandHandler handler = new BashCommandHandler(om, null, 600_000L);
+    // blobStoreClient is only touched for binaryUrn results or when a stream exceeds the offload
+    // threshold; these tokens request neither and produce tiny output → null is safe.
+    private final BashCommandHandler handler = new BashCommandHandler(om, null, 600_000L, 131072L, 2000, "", "");
 
     private CommandToken exec(ObjectNode args) {
         return new CommandToken("command", "cmd-1", "bash", "exec", args, "json", null, null, null);
@@ -150,7 +151,7 @@ class BashCommandHandlerTest {
     void timeoutIsCappedByConfiguredMaximum() {
         // A handler with a tiny max timeout must clamp an absurdly large per-command timeout down to the max,
         // so a runaway command can't request an unbounded wait (Math.min(timeoutMs, maxTimeoutMs)).
-        BashCommandHandler capped = new BashCommandHandler(om, null, 400L);
+        BashCommandHandler capped = new BashCommandHandler(om, null, 400L, 131072L, 2000, "", "");
         ObjectNode a = args();
         a.put("command", "sleep 30");
         a.put("timeoutMs", 999_999_999L); // far above the 400ms cap

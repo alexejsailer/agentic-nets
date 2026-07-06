@@ -16,9 +16,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * Command handler for bash/shell operations.
@@ -43,22 +46,88 @@ public class BashCommandHandler implements CommandHandler {
 
     private static final long DEFAULT_TIMEOUT_MS = 60000; // 60 seconds
     private static final long DEFAULT_MAX_TIMEOUT_MS = 600000; // 10 minutes
+    // Master's inbound WebFlux codec caps request bodies at 256KB; keep the offload
+    // threshold safely under that so a big stdout never blows up the result emit.
+    private static final long DEFAULT_STDOUT_MAX_INLINE_BYTES = 131072; // 128KB
 
     private final ObjectMapper objectMapper;
     private final BlobStoreClient blobStoreClient;
     private final long maxTimeoutMs;
+    private final long stdoutMaxInlineBytes;
+    private final int stdoutPreviewChars;
+    // Command policy (default empty = allow everything). A denylist match is always rejected;
+    // when an allowlist is set, a command must match at least one entry to run.
+    private final List<Pattern> denyPatterns;
+    private final List<Pattern> allowPatterns;
     private final String shellBinary;
 
     public BashCommandHandler(ObjectMapper objectMapper, BlobStoreClient blobStoreClient,
-                              @org.springframework.beans.factory.annotation.Value("${executor.command.max-timeout-ms:600000}") long maxTimeoutMs) {
+                              @org.springframework.beans.factory.annotation.Value("${executor.command.max-timeout-ms:600000}") long maxTimeoutMs,
+                              @org.springframework.beans.factory.annotation.Value("${executor.command.stdout.max-inline-bytes:131072}") long stdoutMaxInlineBytes,
+                              @org.springframework.beans.factory.annotation.Value("${executor.command.stdout.preview-chars:2000}") int stdoutPreviewChars,
+                              @org.springframework.beans.factory.annotation.Value("${executor.command.bash.denylist:}") String denylist,
+                              @org.springframework.beans.factory.annotation.Value("${executor.command.bash.allowlist:}") String allowlist) {
         this.objectMapper = objectMapper;
         this.blobStoreClient = blobStoreClient;
         this.maxTimeoutMs = maxTimeoutMs > 0 ? maxTimeoutMs : DEFAULT_MAX_TIMEOUT_MS;
+        this.stdoutMaxInlineBytes = stdoutMaxInlineBytes > 0 ? stdoutMaxInlineBytes : DEFAULT_STDOUT_MAX_INLINE_BYTES;
+        this.stdoutPreviewChars = stdoutPreviewChars > 0 ? stdoutPreviewChars : 2000;
+        this.denyPatterns = compilePolicyPatterns(denylist);
+        this.allowPatterns = compilePolicyPatterns(allowlist);
         this.shellBinary = detectShell();
         if (this.maxTimeoutMs != DEFAULT_MAX_TIMEOUT_MS) {
             logger.info("Command max timeout configured: {}ms ({}h {}m)", this.maxTimeoutMs,
                     this.maxTimeoutMs / 3600000, (this.maxTimeoutMs % 3600000) / 60000);
         }
+        if (!denyPatterns.isEmpty() || !allowPatterns.isEmpty()) {
+            logger.info("Bash command policy active: {} deny pattern(s), {} allow pattern(s)",
+                    denyPatterns.size(), allowPatterns.size());
+        }
+    }
+
+    /**
+     * Compile a comma-separated list of case-insensitive regexes. Invalid patterns are skipped
+     * with a warning rather than failing startup. (Counted quantifiers like {@code a{2,3}} would
+     * split on the comma — use {@code a{2,}} / repetition instead in a policy pattern.)
+     */
+    private static List<Pattern> compilePolicyPatterns(String raw) {
+        List<Pattern> out = new ArrayList<>();
+        if (raw == null || raw.isBlank()) return out;
+        for (String part : raw.split("[,\\n]")) {
+            String p = part.trim();
+            if (p.isEmpty()) continue;
+            try {
+                out.add(Pattern.compile(p, Pattern.CASE_INSENSITIVE));
+            } catch (Exception e) {
+                logger.warn("Ignoring invalid bash command policy regex '{}': {}", p, e.getMessage());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Apply the allow/deny policy to a resolved command string. Returns an error message when the
+     * command is blocked, or null when it is permitted. Default (no patterns) permits everything.
+     */
+    private String checkCommandPolicy(String command) {
+        if (command == null) return null;
+        for (Pattern deny : denyPatterns) {
+            if (deny.matcher(command).find()) {
+                logger.warn("Command blocked by executor denylist ({}): {}", deny.pattern(), command);
+                return "command blocked by executor policy (denylist match: " + deny.pattern() + ")";
+            }
+        }
+        if (!allowPatterns.isEmpty()) {
+            boolean allowed = false;
+            for (Pattern allow : allowPatterns) {
+                if (allow.matcher(command).find()) { allowed = true; break; }
+            }
+            if (!allowed) {
+                logger.warn("Command blocked by executor allowlist (no match): {}", command);
+                return "command blocked by executor policy (not in allowlist)";
+            }
+        }
+        return null;
     }
 
     /**
@@ -101,19 +170,24 @@ public class BashCommandHandler implements CommandHandler {
 
         JsonNode args = parseArgsIfStringified(token.args());
 
+        String commandText;
         if ("exec".equals(token.command())) {
             if (args == null || !args.has("command") || args.get("command").isNull()
                     || args.get("command").asText().isBlank()) {
                 return "Required field 'command' is missing in args for 'exec' command";
             }
+            commandText = args.get("command").asText();
         } else if ("script".equals(token.command())) {
             if (args == null || !args.has("script") || args.get("script").isNull()
                     || args.get("script").asText().isBlank()) {
                 return "Required field 'script' is missing in args for 'script' command";
             }
+            commandText = args.get("script").asText();
+        } else {
+            commandText = null;
         }
 
-        return null;
+        return checkCommandPolicy(commandText);
     }
 
     @Override
@@ -202,7 +276,7 @@ public class BashCommandHandler implements CommandHandler {
             pb.redirectErrorStream(true);
         }
 
-        JsonNode processResult = runProcess(pb, timeoutMs, command);
+        JsonNode processResult = runProcess(pb, timeoutMs, command, token);
 
         // Handle binary URN result if configured
         if (token.isBinaryUrn()) {
@@ -246,7 +320,7 @@ public class BashCommandHandler implements CommandHandler {
                 pb.redirectErrorStream(true);
             }
 
-            JsonNode processResult = runProcess(pb, timeoutMs, "script");
+            JsonNode processResult = runProcess(pb, timeoutMs, "script", token);
 
             // Handle binary URN result if configured
             if (token.isBinaryUrn()) {
@@ -259,7 +333,7 @@ public class BashCommandHandler implements CommandHandler {
         }
     }
 
-    private JsonNode runProcess(ProcessBuilder pb, long timeoutMs, String commandDesc) throws Exception {
+    private JsonNode runProcess(ProcessBuilder pb, long timeoutMs, String commandDesc, CommandToken token) throws Exception {
         Process process = pb.start();
 
         StringBuilder stdout = new StringBuilder();
@@ -316,11 +390,52 @@ public class BashCommandHandler implements CommandHandler {
         result.put("success", exitCode == 0);
         result.put("command", commandDesc);
 
+        // Keep huge output out of the inline token (would otherwise blow the master's 256KB
+        // codec limit) — offload it to the blobstore and leave a preview + urn behind.
+        maybeOffloadLargeStream(result, "stdout", token);
+        maybeOffloadLargeStream(result, "stderr", token);
+
         if (exitCode != 0) {
             logger.warn("Command '{}' exited with code {}: {}", commandDesc, exitCode, stderr);
         }
 
         return result;
+    }
+
+    /**
+     * If a result stream exceeds the inline threshold, upload the full text to the blobstore
+     * and replace the inline field with a short preview plus {@code <field>Urn/Bytes/Truncated}.
+     * Best-effort: on upload failure the field is hard-truncated to the preview so the result
+     * token still lands (a bounded token beats a lost one).
+     */
+    private void maybeOffloadLargeStream(ObjectNode result, String field, CommandToken token) {
+        if (stdoutMaxInlineBytes <= 0) return; // offload disabled
+        JsonNode node = result.get(field);
+        if (node == null || !node.isTextual()) return;
+        String text = node.asText();
+        if (text.isEmpty()) return;
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length <= stdoutMaxInlineBytes) return;
+
+        String preview = text.length() > stdoutPreviewChars ? text.substring(0, stdoutPreviewChars) : text;
+        try {
+            String host = token != null ? token.getBlobStoreHost() : null;
+            String idStrategy = token != null ? token.getBlobStoreIdStrategy() : null;
+            BlobUploadResult uploaded = blobStoreClient.upload(
+                    host, bytes, "text/plain; charset=utf-8", idStrategy, field + ".txt");
+            result.put(field, preview);
+            result.put(field + "Urn", uploaded.urn());
+            result.put(field + "Bytes", uploaded.size());
+            result.put(field + "Truncated", true);
+            logger.info("Offloaded large {} ({} bytes) to blob {}", field, bytes.length, uploaded.urn());
+        } catch (Exception e) {
+            // Blobstore unreachable — still bound the token so the result survives the emit.
+            logger.warn("Failed to offload large {} ({} bytes) to blobstore: {}", field, bytes.length, e.getMessage());
+            result.put(field, preview);
+            result.put(field + "Bytes", (long) bytes.length);
+            result.put(field + "Truncated", true);
+            result.put(field + "OffloadError", e.getMessage());
+        }
     }
 
     /**
