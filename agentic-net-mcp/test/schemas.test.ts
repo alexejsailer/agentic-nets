@@ -49,6 +49,8 @@ const CURATED = [
   'memory_recall',
   'memory_link',
   'memory_graph',
+  'domain_memory_write',
+  'domain_memory_recall',
   // net building
   'deploy_template',
   'create_net',
@@ -66,6 +68,7 @@ const CURATED = [
   'spawn_persona',
   'scaffold_tool_net',
   'invoke_tool_net',
+  'invoke_agent',
   'crystallize_session',
   // NetHub
   'hub_publish',
@@ -149,7 +152,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['event_trail', 'list_models', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_models', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
     );
   });
 

@@ -61,7 +61,7 @@ function registerMemoryReaders(server: McpServer, ctx: AppContext): void {
     get(target, prop, receiver) {
       if (prop === 'registerTool') {
         return (name: string, config: any, handler: any) => {
-          const readers = new Set(['memory_recall', 'memory_graph']);
+          const readers = new Set(['memory_recall', 'memory_graph', 'domain_memory_recall']);
           if (!readers.has(name)) return { name, disabled: true };
           return target.registerTool(name as any, config, handler);
         };

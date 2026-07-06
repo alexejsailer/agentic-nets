@@ -8,6 +8,12 @@
  * memory_write works WITHOUT the working-memory template deployed (it auto-creates
  * the runtime place); deploying the template later upgrades the very same places
  * with the always-on distiller — ids match by design.
+ *
+ * domain_memory_write / domain_memory_recall are the same idea against the model's
+ * OWN durable memory base — the `p-{model}-domain-{knowledge|journal|insights}` places
+ * of its domain net, which the master MEMORY_WRITE tool and the domain-expert persona
+ * also use. So a memory written from Maestro, an agent, or the MCP is visible to all of
+ * them. Added alongside p-mem-* (which is unchanged).
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -196,6 +202,96 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         }
       }
       return { query: args.query, matches, count: matches.length };
+    }),
+  );
+
+  // --- Domain memory: the model's OWN durable memory base, in its domain net ---
+  // Same idea as memory_write/recall, but the places are `p-{model}-domain-{store}` — the
+  // exact places the master's MEMORY_WRITE and the domain-expert persona use, so a memory
+  // written from any of them is visible to all of them. Added ALONGSIDE p-mem-* (unchanged).
+  const DOMAIN_STORES = ['knowledge', 'journal', 'insights'] as const;
+  const domainPlace = (model: string, store: string): string => `p-${model}-domain-${store}`;
+  const resolveDomainStore = (s?: string): (typeof DOMAIN_STORES)[number] => {
+    const n = (s ?? 'knowledge').trim().toLowerCase();
+    if ((DOMAIN_STORES as readonly string[]).includes(n)) return n as (typeof DOMAIN_STORES)[number];
+    throw new Error(`store must be one of ${DOMAIN_STORES.join(', ')}`);
+  };
+
+  server.registerTool(
+    'domain_memory_write',
+    {
+      title: "Write to the model's domain memory base",
+      description:
+        "Persist a memory into THIS model's domain net (p-{model}-domain-{store}) — its durable, shared knowledge/memory base, the same one the master MEMORY_WRITE tool and the domain-expert persona use. Store: knowledge (default, durable facts/capabilities), journal (what happened), insights.",
+      inputSchema: {
+        content: z.string().optional().describe('The memory as prose (stored as {content})'),
+        data: z.record(z.any()).optional().describe('Structured fields to store alongside/instead of content'),
+        store: z.string().optional().describe('knowledge (default) | journal | insights'),
+        type: z.string().optional().describe('Optional item type/category'),
+        tags: z.array(z.string()).optional(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'domain_memory_write', mutates: true }, async (model, args) => {
+      if (!args.content && !args.data) throw new Error('provide content and/or data');
+      const store = resolveDomainStore(args.store);
+      const placeId = domainPlace(model, store);
+      await ensurePlace(ctx, model, placeId);
+      const data = {
+        kind: 'domain-memory',
+        ...(args.content ? { content: args.content } : {}),
+        ...(args.data ?? {}),
+        ...(args.type ? { type: args.type } : {}),
+        ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
+        createdAt: new Date().toISOString(),
+        source: 'mcp',
+      };
+      const res = await ctx.executorFor(model).execute('CREATE_TOKEN', { placePath: placePath(placeId), data });
+      if (!res.success) throw new Error(res.error ?? 'CREATE_TOKEN failed');
+      return { stored: true, store, place: placeId };
+    }),
+  );
+
+  server.registerTool(
+    'domain_memory_recall',
+    {
+      title: "Recall from the model's domain memory base",
+      description:
+        "Read memories previously stored in THIS model's domain net (p-{model}-domain-{store}), newest first. Query: an ArcQL string starting with 'FROM ', or a plain substring matched across token fields.",
+      inputSchema: {
+        store: z.string().optional().describe('knowledge (default) | journal | insights'),
+        query: z.string().optional().describe('ArcQL (starts with "FROM ") or a plain substring; omit for most-recent'),
+        limit: z.number().optional().describe('Max matches (default 20)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'domain_memory_recall', mutates: false }, async (model, args) => {
+      const store = resolveDomainStore(args.store);
+      const placeId = domainPlace(model, store);
+      const limit = args.limit ?? 20;
+      const query = (args.query ?? '').trim();
+      const isArcql = /^\s*FROM\s/i.test(query);
+      const needle = query.toLowerCase();
+      let tokens: any[];
+      if (isArcql) {
+        const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+          placePath: placePath(placeId),
+          query,
+          maxValueLength: 400,
+        });
+        tokens = res.success
+          ? (Array.isArray(res.data) ? res.data : (res.data?.results ?? res.data?.tokens ?? []))
+          : [];
+      } else {
+        tokens = await fetchTokens(ctx, model, placeId).catch(() => []);
+      }
+      const matches: any[] = [];
+      for (const t of tokens) {
+        if (!isArcql && needle && !JSON.stringify(t).toLowerCase().includes(needle)) continue;
+        matches.push({ place: placeId, preview: previewOf(t), token: t });
+        if (matches.length >= limit) break;
+      }
+      return { store, place: placeId, matches, count: matches.length };
     }),
   );
 

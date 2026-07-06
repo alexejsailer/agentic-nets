@@ -23,6 +23,11 @@ are gone. ${models}
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
   related context with memory_graph; connect places with memory_link.
+- Persist into the MODEL's OWN memory base (shared with the domain-expert persona and the
+  Maestro/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
+  model's domain net (p-{model}-domain-{knowledge|journal|insights}). Use this when the memory
+  belongs to the model/domain itself and should be visible to every agent that reaches it, rather
+  than to this MCP session's working-memory (p-mem-*).
 - Give the user a ready-made system: deploy_template (working-memory | dev-team | brain | watcher
   | blank). dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
   fire_once t-team-claim, do the work, fire_once t-team-submit / t-team-complete. watcher is the
