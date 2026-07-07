@@ -12,7 +12,7 @@
  * domain_memory_write / domain_memory_recall are the same idea against the model's
  * OWN durable memory base — the `p-{model}-domain-{knowledge|journal|insights}` places
  * of its domain net, which the master MEMORY_WRITE tool and the domain-expert persona
- * also use. So a memory written from Maestro, an agent, or the MCP is visible to all of
+ * also use. So a memory written from Genesis, an agent, or the MCP is visible to all of
  * them. Added alongside p-mem-* (which is unchanged).
  */
 import { z } from 'zod';

@@ -24,7 +24,7 @@ are gone. ${models}
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
   related context with memory_graph; connect places with memory_link.
 - Persist into the MODEL's OWN memory base (shared with the domain-expert persona and the
-  Maestro/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
+  Genesis/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
   model's domain net (p-{model}-domain-{knowledge|journal|insights}). Use this when the memory
   belongs to the model/domain itself and should be visible to every agent that reaches it, rather
   than to this MCP session's working-memory (p-mem-*).
