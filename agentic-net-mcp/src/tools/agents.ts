@@ -2,7 +2,7 @@
  * Agent-invocation curated tool — let an MCP client USE the platform agents (the same
  * ones the GUI Universal Assistant drives), not just their tools.
  *
- * `invoke_agent` delegates a task to a named persona (builder / operator / genesis /
+ * `invoke_agent` delegates a task to a named persona (builder / operator / persona /
  * domain-expert / chronicle) via the master's INVOKE_PERSONA tool, then blocks on
  * COLLECT_RESULTS and returns the outcome — one call, a result. It runs the SAME
  * AgentToolExecutor + agent loop the Universal Assistant uses, so the MCP client gets
@@ -16,7 +16,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
 
-const AGENTS = ['builder', 'operator', 'genesis', 'domain-expert', 'chronicle'] as const;
+const AGENTS = ['builder', 'operator', 'persona', 'domain-expert', 'chronicle'] as const;
 
 export function registerAgentTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
@@ -31,7 +31,7 @@ export function registerAgentTools(server: McpServer, ctx: AppContext): void {
       description:
         'Delegate a task to one of the platform agents and block until it finishes, returning its result. ' +
         'Agents: "builder" authors nets/places/transitions/inscriptions and deploys them; "operator" diagnoses ' +
-        'and repairs running nets; "genesis" does user-personal work on genesis-inhabited models; "domain-expert" ' +
+        'and repairs running nets; "persona" does user-personal work on persona-inhabited models; "domain-expert" ' +
         'answers deep questions; "chronicle" summarizes/records. This runs the SAME agent loop and unified tool ' +
         'framework the GUI Universal Assistant uses. For fire-and-forget or parallel fan-out, use the native ' +
         'DELEGATE_TASK / INVOKE_PERSONA + COLLECT_RESULTS tools instead.',

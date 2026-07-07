@@ -43,7 +43,7 @@ bash "$SD/place-tokens.sh" delete <modelId> <targetPlace> <id>     # drain a few
 ```bash
 bash "$SD/drive-persona.sh" universal <modelId> "list the running transitions and flag any in error"
 bash "$SD/drive-persona.sh" operator  <modelId> "why is t-forum-poll not firing?"
-bash "$SD/drive-persona.sh" genesis    <modelId> "build me a net that watches an RSS feed and files new items"
+bash "$SD/drive-persona.sh" persona    <modelId> "build me a net that watches an RSS feed and files new items"
 ```
 
 ## Build a tool-net with Forge

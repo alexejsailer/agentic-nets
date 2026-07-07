@@ -38,7 +38,7 @@ export function createServer(ctx: AppContext): McpServer {
   } else {
     registerMemoryTools(server, ctx);
     registerNetTools(server, ctx);
-    // Invoke the platform agents (builder/operator/genesis/...) — same agent loop as the GUI.
+    // Invoke the platform agents (builder/operator/persona/...) — same agent loop as the GUI.
     registerAgentTools(server, ctx);
     // NetHub — publish/discover/install artifacts across instances.
     registerHubTools(server, ctx);

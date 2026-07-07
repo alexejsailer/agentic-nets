@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "agenticos-control",
-      "description": "Inspect, operate, author, and diagnose Agentic-Nets; drive the Universal Assistant / Genesis / Forge personas; export net diagrams. CLI-first with a curl fallback (direct or gateway OAuth2).",
+      "description": "Inspect, operate, author, and diagnose Agentic-Nets; drive the Universal Assistant / Persona / Forge personas; export net diagrams. CLI-first with a curl fallback (direct or gateway OAuth2).",
       "version": "0.1.0",
       "author": {
         "name": "Alexej Sailer"

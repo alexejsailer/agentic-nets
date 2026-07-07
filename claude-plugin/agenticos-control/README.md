@@ -2,7 +2,7 @@
 
 A Claude Code plugin that lets any Claude Code session **fully control an AgenticOS / AgenticNetOS stack**:
 inspect Agentic-Nets, read and edit places/tokens, drive the designtime + runtime REST APIs, fire and diagnose
-transitions, author nets, drive the built-in personas (Universal Assistant / Genesis / Forge), and export net
+transitions, author nets, drive the built-in personas (Universal Assistant / Persona / Forge), and export net
 diagrams. It is **CLI-first** (uses the public `agenticos` CLI when present) with a **curl fallback** that works
 in either **direct** mode (local dev, no auth) or **gateway** mode (remote, OAuth2).
 

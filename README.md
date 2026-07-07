@@ -120,7 +120,7 @@ write-capable assistant personas.
 
 You can still ask questions from the monitor. The chat is pinned to the
 **Domain Expert (read-only)** persona, which can explain what is happening in
-the visible system. The normal Universal Assistant, Workflow Builder, Genesis,
+the visible system. The normal Universal Assistant, Workflow Builder, Persona,
 and other write-capable personas are reserved for authenticated Studio use.
 
 ## What you can model with it
@@ -188,7 +188,7 @@ governed by default.
 |---|---|
 | **Tools** | Reusable **tool-nets** (self-describing capability nets you invoke, version, and share), **Docker tool containers** agents start on demand, and `http` / `command` transitions |
 | **Control flow** | **Nets** wired from seven transition types — deterministic (`pass` / `map` / `http`) and AI (`llm` / `agent`) lanes on the same graph, with conditional routing and capacity gates |
-| **Agents** | **`agent` transitions** and ready-made **assistant personas** — a Universal Assistant front door, a Workflow Builder, a Genesis specialist-builder, plus operator / domain-expert roles |
+| **Agents** | **`agent` transitions** and ready-made **assistant personas** — a Universal Assistant front door, a Workflow Builder, a Persona specialist-builder, plus operator / domain-expert roles |
 | **Memory & state** | **Places + tokens** — typed, timestamped state queryable live with **ArcQL** — and `EMIT_MEMORY`, instead of a chat session that vanishes |
 | **Execution** | Distributed **executors** that poll egress-only (firewall-friendly, deployable anywhere) and run scoped work in **Docker** |
 | **Governance** | **`rwxhludct` capability roles** enforced at dispatch (not in the prompt) and **Vault** secrets injected only at action time |
@@ -205,7 +205,7 @@ happens, and set the whole thing up by clicking — create models, sessions, net
 places, transitions, and inscriptions, deploy them, and adapt anything live. The
 Studio ships **several built-in assistant agents** — a Universal Assistant front
 door, a Workflow Builder that lays down and deploys whole nets from plain
-language, a Genesis specialist-builder, plus operator and domain-expert roles —
+language, a Persona specialist-builder, plus operator and domain-expert roles —
 so you get the same *"just describe it"* power as an external coding agent, right
 inside the product. The **Forge** meta-agent builds new reusable tool-nets on
 demand.
@@ -396,7 +396,7 @@ Detailed install, env, verification, and troubleshooting:
 The [`agenticos-control`](claude-plugin/agenticos-control) **Claude Code plugin** turns any Claude Code
 session into a full control surface for a running stack: inspect nets, read and edit places and tokens, call
 the designtime and runtime REST APIs, fire and diagnose transitions, author nets, drive the Universal
-Assistant / Genesis / Forge personas, and export net diagrams. It is **CLI-first** (it uses the `agenticos`
+Assistant / Persona / Forge personas, and export net diagrams. It is **CLI-first** (it uses the `agenticos`
 CLI when it is installed) with a **curl fallback**, and works both **locally** (direct to the services) and
 **remotely** (through the gateway's OAuth2, so you can drive the whole thing from anywhere, even your phone).
 
@@ -431,7 +431,7 @@ slash commands:
 | `/agenticos-doctor` | Preflight the connection (resolved mode/auth/targets + reachability, no secrets) |
 | `/agenticos-inspect <modelId> [sessionId] [netId]` | Snapshot transitions and states, a session's nets, a net's places and live token counts |
 | `/agenticos-fire <modelId> <transitionId>` | Fire a transition once (handles the stop/fire/start dance) |
-| `/agenticos-persona <universal\|genesis\|...> <modelId> "<prompt>"` | Drive a persona and stream its reply |
+| `/agenticos-persona <universal\|persona\|...> <modelId> "<prompt>"` | Drive a persona and stream its reply |
 | `/agenticos-forge <modelId> "<intent>"` | Build a reusable tool-net from a plain-language intent |
 | `/agenticos-export <modelId> <sessionId> <netId>` | Export a net to JSON or PNML (then render a diagram) |
 

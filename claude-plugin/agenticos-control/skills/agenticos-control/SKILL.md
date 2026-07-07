@@ -1,6 +1,6 @@
 ---
 name: agenticos-control
-description: This skill should be used when the user asks to inspect, operate, diagnose, or author Agentic-Nets on an AgenticOS / AgenticNetOS stack. Triggers include listing nets/sessions/transitions, reading or editing places and tokens, calling the designtime or runtime REST APIs, firing or diagnosing a transition, doing token surgery, driving the Universal Assistant / Genesis / Forge personas, running a tool-net, or exporting a net diagram. Works CLI-first (the `agenticos` binary) with a curl fallback in direct or gateway (OAuth2) mode.
+description: This skill should be used when the user asks to inspect, operate, diagnose, or author Agentic-Nets on an AgenticOS / AgenticNetOS stack. Triggers include listing nets/sessions/transitions, reading or editing places and tokens, calling the designtime or runtime REST APIs, firing or diagnosing a transition, doing token surgery, driving the Universal Assistant / Persona / Forge personas, running a tool-net, or exporting a net diagram. Works CLI-first (the `agenticos` binary) with a curl fallback in direct or gateway (OAuth2) mode.
 version: 0.1.0
 ---
 
@@ -41,7 +41,7 @@ Prefer these ready-made scripts (all under `scripts/`, all source `anos.sh`):
 | Read / add / delete tokens in a place (token surgery) | `place-tokens.sh <get\|count\|post\|delete> <modelId> <place> [data\|tokenId]` |
 | Fire a transition once (handles the 409-while-running case) | `fire-transition.sh <modelId> <transitionId>` |
 | Diagnose a transition (state + error + recent events) | `diagnose.sh <modelId> <transitionId>` |
-| Drive a persona (Universal Assistant / Genesis / operator / any id) | `drive-persona.sh <persona> <modelId> "<prompt>"` |
+| Drive a persona (Universal Assistant / Persona / operator / any id) | `drive-persona.sh <persona> <modelId> "<prompt>"` |
 | Run Forge (build a tool-net from intent) | `forge-run.sh <modelId> "<intent>"` |
 | Export a net (JSON or PNML XML) to a file | `export-pnml.sh <modelId> <sessionId> <netId> [outPath] [--xml]` |
 

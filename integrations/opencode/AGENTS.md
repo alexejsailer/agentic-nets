@@ -19,7 +19,7 @@ disconnect. Everything here survives the session and is queryable.
   next time it is a single deterministic call.
 - **Drive the platform agents** — `invoke_agent` runs one of the built-in agents and returns
   its result: `builder` (authors nets/inscriptions and deploys them), `operator` (diagnoses
-  and repairs running nets), `genesis` (user-personal work), `domain-expert`, `chronicle`.
+  and repairs running nets), `persona` (user-personal work), `domain-expert`, `chronicle`.
   This is the same agent loop and tool framework the AgenticNetOS GUI's Universal Assistant
   uses — so from OpenCode you can say "have the builder create a net that ..." and get it built.
 - **Share & install** — NetHub `hub_search` / `hub_show` / `hub_install` / `hub_publish` to

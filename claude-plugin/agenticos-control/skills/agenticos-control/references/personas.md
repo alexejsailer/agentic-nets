@@ -11,7 +11,7 @@ can be invoked agent-to-agent. Drive one with `scripts/drive-persona.sh <persona
 | `assistant` (aliases: `universal`, `coordinator`) | Universal Assistant | `rwxhludct` | The single front door. Answers, acts, or delegates to any specialist. Driven at `/api/assistant/universal/{modelId}/...`. |
 | `builder` (alias `designtime`) | Workflow Builder | `rwxhl-d-t` | Designs/constructs nets: places, transitions, arcs, inscriptions, deploy. Builds + uses tool-nets. |
 | `operator` (aliases `observer`, `analyzer`, `debugger`) | Net Operator | `rwx-l-dct` | Diagnose/fix running nets (Observe -> Diagnose -> Fix -> Verify). Cannot create/delete nets. |
-| `genesis` | Genesis | `rwxhludct` | Meta-agent: talks to the user, then builds/deploys/starts a personal Agentic-Net and remembers it (`p-genesis-*`). |
+| `persona` | Persona | `rwxhludct` | Meta-agent: talks to the user, then builds/deploys/starts a personal Agentic-Net and remembers it (`p-persona-*`). |
 | `chronicle` | Session Chronicle | `rw---` | Records/analyzes/reports over time; writes only under `/chronicle/`. |
 | `domain-expert` | Domain Expert | `rwxh-` | Per-model memory layer; fills 5 domain places, routes questions. |
 | `domain-expert-readonly` | Domain Expert (read-only) | `r--hl` | Monitoring guest; its only side effect is filing a feature request token. |
@@ -34,5 +34,5 @@ scaffolds, and smoke-tests a **tool-net** (a reusable capability net) from a nat
    gathers results with `COLLECT_RESULTS`. Delegated children have `INVOKE_PERSONA` stripped (no recursive spawning).
 3. **One tool, no loop**: `POST /api/assistant/universal/{modelId}/tools/{toolName}/execute`.
 
-Genesis and the domain-expert personas auto-bootstrap a small memory skeleton (`p-genesis-*`,
+Persona and the domain-expert personas auto-bootstrap a small memory skeleton (`p-persona-*`,
 `p-{modelId}-domain-*`) on first `chat/start`.

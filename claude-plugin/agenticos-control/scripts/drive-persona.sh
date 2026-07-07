@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # drive-persona.sh <persona> <modelId> "<prompt>" [sessionId]
-#   persona: 'universal' (the Universal Assistant), 'genesis', 'operator', 'builder', or any personaId.
+#   persona: 'universal' (the Universal Assistant), 'persona', 'operator', 'builder', or any personaId.
 #   Drives the persona's agent loop and streams its reply. Prefers the `agenticos` CLI when present
 #   (nicer streaming); otherwise consumes the master's SSE agent-stream via curl.
 set -uo pipefail
@@ -8,7 +8,7 @@ SD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; source "$SD/anos.sh"
 
 PERSONA="${1:-}"; MODEL="${2:-${AGENTICOS_MODEL:-}}"; PROMPT="${3:-}"; SESSION="${4:-${AGENTICOS_SESSION:-}}"
 [ -n "$PERSONA" ] && [ -n "$MODEL" ] && [ -n "$PROMPT" ] || {
-  echo 'usage: drive-persona.sh <universal|genesis|operator|builder|personaId> <modelId> "<prompt>" [sessionId]'; exit 2; }
+  echo 'usage: drive-persona.sh <universal|persona|operator|builder|personaId> <modelId> "<prompt>" [sessionId]'; exit 2; }
 
 # CLI-first: use `agenticos persona` if the binary is present (best-effort; falls through to curl on error).
 if _anos_have_cli; then

@@ -20,7 +20,7 @@ In-net agents (and personas) get a **role** = nine independent capability flags.
 Named roles (canonical flag string): `READ_ONLY r----`, `READ_WRITE rw---`, `READ_WRITE_EXECUTE rwx--`,
 `FULL rwxh-`, `FULL_WITH_LOGS rwxhl`, `INHABITANT rwxhlu`, `INHABITANT_WITH_DOCKER rwxhlud`,
 `COORDINATOR rwxhludc`, `TOOL_BUILDER rwxhlud-t`. Full coordinator+tooling = `rwxhludct` (the Universal
-Assistant and Genesis). `THINK / DONE / FAIL` control tools are always available.
+Assistant and Persona). `THINK / DONE / FAIL` control tools are always available.
 
 ## Tool groups (representative members)
 

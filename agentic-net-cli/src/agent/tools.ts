@@ -973,7 +973,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     schema: {
       type: 'object',
       properties: {
-        placePath: {"type": "string", "description": "Place to watch, e.g. root/workspace/places/p-genesis-reply (a bare place name like p-genesis-reply is auto-corrected)"},
+        placePath: {"type": "string", "description": "Place to watch, e.g. root/workspace/places/p-persona-reply (a bare place name like p-persona-reply is auto-corrected)"},
         arcql: {"type": "string", "description": "ArcQL filter for the awaited token, e.g. FROM $ WHERE $.requestId==\"req-42\" LIMIT 1. Defaults to FROM $ LIMIT 1 (any token)."},
         timeoutMs: {"type": "integer", "description": "Max wait in milliseconds. Default 60000, clamped to [1000, 300000]."},
         pollIntervalMs: {"type": "integer", "description": "Poll interval in milliseconds. Default 1500, clamped to [500, 30000]."},
@@ -994,11 +994,11 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   INVOKE_PERSONA: {
-    description: "Delegate a task to a specific persona (builder, operator, chronicle, domain-expert, genesis). Returns taskId immediately. Use COLLECT_RESULTS to get the outcome.",
+    description: "Delegate a task to a specific persona (builder, operator, chronicle, domain-expert, persona). Returns taskId immediately. Use COLLECT_RESULTS to get the outcome.",
     schema: {
       type: 'object',
       properties: {
-        persona: {"type": "string", "description": "Persona to invoke: 'builder', 'operator', 'chronicle', 'domain-expert', or 'genesis'"},
+        persona: {"type": "string", "description": "Persona to invoke: 'builder', 'operator', 'chronicle', 'domain-expert', or 'persona'"},
         prompt: {"type": "string", "description": "Specific task description for the persona"},
         modelId: {"type": "string", "description": "Target model ID (defaults to current model)"},
         sessionId: {"type": "string", "description": "Target session ID (defaults to current session)"},
