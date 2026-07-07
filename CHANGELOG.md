@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-07-07
+
+### Changed
+- **Agent renames mirrored from core: Genesis → Persona, Maestro → Genesis** (`agentic-net-mcp`, `agentic-net-cli`, `claude-plugin/agenticos-control`, docs). The MCP `invoke_agent` AGENTS list and docstrings, CLI agent tools, and the agenticos-control plugin references (personas/recipes/skill/README) now address the persona-creator meta-agent as **`persona`** (formerly `genesis`) and the command-room agent as **`genesis`** (formerly `maestro`); `persona-inhabited` / `p-persona-*` replace the old `genesis-inhabited` / `p-genesis-*` conventions. ⚠️ If you script against `invoke_agent`, update `genesis` → `persona` where you meant the persona-creator (see `core/CHANGELOG.md` for the full breaking-change notes).
+
 ## [2.19.0] - 2026-07-07
 
 ### Added
