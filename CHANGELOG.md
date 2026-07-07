@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-07-07
+
+### Fixed
+- **A null command-token meta value can no longer wedge a command lane** (`agentic-net-executor` — `CommandResult`). `Map.copyOf` throws a bare NPE on null values, and command tokens routinely carry a template-resolved null (e.g. `{"_correlationId": null}` when an upstream field was missing). That NPE fired on both the success and failure construction paths, so the executor never produced a result, the token was never consumed, and the transition retried every ~2 s indefinitely (a real staging incident wedged the safe-teams QA test lane). The meta copy now drops null entries. +5 regression tests including the exact incident shape.
+
 ## [2.20.0] - 2026-07-07
 
 ### Changed
