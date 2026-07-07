@@ -56,7 +56,28 @@ public record CommandResult(
         this.error = error;
         this.durationMs = durationMs;
         this.completedAt = completedAt != null ? completedAt : Instant.now();
-        this.meta = meta != null ? Map.copyOf(meta) : Map.of();
+        this.meta = sanitizeMeta(meta);
+    }
+
+    /**
+     * Null-tolerant defensive copy. {@code Map.copyOf} throws a bare NPE on null keys/values,
+     * and command-token meta routinely carries template-resolved nulls (e.g.
+     * {@code {"_correlationId": null}} when an upstream field was missing). That NPE fired on
+     * BOTH the success path and the {@code CommandResult.failed(...)} path, so the orchestrator
+     * could never produce a result, the token was never consumed, and the transition wedged in
+     * a ~2s retry loop. Drop null entries instead — a null meta value means "absent".
+     */
+    private static Map<String, Object> sanitizeMeta(Map<String, Object> meta) {
+        if (meta == null || meta.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> copy = new java.util.LinkedHashMap<>();
+        meta.forEach((k, v) -> {
+            if (k != null && v != null) {
+                copy.put(k, v);
+            }
+        });
+        return java.util.Collections.unmodifiableMap(copy);
     }
 
     /**
