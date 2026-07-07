@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-07-07
+
+### Added
+- **Executor command capability for agents — large output offload** (`agentic-net-executor` — `BashCommandHandler`, `BlobStoreClient`). When a command's stdout/stderr exceeds `executor.command.stdout.max-inline-bytes` (default `131072` = 128 KB, safely under the master's 256 KB inbound codec limit), the full stream is uploaded to the blobstore and the result carries a short preview plus `stdoutUrn` / `stdoutBytes` / `stdoutTruncated` instead of the whole payload. This is what lets Maestro (see `core/CHANGELOG.md`) run commands that produce huge output and then inspect it with the blob analysis tools rather than overflowing the wire. Small outputs stay fully inline — no behavior change for ordinary commands.
+- **Config-driven command allow/deny gate** (`agentic-net-executor` — `BashCommandHandler`). A forward-looking policy on bash commands: `executor.command.bash.denylist` and `executor.command.bash.allowlist` (`EXECUTOR_BASH_DENYLIST` / `EXECUTOR_BASH_ALLOWLIST`, comma-separated case-insensitive regexes). A denylist match is always rejected; if an allowlist is set the command must match one entry. Both default empty = allow everything, so there is no change to current behavior until an operator opts in.
+- **MCP domain-memory tools** (`agentic-net-mcp` — `domain_memory_write` / `domain_memory_recall`). Store and recall memory in a model's own domain net (`p-{model}-domain-{knowledge|journal|insights}`) — the same per-model memory base the master's `MEMORY_WRITE` / `MEMORY_RECALL` tools and the domain-expert persona use — alongside the existing `p-mem-*` working-memory tools. `domain_memory_recall` is allowed in read-only mode.
+- **CLI/MCP tool parity with the agent surface** (`agentic-net-cli`, `agentic-net-mcp`). The native tool layer tracks the platform agent catalog, adds an `invoke_agent` tool, and ships an OpenCode quick-start for the MCP server.
+
 ## [2.18.2] - 2026-07-05
 
 ### Changed
