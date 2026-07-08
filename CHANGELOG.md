@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.1] - 2026-07-08
+
+### Added
+- **"The Harness Control System" whitepaper** (`docs/whitepaper/`). A self-contained, print-ready HTML whitepaper on the harness-control thesis — the six-layer stack, the observe/analyze/improve/measure control loop, crystallization economics, the self-building loop and its guardrails, and NetHub multiplication — linked from the README's Start-here table and architecture section. No code changes this cycle; see `core/CHANGELOG.md` for the actual service fixes in this release.
+
 ## [2.21.0] - 2026-07-07
 
 ### Fixed
