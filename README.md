@@ -56,6 +56,7 @@ layer:
 | See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
 | Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
 | Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Read the whitepaper — the harness control system, complete domain automation | [docs/whitepaper/the-harness-control-system.html](docs/whitepaper/the-harness-control-system.html) ([view rendered](https://raw.githack.com/alexejsailer/agentic-nets/main/docs/whitepaper/the-harness-control-system.html)) |
 | Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
 | Connect any MCP client (working memory + net workbench) | [Connect over MCP](#or-connect-over-mcp--agentic-nets-as-working-memory--a-net-workbench) |
 | Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
@@ -602,6 +603,7 @@ Docker tools are published as `alexejsailer/agenticos-tool-*:<version>` and mirr
 These images are governed by the [Proprietary EULA](PROPRIETARY-EULA.md).
 
 Full architecture deep dive: see [ARCHITECTURE.md](ARCHITECTURE.md).
+Long-form whitepaper — *The Harness Control System: Complete Domain Automation on Agentic-Nets* (concepts, control loop, use cases, live evidence): [docs/whitepaper/the-harness-control-system.html](docs/whitepaper/the-harness-control-system.html) — a self-contained HTML document; download and open in any browser, or [view it rendered](https://raw.githack.com/alexejsailer/agentic-nets/main/docs/whitepaper/the-harness-control-system.html).
 
 ---
 
@@ -615,6 +617,10 @@ agentic-nets/
 ├── ARCHITECTURE.md               # Deep dive: transitions, ArcQL, coordination
 ├── CHANGELOG.md                  # Human-curated release notes
 ├── CONTRIBUTING.md               # How to contribute
+│
+├── docs/
+│   ├── foundations/              # Figures from the 2012 KIT diploma thesis (see FOUNDATIONS.md)
+│   └── whitepaper/               # The Harness Control System — self-contained HTML whitepaper
 │
 ├── agentic-net-gateway/          # OAuth2 API gateway (Spring Boot)
 ├── agentic-net-executor/         # Command executor (Spring Boot)
