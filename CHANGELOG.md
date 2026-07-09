@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.21.2] - 2026-07-09
+
+### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).
+
 ## [2.21.1] - 2026-07-08
 
 ### Added
