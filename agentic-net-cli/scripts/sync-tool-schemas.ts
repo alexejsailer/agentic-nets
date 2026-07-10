@@ -24,6 +24,22 @@ const catalogFsPath = path.resolve(
   'core/agentic-net-master/src/main/resources/agent-tool-catalog.json'
 );
 const outputPath = path.resolve(cliRoot, 'src/agent/tools.generated.ts');
+const handToolsPath = path.resolve(cliRoot, 'src/agent/tools.ts');
+
+/**
+ * Tools already hand-defined in tools.ts TOOL_DEFS keep their curated schemas —
+ * the generated file only fills the gaps. Without this filter a full regeneration
+ * duplicates every hand key (TS2783) and silently overwrites the curated entries
+ * via the object spread.
+ */
+function handDefinedToolNames(): Set<string> {
+  const src = fs.readFileSync(handToolsPath, 'utf-8');
+  const names = new Set<string>();
+  for (const m of src.matchAll(/^  ([A-Z][A-Z0-9_]+): \{$/gm)) {
+    names.add(m[1]);
+  }
+  return names;
+}
 
 interface CatalogTool {
   name: string;
@@ -119,6 +135,12 @@ async function main() {
   const catalog = await loadCatalog();
   if (!Array.isArray(catalog.tools) || catalog.tools.length === 0) {
     throw new Error('Catalog has no tools');
+  }
+  const hand = handDefinedToolNames();
+  const skipped = catalog.tools.filter(t => hand.has(t.name)).length;
+  catalog.tools = catalog.tools.filter(t => !hand.has(t.name));
+  if (skipped > 0) {
+    console.log(`Skipped ${skipped} tool(s) already hand-defined in tools.ts`);
   }
   const source = emit(catalog);
   fs.writeFileSync(outputPath, source, 'utf-8');

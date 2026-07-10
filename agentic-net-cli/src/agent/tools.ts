@@ -66,6 +66,7 @@ export type AgentTool =
   | 'DOCKER_STOP'
   | 'DOCKER_LIST'
   | 'DOCKER_LOGS'
+  | 'WRAP_DOCKER_TOOL'
   // Dry Run (R flag)
   | 'DRY_RUN_TRANSITION'
   // Validation (R flag)
@@ -745,74 +746,6 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         maxIterations: { type: 'number', description: 'Maximum local iterations for agent transitions (default 8, hard cap 12)' },
       },
       required: ['transitionId'],
-    },
-  },
-  REGISTRY_LIST_IMAGES: {
-    description: 'List available tool images from the OCI registry. Use to discover what tool containers can be deployed.',
-    schema: {
-      type: 'object',
-      properties: {
-        search: { type: 'string', description: 'Filter images by name (e.g., "pdf")' },
-        limit: { type: 'number', description: 'Max results (default 20)' },
-      },
-      required: [],
-    },
-  },
-  REGISTRY_GET_IMAGE_INFO: {
-    description: 'Get detailed info about a tool image including capabilities, port, health endpoint, and OpenAPI spec path.',
-    schema: {
-      type: 'object',
-      properties: {
-        image: { type: 'string', description: 'Image repository name (e.g., "agenticos-tool-pdf")' },
-        tag: { type: 'string', description: 'Image tag (default "latest")' },
-      },
-      required: ['image'],
-    },
-  },
-  DOCKER_RUN: {
-    description: 'Start a tool container from a registry image. Returns the container\'s endpoint URL for use in HTTP transition actions.',
-    schema: {
-      type: 'object',
-      properties: {
-        image: { type: 'string', description: 'Full image reference (e.g., "localhost:5001/agenticos-tool-pdf:1.0.0")' },
-        name: { type: 'string', description: 'Short name for the container (will be prefixed with agenticos-tool-)' },
-        env: { type: 'object', description: 'Environment variables as key-value pairs' },
-        sessionId: { type: 'string', description: 'Session ID to associate with the container' },
-      },
-      required: ['image'],
-    },
-  },
-  DOCKER_STOP: {
-    description: 'Stop a running tool container.',
-    schema: {
-      type: 'object',
-      properties: {
-        containerId: { type: 'string', description: 'Container ID' },
-        name: { type: 'string', description: 'Container name' },
-      },
-      required: [],
-    },
-  },
-  DOCKER_LIST: {
-    description: 'List running AgenticNetOS tool containers.',
-    schema: {
-      type: 'object',
-      properties: {
-        filter: { type: 'string', description: 'Filter by name/image/tool label' },
-      },
-      required: [],
-    },
-  },
-  DOCKER_LOGS: {
-    description: 'Get logs from a tool container for debugging.',
-    schema: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'Container name' },
-        containerId: { type: 'string', description: 'Container ID' },
-        tail: { type: 'number', description: 'Number of log lines (default 50)' },
-      },
-      required: [],
     },
   },
   DRY_RUN_TRANSITION: {

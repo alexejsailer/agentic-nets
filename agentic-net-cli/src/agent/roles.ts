@@ -67,6 +67,7 @@ const EXECUTE_TOOLS = new Set<AgentTool>([
 const DOCKER_TOOLS = new Set<AgentTool>([
   'REGISTRY_LIST_IMAGES', 'REGISTRY_GET_IMAGE_INFO',
   'DOCKER_RUN', 'DOCKER_STOP', 'DOCKER_LIST', 'DOCKER_LOGS',
+  'WRAP_DOCKER_TOOL',
 ]);
 
 const CONTROL_TOOLS = new Set<AgentTool>(['THINK', 'DONE', 'FAIL']);

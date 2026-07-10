@@ -251,6 +251,8 @@ export class ToolExecutor {
           return this.executeDockerList(params);
         case 'DOCKER_LOGS':
           return this.executeDockerLogs(params);
+        case 'WRAP_DOCKER_TOOL':
+          return this.executeWrapDockerTool(params);
         case 'DEPLOY_TRANSITION':
           return this.executeDeployTransition(params);
         case 'START_TRANSITION':
@@ -1602,6 +1604,20 @@ export class ToolExecutor {
     const tail = (params.tail as number) || 50;
     const data = await this.masterApi.get(`/docker/containers/${encodeURIComponent(id)}/logs?tail=${tail}`);
     return { success: true, data };
+  }
+
+  private async executeWrapDockerTool(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const image = params.image as string;
+      if (!image) return { success: false, error: 'WRAP_DOCKER_TOOL requires image' };
+      const body: Record<string, any> = { modelId: this.modelId, image };
+      if (params.name) body.name = params.name;
+      if (params.sessionId) body.sessionId = params.sessionId;
+      const data = await this.masterApi.post('/toolnets/wrap-docker', body);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `WRAP_DOCKER_TOOL failed: ${err.message || err}` };
+    }
   }
 
   // ---- Extract / Discovery / Package Tools ----
