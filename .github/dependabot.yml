@@ -6,24 +6,52 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
+      # we track the supported 3.5.x patch line until that migration is scheduled.
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: maven
     directory: /agentic-net-executor
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
+      # we track the supported 3.5.x patch line until that migration is scheduled.
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: maven
     directory: /agentic-net-vault
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
+      # we track the supported 3.5.x patch line until that migration is scheduled.
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      # spring-vault 4.x and springdoc 3.x target Spring Boot 4 — same migration gate.
+      - dependency-name: "org.springframework.vault:*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springdoc:*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: maven
     directory: /sa-blobstore
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
+      # we track the supported 3.5.x patch line until that migration is scheduled.
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major"]
+      # hibernate-validator 9.x targets Jakarta EE 11 / Spring Boot 4.
+      - dependency-name: "org.hibernate.validator:*"
+        update-types: ["version-update:semver-major"]
 
   # TypeScript services — npm
   - package-ecosystem: npm
@@ -31,6 +59,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 6 is blocked by Angular/tooling peer ranges (>=5.9 <6.0);
+      # @types/node tracks the Node 22 runtime the services actually run on.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /agentic-net-chat
