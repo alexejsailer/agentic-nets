@@ -1,9 +1,12 @@
 FROM node:22-alpine
 
+# Release version injected by build scripts (--build-arg VERSION=x.y.z)
+ARG VERSION=1.0.0
+
 # AgenticOS tool labels (OCI standard + AgenticOS extensions)
 LABEL org.opencontainers.image.title="RSS Feed Tool"
 LABEL org.opencontainers.image.description="Fetches and parses RSS/Atom feeds. Supports filtering by date and max items."
-LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.version="${VERSION}"
 LABEL io.agenticos.tool.kind="api"
 LABEL io.agenticos.tool.port="8080"
 LABEL io.agenticos.tool.health="/health"

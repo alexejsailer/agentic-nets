@@ -12,7 +12,16 @@ VERSION="${AGENTICOS_TOOL_SEED_TAG:-${AGENTICNETOS_VERSION:-latest}}"
 FALLBACK_TAG="${AGENTICOS_TOOL_SEED_FALLBACK_TAG:-latest}"
 MODE="${AGENTICOS_TOOL_SEED_MODE:-mirror}"
 SOURCE_DIR="${AGENTICOS_TOOL_SOURCE_DIR:-../agentic-net-tools}"
-TOOLS="${AGENTICOS_TOOL_SEED_IMAGES:-agenticos-tool-echo agenticos-tool-crawler agenticos-tool-rss agenticos-tool-search agenticos-tool-reddit agenticos-tool-secured-api}"
+
+# Tool list resolution: explicit env > tools.txt manifest (single source of
+# truth in agentic-net-tools/) > hardcoded fallback for detached deployments.
+TOOLS="${AGENTICOS_TOOL_SEED_IMAGES:-}"
+if [ -z "$TOOLS" ] && [ -f "${SOURCE_DIR}/tools.txt" ]; then
+  TOOLS="$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "${SOURCE_DIR}/tools.txt" | tr '\n' ' ')"
+fi
+if [ -z "$TOOLS" ]; then
+  TOOLS="agenticos-tool-echo agenticos-tool-crawler agenticos-tool-rss agenticos-tool-search agenticos-tool-reddit agenticos-tool-secured-api agenticos-tool-weather"
+fi
 
 echo "=== AgenticOS Tool Registry Seeder ==="
 echo "Registry: ${REGISTRY_HOST}"

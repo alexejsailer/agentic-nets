@@ -1,8 +1,11 @@
 FROM node:22-alpine
 
+# Release version injected by build scripts (--build-arg VERSION=x.y.z)
+ARG VERSION=1.0.0
+
 LABEL org.opencontainers.image.title="Secured API Tool"
 LABEL org.opencontainers.image.description="Test API endpoint requiring X-API-Key authentication. Validates credentials and returns secured data."
-LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.version="${VERSION}"
 
 LABEL io.agenticos.tool.kind="api"
 LABEL io.agenticos.tool.port="8080"

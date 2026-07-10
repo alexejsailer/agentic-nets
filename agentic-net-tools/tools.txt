@@ -1,0 +1,19 @@
+# AgenticNetOS tool images — SINGLE SOURCE OF TRUTH for the released tool set.
+#
+# One image repository name per line (directory name under agentic-net-tools/).
+# Consumed by:
+#   - agentic-net-tools/build-and-push.sh        (local dev build)
+#   - deployment/scripts/seed-tool-registry.sh   (registry seeding)
+#   - ci/scripts/build-and-tag.sh                (release build)
+#   - ci/scripts/push-to-registry.sh             (staging registry push)
+#   - ci/scripts/promote-to-hub.sh               (Docker Hub promotion)
+#
+# Adding a tool: create the directory (Dockerfile + server implementing
+# /health and /openapi.json per README.md), then add its name here.
+agenticos-tool-echo
+agenticos-tool-crawler
+agenticos-tool-rss
+agenticos-tool-search
+agenticos-tool-reddit
+agenticos-tool-secured-api
+agenticos-tool-weather

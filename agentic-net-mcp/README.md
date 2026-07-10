@@ -112,6 +112,7 @@ Deploys are idempotent: re-running skips existing elements and never duplicates 
 | `AGENTICOS_LLM_PROVIDER` | LLM used when **this process** executes hosted transitions (`host_transition`): `claude-code` (local `claude` binary — your subscription), `ollama`, `claude`/`anthropic`, `openai` | `claude-code` |
 | `AGENTICOS_LLM_MODEL` / `AGENTICOS_LLM_TIER` | model + tier for the hosted-execution provider | provider default / `medium` |
 | `AGENTICOS_ALLOW_MODEL_CREATE` | register `create_model` and let it mint new models at runtime (rw only). `false` = strictly-frozen allowlist | `true` (rw) |
+| `AGENTICOS_DOCKER_TOOLS` | `false` withholds the container/registry tools (`DOCKER_*`, `REGISTRY_*`) from the native catalog — container spawning as a deliberate grant, mirroring the master's D flag | `true` |
 
 ## Claude Code hooks: memory with zero discipline
 

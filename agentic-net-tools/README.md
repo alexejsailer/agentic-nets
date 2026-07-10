@@ -43,6 +43,7 @@ agentic-net-tools/
 | `agenticos-tool-rss` | `POST /fetch` | Fetches and parses RSS/Atom feeds |
 | `agenticos-tool-search` | `POST /search` | Searches the web via DuckDuckGo HTML scraping |
 | `agenticos-tool-secured-api` | `POST /data` | Validates `X-API-Key` and returns secured test data |
+| `agenticos-tool-weather` | `GET /weather?city=<name>` | Deterministic mock weather API (demo + e2e smoke tests) |
 
 All tools listen on port **8080 internally**. Host ports are chosen when you run them, either manually with `docker run -p` or via the AgenticOS tools panel, which allocates dynamic host ports.
 
@@ -108,8 +109,10 @@ REGISTRY=docker.io/alexejsailer ./build-and-push.sh 2.1.8
 2. Add a `Dockerfile` with all required labels (see Label Convention above)
 3. Implement `/health` and `/openapi.json` endpoints
 4. Add your tool's primary API endpoint(s)
-5. Test locally: `docker build -t agenticos-tool-<name>:1.0.0 agenticos-tool-<name>/`
-6. Push to registry: `./build-and-push.sh agenticos-tool-<name>`
+5. **Add the tool to `tools.txt`** — the single source of truth consumed by the
+   seeder and all CI build/push/promote scripts
+6. Test locally: `docker build -t agenticos-tool-<name>:1.0.0 agenticos-tool-<name>/`
+7. Push to registry: `./build-and-push.sh agenticos-tool-<name>`
 
 ### Guidelines
 

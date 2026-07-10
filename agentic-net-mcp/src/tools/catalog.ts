@@ -30,7 +30,12 @@ const AGENT_LOOP_ONLY = new Set(['THINK', 'DONE', 'FAIL']);
 
 /** The full native catalog as Anthropic-style schemas (name/description/input_schema). */
 export function nativeCatalog(): ToolSchema[] {
-  return buildToolSchemas(getAvailableTools(FULL))
+  // Docker/registry tools (container spawning) are included by default for parity,
+  // but deployments can withhold the grant with AGENTICOS_DOCKER_TOOLS=false —
+  // mirroring the master's dedicated D capability flag instead of folding
+  // container power into plain read/execute.
+  const dockerGranted = process.env.AGENTICOS_DOCKER_TOOLS !== 'false';
+  return buildToolSchemas(getAvailableTools({ ...FULL, docker: dockerGranted }))
     .filter((t) => !AGENT_LOOP_ONLY.has(t.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

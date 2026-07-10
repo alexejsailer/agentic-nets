@@ -1,9 +1,12 @@
 FROM node:22-alpine
 
+# Release version injected by build scripts (--build-arg VERSION=x.y.z)
+ARG VERSION=1.0.0
+
 # AgenticOS tool labels (OCI standard + AgenticOS extensions)
 LABEL org.opencontainers.image.title="Web Crawler Tool"
 LABEL org.opencontainers.image.description="Crawls web pages and returns structured content. Supports CSS selectors."
-LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.version="${VERSION}"
 LABEL io.agenticos.tool.kind="api"
 LABEL io.agenticos.tool.port="8080"
 LABEL io.agenticos.tool.health="/health"

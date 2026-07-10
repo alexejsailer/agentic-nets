@@ -199,7 +199,8 @@ services:
       AGENTICOS_TOOL_SEED_FALLBACK_TAG: ${AGENTICOS_TOOL_SEED_FALLBACK_TAG:-latest}
       AGENTICOS_TOOL_SEED_MODE: ${AGENTICOS_TOOL_SEED_MODE:-mirror}
       AGENTICOS_TOOL_SOURCE_DIR: /agentic-net-tools
-      AGENTICOS_TOOL_SEED_IMAGES: ${AGENTICOS_TOOL_SEED_IMAGES:-agenticos-tool-echo agenticos-tool-crawler agenticos-tool-rss agenticos-tool-search agenticos-tool-reddit agenticos-tool-secured-api}
+      # Empty = read agentic-net-tools/tools.txt (the manifest is the single source of truth)
+      AGENTICOS_TOOL_SEED_IMAGES: ${AGENTICOS_TOOL_SEED_IMAGES:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./scripts/seed-tool-registry.sh:/usr/local/bin/seed-tool-registry.sh:ro

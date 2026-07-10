@@ -45,14 +45,16 @@ build_and_push() {
         return
     fi
 
-    # Extract version from Dockerfile label or default to "latest"
-    local label_version
-    label_version=$(sed -n 's/^LABEL org\.opencontainers\.image\.version="\([^"]*\)".*/\1/p' "$dir/Dockerfile" | head -n 1)
-    label_version="${label_version:-latest}"
-    local image_version="${VERSION:-$label_version}"
+    # Default version comes from the Dockerfile's ARG VERSION (the image label is
+    # templated from it), overridable via --tag / VERSION env.
+    local arg_version
+    arg_version=$(sed -n 's/^ARG VERSION=\(.*\)$/\1/p' "$dir/Dockerfile" | head -n 1)
+    arg_version="${arg_version:-latest}"
+    local image_version="${VERSION:-$arg_version}"
 
     echo "Building $name:$image_version..."
-    docker build -t "$REGISTRY/$name:$image_version" -t "$REGISTRY/$name:latest" "$dir"
+    docker build --build-arg VERSION="$image_version" \
+        -t "$REGISTRY/$name:$image_version" -t "$REGISTRY/$name:latest" "$dir"
 
     echo "Pushing $REGISTRY/$name:$image_version..."
     docker push "$REGISTRY/$name:$image_version"

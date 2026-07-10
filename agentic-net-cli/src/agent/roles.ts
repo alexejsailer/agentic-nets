@@ -2,20 +2,26 @@ import { AgentTool } from './tools.js';
 
 /**
  * Unix-like permission model for agent access control.
- * R=read, W=write, X=execute, H=http.
+ * R=read, W=write, X=execute, H=http, D=docker.
+ *
+ * D mirrors the master's dedicated docker capability: spawning tool containers
+ * is a deliberate grant ('rwxhd'), not a side effect of read/execute. Plain
+ * 'rwxh' does NOT include the docker/registry tools.
  */
 export interface AgentRole {
   read: boolean;
   write: boolean;
   execute: boolean;
   http: boolean;
+  docker: boolean;
 }
 
 // Named constants
-export const READ_ONLY: AgentRole = { read: true, write: false, execute: false, http: false };
-export const READ_WRITE: AgentRole = { read: true, write: true, execute: false, http: false };
-export const READ_WRITE_EXECUTE: AgentRole = { read: true, write: true, execute: true, http: false };
-export const FULL: AgentRole = { read: true, write: true, execute: true, http: true };
+export const READ_ONLY: AgentRole = { read: true, write: false, execute: false, http: false, docker: false };
+export const READ_WRITE: AgentRole = { read: true, write: true, execute: false, http: false, docker: false };
+export const READ_WRITE_EXECUTE: AgentRole = { read: true, write: true, execute: true, http: false, docker: false };
+/** Everything, including docker — the deliberate top grant (used by the MCP native catalog). */
+export const FULL: AgentRole = { read: true, write: true, execute: true, http: true, docker: true };
 
 // Tool groupings
 const READ_TOOLS = new Set<AgentTool>([
@@ -26,7 +32,6 @@ const READ_TOOLS = new Set<AgentTool>([
   'GET_LINKED_PLACES', 'FIND_SHARED_PLACES',
   'GET_SESSION_OVERVIEW', 'GET_NET_OVERVIEW', 'FIND_NET_NEIGHBORS',
   'LIST_SESSIONS_BY_TAG', 'LIST_TOOL_NETS', 'DESCRIBE_TOOL_NET',
-  'REGISTRY_LIST_IMAGES', 'REGISTRY_GET_IMAGE_INFO',
   'PACKAGE_SEARCH',
   'HUB_CATALOG', 'HUB_REMOTE_LIST',
   'DRY_RUN_TRANSITION',
@@ -52,11 +57,16 @@ const WRITE_TOOLS = new Set<AgentTool>([
 
 const EXECUTE_TOOLS = new Set<AgentTool>([
   'DEPLOY_TRANSITION', 'START_TRANSITION', 'STOP_TRANSITION', 'FIRE_ONCE', 'EXECUTE_TRANSITION', 'EXECUTE_TRANSITION_SMART',
-  'DOCKER_RUN', 'DOCKER_STOP', 'DOCKER_LIST', 'DOCKER_LOGS',
   'INVOKE_TOOL_NET',
   // Master-parity coordination tools (delegate to / invoke personas, collect results) —
   // routed through the master executor.
   'INVOKE_PERSONA', 'DELEGATE_TASK', 'COLLECT_RESULTS',
+]);
+
+// Container/registry tools require the dedicated D grant (mirrors master's D flag)
+const DOCKER_TOOLS = new Set<AgentTool>([
+  'REGISTRY_LIST_IMAGES', 'REGISTRY_GET_IMAGE_INFO',
+  'DOCKER_RUN', 'DOCKER_STOP', 'DOCKER_LIST', 'DOCKER_LOGS',
 ]);
 
 const CONTROL_TOOLS = new Set<AgentTool>(['THINK', 'DONE', 'FAIL']);
@@ -67,6 +77,7 @@ export function getAvailableTools(role: AgentRole): Set<AgentTool> {
   if (role.write) WRITE_TOOLS.forEach(t => tools.add(t));
   if (role.execute) EXECUTE_TOOLS.forEach(t => tools.add(t));
   if (role.http) tools.add('HTTP_CALL');
+  if (role.docker) DOCKER_TOOLS.forEach(t => tools.add(t));
   return tools;
 }
 
@@ -80,6 +91,7 @@ export function roleToString(role: AgentRole): string {
     role.write ? 'w' : '-',
     role.execute ? 'x' : '-',
     role.http ? 'h' : '-',
+    role.docker ? 'd' : '-',
   ].join('');
 }
 
@@ -87,23 +99,26 @@ export function parseRole(value: string): AgentRole {
   if (!value || !value.trim()) return READ_WRITE;
   const v = value.trim().toLowerCase();
 
-  // Explicit 4-char format
-  if (v.length === 4 && /^[r\-][w\-][x\-][h\-]$/.test(v)) {
+  // Explicit 4- or 5-char format (5th slot = docker)
+  if (/^[r\-][w\-][x\-][h\-][d\-]?$/.test(v) && (v.length === 4 || v.length === 5)) {
     return {
       read: v[0] === 'r',
       write: v[1] === 'w',
       execute: v[2] === 'x',
       http: v[3] === 'h',
+      docker: v[4] === 'd',
     };
   }
 
-  // Short forms
+  // Short forms. Note: 'rwxh' deliberately does NOT include docker — spawning
+  // containers is its own grant ('rwxhd'), matching the master's D flag.
   switch (v) {
     case 'r': return READ_ONLY;
     case 'rw': return READ_WRITE;
     case 'rwx': return READ_WRITE_EXECUTE;
-    case 'rwxh': return FULL;
+    case 'rwxh': return { read: true, write: true, execute: true, http: true, docker: false };
+    case 'rwxhd': return FULL;
     default:
-      throw new Error(`Invalid role '${value}'. Use rwxh flags (r, rw, rwx, rwxh or rw--).`);
+      throw new Error(`Invalid role '${value}'. Use rwxhd flags (r, rw, rwx, rwxh, rwxhd or rw---).`);
   }
 }

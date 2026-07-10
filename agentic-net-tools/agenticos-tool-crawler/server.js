@@ -64,7 +64,7 @@ async function crawlPage(url, selectors, timeout) {
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: { 'User-Agent': 'AgetnticOS-Crawler/1.0' },
+      headers: { 'User-Agent': 'AgenticOS-Crawler/1.0' },
       redirect: 'follow'
     });
 
