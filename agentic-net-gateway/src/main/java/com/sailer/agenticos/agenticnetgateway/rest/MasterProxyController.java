@@ -314,8 +314,11 @@ public class MasterProxyController {
             for (ResponseEntity<byte[]> resp : responses) {
                 if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null && resp.getBody().length > 0) {
                     JsonNode json = mapper.readTree(resp.getBody());
-                    if (json.isArray()) {
-                        for (JsonNode item : json) {
+                    // Master returns ExecutorRegistryResponse {generatedAt, count, executors:[...]};
+                    // also accept a bare array for robustness.
+                    JsonNode items = json.isArray() ? json : json.path("executors");
+                    if (items.isArray()) {
+                        for (JsonNode item : items) {
                             String id = item.has("executorId") ? item.get("executorId").asText() : null;
                             if (id == null || seenIds.add(id)) {
                                 merged.add(item);
@@ -325,9 +328,16 @@ public class MasterProxyController {
                 }
             }
 
+            // Same object shape the single-master pass-through delivers, so consumers
+            // (GUI executor selector) see one contract regardless of master count.
+            ObjectNode result = mapper.createObjectNode();
+            result.put("generatedAt", java.time.Instant.now().toString());
+            result.put("count", merged.size());
+            result.set("executors", merged);
+
             return ResponseEntity.ok()
                     .header("Content-Type", "application/json")
-                    .body(mapper.writeValueAsBytes(merged));
+                    .body(mapper.writeValueAsBytes(result));
         } catch (Exception e) {
             logger.error("Failed to aggregate executor list responses: {}", e.getMessage());
             return ResponseEntity.status(502)

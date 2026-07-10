@@ -249,17 +249,26 @@ class MasterProxyRoutingTest {
     @Test
     @WithMockUser
     void executorListFanOut_aggregatesAndDeduplicates() throws Exception {
+        // The REAL master shape: ExecutorRegistryResponse {generatedAt, count, executors:[...]}.
+        // (An earlier version of this test stubbed bare arrays — a shape the master never
+        // returns — which hid a fan-out bug that merged nothing and answered [].)
         master1.stubFor(WireMock.get(urlPathEqualTo("/api/executors"))
-                .willReturn(okJson(mapper.writeValueAsString(List.of(
-                        Map.of("executorId", "exec-1", "status", "ONLINE"),
-                        Map.of("executorId", "exec-2", "status", "ONLINE")
-                )))));
+                .willReturn(okJson(mapper.writeValueAsString(Map.of(
+                        "generatedAt", "2026-07-11T00:00:00Z",
+                        "count", 2,
+                        "executors", List.of(
+                                Map.of("executorId", "exec-1", "status", "ONLINE"),
+                                Map.of("executorId", "exec-2", "status", "ONLINE")
+                        ))))));
 
         master2.stubFor(WireMock.get(urlPathEqualTo("/api/executors"))
-                .willReturn(okJson(mapper.writeValueAsString(List.of(
-                        Map.of("executorId", "exec-1", "status", "ONLINE"),   // duplicate
-                        Map.of("executorId", "exec-3", "status", "ONLINE")
-                )))));
+                .willReturn(okJson(mapper.writeValueAsString(Map.of(
+                        "generatedAt", "2026-07-11T00:00:00Z",
+                        "count", 2,
+                        "executors", List.of(
+                                Map.of("executorId", "exec-1", "status", "ONLINE"),   // duplicate
+                                Map.of("executorId", "exec-3", "status", "ONLINE")
+                        ))))));
 
         MvcResult asyncResult = mockMvc.perform(get("/api/executors")
                         .param("activeOnly", "true"))
@@ -268,11 +277,34 @@ class MasterProxyRoutingTest {
 
         mockMvc.perform(asyncDispatch(asyncResult))
                 .andExpect(status().isOk())
-                // exec-1 appears in both, but should be deduplicated
-                .andExpect(jsonPath("$", hasSize(3)))
-                .andExpect(jsonPath("$[?(@.executorId == 'exec-1')]").exists())
-                .andExpect(jsonPath("$[?(@.executorId == 'exec-2')]").exists())
-                .andExpect(jsonPath("$[?(@.executorId == 'exec-3')]").exists());
+                // Merged result keeps the single-master object shape; exec-1 deduplicated.
+                .andExpect(jsonPath("$.count").value(3))
+                .andExpect(jsonPath("$.executors", hasSize(3)))
+                .andExpect(jsonPath("$.executors[?(@.executorId == 'exec-1')]").exists())
+                .andExpect(jsonPath("$.executors[?(@.executorId == 'exec-2')]").exists())
+                .andExpect(jsonPath("$.executors[?(@.executorId == 'exec-3')]").exists());
+    }
+
+    @Test
+    @WithMockUser
+    void executorListFanOut_toleratesBareArrayUpstream() throws Exception {
+        master1.stubFor(WireMock.get(urlPathEqualTo("/api/executors"))
+                .willReturn(okJson(mapper.writeValueAsString(List.of(
+                        Map.of("executorId", "exec-1", "status", "ONLINE"))))));
+        master2.stubFor(WireMock.get(urlPathEqualTo("/api/executors"))
+                .willReturn(okJson(mapper.writeValueAsString(Map.of(
+                        "generatedAt", "2026-07-11T00:00:00Z",
+                        "count", 1,
+                        "executors", List.of(Map.of("executorId", "exec-2", "status", "ONLINE")))))));
+
+        MvcResult asyncResult = mockMvc.perform(get("/api/executors")
+                        .param("activeOnly", "true"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(asyncResult))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.executors", hasSize(2)));
     }
 
     @Test
