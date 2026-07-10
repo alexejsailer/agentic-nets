@@ -64,8 +64,16 @@ agentic-nets/
 **Purpose**: OAuth2 API gateway for secure distributed access.
 
 - **Technology**: Spring Boot 3.5.5, Spring Security with JWT
-- **Routes**: Master (`/api/...`) and Node (`/node-api/...`)
-- **Auth**: JWT-based with auto-token acquisition, admin secret for bootstrap
+- **Routes**: Master (`/api/...` — model-aware, multi-master registry), Node (`/node-api/...`), Vault (`/vault-api/...`)
+- **Auth**: JWT-based with auto-token acquisition. THREE OAuth2 clients, secrets auto-generated to `data/jwt/`:
+  `agenticos-admin` (full access), `agenticos-readonly` (reads only), `agenticos-executor`
+  (scope-enforced to the executor polling protocol only: poll/discover/deployment/tokens emit-consume-release —
+  anything else returns `403 executor_scope`). Pin via `AGENTICOS_ADMIN_SECRET` / `AGENTICOS_READONLY_SECRET` /
+  `AGENTICOS_EXECUTOR_SECRET`.
+- **Multi-master**: masters self-register (`POST /internal/masters/register` + heartbeat, shared
+  `GATEWAY_INTERNAL_SECRET`); routing by modelId, discover/executors fan out. Heartbeat for an unknown master
+  returns 404 so the master re-registers after a gateway restart. Blank `MASTER_URL` disables the seed master.
+  See `agentic-net-gateway/ARCHITECTURE-MULTI-MASTER.md`.
 - **Key role**: Enables executor, CLI, and chat to reach master/node across network boundaries
 - **Build**: `cd agentic-net-gateway && ./mvnw clean package -DskipTests`
 
@@ -84,18 +92,41 @@ The executor uses **egress-only polling** — it reaches out to fetch work, neve
 
 | Mode | When | Polls | Auth |
 |------|------|-------|------|
-| **Direct** | Same network as master | `http://agentic-net-master:8082` | None (internal) |
-| **Gateway** | Remote / different network | `http://<gateway>:8083` | JWT (auto-acquired) |
+| **Gateway** (compose default) | Everywhere; required for remote executors and multi-master | `http://agentic-net-gateway:8083` | OAuth2 client-credentials JWT (`agenticos-executor` client, auto re-fetched ~60s before expiry) |
+| **Direct** | Same trusted network as master, single master | `http://agentic-net-master:8082` | None (internal) |
 
 ```bash
-# Direct mode (default in docker-compose.yml)
-MASTER_HOST=agentic-net-master
-MASTER_PORT=8082
+# Gateway mode (default in all compose files)
+EXECUTOR_UPSTREAM_URL=http://agentic-net-gateway:8083
+EXECUTOR_AUTH_CLIENT_ID=agenticos-executor
+# secret: either inline...
+EXECUTOR_AUTH_CLIENT_SECRET=<value of AGENTICOS_EXECUTOR_SECRET>
+# ...or lazily read from the gateway-generated file (mounted read-only; may appear after boot)
+EXECUTOR_AUTH_CLIENT_SECRET_FILE=/app/gateway-data/jwt/executor-secret
 
-# Gateway mode (remote deployment)
-AGENTICOS_GATEWAY_URL=https://your-gateway-host:8083
-AGENTICOS_GATEWAY_SECRET_FILE=/app/gateway-data/jwt/admin-secret
+# Direct mode (bypass gateway) — must ALSO blank the client id to disable auth
+EXECUTOR_UPSTREAM_URL=http://agentic-net-master:8082
+EXECUTOR_AUTH_CLIENT_ID=
 ```
+
+#### Multiple Executors + Executor Selection
+
+All compose files run TWO executors by default: `agentic-net-executor` (id
+`agentic-net-executor-default`, port 8084) and `agentic-net-executor-2` (id
+`agentic-net-executor-2`, port 8086). Identity is `EXECUTOR_ID`; per-executor model
+allowlist is `EXECUTOR_MODELS` (sent as `allowedModels` on discover/poll).
+
+A command transition picks its executor **in the inscription**:
+
+```json
+"action": { "type": "command", "executorId": "agentic-net-executor-2", ... }
+```
+
+Resolution order on master: `action.executorId` → `assignedAgent` leaf (default
+`agentic-net-executor-default`). `"*"` offers the work to every polling executor — the
+first token reservation wins, and while the command runs on one executor the master
+answers the others with CONTINUE for that transition. `docker-compose.multi-master.yml`
+adds a second master partitioned by model (`MASTER_1_MODELS` / `MASTER_2_MODELS`).
 
 #### CRITICAL — Stdin Blocking Issue
 
@@ -311,6 +342,8 @@ Two deployment modes in `deployment/`:
 |------|-------------|
 | `docker-compose.yml` | **Hybrid** — Closed-source from Hub, open-source built locally |
 | `docker-compose.hub-only.yml` | **All pre-built** — Everything from Docker Hub |
+| `docker-compose.hub-only.no-monitoring.yml` | Hub-only without the monitoring stack |
+| `docker-compose.multi-master.yml` | **Two masters + two executors** — masters partitioned by model (`MASTER_1_MODELS`/`MASTER_2_MODELS`), self-registered with the gateway (no seed master); for staging validation of the multi-master path |
 
 ### Networks
 
@@ -414,6 +447,8 @@ Configs in `monitoring/config/`, Grafana dashboards in `monitoring/grafana-provi
 | 8083 | agentic-net-gateway |
 | 8084 | agentic-net-executor |
 | 8085 | agentic-net-vault |
+| 8086 | agentic-net-executor-2 |
+| 8087 | agentic-net-master-2 (multi-master compose only) |
 | 4200 | agentic-net-gui (closed-source, Hub) |
 | 8090 | sa-blobstore |
 | 8091 | agentic-net-mcp (HTTP transport, opt-in `mcp` profile) |

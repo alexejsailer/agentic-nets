@@ -55,7 +55,7 @@ services:
   init-perms:
     image: alpine:3.20
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-init-perms
-    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && (getent group agenticnet >/dev/null || addgroup -S agenticnet) && (getent passwd agenticnet >/dev/null || adduser -S -G agenticnet agenticnet) && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
+    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/executor-2 /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && (getent group agenticnet >/dev/null || addgroup -S agenticnet) && (getent passwd agenticnet >/dev/null || adduser -S -G agenticnet agenticnet) && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
     volumes:
       - ./data:/data
       - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/node-data
@@ -331,17 +331,29 @@ services:
       retries: 5
       start_period: 60s
 
+  # Two executor instances by default. Both poll THROUGH THE GATEWAY with the
+  # dedicated `agenticos-executor` OAuth2 client (JWT scope-limited to the
+  # polling protocol). A command transition chooses its executor via the
+  # inscription's `action.executorId` (falls back to `assignedAgent`; `"*"` =
+  # any executor, first token reservation wins). To poll master directly
+  # instead, set EXECUTOR_UPSTREAM_URL=http://agentic-net-master:8082 and
+  # EXECUTOR_AUTH_CLIENT_ID= (empty) in .env.
   agentic-net-executor:
     image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.21.2}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
     depends_on:
       init-perms:
         condition: service_completed_successfully
-      agentic-net-master:
+      agentic-net-gateway:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
-      EXECUTOR_UPSTREAM_URL: http://agentic-net-master:8082
+      EXECUTOR_UPSTREAM_URL: ${EXECUTOR_UPSTREAM_URL:-http://agentic-net-gateway:8083}
+      EXECUTOR_ID: ${EXECUTOR_ID:-agentic-net-executor-default}
+      EXECUTOR_MODELS: "${EXECUTOR_MODELS:-*}"
+      EXECUTOR_AUTH_CLIENT_ID: ${EXECUTOR_AUTH_CLIENT_ID-${AGENTICOS_EXECUTOR_CLIENT_ID:-agenticos-executor}}
+      EXECUTOR_AUTH_CLIENT_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
+      EXECUTOR_AUTH_CLIENT_SECRET_FILE: /app/gateway-data/jwt/executor-secret
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
@@ -352,8 +364,57 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
     volumes:
       - ./data/logs/executor:/app/logs
+      - ./data/gateway/jwt:/app/gateway-data/jwt:ro
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_EXECUTOR_PORT:-8084}:8084"
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_EXECUTOR_MEMORY_LIMIT:-1G}
+          cpus: "${AGENTIC_NET_EXECUTOR_CPU_LIMIT:-0.75}"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8084/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  agentic-net-executor-2:
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.21.2}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor-2
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+      agentic-net-gateway:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      EXECUTOR_UPSTREAM_URL: ${EXECUTOR_UPSTREAM_URL:-http://agentic-net-gateway:8083}
+      EXECUTOR_ID: ${EXECUTOR_2_ID:-agentic-net-executor-2}
+      EXECUTOR_MODELS: "${EXECUTOR_2_MODELS:-*}"
+      EXECUTOR_AUTH_CLIENT_ID: ${EXECUTOR_AUTH_CLIENT_ID-${AGENTICOS_EXECUTOR_CLIENT_ID:-agenticos-executor}}
+      EXECUTOR_AUTH_CLIENT_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
+      EXECUTOR_AUTH_CLIENT_SECRET_FILE: /app/gateway-data/jwt/executor-secret
+      AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      LOG_PATH: /app/logs
+      AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
+      AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_SERVICE_NAME: agentic-net-executor-2
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor-2
+    volumes:
+      - ./data/logs/executor-2:/app/logs
+      - ./data/gateway/jwt:/app/gateway-data/jwt:ro
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_EXECUTOR_2_PORT:-8086}:8084"
     networks:
       - agenticnetos-backend
     restart: unless-stopped
@@ -483,6 +544,7 @@ services:
       GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-30}
       GATEWAY_PROXY_TIMEOUT: ${GATEWAY_PROXY_TIMEOUT:-300}
       AGENTICOS_ADMIN_SECRET: ${AGENTICOS_ADMIN_SECRET:-}
+      AGENTICOS_EXECUTOR_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
       GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
       GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS: "${GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_HUB_PUBLIC_CATALOG: "${AGENTICOS_HUB_PUBLIC_CATALOG:-false}"

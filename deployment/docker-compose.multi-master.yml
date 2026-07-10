@@ -1,20 +1,39 @@
-# Agentic-Nets — All Pre-Built, No Monitoring (Docker Hub Only)
+# Agentic-Nets — Multi-Master Topology (Docker Hub Only, No Monitoring)
 #
-# All runtime services use pre-built Docker Hub images. Monitoring services are omitted.
-# Just: docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
+# TWO masters + TWO executors behind one gateway, against a single node.
 #
-# Network topology:
-#   agenticnetos-backend (bridge): backend services (node, master, executor, gateway, registry)
-#   agenticnetos-clients (bridge): client services (gateway, gui, cli, chat)
+#   executor-1 ─┐                       ┌─> master-1 (models: MASTER_1_MODELS) ─┐
+#               ├─poll──> gateway ──────┤                                        ├──> node
+#   executor-2 ─┘   (routes by modelId) └─> master-2 (models: MASTER_2_MODELS) ─┘
 #
-# Gateway auto-generates admin secret on first startup.
-# CLI and Chat mount gateway data volume (read-only) to auto-authenticate.
+# How it works:
+#   * Each master self-registers with the gateway (`MASTER_GATEWAY_REGISTRATION=true`),
+#     declaring which models it serves, and heartbeats every 15s. Registration is
+#     retried until the gateway is reachable, and re-done automatically if the
+#     gateway restarts — start order does not matter.
+#   * The gateway runs WITHOUT a seed master (MASTER_URL is blank): routing comes
+#     exclusively from the registry. `/api/transitions/poll?modelId=X` goes to the
+#     master that declared X; `/api/transitions/discover` fans out to all masters.
+#   * Masters partition by model: each only polls/fires transitions of models in
+#     its own MASTER_N_MODELS scope (ActiveModelResolver intersection), so the two
+#     schedulers never double-fire. Keep the two scopes DISJOINT. To route work to
+#     master-2, create a model whose id is in MASTER_2_MODELS (default: default-2).
+#   * Executors authenticate with the dedicated `agenticos-executor` OAuth2 client
+#     (JWT scope-limited to the polling protocol). A command transition picks its
+#     executor via the inscription's `action.executorId` (fallback assignedAgent;
+#     "*" = any executor, first token reservation wins).
+#
+# Notes:
+#   * The GUI still points at the default master port (8082 = master-1) for direct
+#     calls; gateway-routed API calls reach both masters.
+#   * This file is intended for staging validation of the multi-master + multi-
+#     executor path — not (yet) the default production topology.
 #
 # Usage:
 #   cd deployment
 #   cp .env.template .env   # then edit .env with your settings
-#   docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
-#   docker compose -f docker-compose.hub-only.no-monitoring.yml down
+#   docker compose -f docker-compose.multi-master.yml up -d
+#   docker compose -f docker-compose.multi-master.yml down
 
 name: ${COMPOSE_PROJECT_NAME:-agenticnetos}
 
@@ -42,13 +61,11 @@ services:
   # ===========================================================================
   # INIT — prepare host bind-mount permissions (first-boot on Linux)
   # ===========================================================================
-  # See docker-compose.hub-only.yml for a detailed explanation. This one-shot
-  # container makes bind-mount dirs writable by non-root service containers without world-writable permissions.
 
   init-perms:
     image: alpine:3.20
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-init-perms
-    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/executor /data/logs/executor-2 /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/cli /data/logs/chat /data/logs/blobstore /data/gateway/jwt /node-data && (getent group agenticnet >/dev/null || addgroup -S agenticnet) && (getent passwd agenticnet >/dev/null || adduser -S -G agenticnet agenticnet) && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
+    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master-1 /data/logs/master-2 /data/logs/executor /data/logs/executor-2 /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/blobstore /data/gateway/jwt /node-data && (getent group agenticnet >/dev/null || addgroup -S agenticnet) && (getent passwd agenticnet >/dev/null || adduser -S -G agenticnet agenticnet) && chown -R agenticnet:agenticnet /data /node-data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data /node-data && chmod 700 /data/gateway /data/gateway/jwt"]
     volumes:
       - ./data:/data
       - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/node-data
@@ -75,32 +92,6 @@ services:
       timeout: 5s
       retries: 3
 
-  agenticos-tool-seeder:
-    image: ${DOCKER_CLI_IMAGE:-docker:28-cli}
-    profiles: ["tools"]
-    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-tool-seeder
-    depends_on:
-      agenticnetos-registry:
-        condition: service_healthy
-    environment:
-      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.21.2}
-      AGENTICNETOS_REGISTRY_PORT: ${AGENTICNETOS_REGISTRY_PORT:-5001}
-      AGENTICOS_TOOL_REGISTRY_HOST: ${AGENTICOS_TOOL_REGISTRY_HOST:-localhost:5001}
-      AGENTICOS_TOOL_SOURCE_REGISTRY: ${AGENTICOS_TOOL_SOURCE_REGISTRY:-docker.io/alexejsailer}
-      AGENTICOS_TOOL_SEED_TAG: ${AGENTICOS_TOOL_SEED_TAG:-}
-      AGENTICOS_TOOL_SEED_FALLBACK_TAG: ${AGENTICOS_TOOL_SEED_FALLBACK_TAG:-latest}
-      AGENTICOS_TOOL_SEED_MODE: ${AGENTICOS_TOOL_SEED_MODE:-mirror}
-      AGENTICOS_TOOL_SOURCE_DIR: /agentic-net-tools
-      AGENTICOS_TOOL_SEED_IMAGES: ${AGENTICOS_TOOL_SEED_IMAGES:-agenticos-tool-echo agenticos-tool-crawler agenticos-tool-rss agenticos-tool-search agenticos-tool-reddit agenticos-tool-secured-api}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./scripts/seed-tool-registry.sh:/usr/local/bin/seed-tool-registry.sh:ro
-      - ../agentic-net-tools:/agentic-net-tools:ro
-    entrypoint: ["/bin/sh", "/usr/local/bin/seed-tool-registry.sh"]
-    networks:
-      - agenticnetos-backend
-    restart: "no"
-
   # ===========================================================================
   # CORE BACKEND SERVICES
   # ===========================================================================
@@ -120,10 +111,6 @@ services:
       AGENTICOS_PERSISTENCE_RECOVERY_EVENTBASEPATH: /app/data/events
       AGENTICOS_PERSISTENCE_RECOVERY_SNAPSHOTBASEPATH: /app/data/snapshots
       LOG_PATH: /app/logs
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      OTEL_SERVICE_NAME: agentic-net-node
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=node
       OTEL_SDK_DISABLED: "true"
     volumes:
       - ${AGENTICNETOS_NODE_DATA_DIR:-~/.agenticos}:/app/data
@@ -149,9 +136,11 @@ services:
       retries: 5
       start_period: 60s
 
-  agentic-net-master:
+  # Master 1 — serves MASTER_1_MODELS (default: "default"). Self-registers with
+  # the gateway and only polls/fires transitions of models inside its scope.
+  agentic-net-master-1:
     image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.21.2}
-    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master-1
     depends_on:
       init-perms:
         condition: service_completed_successfully
@@ -163,6 +152,12 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      MASTER_ID: master-1
+      MASTER_MODELS: ${MASTER_1_MODELS:-default}
+      TRANSITION_MASTER_MODELS: ${MASTER_1_MODELS:-default}
+      MASTER_GATEWAY_REGISTRATION: "true"
+      MASTER_GATEWAY_URL: http://agentic-net-gateway:8083
+      MASTER_SELF_URL: http://agentic-net-master-1:8082
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       BLOBSTORE_BASE_URL: http://sa-blobstore:8080
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
@@ -186,14 +181,11 @@ services:
       GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       LOG_PATH: /app/logs
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      OTEL_SERVICE_NAME: agentic-net-master
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=master
+      OTEL_SERVICE_NAME: agentic-net-master-1
       OTEL_SDK_DISABLED: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data/logs/master:/app/logs
+      - ./data/logs/master-1:/app/logs
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MASTER_PORT:-8082}:8082"
     networks:
@@ -215,13 +207,81 @@ services:
       retries: 5
       start_period: 60s
 
-  # Two executor instances by default. Both poll THROUGH THE GATEWAY with the
-  # dedicated `agenticos-executor` OAuth2 client (JWT scope-limited to the
-  # polling protocol). A command transition chooses its executor via the
-  # inscription's `action.executorId` (falls back to `assignedAgent`; `"*"` =
-  # any executor, first token reservation wins). To poll master directly
-  # instead, set EXECUTOR_UPSTREAM_URL=http://agentic-net-master:8082 and
-  # EXECUTOR_AUTH_CLIENT_ID= (empty) in .env.
+  # Master 2 — serves MASTER_2_MODELS (default: "default-2"). Keep the scope
+  # DISJOINT from master-1 or both schedulers will fire the shared models.
+  agentic-net-master-2:
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.21.2}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master-2
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+      agentic-net-node:
+        condition: service_healthy
+      agentic-net-vault:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      MASTER_ID: master-2
+      MASTER_MODELS: ${MASTER_2_MODELS:-default-2}
+      TRANSITION_MASTER_MODELS: ${MASTER_2_MODELS:-default-2}
+      MASTER_GATEWAY_REGISTRATION: "true"
+      MASTER_GATEWAY_URL: http://agentic-net-gateway:8083
+      MASTER_SELF_URL: http://agentic-net-master-2:8082
+      AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      BLOBSTORE_BASE_URL: http://sa-blobstore:8080
+      AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
+      AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
+      OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
+      OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
+      AGENTICOS_REGISTRY_ENABLED: "${AGENTICOS_REGISTRY_ENABLED:-true}"
+      AGENTICOS_REGISTRY_URL: "http://agenticnetos-registry:5000"
+      AGENTICOS_REGISTRY_INTERNAL_URL: "http://agenticnetos-registry:5000"
+      AGENTICOS_DOCKER_ENABLED: "${AGENTICOS_DOCKER_ENABLED:-true}"
+      AGENTICOS_DOCKER_NETWORK: "${COMPOSE_PROJECT_NAME:-agenticnetos}-backend"
+      AGENTICOS_DOCKER_REGISTRY_HOST: "localhost:${AGENTICNETOS_REGISTRY_PORT:-5001}"
+      AGENTICOS_DOCKER_IMAGE_ALLOWLIST: "${AGENTICOS_DOCKER_IMAGE_ALLOWLIST:-localhost:5001/agenticos-*}"
+      GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
+      AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
+      LOG_PATH: /app/logs
+      OTEL_SERVICE_NAME: agentic-net-master-2
+      OTEL_SDK_DISABLED: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/logs/master-2:/app/logs
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MASTER_2_PORT:-8087}:8082"
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: ${AGENTIC_NET_MASTER_MEMORY_LIMIT:-2G}
+          cpus: "${AGENTIC_NET_MASTER_CPU_LIMIT:-1.0}"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # EXECUTORS — both poll through the gateway with the executor OAuth2 client
+  # ===========================================================================
+
   agentic-net-executor:
     image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.21.2}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
@@ -232,20 +292,17 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
-      EXECUTOR_UPSTREAM_URL: ${EXECUTOR_UPSTREAM_URL:-http://agentic-net-gateway:8083}
+      EXECUTOR_UPSTREAM_URL: http://agentic-net-gateway:8083
       EXECUTOR_ID: ${EXECUTOR_ID:-agentic-net-executor-default}
       EXECUTOR_MODELS: "${EXECUTOR_MODELS:-*}"
-      EXECUTOR_AUTH_CLIENT_ID: ${EXECUTOR_AUTH_CLIENT_ID-${AGENTICOS_EXECUTOR_CLIENT_ID:-agenticos-executor}}
+      EXECUTOR_AUTH_CLIENT_ID: ${AGENTICOS_EXECUTOR_CLIENT_ID:-agenticos-executor}
       EXECUTOR_AUTH_CLIENT_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
       EXECUTOR_AUTH_CLIENT_SECRET_FILE: /app/gateway-data/jwt/executor-secret
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor
       OTEL_SDK_DISABLED: "true"
     volumes:
       - ./data/logs/executor:/app/logs
@@ -281,20 +338,17 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
-      EXECUTOR_UPSTREAM_URL: ${EXECUTOR_UPSTREAM_URL:-http://agentic-net-gateway:8083}
+      EXECUTOR_UPSTREAM_URL: http://agentic-net-gateway:8083
       EXECUTOR_ID: ${EXECUTOR_2_ID:-agentic-net-executor-2}
       EXECUTOR_MODELS: "${EXECUTOR_2_MODELS:-*}"
-      EXECUTOR_AUTH_CLIENT_ID: ${EXECUTOR_AUTH_CLIENT_ID-${AGENTICOS_EXECUTOR_CLIENT_ID:-agenticos-executor}}
+      EXECUTOR_AUTH_CLIENT_ID: ${AGENTICOS_EXECUTOR_CLIENT_ID:-agenticos-executor}
       EXECUTOR_AUTH_CLIENT_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
       EXECUTOR_AUTH_CLIENT_SECRET_FILE: /app/gateway-data/jwt/executor-secret
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-executor-2
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=executor-2
       OTEL_SDK_DISABLED: "true"
     volumes:
       - ./data/logs/executor-2:/app/logs
@@ -383,10 +437,6 @@ services:
       VAULT_OPENBAO_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      OTEL_SERVICE_NAME: agentic-net-vault
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=vault
       OTEL_SDK_DISABLED: "true"
     volumes:
       - ./data/logs/vault:/app/logs
@@ -412,7 +462,7 @@ services:
       start_period: 60s
 
   # ===========================================================================
-  # API GATEWAY
+  # API GATEWAY — no seed master; masters self-register at runtime
   # ===========================================================================
 
   agentic-net-gateway:
@@ -421,11 +471,11 @@ services:
     depends_on:
       init-perms:
         condition: service_completed_successfully
-      agentic-net-master:
-        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
-      MASTER_URL: http://agentic-net-master:8082
+      # Blank on purpose: with no seed master, routing comes exclusively from
+      # the /internal/masters registry the two masters register into.
+      MASTER_URL: ""
       NODE_URL: http://agentic-net-node:8080
       VAULT_URL: http://agentic-net-vault:8085
       GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-30}
@@ -436,10 +486,6 @@ services:
       GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS: "${GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       GATEWAY_JWT_KEY_DIR: /app/data/jwt
       LOG_PATH: /app/logs
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      OTEL_SERVICE_NAME: agentic-net-gateway
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=gateway
       OTEL_SDK_DISABLED: "true"
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_GATEWAY_PORT:-8083}:8083"
@@ -501,79 +547,9 @@ services:
       retries: 3
       start_period: 30s
 
-  agentic-net-cli:
-    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.21.2}
-    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-cli
-    depends_on:
-      init-perms:
-        condition: service_completed_successfully
-      agentic-net-gateway:
-        condition: service_healthy
-    environment:
-      AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
-      AGENTICOS_GATEWAY_SECRET_FILE: /app/gateway-data/jwt/admin-secret
-    volumes:
-      - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
-      - ./data/logs/cli:/app/logs
-    networks:
-      - agenticnetos-clients
-    restart: "no"
-    stdin_open: true
-    tty: true
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          memory: ${AGENTICNETOS_CLI_MEMORY_LIMIT:-512M}
-          cpus: "${AGENTICNETOS_CLI_CPU_LIMIT:-0.5}"
-
-  agentic-net-chat:
-    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.21.2}
-    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-chat
-    profiles:
-      - telegram
-    depends_on:
-      init-perms:
-        condition: service_completed_successfully
-      agentic-net-gateway:
-        condition: service_healthy
-    environment:
-      AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
-      AGENTICOS_GATEWAY_SECRET_FILE: /app/gateway-data/jwt/admin-secret
-      TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
-      TELEGRAM_BOT_WEBHOOK_BASE_URL: ${TELEGRAM_BOT_WEBHOOK_BASE_URL:-}
-      TELEGRAM_BOT_WEBHOOK_SECRET: ${TELEGRAM_BOT_WEBHOOK_SECRET:-}
-      TELEGRAM_BOT_ALLOWED_CHAT_IDS: ${TELEGRAM_BOT_ALLOWED_CHAT_IDS:-}
-      AGENTICOS_PROVIDER: ${LLM_PROVIDER:-ollama}
-      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
-      AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANTHROPIC_HIGH_MODEL: ${ANTHROPIC_HIGH_MODEL:-claude-opus-4-7}
-      ANTHROPIC_MEDIUM_MODEL: ${ANTHROPIC_MEDIUM_MODEL:-claude-sonnet-4-6}
-      ANTHROPIC_LOW_MODEL: ${ANTHROPIC_LOW_MODEL:-claude-haiku-4-5-20251001}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
-      OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
-      OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
-      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-llama3.2}
-      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-llama3.2}
-      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-llama3.2}
-    volumes:
-      - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
-      - ./data/logs/chat:/app/logs
-    networks:
-      - agenticnetos-clients
-    restart: unless-stopped
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          memory: ${AGENTICNETOS_CHAT_MEMORY_LIMIT:-512M}
-          cpus: "${AGENTICNETOS_CHAT_CPU_LIMIT:-0.5}"
+  # ===========================================================================
+  # BLOB STORAGE
+  # ===========================================================================
 
   sa-blobstore:
     image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.21.2}
@@ -584,10 +560,6 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       LOG_PATH: /app/logs
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      OTEL_SERVICE_NAME: sa-blobstore
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=blobstore
       OTEL_SDK_DISABLED: "true"
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${SA_BLOBSTORE_PORT:-8090}:8080"
@@ -612,21 +584,3 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-
-  # ===========================================================================
-  # TOOL CONTAINERS (uncomment to enable)
-  # ===========================================================================
-
-  # agenticos-tool-crawler:
-  #   image: ${AGENTICOS_REGISTRY_HOST:-localhost:5001}/agenticos-tool-crawler:1.0.0
-  #   container_name: agenticos-tool-crawler
-  #   networks:
-  #     - agenticnetos-backend
-  #   restart: unless-stopped
-  #   logging: *default-logging
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/health || exit 1"]
-  #     interval: 15s
-  #     timeout: 5s
-  #     retries: 3
-  #     start_period: 10s

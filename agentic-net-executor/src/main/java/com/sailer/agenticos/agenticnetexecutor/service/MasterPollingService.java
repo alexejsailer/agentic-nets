@@ -53,6 +53,7 @@ public class MasterPollingService {
     private final boolean authEnabled;
     private final String clientId;
     private final String clientSecret;
+    private final String clientSecretFile;
     private final String configuredModels;
     private final AtomicReference<String> jwtToken = new AtomicReference<>();
     private final AtomicReference<Instant> tokenExpiry = new AtomicReference<>(Instant.EPOCH);
@@ -65,6 +66,7 @@ public class MasterPollingService {
             @Value("${executor.id:agentic-net-executor-default}") String executorId,
             @Value("${executor.upstream.auth.client-id:}") String clientId,
             @Value("${executor.upstream.auth.client-secret:}") String clientSecret,
+            @Value("${executor.upstream.auth.client-secret-file:}") String clientSecretFile,
             @Value("${executor.models:*}") String configuredModels,
             TransitionStore transitionStore,
             @Lazy com.sailer.agenticos.agenticnetexecutor.transition.runtime.TransitionOrchestrator orchestrator) {
@@ -72,9 +74,11 @@ public class MasterPollingService {
         this.executorId = executorId;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
+        this.clientSecretFile = clientSecretFile;
         this.configuredModels = configuredModels;
         this.authEnabled = clientId != null && !clientId.isBlank()
-                && clientSecret != null && !clientSecret.isBlank();
+                && ((clientSecret != null && !clientSecret.isBlank())
+                        || (clientSecretFile != null && !clientSecretFile.isBlank()));
         this.transitionStore = transitionStore;
         this.orchestrator = orchestrator;
 
@@ -111,13 +115,19 @@ public class MasterPollingService {
     }
 
     private Mono<String> fetchToken() {
+        String secret = resolveClientSecret();
+        if (secret == null) {
+            return Mono.error(new IllegalStateException(
+                    "Executor client secret not available (secret file '" + clientSecretFile
+                            + "' missing or empty) — will retry on next poll"));
+        }
         return WebClient.create(upstreamUrl)
                 .post()
                 .uri("/oauth2/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("grant_type", "client_credentials")
                         .with("client_id", clientId)
-                        .with("client_secret", clientSecret))
+                        .with("client_secret", secret))
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .timeout(Duration.ofSeconds(10))
@@ -132,6 +142,30 @@ public class MasterPollingService {
                     return token;
                 })
                 .doOnError(e -> logger.error("Failed to fetch JWT token: {}", e.getMessage()));
+    }
+
+    /**
+     * Resolve the client secret: an explicit configured value wins; otherwise the secret file is
+     * read lazily on every token fetch — so a gateway-generated secret that appears AFTER this
+     * executor booted (fresh deployment ordering) is picked up without a restart.
+     */
+    private String resolveClientSecret() {
+        if (clientSecret != null && !clientSecret.isBlank()) {
+            return clientSecret;
+        }
+        if (clientSecretFile != null && !clientSecretFile.isBlank()) {
+            try {
+                String fromFile = java.nio.file.Files
+                        .readString(java.nio.file.Path.of(clientSecretFile)).strip();
+                if (!fromFile.isBlank()) {
+                    return fromFile;
+                }
+                logger.warn("Client secret file {} is empty", clientSecretFile);
+            } catch (java.io.IOException e) {
+                logger.warn("Cannot read client secret file {}: {}", clientSecretFile, e.getMessage());
+            }
+        }
+        return null;
     }
 
     // -------------------------------------------------------------------------

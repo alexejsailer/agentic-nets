@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Dedicated executor OAuth2 client with scope enforcement** (`agentic-net-gateway` — `TokenController`, `AdminSecretInitializer`, new `ExecutorScopeEnforcementFilter`). A third client `agenticos-executor` (secret auto-generated to `data/jwt/executor-secret`, or pinned via `AGENTICOS_EXECUTOR_SECRET`) issues JWTs with scope `agenticos executor` that are enforced to the executor polling protocol ONLY — `GET /api/transitions/poll|discover`, `POST /api/transitions/{id}/deployment` and `POST /api/transitions/tokens/emit|consume|release`; every other route answers `403 executor_scope`. Remote executors no longer need to hold the full admin secret.
+- **Executor secret-from-file auth** (`agentic-net-executor` — `MasterPollingService`). New `executor.upstream.auth.client-secret-file` (`EXECUTOR_AUTH_CLIENT_SECRET_FILE`): the client-credentials secret is read lazily from a mounted file at each token fetch, so the gateway-generated `executor-secret` may appear *after* the executor boots (fresh `docker compose up` ordering) and is picked up without a restart. Inline `EXECUTOR_AUTH_CLIENT_SECRET` still wins when set. JWTs are re-fetched ~60s before expiry, making the machine-auth flow long-term valid without refresh tokens.
+- **Two executors in every compose file, polling through the gateway** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `.env.template`). A second executor instance `agentic-net-executor-2` (id `agentic-net-executor-2`, host port 8086) runs alongside the default one; BOTH now poll `http://agentic-net-gateway:8083` with the executor client instead of hitting master unauthenticated. Per-executor knobs: `EXECUTOR_ID`/`EXECUTOR_2_ID`, `EXECUTOR_MODELS`/`EXECUTOR_2_MODELS`; direct-master mode remains available (`EXECUTOR_UPSTREAM_URL` + blank `EXECUTOR_AUTH_CLIENT_ID`). A command transition picks its executor via the inscription's `action.executorId` (see `core/CHANGELOG.md`).
+- **Multi-master compose topology** (`deployment/docker-compose.multi-master.yml`). Two masters (ports 8082/8087) partitioned by model (`MASTER_1_MODELS`/`MASTER_2_MODELS`, keep disjoint) self-register with the gateway (no seed master: blank `MASTER_URL`), plus the two executors — the staging-validation topology for the multi-master + multi-executor path.
+
+### Fixed
+- **Gateway heartbeat no longer silently acknowledges unknown masters** (`agentic-net-gateway` — `MasterRegistryService`, `MasterRegistrationController`). After a gateway restart wiped the in-memory master registry, heartbeats from already-registered masters returned 200 as a no-op — the master believed it was registered while the gateway routed nothing to it, permanently. Heartbeat now returns `404 {"error":"unknown_master"}` for unregistered masters so they re-register (the master side re-registers automatically; see `core/CHANGELOG.md`).
+
 ## [2.21.2] - 2026-07-09
 
 ### No code changes — released for parity with sibling repo (see `core/CHANGELOG.md` for the actual changes).

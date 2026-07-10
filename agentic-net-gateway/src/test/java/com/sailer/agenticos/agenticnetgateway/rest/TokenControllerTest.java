@@ -22,6 +22,8 @@ class TokenControllerTest {
     private static final String ADMIN_SECRET = "admin-secret-value";
     private static final String READONLY_ID = "agenticos-readonly";
     private static final String READONLY_SECRET = "readonly-secret-value";
+    private static final String EXECUTOR_ID = "agenticos-executor";
+    private static final String EXECUTOR_SECRET = "executor-secret-value";
 
     private JwtEncoder jwtEncoder;
     private GatewayProperties props;
@@ -44,6 +46,8 @@ class TokenControllerTest {
         props.setClientSecret(ADMIN_SECRET);
         props.setReadonlyClientId(READONLY_ID);
         props.setReadonlyClientSecret(READONLY_SECRET);
+        props.setExecutorClientId(EXECUTOR_ID);
+        props.setExecutorClientSecret(EXECUTOR_SECRET);
         props.setTokenTtlSeconds(3600);
 
         controller = new TokenController(jwtEncoder, props);
@@ -66,6 +70,32 @@ class TokenControllerTest {
 
         assertThat(resp.getStatusCode().value()).isEqualTo(200);
         assertThat(resp.getBody()).containsEntry("scope", "agenticos readonly");
+    }
+
+    @Test
+    void executorCredentials_issuesExecutorScope() {
+        ResponseEntity<Map<String, Object>> resp = controller.token(
+                "client_credentials", EXECUTOR_ID, EXECUTOR_SECRET);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(200);
+        assertThat(resp.getBody()).containsEntry("scope", "agenticos executor");
+    }
+
+    @Test
+    void executorCredentials_whenExecutorSecretBlank_rejects() {
+        props.setExecutorClientSecret("");
+        ResponseEntity<Map<String, Object>> resp = controller.token(
+                "client_credentials", EXECUTOR_ID, EXECUTOR_SECRET);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(401);
+    }
+
+    @Test
+    void adminSecretMustNotMatchExecutorClientId() {
+        ResponseEntity<Map<String, Object>> resp = controller.token(
+                "client_credentials", EXECUTOR_ID, ADMIN_SECRET);
+
+        assertThat(resp.getStatusCode().value()).isEqualTo(401);
     }
 
     @Test

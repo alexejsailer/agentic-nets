@@ -35,14 +35,20 @@ class AdminSecretInitializerTest {
 
         Path adminFile = keyDir.resolve("admin-secret");
         Path readonlyFile = keyDir.resolve("readonly-secret");
+        Path executorFile = keyDir.resolve("executor-secret");
         assertThat(adminFile).exists();
         assertThat(readonlyFile).exists();
+        assertThat(executorFile).exists();
 
         // The generated secret is loaded back into the live properties so the app can use it immediately.
         assertThat(props.getClientSecret()).isEqualTo(Files.readString(adminFile).strip());
         assertThat(props.getReadonlyClientSecret()).isEqualTo(Files.readString(readonlyFile).strip());
-        // ...and admin != readonly.
+        assertThat(props.getExecutorClientSecret()).isEqualTo(Files.readString(executorFile).strip());
+        // ...and all three are distinct.
         assertThat(props.getClientSecret()).isNotEqualTo(props.getReadonlyClientSecret());
+        assertThat(props.getExecutorClientSecret())
+                .isNotEqualTo(props.getClientSecret())
+                .isNotEqualTo(props.getReadonlyClientSecret());
     }
 
     @Test

@@ -56,6 +56,7 @@ class MasterPollingIntegrationTest {
                 "test-executor-1",
                 "",   // no client-id (direct mode)
                 "",   // no client-secret
+                "",   // no client-secret-file
                 "*",  // all models
                 transitionStore,
                 orchestrator

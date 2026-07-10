@@ -679,11 +679,15 @@ When listing executors with a `modelId` filter:
 | Property | Env Var | Default | Description |
 |----------|---------|---------|-------------|
 | `master.id` | `MASTER_ID` | `master-default` | Unique master identifier |
-| `master.models` | `MASTER_MODELS` | `*` | Comma-separated models or `*` for wildcard |
+| `master.models` | `MASTER_MODELS` | `*` | Comma-separated models or `*` for wildcard. Also SCOPES which models this master polls/fires (ActiveModelResolver intersection) — two masters with disjoint scopes never double-fire |
 | `master.gateway-registration.enabled` | `MASTER_GATEWAY_REGISTRATION` | `false` | Enable gateway registration |
 | `master.gateway-registration.gateway-url` | `MASTER_GATEWAY_URL` | (empty) | Gateway base URL |
 | `master.gateway-registration.self-url` | `MASTER_SELF_URL` | `http://localhost:8082` | URL gateway should use to reach this master |
 | `master.gateway-registration.heartbeat-interval-seconds` | `MASTER_HEARTBEAT_INTERVAL` | `15` | Heartbeat frequency |
+
+Registration is retried on every heartbeat tick until it succeeds (compose start order does
+not matter), and a heartbeat answered with `404 unknown_master` (gateway restarted and lost
+its in-memory registry) drops the master back to unregistered so the next tick re-registers.
 
 ### Executor (`agentic-net-executor`)
 
@@ -692,8 +696,29 @@ When listing executors with a `modelId` filter:
 | `executor.id` | `EXECUTOR_ID` | `agentic-net-executor-default` | Unique executor identifier |
 | `executor.models` | `EXECUTOR_MODELS` | `*` | Models this executor handles. Comma-separated or `*` |
 | `executor.upstream.url` | `EXECUTOR_UPSTREAM_URL` | `http://localhost:8082` | Gateway or master URL to poll |
-| `executor.upstream.auth.client-id` | `EXECUTOR_AUTH_CLIENT_ID` | (empty) | JWT client ID (needed for gateway mode) |
-| `executor.upstream.auth.client-secret` | `EXECUTOR_AUTH_CLIENT_SECRET` | (empty) | JWT client secret (needed for gateway mode) |
+| `executor.upstream.auth.client-id` | `EXECUTOR_AUTH_CLIENT_ID` | (empty) | OAuth2 client ID (gateway mode; use `agenticos-executor`) |
+| `executor.upstream.auth.client-secret` | `EXECUTOR_AUTH_CLIENT_SECRET` | (empty) | OAuth2 client secret (gateway mode) |
+| `executor.upstream.auth.client-secret-file` | `EXECUTOR_AUTH_CLIENT_SECRET_FILE` | (empty) | File to read the secret from (e.g. the gateway-generated `data/jwt/executor-secret`, mounted read-only). Read lazily at each token fetch, so it may appear after boot |
+
+The gateway ships a dedicated `agenticos-executor` OAuth2 client (secret auto-generated to
+`data/jwt/executor-secret`, or pinned via `AGENTICOS_EXECUTOR_SECRET`). Tokens issued to it
+carry scope `agenticos executor` and are enforced to the polling protocol ONLY (`poll`,
+`discover`, `{id}/deployment`, `tokens/emit|consume|release`) — everything else returns
+`403 executor_scope`. Executors auto re-fetch their JWT ~60s before expiry, so the
+client-credentials flow is long-term valid without refresh tokens.
+
+### Choosing an executor per command transition
+
+The per-transition target executor is resolved from the inscription first, then the
+persisted assignment:
+
+1. `action.executorId` in the inscription (editable without re-assigning) — e.g.
+   `"action": { "type": "command", "executorId": "agentic-net-executor-2", ... }`
+2. The transition's `assignedAgent` leaf (default `agentic-net-executor-default`)
+
+`"*"` offers the transition to EVERY polling executor — the first to win the node-side
+token reservation fires; while a command is in flight on one executor, the master answers
+all other executors with `CONTINUE` for that transition.
 
 ---
 
@@ -737,9 +762,12 @@ MASTER_URL=
 # Executor — handles all models via gateway
 EXECUTOR_UPSTREAM_URL=http://gateway:8083
 EXECUTOR_MODELS=*
-EXECUTOR_AUTH_CLIENT_ID=executor-client
-EXECUTOR_AUTH_CLIENT_SECRET=<secret>
+EXECUTOR_AUTH_CLIENT_ID=agenticos-executor
+EXECUTOR_AUTH_CLIENT_SECRET_FILE=/app/gateway-data/jwt/executor-secret
 ```
+
+Ready-made compose file: `deployment/docker-compose.multi-master.yml` (two masters with
+disjoint model scopes + two executors, no seed master).
 
 ### Topology 3: Executor with Model Restriction
 

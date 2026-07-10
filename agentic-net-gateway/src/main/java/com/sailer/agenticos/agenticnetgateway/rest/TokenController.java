@@ -81,7 +81,7 @@ public class TokenController {
     }
 
     /**
-     * Match presented credentials against the configured admin or readonly client pair.
+     * Match presented credentials against the configured admin, readonly, or executor client pair.
      * Returns the scope claim to issue, or {@code null} if no match.
      */
     private String resolveScope(String clientId, String clientSecret) {
@@ -94,6 +94,12 @@ public class TokenController {
                 && secureEquals(props.getReadonlyClientId(), clientId)
                 && secureEquals(readonlySecret, clientSecret)) {
             return "agenticos readonly";
+        }
+        String executorSecret = props.getExecutorClientSecret();
+        if (executorSecret != null && !executorSecret.isBlank()
+                && secureEquals(props.getExecutorClientId(), clientId)
+                && secureEquals(executorSecret, clientSecret)) {
+            return "agenticos executor";
         }
         return null;
     }

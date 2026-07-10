@@ -74,7 +74,11 @@ public class MasterRegistrationController {
         if (masterId == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "masterId is required"));
         }
-        registryService.heartbeat(masterId);
+        if (!registryService.heartbeat(masterId)) {
+            // Unknown master (evicted or gateway restarted) — a 404 tells it to re-register.
+            logger.warn("Heartbeat from unknown master '{}' — requesting re-registration", masterId);
+            return ResponseEntity.status(404).body(Map.of("error", "unknown_master"));
+        }
         return ResponseEntity.ok(Map.of("status", "ok"));
     }
 

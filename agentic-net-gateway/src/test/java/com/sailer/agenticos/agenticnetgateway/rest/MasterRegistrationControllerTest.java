@@ -85,6 +85,18 @@ class MasterRegistrationControllerTest {
     }
 
     @Test
+    void heartbeat_unknownMaster_returns404_soMasterReRegisters() throws Exception {
+        // A gateway restart wipes the in-memory registry; the next heartbeat from a master that
+        // believes it is registered must NOT be silently acknowledged — 404 tells it to re-register.
+        mockMvc.perform(post("/internal/masters/heartbeat")
+                        .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("masterId", "never-registered"))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("unknown_master"));
+    }
+
+    @Test
     void heartbeat_missingMasterId_returnsBadRequest() throws Exception {
         mockMvc.perform(post("/internal/masters/heartbeat")
                         .header(INTERNAL_SECRET_HEADER, INTERNAL_SECRET)

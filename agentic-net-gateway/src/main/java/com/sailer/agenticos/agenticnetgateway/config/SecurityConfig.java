@@ -45,15 +45,18 @@ public class SecurityConfig {
 
     private final TokenRateLimiter tokenRateLimiter;
     private final ReadonlyEnforcementFilter readonlyEnforcementFilter;
+    private final ExecutorScopeEnforcementFilter executorScopeEnforcementFilter;
     private final List<String> allowedOriginPatterns;
     private final boolean hubPublicCatalog;
 
     public SecurityConfig(TokenRateLimiter tokenRateLimiter,
                           ReadonlyEnforcementFilter readonlyEnforcementFilter,
+                          ExecutorScopeEnforcementFilter executorScopeEnforcementFilter,
                           @Value("${gateway.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String allowedOriginPatterns,
                           @Value("${gateway.hub.public-catalog:false}") boolean hubPublicCatalog) {
         this.tokenRateLimiter = tokenRateLimiter;
         this.readonlyEnforcementFilter = readonlyEnforcementFilter;
+        this.executorScopeEnforcementFilter = executorScopeEnforcementFilter;
         this.allowedOriginPatterns = parseCsv(allowedOriginPatterns);
         this.hubPublicCatalog = hubPublicCatalog;
     }
@@ -63,6 +66,7 @@ public class SecurityConfig {
         return http
                 .addFilterBefore(tokenRateLimiter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(readonlyEnforcementFilter, BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(executorScopeEnforcementFilter, ReadonlyEnforcementFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {

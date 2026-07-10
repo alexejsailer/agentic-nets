@@ -19,6 +19,8 @@ public class GatewayProperties {
     private String clientSecret = "";
     private String readonlyClientId = "agenticos-readonly";
     private String readonlyClientSecret = "";
+    private String executorClientId = "agenticos-executor";
+    private String executorClientSecret = "";
     private String jwtKeyDir = "./data/jwt";
     private int tokenTtlSeconds = 3600;
     private int rateLimitPerMinute = 10;
@@ -102,6 +104,22 @@ public class GatewayProperties {
 
     public void setReadonlyClientSecret(String readonlyClientSecret) {
         this.readonlyClientSecret = readonlyClientSecret;
+    }
+
+    public String getExecutorClientId() {
+        return executorClientId;
+    }
+
+    public void setExecutorClientId(String executorClientId) {
+        this.executorClientId = executorClientId;
+    }
+
+    public String getExecutorClientSecret() {
+        return executorClientSecret;
+    }
+
+    public void setExecutorClientSecret(String executorClientSecret) {
+        this.executorClientSecret = executorClientSecret;
     }
 
     public String getJwtKeyDir() {

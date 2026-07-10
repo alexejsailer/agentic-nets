@@ -73,10 +73,15 @@ public class MasterRegistryService {
         logger.info("Registered master: id={}, url={}, models={}, seed={}", masterId, url, models, seed);
     }
 
-    public void heartbeat(String masterId) {
-        masters.computeIfPresent(masterId, (id, existing) ->
+    /**
+     * Refresh a master's heartbeat. Returns {@code false} when the master is unknown (never
+     * registered, evicted as stale, or lost to a gateway restart) so the caller can tell the
+     * master to re-register instead of silently acknowledging a no-op.
+     */
+    public boolean heartbeat(String masterId) {
+        return masters.computeIfPresent(masterId, (id, existing) ->
                 new MasterNode(id, existing.url(), existing.models(), existing.registeredAt(),
-                        Instant.now(), existing.seed()));
+                        Instant.now(), existing.seed())) != null;
     }
 
     public void deregister(String masterId) {

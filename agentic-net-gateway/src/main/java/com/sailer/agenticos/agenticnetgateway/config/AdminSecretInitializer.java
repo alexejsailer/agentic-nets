@@ -15,8 +15,8 @@ import java.security.SecureRandom;
 import java.util.Set;
 
 /**
- * Auto-generates and persists the OAuth2 admin and readonly secrets when none are configured.
- * Follows the same file-persistence pattern as {@link JwtConfig} (RSA key pair).
+ * Auto-generates and persists the OAuth2 admin, readonly, and executor secrets when none are
+ * configured. Follows the same file-persistence pattern as {@link JwtConfig} (RSA key pair).
  *
  * <p>Resolution order (per secret):
  * <ol>
@@ -28,6 +28,7 @@ import java.util.Set;
  * <p>Clients retrieve the secrets via:
  * {@code docker exec agenticos-gateway cat /app/data/jwt/admin-secret}
  * {@code docker exec agenticos-gateway cat /app/data/jwt/readonly-secret}
+ * {@code docker exec agenticos-gateway cat /app/data/jwt/executor-secret}
  */
 @Configuration
 public class AdminSecretInitializer {
@@ -35,6 +36,7 @@ public class AdminSecretInitializer {
     private static final Logger logger = LoggerFactory.getLogger(AdminSecretInitializer.class);
     private static final String ADMIN_SECRET_FILE = "admin-secret";
     private static final String READONLY_SECRET_FILE = "readonly-secret";
+    private static final String EXECUTOR_SECRET_FILE = "executor-secret";
     private static final int SECRET_BYTES = 32; // 32 bytes = 64 hex chars
 
     private final GatewayProperties properties;
@@ -59,6 +61,12 @@ public class AdminSecretInitializer {
                 keyDir.resolve(READONLY_SECRET_FILE),
                 properties.getReadonlyClientSecret(),
                 properties::setReadonlyClientSecret);
+
+        initSecret(
+                "Executor",
+                keyDir.resolve(EXECUTOR_SECRET_FILE),
+                properties.getExecutorClientSecret(),
+                properties::setExecutorClientSecret);
     }
 
     private void initSecret(String label, Path secretPath, String configured,
