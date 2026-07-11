@@ -129,7 +129,10 @@ export class GatewayClient {
       const params = new URLSearchParams(query);
       url += (url.includes('?') ? '&' : '?') + params.toString();
     }
+    return this.doRequest<T>(method, url, body, false);
+  }
 
+  private async doRequest<T>(method: string, url: string, body: any, isRetry: boolean): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -144,6 +147,15 @@ export class GatewayClient {
       body: body ? JSON.stringify(body) : undefined,
       headers,
     });
+
+    if (res.status === 401 && accessToken && !isRetry) {
+      // Client-credentials has no refresh token: a 401 despite a cached token means the
+      // token was invalidated mid-window (gateway restart / key rotation / stale token
+      // file on disk). Discard the cache, re-authenticate with the secret, retry ONCE.
+      console.error('[auth] Gateway rejected cached token (401) — re-authenticating and retrying once');
+      getTokenStore().removeToken(this.profileName);
+      return this.doRequest<T>(method, url, body, true);
+    }
 
     if (res.status === 401) {
       throw new GatewayError(401, 'Unauthorized. Set AGENTICOS_ADMIN_SECRET env var or run `agenticos auth login`.');

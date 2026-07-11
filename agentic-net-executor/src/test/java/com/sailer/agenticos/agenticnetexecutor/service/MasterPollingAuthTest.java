@@ -51,10 +51,14 @@ class MasterPollingAuthTest {
     }
 
     private void enqueueToken() {
+        enqueueToken("jwt-from-test");
+    }
+
+    private void enqueueToken(String jwt) {
         mockGateway.enqueue(new MockResponse()
                 .setResponseCode(200)
                 .addHeader("Content-Type", "application/json")
-                .setBody("{\"access_token\":\"jwt-from-test\",\"token_type\":\"Bearer\",\"expires_in\":3600}"));
+                .setBody("{\"access_token\":\"" + jwt + "\",\"token_type\":\"Bearer\",\"expires_in\":3600}"));
     }
 
     private void enqueueDiscover() {
@@ -125,6 +129,44 @@ class MasterPollingAuthTest {
         RecordedRequest tokenReq = mockGateway.takeRequest(5, TimeUnit.SECONDS);
         assertThat(tokenReq).isNotNull();
         assertThat(tokenReq.getBody().readUtf8()).contains("client_secret=late-secret");
+    }
+
+    @Test
+    void cachedTokenRejectedMidWindow_reAuthenticatesAndRetriesOnce() throws Exception {
+        // Client-credentials has no refresh token: when the upstream 401s a token we still
+        // consider valid (gateway restarted with a rotated signing key), the executor must
+        // discard the cache, fetch a fresh token with its secret, and retry the request —
+        // not keep polling with the dead token until the local expiry.
+        Path secretFile = tempDir.resolve("executor-secret");
+        Files.writeString(secretFile, "file-secret-value");
+
+        MasterPollingService svc = service("agenticos-executor", "", secretFile.toString());
+
+        // First cycle: token acquired, discover succeeds — token now cached.
+        enqueueToken("jwt-old");
+        enqueueDiscover();
+        svc.discoverAssignments();
+        assertThat(mockGateway.takeRequest(5, TimeUnit.SECONDS).getPath()).isEqualTo("/oauth2/token");
+        assertThat(mockGateway.takeRequest(5, TimeUnit.SECONDS).getHeader("Authorization"))
+                .isEqualTo("Bearer jwt-old");
+
+        // Second cycle: the CACHED (unexpired) token is suddenly rejected.
+        mockGateway.enqueue(new MockResponse().setResponseCode(401).setBody("{\"error\":\"invalid_token\"}"));
+        enqueueToken("jwt-fresh");
+        enqueueDiscover();
+
+        svc.discoverAssignments();
+
+        RecordedRequest rejected = mockGateway.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(rejected.getPath()).startsWith("/api/transitions/discover");
+        assertThat(rejected.getHeader("Authorization")).isEqualTo("Bearer jwt-old");
+
+        RecordedRequest reauth = mockGateway.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(reauth.getPath()).isEqualTo("/oauth2/token");
+
+        RecordedRequest retried = mockGateway.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(retried.getPath()).startsWith("/api/transitions/discover");
+        assertThat(retried.getHeader("Authorization")).isEqualTo("Bearer jwt-fresh");
     }
 
     @Test

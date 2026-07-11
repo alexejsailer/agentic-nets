@@ -15,7 +15,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ClientRequest;
+import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
+import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -98,12 +100,30 @@ public class MasterPollingService {
 
     private ExchangeFilterFunction jwtAuthFilter() {
         return (request, next) -> ensureToken()
-                .flatMap(token -> {
-                    ClientRequest authed = ClientRequest.from(request)
-                            .header("Authorization", "Bearer " + token)
-                            .build();
-                    return next.exchange(authed);
+                .flatMap(token -> exchangeWithBearer(request, next, token))
+                .flatMap(response -> {
+                    if (response.statusCode().value() != 401) {
+                        return Mono.just(response);
+                    }
+                    // The upstream rejected a token we still considered valid — e.g. the gateway
+                    // restarted with a rotated signing key. Client-credentials has no refresh
+                    // token: discard the cache, re-authenticate with the client secret, and
+                    // retry ONCE. Without this we would keep polling with a dead token until
+                    // the local expiry timestamp (up to a full TTL of failed cycles).
+                    logger.warn("Upstream rejected cached JWT (401) — re-authenticating and retrying once");
+                    jwtToken.set(null);
+                    tokenExpiry.set(Instant.EPOCH);
+                    return response.releaseBody()
+                            .then(fetchToken())
+                            .flatMap(fresh -> exchangeWithBearer(request, next, fresh));
                 });
+    }
+
+    private Mono<ClientResponse> exchangeWithBearer(ClientRequest request, ExchangeFunction next, String token) {
+        ClientRequest authed = ClientRequest.from(request)
+                .headers(h -> h.setBearerAuth(token))
+                .build();
+        return next.exchange(authed);
     }
 
     private Mono<String> ensureToken() {
