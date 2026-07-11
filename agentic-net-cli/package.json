@@ -22,7 +22,7 @@
     "ollama": "^0.6.3",
     "openai": "^4.77.0",
     "ora": "^9.4.1",
-    "yaml": "^2.8.3"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
