@@ -1,3 +1,8 @@
+# Maintenance convention: routine bumps are applied directly on main (all test
+# suites must be green), so open dependabot PRs auto-close on the next check
+# rather than being merged one by one. Editing THIS file triggers an immediate
+# dependabot run for every ecosystem below — useful to reconcile stale PRs
+# right after a batch of direct bumps lands on main.
 version: 2
 updates:
   # Java services — Maven
