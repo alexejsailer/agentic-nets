@@ -4,6 +4,7 @@ import { loadChatConfig } from './config.js';
 import { PersonaClient } from '@agenticos/cli/master/persona-client';
 import { ChatStateStore } from './chat-state.js';
 import { TelegramChannel } from './channel/telegram/telegram-channel.js';
+import { log } from './logger.js';
 
 /**
  * Entry point — start the Telegram bridge that relays user messages to master's
@@ -21,7 +22,7 @@ export async function startChatBridge(): Promise<void> {
   const chatConfig = loadChatConfig();
 
   if (!chatConfig.telegram?.bot_token) {
-    console.log(
+    log.warn(
       'Telegram bot not configured — idling.\n\n' +
       'Set TELEGRAM_BOT_TOKEN environment variable, or add to ~/.agenticos/config.yaml:\n\n' +
       '  chat:\n' +
@@ -62,19 +63,18 @@ export async function startChatBridge(): Promise<void> {
   );
 
   const shutdown = async () => {
-    console.log('\nShutting down...');
+    log.info('Shutting down...');
     await telegram.stop();
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  console.log('AgenticNetOS Chat Bridge (master-persona mode)');
-  console.log(`  Gateway:  ${profile.gateway_url}`);
-  console.log(`  Persona:  ${defaultPersona}`);
-  console.log(`  Model:    ${defaultModelId}`);
-  console.log(`  Allowed:  ${tgConfig.allowed_user_ids.length > 0 ? tgConfig.allowed_user_ids.join(', ') : '(any)'}`);
-  console.log();
+  log.info('AgenticNetOS Chat Bridge (master-persona mode)');
+  log.info(`  Gateway:  ${profile.gateway_url}`);
+  log.info(`  Persona:  ${defaultPersona}`);
+  log.info(`  Model:    ${defaultModelId}`);
+  log.info(`  Allowed:  ${tgConfig.allowed_user_ids.length > 0 ? tgConfig.allowed_user_ids.join(', ') : '(any)'}`);
 
   await telegram.start();
 }

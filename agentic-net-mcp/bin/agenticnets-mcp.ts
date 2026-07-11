@@ -12,6 +12,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createServer as createHttpServer } from 'node:http';
 import { loadConfig, ConfigError } from '../src/config.js';
 import { AppContext } from '../src/context.js';
+import { log } from '../src/logger.js';
 import { createServer, SERVER_NAME, SERVER_VERSION } from '../src/server.js';
 
 async function main(): Promise<void> {
@@ -20,7 +21,7 @@ async function main(): Promise<void> {
     config = loadConfig();
   } catch (err) {
     if (err instanceof ConfigError) {
-      console.error(`[${SERVER_NAME}] configuration error: ${err.message}`);
+      log.error(`[${SERVER_NAME}] configuration error: ${err.message}`);
       process.exit(1);
     }
     throw err;
@@ -31,7 +32,7 @@ async function main(): Promise<void> {
   if (config.transport === 'stdio') {
     const server = createServer(ctx);
     await server.connect(new StdioServerTransport());
-    console.error(
+    log.info(
       `[${SERVER_NAME}] v${SERVER_VERSION} on stdio — models=[${config.models.join(', ')}] mode=${config.mode} gateway=${config.gatewayUrl}`,
     );
     return;
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
       await server.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err: any) {
-      console.error(`[${SERVER_NAME}] http error: ${err?.message ?? err}`);
+      log.error(`[${SERVER_NAME}] http error: ${err?.message ?? err}`);
       if (!res.headersSent) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'internal error' }));
@@ -74,13 +75,13 @@ async function main(): Promise<void> {
   });
 
   httpServer.listen(config.httpPort, () => {
-    console.error(
+    log.info(
       `[${SERVER_NAME}] v${SERVER_VERSION} on http://0.0.0.0:${config.httpPort}/mcp — models=[${config.models.join(', ')}] mode=${config.mode}`,
     );
   });
 }
 
 main().catch((err) => {
-  console.error(`[${SERVER_NAME}] fatal: ${err?.stack ?? err}`);
+  log.error(`[${SERVER_NAME}] fatal: ${err?.stack ?? err}`);
   process.exit(1);
 });

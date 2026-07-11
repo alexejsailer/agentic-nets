@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { getTokensDir, ensureConfigDir } from '../config/config.js';
+import { log } from '../util/logger.js';
 
 export interface StoredToken {
   access_token: string;
@@ -16,7 +17,7 @@ class TokenStore {
     try {
       return JSON.parse(readFileSync(file, 'utf-8')) as StoredToken;
     } catch (err: any) {
-      console.error(`[auth] Failed to read token file ${file}: ${err.message}`);
+      log.warn(`[auth] Failed to read token file ${file}: ${err.message}`);
       return null;
     }
   }

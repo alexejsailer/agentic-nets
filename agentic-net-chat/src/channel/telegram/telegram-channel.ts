@@ -7,6 +7,7 @@ import type { ChannelSecurityConfig } from '../types.js';
 import { PersonaClient, type AgentEvent } from '@agenticos/cli/master/persona-client';
 import { ChatStateStore } from '../../chat-state.js';
 import { splitMessage } from './message-splitter.js';
+import { log } from '../../logger.js';
 
 /**
  * Escape text for Telegram MarkdownV2 while preserving common markdown formatting.
@@ -169,7 +170,7 @@ export class TelegramChannel {
     this.bot.use(async (ctx, next) => {
       const userId = ctx.from?.id;
       const username = ctx.from?.username || 'unknown';
-      console.log(`[Telegram] Message from user ${userId} (@${username})`);
+      log.info(`[Telegram] Message from user ${userId} (@${username})`);
       if (!userId || !this.isAllowed(userId)) {
         await ctx.reply(`Access denied. Your user ID (${userId}) is not in the allowed list.`);
         return;
@@ -275,7 +276,7 @@ export class TelegramChannel {
         const fileUrl = `https://api.telegram.org/file/bot${this.bot.token}/${file.file_path}`;
         transcript = await transcribeVoice(whisperUrl, fileUrl);
       } catch (err: any) {
-        console.error('[Telegram] voice transcription failed:', err.message);
+        log.error('[Telegram] voice transcription failed:', err.message);
         await ctx.reply(`Couldn't transcribe voice note: ${err.message}`);
         return;
       }
@@ -291,7 +292,7 @@ export class TelegramChannel {
     });
 
     this.bot.catch((err) => {
-      console.error('[Telegram] Bot error:', err.message);
+      log.error('[Telegram] Bot error:', err.message);
     });
   }
 
@@ -338,7 +339,7 @@ export class TelegramChannel {
         await this.handleEvent(chatId, event, finalChunks);
       }
     } catch (err: any) {
-      console.error('[Telegram] agent-stream error:', err.message);
+      log.error('[Telegram] agent-stream error:', err.message);
       await this.sendText(chatId, `Agent stream failed: ${err.message}`);
       // Drop the conversation so the next message restarts cleanly
       this.stateStore.clearConversation(chatId);
@@ -365,10 +366,10 @@ export class TelegramChannel {
         // skip — too chatty
         break;
       case 'tool_call':
-        console.log(`[Telegram] tool_call: ${event.toolName}`);
+        log.debug(`[Telegram] tool_call: ${event.toolName}`);
         break;
       case 'tool_result':
-        console.log(`[Telegram] tool_result: ${event.toolName} (${event.durationMs ?? '?'}ms)`);
+        log.debug(`[Telegram] tool_result: ${event.toolName} (${event.durationMs ?? '?'}ms)`);
         break;
       case 'text':
         if (event.text && event.text.trim().length > 0) {
@@ -381,7 +382,7 @@ export class TelegramChannel {
           // No text was streamed mid-flight; surface the completion summary
           await this.sendText(chatId, event.summary);
         }
-        console.log(
+        log.info(
           `[Telegram] completion: success=${event.success} iterations=${event.iterationCount} tools=${event.toolCallCount}`,
         );
         break;
@@ -392,14 +393,14 @@ export class TelegramChannel {
   }
 
   async start(): Promise<void> {
-    console.log('[Telegram] Starting bot with long polling...');
+    log.info('[Telegram] Starting bot with long polling...');
     this.bot.start({
-      onStart: () => console.log('[Telegram] Bot is running.'),
+      onStart: () => log.info('[Telegram] Bot is running.'),
     });
   }
 
   async stop(): Promise<void> {
-    console.log('[Telegram] Stopping bot...');
+    log.info('[Telegram] Stopping bot...');
     await this.bot.stop();
   }
 

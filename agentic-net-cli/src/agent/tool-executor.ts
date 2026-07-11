@@ -5,6 +5,7 @@ import type { AgentEvent } from './runtime.js';
 import { MasterApi } from '../gateway/master-api.js';
 import { NodeApi } from '../gateway/node-api.js';
 import { processContent, stripHtml, chunkText, type ContentMode } from './content-processor.js';
+import { log } from '../util/logger.js';
 
 const DEFAULT_LOCAL_TRANSITION_MAX_ITERATIONS = 8;
 
@@ -288,7 +289,7 @@ export class ToolExecutor {
     } catch (err: any) {
       const message = err.message || String(err);
       const stack = err.stack ? `\n${err.stack}` : '';
-      console.error(`[tool-executor] ${tool} failed: ${message}${stack}`);
+      log.error(`[tool-executor] ${tool} failed: ${message}${stack}`);
       return { success: false, error: message };
     }
   }

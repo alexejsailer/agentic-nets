@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import type { LlmProvider, LlmMessage, LlmResponse, LlmContent } from './provider.js';
 import type { ToolSchema } from '../agent/tools.js';
+import { log } from '../util/logger.js';
 
 const TOOL_CALL_REGEX = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
 
@@ -188,7 +189,7 @@ ${toolDocs}`;
         return { content, stop_reason: 'tool_use' };
       } catch (err: any) {
         // JSON parse failed — treat entire response as text
-        console.error(`[claude-code] Failed to parse tool_call JSON: ${err.message}`);
+        log.warn(`[claude-code] Failed to parse tool_call JSON: ${err.message}`);
         return {
           content: [{ type: 'text', text }],
           stop_reason: 'end_turn',

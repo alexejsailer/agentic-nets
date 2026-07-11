@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import YAML from 'yaml';
+import { log } from '../util/logger.js';
 
 export type ModelTier = 'high' | 'medium' | 'low';
 
@@ -173,7 +174,7 @@ export function loadConfig(): AgenticNetOSConfig {
     const parsed = YAML.parse(content) as AgenticNetOSConfig;
     return parsed ?? DEFAULT_CONFIG;
   } catch (err: any) {
-    console.error(`[config] Failed to parse ${CONFIG_FILE}: ${err.message}. Using defaults.`);
+    log.warn(`[config] Failed to parse ${CONFIG_FILE}: ${err.message}. Using defaults.`);
     return DEFAULT_CONFIG;
   }
 }

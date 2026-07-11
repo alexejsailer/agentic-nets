@@ -426,15 +426,22 @@ Services: `gateway`, `executor`, `vault`, `cli`, `chat`, `blobstore`
 
 ## Monitoring
 
-Stack: Grafana + Prometheus + Tempo + OpenTelemetry Collector
+Stack: Grafana + Prometheus + Tempo + OpenTelemetry Collector + Loki/Alloy (logs)
 
 | Service | URL | Notes |
 |---------|-----|-------|
 | Grafana | http://localhost:3000 | admin/admin |
 | Prometheus | http://localhost:9090 | |
 | Tempo | http://localhost:3200 | Distributed tracing |
+| Loki | http://localhost:3100 | Log aggregation — query via Grafana Explore (`{container="..."}`) |
 
 All AgenticNetOS services export metrics and traces via OpenTelemetry (OTLP to `otel-collector:4318`).
+
+**Logs**: every Java service logs to stdout AND a rolling file (`./data/logs/<service>/`,
+50MB / 7 days / 500MB cap) via one standard `logback-spring.xml`. Alloy tails every
+container's stdout through the Docker socket (read-only) and pushes to Loki — labels
+`project`/`service`/`container`; the log pattern's `[trace_id,span_id]` links to Tempo.
+Loki is hard-capped (72h retention, 5MB/s ingest — `monitoring/config/loki.yaml`).
 
 Configs in `monitoring/config/`, Grafana dashboards in `monitoring/grafana-provisioning/`.
 
@@ -455,6 +462,7 @@ Configs in `monitoring/config/`, Grafana dashboards in `monitoring/grafana-provi
 | 3000 | Grafana |
 | 9090 | Prometheus |
 | 3200 | Tempo |
+| 3100 | Loki (log aggregation, fed by Alloy) |
 | 4317/4318 | OpenTelemetry Collector (gRPC/HTTP) |
 
 ## Licensing Model

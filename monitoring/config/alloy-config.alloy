@@ -1,0 +1,44 @@
+// Alloy — ships every compose container's stdout/stderr to Loki.
+//
+// Log collection reads via the Docker API (docker.sock mounted read-only), so it
+// works identically on Linux servers and Docker Desktop — no /var/lib/docker
+// mount required. Every container on the host is scraped; the compose project
+// and service names become Loki labels (project / service / container).
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // "/agenticnetos-master-1" -> "agenticnetos-master-1"
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

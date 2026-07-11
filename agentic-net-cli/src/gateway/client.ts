@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { getTokenStore, acquireToken } from './auth.js';
+import { log } from '../util/logger.js';
 
 export class GatewayError extends Error {
   constructor(
@@ -60,7 +61,7 @@ export class GatewayClient {
     try {
       return JSON.parse(text) as T;
     } catch (err: any) {
-      console.error(`[gateway] Failed to parse JSON response from ${url}: ${err.message}`);
+      log.warn(`[gateway] Failed to parse JSON response from ${url}: ${err.message}`);
       return text as T;
     }
   }
@@ -96,7 +97,7 @@ export class GatewayClient {
         try {
           secret = readFileSync(secretFile, 'utf-8').trim();
         } catch (err: any) {
-          console.error(`[auth] Failed to read secret file ${secretFile}: ${err.message}`);
+          log.warn(`[auth] Failed to read secret file ${secretFile}: ${err.message}`);
         }
       }
     }
@@ -106,9 +107,9 @@ export class GatewayClient {
         tokenStore.saveToken(this.profileName, token);
         return token.access_token;
       } catch (err: any) {
-        console.error(`[auth] Token acquisition failed: ${err.message}`);
+        log.error(`[auth] Token acquisition failed: ${err.message}`);
         if (existing?.access_token) {
-          console.error('[auth] Falling back to stale token — gateway may reject it');
+          log.warn('[auth] Falling back to stale token — gateway may reject it');
           return existing.access_token;
         }
         return null;
@@ -152,7 +153,7 @@ export class GatewayClient {
       // Client-credentials has no refresh token: a 401 despite a cached token means the
       // token was invalidated mid-window (gateway restart / key rotation / stale token
       // file on disk). Discard the cache, re-authenticate with the secret, retry ONCE.
-      console.error('[auth] Gateway rejected cached token (401) — re-authenticating and retrying once');
+      log.warn('[auth] Gateway rejected cached token (401) — re-authenticating and retrying once');
       getTokenStore().removeToken(this.profileName);
       return this.doRequest<T>(method, url, body, true);
     }
@@ -171,7 +172,7 @@ export class GatewayClient {
     try {
       return JSON.parse(text) as T;
     } catch (err: any) {
-      console.error(`[gateway] Failed to parse JSON response from ${url}: ${err.message}`);
+      log.warn(`[gateway] Failed to parse JSON response from ${url}: ${err.message}`);
       return text as T;
     }
   }

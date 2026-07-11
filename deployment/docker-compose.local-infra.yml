@@ -33,6 +33,8 @@ volumes:
   grafana-data:
   registry-data:
   openbao-data:
+  loki-data:
+  alloy-data:
 
 networks:
   agenticnetos-backend:
@@ -152,6 +154,46 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Loki — centralized log storage (query via Grafana Explore, datasource "Loki").
+  # Retention + ingestion are HARD-CAPPED in loki.yaml (72h / 5MB/s).
+  loki:
+    profiles: ["monitoring"]
+    image: ${LOKI_IMAGE:-grafana/loki:3.7.3}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-loki
+    command: ["-config.file=/etc/loki.yaml"]
+    ports:
+      - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${LOKI_PORT:-3100}:3100"
+    volumes:
+      - loki-data:/loki
+      - ../monitoring/config/loki.yaml:/etc/loki.yaml:ro
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
+    # grafana/loki has no shell/wget (same as tempo) — disable healthcheck; the
+    # container exit code is authoritative and compose restarts it on crash.
+    healthcheck:
+      disable: true
+
+  # Alloy — scrapes every container's stdout/stderr via the Docker API and
+  # pushes to Loki. Needs the docker socket read-only; no app changes required.
+  alloy:
+    profiles: ["monitoring"]
+    image: ${ALLOY_IMAGE:-grafana/alloy:v1.17.1}
+    container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-alloy
+    command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ../monitoring/config/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_started
+    networks:
+      - agenticnetos-backend
+    restart: unless-stopped
+    logging: *default-logging
 
   # ===========================================================================
   # TOOL REGISTRY

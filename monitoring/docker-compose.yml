@@ -36,9 +36,33 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./grafana-provisioning:/etc/grafana/provisioning
-    depends_on: [prometheus, tempo]
+    depends_on: [prometheus, tempo, loki]
     ports:
       - "3000:3000"
 
+  # Loki — centralized log storage (query via Grafana Explore, datasource "Loki").
+  # Retention + ingestion are HARD-CAPPED in loki.yaml (72h / 5MB/s).
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki:3.7.3}
+    command: ["-config.file=/etc/loki.yaml"]
+    volumes:
+      - ./config/loki.yaml:/etc/loki.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+
+  # Alloy — scrapes every container's stdout/stderr via the Docker API and
+  # pushes to Loki. Needs the docker socket read-only; no app changes required.
+  alloy:
+    image: ${ALLOY_IMAGE:-grafana/alloy:v1.17.1}
+    command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./config/alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on: [loki]
+
 volumes:
   tempo-data:
+  loki-data:
+  alloy-data:

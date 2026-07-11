@@ -7,5 +7,19 @@ datasources:
     isDefault: true
   - name: Tempo
     type: tempo
+    uid: tempo
     access: proxy
     url: http://tempo:3200
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      # The standard log pattern renders "[<trace_id>,<span_id>]" — link the
+      # trace_id straight to the Tempo datasource when traces are enabled.
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '\[([0-9a-f]{32}),'
+          url: '$${__value.raw}'
+          datasourceUid: tempo
