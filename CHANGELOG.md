@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Dependency bumps** (dependabot sweep, no behavior changes). Maven: OpenTelemetry `sdk-testing` 1.64.0 (executor/gateway/blobstore, test-only), `spring-vault-core` 3.2.1 + `springdoc-openapi` 2.8.17 (vault), `hibernate-validator` 8.0.4.Final + `jakarta.validation-api` 3.1.1 (blobstore). npm (`agentic-net-cli`, bundled into chat/mcp): `@anthropic-ai/sdk` 0.111.0, `commander` 15, `ora` 9, `@types/node` 22.20.1. All four Java test suites, three TS builds/typechecks, and the MCP vitest suite green.
+
 ## [2.22.0] - 2026-07-11
 
 ### Added
