@@ -21,7 +21,7 @@
     "commander": "^14.0.3",
     "ollama": "^0.6.3",
     "openai": "^4.77.0",
-    "ora": "^8.2.0",
+    "ora": "^9.4.1",
     "yaml": "^2.8.3"
   },
   "devDependencies": {
