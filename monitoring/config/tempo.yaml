@@ -16,13 +16,37 @@ storage:
     wal:
       path: /var/tempo/wal
 
-# Bound on-disk trace growth. Without a compactor the local backend keeps every
-# block forever and the Docker VM disk fills (this was the Jenkins build-node
-# OFFLINE / tempo-data 48GB incident). Retain ~48h of traces for dev/staging.
+# ---------------------------------------------------------------------------
+# Disk-growth guards. The local backend keeps every block until the compactor
+# deletes it. Two failure modes have filled the Docker VM disk before:
+#   * the original "no compactor" bug (tempo-data grew forever → Jenkins
+#     build-node OFFLINE at 48 GB), and
+#   * an ingest-overload spiral ("pusher failed to consume trace data") where
+#     blocks pile up FAR past retention until compaction catches up — staging
+#     tempo-data ballooned to 202 GB this way (wiped 2026-07-11).
+# So we bound BOTH age and rate:
+#   1. compactor.block_retention — bound the AGE of retained traces (24h is
+#      plenty for dev/staging; steady-state ingest is ~1.7 GB/day → ~3.5 GB).
+#   2. overrides.defaults.ingestion — bound the RATE traces can be written, so
+#      a flood is rejected at the distributor instead of hitting disk. Normal
+#      ingest is ~20 KB/s, so a 5 MB/s cap is ~250x headroom: it only bites
+#      during a genuine spiral, and per-trace/global caps drop giant or
+#      runaway traces before they land.
+# ---------------------------------------------------------------------------
 compactor:
   compaction:
-    block_retention: 48h
-    compacted_block_retention: 1h
+    block_retention: 24h
+    compacted_block_retention: 30m
+
+overrides:
+  defaults:
+    ingestion:
+      rate_strategy: local
+      rate_limit_bytes: 5000000
+      burst_size_bytes: 10000000
+      max_traces_per_user: 20000
+    global:
+      max_bytes_per_trace: 5000000
 
 usage_report:
   reporting_enabled: false
