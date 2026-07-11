@@ -248,6 +248,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         url: z.string().optional().describe('http: target URL (default ${input.data.url})'),
         method: z.string().optional().describe('http: default GET'),
         template: z.record(z.any()).optional().describe('map: the output template object'),
+        executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
         intervalMs: z.number().optional().describe('Alternative to cron: fixed interval'),
         timeoutMs: z.number().optional(),
@@ -301,6 +302,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         url: args.url,
         method: args.method,
         template: args.template,
+        executorId: args.executorId,
         scheduleCron: args.scheduleCron,
         intervalMs: args.intervalMs,
         timeoutMs: args.timeoutMs,
@@ -313,7 +315,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         maxIterations: args.maxIterations,
         autoEmit: args.autoEmit,
       });
-      await assignInscription(ctx, model, inscription, agentFor(args.kind));
+      // A concrete executorId doubles as the assignedAgent; '*' keeps the default
+      // assignment (master offers the work to every polling executor).
+      const agentId = (args.kind === 'command' && args.executorId && args.executorId !== '*') ? args.executorId : agentFor(args.kind);
+      await assignInscription(ctx, model, inscription, agentId);
       await persistInscriptionLeaf(ctx, model, args.netId, args.transitionId, inscription);
 
       let started = false;

@@ -115,6 +115,11 @@ ALWAYS redirect stdin (< /dev/null) or the process hangs forever; ALWAYS confine
 --allowedTools (least privilege — add Edit/Bash only when the task truly needs it); set the
 inscription timeoutMs generously (minutes, not seconds). This requires the executor host to have
 the claude CLI installed and is rw-mode power — treat it like production shell access.
+The platform can run MULTIPLE executors: discover them with list_executors (ONLINE/STALE,
+allowedModels) and pick one via add_transition's executorId param — it lands in the inscription's
+action.executorId. '*' offers the work to every polling executor (first token reservation wins);
+omitted = agentic-net-executor-default. If more than one executor is ONLINE and the user has not
+said which, ASK before creating the command transition.
 
 ## Model control — the user owns the switch
 You must be able to answer "what is this model consuming and how do I stop it":

@@ -20,6 +20,9 @@ Agentic-Nets extends Petri nets into a self-improving automation substrate:
   (pure knowledge-graph edge; never fires).
 - INSCRIPTIONS: a transition's runtime config — presets (input places + ArcQL binding), an action,
   emit rules routing the result, and an optional schedule (cron or interval).
+- EXECUTORS: a stack can run several command executors; a command transition picks its executor via
+  action.executorId ('*' = any executor, first token reservation wins; omitted =
+  agentic-net-executor-default). Discover them with list_executors.
 - The net topology IS the architecture: adding capability = adding places and transitions.
 - Scheduling makes nets ALIVE: a scheduled transition ticks server-side forever — this is what makes
   memory here different from passive stores; it can distill, consolidate, digest while you are away.
@@ -116,6 +119,9 @@ delegates entire coding tasks to a fresh agent:
 Rules: ALWAYS < /dev/null (stdin blocks forever otherwise); confine --allowedTools to least
 privilege; timeoutMs in minutes; the executor host needs the claude CLI. This is how a persona can
 "hire" a coding agent overnight — the net stays deterministic, the spawned agent does the fuzzy work.
+With several executors registered, check list_executors and pass executorId on add_transition to
+pick the host that runs it ('*' = any executor; if more than one is ONLINE and the user didn't
+specify, ask which to target).
 
 ## The kill switch (full model control)
 pause_model stops EVERY running transition — zero fires, zero LLM spend, schedules frozen — and

@@ -42,6 +42,27 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
   });
 });
 
+describe('command inscription (add_transition kind:command — executor selection)', () => {
+  it('puts an explicit executorId into action.executorId', () => {
+    const ins: any = buildInscription('command', {
+      id: 't-cmd',
+      host: 'm@h:8080',
+      inputPlace: 'p-in',
+      outputPlace: 'p-out',
+      executorId: 'agentic-net-executor-2',
+    });
+    expect(ins.kind).toBe('command');
+    expect(ins.action.type).toBe('command');
+    expect(ins.action.executorId).toBe('agentic-net-executor-2');
+  });
+
+  it('omits action.executorId entirely when none is given (default executor)', () => {
+    const ins: any = buildInscription('command', { id: 't-cmd', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
+    expect(ins.action.type).toBe('command');
+    expect('executorId' in ins.action).toBe(false);
+  });
+});
+
 describe('compileSteps (session crystallization → replayable script)', () => {
   it('compiles shell + {command} + {method,url} steps into one set -e script', () => {
     const { script, count } = compileSteps([

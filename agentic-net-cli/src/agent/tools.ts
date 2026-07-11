@@ -46,6 +46,8 @@ export type AgentTool =
   | 'EXTRACT_RAW_DATA'
   | 'INSPECT_TOKEN_SIZE'
   | 'GET_LINKED_PLACES'
+  // Executors (R flag) — which command executors are registered on master
+  | 'LIST_EXECUTORS'
   // Package Registry (R/W flag)
   | 'PACKAGE_SEARCH'
   | 'PACKAGE_PUBLISH'
@@ -220,6 +222,17 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     schema: {
       type: 'object',
       properties: {},
+      required: [],
+    },
+  },
+  LIST_EXECUTORS: {
+    description: "List registered command executors (executorId, status ONLINE/STALE, allowedModels). Use before creating/adapting a COMMAND transition: if more than one executor is ONLINE and the user did not specify one, ask which to target; the choice goes into action.executorId ('*' = any executor).",
+    schema: {
+      type: 'object',
+      properties: {
+        activeOnly: { type: 'boolean', description: 'Only executors seen within the liveness TTL (default true)' },
+        modelId: { type: 'string', description: 'Filter to executors allowed to run this model' },
+      },
       required: [],
     },
   },

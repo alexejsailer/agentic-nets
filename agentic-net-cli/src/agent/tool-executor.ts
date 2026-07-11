@@ -141,6 +141,8 @@ export class ToolExecutor {
           return this.executeCreateRuntimePlace(params);
         case 'LIST_PLACES':
           return this.executeListPlaces();
+        case 'LIST_EXECUTORS':
+          return this.executeListExecutors(params);
         case 'GET_PLACE_INFO':
           return this.executeGetPlaceInfo(params);
         case 'GET_PLACE_CONNECTIONS':
@@ -482,6 +484,12 @@ export class ToolExecutor {
       return { name: child.name, id: child.id, type: child.type, tokenCount };
     }));
     return { success: true, data: places };
+  }
+
+  private async executeListExecutors(params: Record<string, any>): Promise<ToolResult> {
+    const activeOnly = params.activeOnly !== undefined ? Boolean(params.activeOnly) : true;
+    const result = await this.masterApi.listExecutors(activeOnly, params.modelId as string | undefined);
+    return { success: true, data: result };
   }
 
   private async executeGetPlaceInfo(params: Record<string, any>): Promise<ToolResult> {

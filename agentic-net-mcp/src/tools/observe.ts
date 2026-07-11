@@ -222,6 +222,26 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+  server.registerTool(
+    'list_executors',
+    {
+      title: 'List registered command executors',
+      description:
+        "List the command executors currently registered (ONLINE/STALE, allowedModels). Command transitions choose their executor via action.executorId — when more than one executor is ONLINE and the user has not specified one, ask the user which executor to target before creating the transition; '*' = any executor (first token reservation wins); omitted = agentic-net-executor-default.",
+      inputSchema: {
+        activeOnly: z.boolean().optional().describe('Only executors seen within the liveness TTL (default true)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'list_executors', mutates: false }, async (model, args) => {
+      const query: Record<string, string> = { activeOnly: String(args.activeOnly ?? true) };
+      // Only filter by model when the caller asked for one — master's modelId
+      // filter matches executors that have actually polled that model.
+      if (args.model) query.modelId = model;
+      return ctx.client.masterApi('GET', '/executors', undefined, query);
+    }),
+  );
+
   // Master-side diagnostics — debug a net WITHOUT source or log access. These
   // travel as POST, which the readonly gateway scope rejects (like ArcQL), so
   // they are only registered in rw mode. net_stats (all GET) stays readonly-safe.

@@ -41,6 +41,7 @@ const CURATED = [
   'event_trail',
   'net_stats',
   'list_models',
+  'list_executors',
   'diagnose_transition',
   'dry_run_transition',
   'verify_inscription',
@@ -92,7 +93,7 @@ describe('advertised tool surface', () => {
     }
     for (const excluded of ['THINK', 'DONE', 'FAIL']) expect(names).not.toContain(excluded);
     const native = names.filter((n) => n === n.toUpperCase() && /_|^[A-Z]+$/.test(n));
-    expect(native.length).toBeGreaterThanOrEqual(60); // 64 catalog − 3 loop-only ≥ 61
+    expect(native.length).toBeGreaterThanOrEqual(60); // 65 catalog − 3 loop-only ≥ 62
     expect(names.length).toBe(CURATED.length + native.length); // no strays
     for (const t of tools) {
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).not.toContain('model');
@@ -152,7 +153,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_models', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
     );
   });
 

@@ -46,6 +46,8 @@ export interface BuildOpts {
   headers?: Record<string, string>;
   /** map */
   template?: Record<string, any>;
+  /** command — which executor runs it ('*' = any executor; omitted = default executor) */
+  executorId?: string;
   /** output capacity */
   capacity?: number;
   /** agent — autonomous multi-step persona (rwxhlud capability gating + tier-selected LLM) */
@@ -154,6 +156,7 @@ export function buildCommandInscription(opts: BuildOpts) {
     action: {
       type: 'command',
       inputPlace: 'input',
+      ...(opts.executorId ? { executorId: opts.executorId } : {}),
       groupBy: 'executor',
       dispatch: [{ executor: 'bash', channel: 'default' }],
       await: 'ALL',

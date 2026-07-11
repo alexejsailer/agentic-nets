@@ -101,6 +101,15 @@ export class MasterApi {
     return this.client.masterApi('POST', '/transitions/assign', params);
   }
 
+  // ---- Executors ----
+  /** List registered command executors (ONLINE/STALE, allowedModels). */
+  async listExecutors(activeOnly = true, modelId?: string): Promise<any> {
+    return this.client.masterApi('GET', '/executors', undefined, {
+      activeOnly: String(activeOnly),
+      ...(modelId ? { modelId } : {}),
+    });
+  }
+
   // ---- Sessions ----
   async createSession(userId: string, sessionId: string, params: {
     naturalLanguageText?: string;
