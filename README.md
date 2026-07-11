@@ -393,6 +393,69 @@ Detailed install, env, verification, and troubleshooting:
 
 ---
 
+## Observability — metrics, traces, and logs
+
+The monitoring stack (started by `docker-compose.hub-only.yml`, or the standalone
+`monitoring/docker-compose.yml`; omitted by the `no-monitoring` compose) gives you three
+signals, all viewable in **Grafana** at `http://localhost:3000` (`admin`/`admin`):
+
+| Signal | Backend | How it gets there |
+|---|---|---|
+| **Metrics** | Prometheus (`:9090`) | Each service exposes `/actuator/prometheus`; Prometheus scrapes it. Always on. |
+| **Traces** | Tempo (`:3200`) | Services export OTLP to the OpenTelemetry Collector (`:4318`), which forwards to Tempo. |
+| **Logs** | Loki (`:3100`) | Grafana Alloy tails every container's stdout and pushes to Loki. |
+
+### Logging
+
+Every service logs to **stdout** — so `docker logs <container>` (and Docker Desktop's log
+view) shows the live application log — **and** to a **rolling file** under
+`deployment/data/logs/<service>/`. All Java services share one logback configuration:
+
+- **Pattern:** `yyyy-MM-dd HH:mm:ss.SSS [thread] LEVEL logger [trace_id,span_id] - msg`
+  (the `trace_id` links a log line to its Tempo trace when tracing is on).
+- **Rollover:** 50 MB per file, 7 daily archives, 500 MB total cap, gzip-compressed — bounded
+  by default. Tune per service with the standard Spring properties
+  `logging.logback.rollingpolicy.max-file-size` / `.max-history` / `.total-size-cap`.
+- **File path:** `${LOG_PATH:-/tmp}/<service>.log`; compose sets `LOG_PATH=/app/logs` and
+  bind-mounts it to the host.
+
+The Node/TS services (CLI, chat, MCP) print the same timestamped `LEVEL` format; diagnostics
+go to **stderr** (the CLI keeps stdout clean for command output, and the MCP server reserves
+stdout for the protocol), so Docker captures them without disturbing the wire format.
+
+**Centralized query.** With the monitoring stack up, **Grafana Alloy** discovers every
+container via the Docker socket (mounted read-only — no application change) and ships stdout to
+**Loki**. In Grafana → Explore, pick the **Loki** datasource and query by label, e.g.
+`{container="agenticnetos-master"}` or `{service="gateway"}`. Loki is **hard-capped** out of the
+box (72 h retention, 5 MB/s ingest — see `monitoring/config/loki.yaml`) so it can't fill the
+disk. Loki listens on `:3100`; set `LOKI_PORT` to remap.
+
+### Tempo (distributed tracing)
+
+Traces answer *"what did this request touch, and where did the time go"* across the
+executor → gateway → master → node hops. The flow is:
+
+```
+service (OTLP) ──▶ otel-collector :4318 ──▶ Tempo :3200 ──▶ Grafana (TraceQL / trace view)
+```
+
+Query traces in Grafana → Explore → **Tempo** datasource (TraceQL, or search by service/
+duration). Because a log line carries its `trace_id`, you can pivot straight from a Loki log to
+the matching Tempo trace.
+
+Two deliberate defaults keep tracing from overwhelming a laptop or the staging box:
+
+- **Master tracing is OFF by default.** The master polls every transition every 2 s, which is by
+  far the chattiest span source. Set `MASTER_OTEL_TRACES_EXPORTER=otlp` to turn on end-to-end
+  master→node tracing. The **node always traces**, and **master metrics always reach
+  Prometheus** regardless.
+- **Tempo is capped** (`monitoring/config/tempo.yaml`): 24 h block retention and a 5 MB/s
+  ingestion rate limit (10 MB burst, 5 MB max per trace). These caps exist because an uncapped
+  Tempo once spiraled to multi-core CPU and hundreds of GB on staging — raise them deliberately,
+  not by accident.
+
+---
+
 ## Drive it from Claude Code
 
 The [`agenticos-control`](claude-plugin/agenticos-control) **Claude Code plugin** turns any Claude Code
@@ -643,8 +706,8 @@ agentic-nets/
 │       └── seed-tool-registry.sh # Mirror/build Docker tools into local registry
 │
 └── monitoring/
-    ├── config/                   # OTel, Prometheus, Tempo configs
-    └── grafana-provisioning/     # Dashboards and datasources
+    ├── config/                   # OTel, Prometheus, Tempo, Loki, Alloy configs
+    └── grafana-provisioning/     # Dashboards and datasources (Prometheus, Tempo, Loki)
 ```
 
 ---

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-07-11
+
 ### Added
 - **Dedicated executor OAuth2 client with scope enforcement** (`agentic-net-gateway` — `TokenController`, `AdminSecretInitializer`, new `ExecutorScopeEnforcementFilter`). A third client `agenticos-executor` (secret auto-generated to `data/jwt/executor-secret`, or pinned via `AGENTICOS_EXECUTOR_SECRET`) issues JWTs with scope `agenticos executor` that are enforced to the executor polling protocol ONLY — `GET /api/transitions/poll|discover`, `POST /api/transitions/{id}/deployment` and `POST /api/transitions/tokens/emit|consume|release`; every other route answers `403 executor_scope`. Remote executors no longer need to hold the full admin secret.
 - **Executor secret-from-file auth** (`agentic-net-executor` — `MasterPollingService`). New `executor.upstream.auth.client-secret-file` (`EXECUTOR_AUTH_CLIENT_SECRET_FILE`): the client-credentials secret is read lazily from a mounted file at each token fetch, so the gateway-generated `executor-secret` may appear *after* the executor boots (fresh `docker compose up` ordering) and is picked up without a restart. Inline `EXECUTOR_AUTH_CLIENT_SECRET` still wins when set. JWTs are re-fetched ~60s before expiry, making the machine-auth flow long-term valid without refresh tokens.
