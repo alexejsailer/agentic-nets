@@ -182,6 +182,7 @@ OPENAI_API_KEY=sk-...
 | `AGENTICOS_SETTINGS_KEY` | Shared envs | empty | Stable encryption key for persisted settings/credentials. |
 | `OPENBAO_DEV_ROOT_TOKEN` | Yes | `agenticos-dev-token` | OpenBao dev token used by the local vault stack. Change before sharing. |
 | `GRAFANA_ADMIN_PASSWORD` | Monitoring only | `admin` | Grafana admin password. |
+| `MASTER_OTEL_TRACES_EXPORTER` | Monitoring only | `none` | Master trace export. Off by default so master's chatty poll loop can't flood Tempo; set to `otlp` for end-to-end master→node tracing. Node always traces; master metrics always reach Prometheus. Ignored by the multi-master compose (OTel SDK fully disabled there). |
 | `GATEWAY_INTERNAL_SECRET` | Yes | local placeholder | Shared secret for Gateway <-> Master internal registry calls. Change before sharing. |
 | `GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS`, `AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS` | No | localhost only | Browser origins allowed to call Gateway, Master, and Node APIs. |
 | `GATEWAY_TIMEOUT` | No | `30` | Gateway upstream timeout in seconds. |

@@ -309,6 +309,12 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       OTEL_SERVICE_NAME: agentic-net-master
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=docker,team=agenticnet,component=master
+      # Trace export OFF by default: master's poll loop is the chattiest span
+      # source on the stack and can flood Tempo. Set MASTER_OTEL_TRACES_EXPORTER=otlp
+      # in .env to enable end-to-end master->node tracing (Tempo has retention +
+      # ingestion caps in monitoring/config/tempo.yaml to keep the disk bounded).
+      # Master metrics still reach Prometheus regardless of this setting.
+      OTEL_TRACES_EXPORTER: ${MASTER_OTEL_TRACES_EXPORTER:-none}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/logs/master:/app/logs

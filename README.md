@@ -386,6 +386,7 @@ The `.env.template` is fully commented. The most important variables are:
 | `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | Required for local Ollama. |
 | `OPENBAO_DEV_ROOT_TOKEN` | Local Vault token. Change before exposing the stack. |
 | `AGENTICNETOS_NODE_DATA_DIR` | Host directory for Node events and snapshots. |
+| `MASTER_OTEL_TRACES_EXPORTER` | Master traces are **off by default** (`none`) so its chatty poll loop can't flood Tempo. Set to `otlp` for end-to-end master→node tracing. Node always traces; master metrics always reach Prometheus. |
 
 Detailed install, env, verification, and troubleshooting:
 [deployment/README.md](deployment/README.md).
