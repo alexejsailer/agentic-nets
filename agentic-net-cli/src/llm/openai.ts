@@ -99,6 +99,8 @@ export class OpenAIProvider implements LlmProvider {
     // Process tool calls
     if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
       for (const tc of choice.message.tool_calls) {
+        // openai v6: tool_calls is a union with custom tool calls — we only request function tools
+        if (tc.type !== 'function') continue;
         hasToolUse = true;
         // Strip 'call_' prefix to normalize IDs
         const id = tc.id.startsWith('call_') ? tc.id.slice(5) : tc.id;
