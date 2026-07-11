@@ -84,7 +84,7 @@ public class MasterPollingService {
         this.transitionStore = transitionStore;
         this.orchestrator = orchestrator;
 
-        WebClient.Builder builder = WebClient.builder().baseUrl(upstreamUrl);
+        WebClient.Builder builder = freshDnsWebClientBuilder().baseUrl(upstreamUrl);
         if (authEnabled) {
             builder.filter(jwtAuthFilter());
         }
@@ -126,6 +126,18 @@ public class MasterPollingService {
         return next.exchange(authed);
     }
 
+    /**
+     * WebClient with the JDK DNS resolver (~30s cache) instead of Reactor-Netty's default,
+     * which honors Docker DNS's 600s TTL — after the upstream container is recreated with a
+     * new IP, the default resolver keeps connecting to the dead address for up to 10 minutes.
+     */
+    private static WebClient.Builder freshDnsWebClientBuilder() {
+        return WebClient.builder()
+                .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
+                        reactor.netty.http.client.HttpClient.create()
+                                .resolver(io.netty.resolver.DefaultAddressResolverGroup.INSTANCE)));
+    }
+
     private Mono<String> ensureToken() {
         String existing = jwtToken.get();
         if (existing != null && Instant.now().isBefore(tokenExpiry.get())) {
@@ -141,7 +153,7 @@ public class MasterPollingService {
                     "Executor client secret not available (secret file '" + clientSecretFile
                             + "' missing or empty) — will retry on next poll"));
         }
-        return WebClient.create(upstreamUrl)
+        return freshDnsWebClientBuilder().baseUrl(upstreamUrl).build()
                 .post()
                 .uri("/oauth2/token")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)

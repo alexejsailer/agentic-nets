@@ -23,7 +23,7 @@ public class HealthController {
 
     public HealthController(GatewayProperties gatewayProperties) {
         this.gatewayProperties = gatewayProperties;
-        this.webClient = WebClient.builder()
+        this.webClient = com.sailer.agenticos.agenticnetgateway.config.ProxyWebClients.builder()
                 .baseUrl(gatewayProperties.getMasterUrl())
                 .build();
     }

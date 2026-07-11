@@ -55,7 +55,7 @@ public class NodeProxyController {
                 .requestFactory(factory)
                 .build();
 
-        this.webClient = org.springframework.web.reactive.function.client.WebClient.builder()
+        this.webClient = com.sailer.agenticos.agenticnetgateway.config.ProxyWebClients.builder()
                 .baseUrl(props.getNodeUrl())
                 .codecs(c -> c.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
                 .build();

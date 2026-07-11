@@ -87,7 +87,7 @@ public class MasterProxyController {
 
     private WebClient getOrCreateClient(String baseUrl) {
         return webClients.computeIfAbsent(baseUrl, url ->
-                WebClient.builder()
+                com.sailer.agenticos.agenticnetgateway.config.ProxyWebClients.builder()
                         .baseUrl(url)
                         .codecs(c -> c.defaultCodecs().maxInMemorySize(10 * 1024 * 1024))
                         .build());
