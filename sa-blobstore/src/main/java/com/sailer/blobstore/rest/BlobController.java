@@ -25,8 +25,10 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
@@ -41,6 +43,16 @@ import java.util.UUID;
 public class BlobController {
     
     private static final Logger logger = LoggerFactory.getLogger(BlobController.class);
+
+    /**
+     * CSPRNG for blob-id generation. With no auth in front of the store, an auto-generated
+     * blob id IS the access capability — it must be computationally infeasible to guess, so it
+     * is drawn from {@link SecureRandom}, never a predictable/sequential source.
+     */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    /** 192 bits of CSPRNG entropy, URL-safe, unpadded → 32 chars (with the date prefix, ≥36). */
+    private static final int ID_TOKEN_BYTES = 24;
+    private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
     
     private final HashBasedStorageManager storageManager;
     private final TwoPhaseUploadManager uploadManager;
@@ -164,19 +176,29 @@ public class BlobController {
      */
     private String generateBlobId(String strategy, byte[] content, String filename) {
         return switch (strategy.toLowerCase()) {
-            case "uuid" -> UUID.randomUUID().toString();
+            case "uuid" -> UUID.randomUUID().toString(); // 122-bit CSPRNG (SecureRandom-backed)
             case "content-hash" -> {
-                // sha256/ + 32 chars = 39 chars total (meets 36 char min)
+                // Deterministic from content: sha256/ + 32 hex chars = 39 chars total.
+                // NOT unguessable — anyone who can guess the plaintext can reconstruct this id
+                // (and confirm the blob exists). Use only for non-confidential, dedup-friendly
+                // content (e.g. tool-catalog scripts/specs); never for secret payloads.
                 String hash = calculateSHA256(content);
                 yield "sha256/" + hash.substring(0, 32);
             }
             default -> { // "timestamp" is the default
-                // Format: YYYY-MM-DD/UUID = 10 + 1 + 36 = 47 chars (meets 36 char min)
-                String date = LocalDate.now().toString();
-                String uuid = UUID.randomUUID().toString();
-                yield date + "/" + uuid;
+                // date/<192-bit SecureRandom token> = 10 + 1 + 32 = 43 chars (≥36). The random
+                // suffix makes the full id an unguessable capability; the date prefix is only a
+                // retention/sort aid and adds no predictability to the id as a whole.
+                yield LocalDate.now() + "/" + secureToken();
             }
         };
+    }
+
+    /** URL-safe, unpadded base64 of {@value #ID_TOKEN_BYTES} CSPRNG bytes. */
+    private static String secureToken() {
+        byte[] bytes = new byte[ID_TOKEN_BYTES];
+        SECURE_RANDOM.nextBytes(bytes);
+        return URL_ENCODER.encodeToString(bytes);
     }
 
     /**
