@@ -12,14 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.25.0] - 2026-07-12
+
 ### Added
 - **S (scripts) flag + scoped-catalog params in the CLI** (`agentic-net-cli` — `roles.ts`, `tools.ts`, `tool-executor.ts`, regenerated `tools.generated.ts`; inherited by chat and MCP). The role string grows to `rwxhludcts`: script-catalog registration moves off D onto the new S flag, HTTP registration moves onto H, and catalog search/get are granted by any binding-type flag (D/H/T/S). Catalog search/get/register-script gain an optional `model` param for local-vs-global scope. The MCP native layer subsumes that scope param into its own model routing, so a search resolves the routed model's local catalog first, then the global one (single-model MCP configs still advertise no `model` param). See `core/CHANGELOG.md` for the catalog scoping itself.
-
-## [2.24.0] - 2026-07-12
-
-### Added
 - **Script command handler — catalog scripts run digest-verified on the executor** (`agentic-net-executor` — new `ScriptCommandHandler`, executor type `script`, command `invoke`; config `executor.command.script.{timeout,cache-dir,max-bytes}`). The master inlines a registered script's content + pinned SHA-256 into the command token at FIRE time; the handler re-verifies the digest (refusing anything that doesn't hash to what was registered, including a tampered cache file, which it repairs), materializes the script into a content-addressed cache in the persistent `/workspace` volume, and runs it with the declared runtime. stdin always gets written-then-closed (`args.input` as JSON when present), argv/env/timeout are per-invocation, and large output offloads to the blobstore exactly like bash. Replaces hand-copied `/opt/*.cjs` scripts that were wiped on every container recreation.
-- **`TOOL_CATALOG_REGISTER_SCRIPT` in the CLI** (`agentic-net-cli` — `roles.ts`, `tool-executor.ts`, regenerated `tools.generated.ts`), gated by the D flag like the rest of the catalog tools and picked up automatically by the MCP native layer. Tools guide documents the script workflow (`agentic-net-tools/README.md`).
+- **`TOOL_CATALOG_REGISTER_SCRIPT` in the CLI** (`agentic-net-cli` — `roles.ts`, `tool-executor.ts`, regenerated `tools.generated.ts`), gated by the S flag (split out of D like the rest of the catalog tools) and picked up automatically by the MCP native layer. Tools guide documents the script workflow (`agentic-net-tools/README.md`).
 
 ### Changed
 - **Executor large-output offload is now actually configured** (`deployment/docker-compose*.yml`). Every executor now sets `BLOBSTORE_HOST=http://sa-blobstore:8080`. Without it the executor's blob client fell back to `localhost:8095` (nothing in the container), so a command whose stdout/stderr exceeded the inline threshold (128 KB) was silently truncated to a preview instead of offloaded — unless the command token happened to carry `blobStore.host` itself.
