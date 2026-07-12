@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.24.0] - 2026-07-12
+
 ### Added
 - **Script command handler — catalog scripts run digest-verified on the executor** (`agentic-net-executor` — new `ScriptCommandHandler`, executor type `script`, command `invoke`; config `executor.command.script.{timeout,cache-dir,max-bytes}`). The master inlines a registered script's content + pinned SHA-256 into the command token at FIRE time; the handler re-verifies the digest (refusing anything that doesn't hash to what was registered, including a tampered cache file, which it repairs), materializes the script into a content-addressed cache in the persistent `/workspace` volume, and runs it with the declared runtime. stdin always gets written-then-closed (`args.input` as JSON when present), argv/env/timeout are per-invocation, and large output offloads to the blobstore exactly like bash. Replaces hand-copied `/opt/*.cjs` scripts that were wiped on every container recreation.
 - **`TOOL_CATALOG_REGISTER_SCRIPT` in the CLI** (`agentic-net-cli` — `roles.ts`, `tool-executor.ts`, regenerated `tools.generated.ts`), gated by the D flag like the rest of the catalog tools and picked up automatically by the MCP native layer. Tools guide documents the script workflow (`agentic-net-tools/README.md`).
@@ -19,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Executor large-output offload is now actually configured** (`deployment/docker-compose*.yml`). Every executor now sets `BLOBSTORE_HOST=http://sa-blobstore:8080`. Without it the executor's blob client fell back to `localhost:8095` (nothing in the container), so a command whose stdout/stderr exceeded the inline threshold (128 KB) was silently truncated to a preview instead of offloaded — unless the command token happened to carry `blobStore.host` itself.
 - **Blob ids are explicitly CSPRNG-generated** (`sa-blobstore` — `BlobController`). The default `timestamp` strategy now emits `YYYY-MM-DD/<192-bit SecureRandom token>` instead of a UUID string; both it and the `uuid` strategy are backed by `java.security.SecureRandom`. Since the blobstore has no auth, a blob id is the access capability, so it must be unguessable; the `content-hash` strategy remains deterministic-by-content and is documented as unsuitable for confidential payloads.
+
+### Fixed
+- **Blob payloads survive container recreation** (`deployment/docker-compose.yml`, `docker-compose.hub-only.yml`, `docker-compose.hub-only.no-monitoring.yml`, `docker-compose.multi-master.yml`). `sa-blobstore` wrote its payloads to `STORAGE_PATH=/app/data` on the container's writable layer — nothing was mounted there — so every blob was destroyed whenever the container was recreated (`docker compose up -d` after an image bump, a `down`, a host restart). That silently broke the durable tool catalog, whose script artifacts and OpenAPI specs live in the blobstore and are referenced from catalog tokens by blob URN: the tokens survived, the payloads did not, and the digest check then refused to run the tool. Every compose file now mounts a named `blobstore-data` volume at `/app/data`.
 
 ### Security & operations
 - **sa-blobstore deployment guidance** (`sa-blobstore/README.md`). Documented that the store has no built-in auth and relies on network isolation + unguessable ids; that any deployment reachable beyond a single trusted host **must** be fronted with HTTPS/TLS (and auth); and that `STORAGE_PATH` must be mounted to a persistent volume or blobs (including durable tool-catalog script artifacts) are lost on container recreation. Corrected the stale Docker example that mounted the wrong storage path.
