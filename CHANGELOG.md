@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-07-12
+
+### Added
+- **Tool-catalog tools in the CLI — and, through it, in chat and MCP** (`agentic-net-cli` — `roles.ts`, `tool-executor.ts`, `tools.generated.ts`). The four new `TOOL_CATALOG_*` tools (search, get, import-image, register-http) call the master's `/api/tool-catalog` surface and are gated by the same **D** (docker) flag as the rest of the container tooling. The MCP server's native layer picks them up automatically from the shared catalog, so an MCP-connected coding agent can now build a tool image on its own Docker host, `docker push` it to the bundled AgenticOS registry, and have AgenticOS validate, contract-check, and catalog it — without the master ever building an image. See `core/CHANGELOG.md` for the catalog itself.
+- **"Durable Tool Catalog" section in the tools guide** (`agentic-net-tools/README.md`). Documents the build → push → `TOOL_CATALOG_IMPORT_IMAGE` workflow, the local-registry-only import rule, upsert-by-id semantics, and the run-time digest pinning that requires a re-pushed tag to be re-imported before it may run again.
+
 ### Changed
 - **Dependency bumps** (dependabot sweep, no behavior changes). Maven: OpenTelemetry `sdk-testing` 1.64.0 (executor/gateway/blobstore, test-only), `spring-vault-core` 3.2.1 + `springdoc-openapi` 2.8.17 (vault), `hibernate-validator` 8.0.4.Final + `jakarta.validation-api` 3.1.1 (blobstore). npm (`agentic-net-cli`, bundled into chat/mcp): `@anthropic-ai/sdk` 0.111.0, `commander` 15, `ora` 9, `@types/node` 22.20.1, `yaml` 2.9.0, and `openai` 4 → 6 (one code change: the v6 `tool_calls` union needs a `type === 'function'` guard in the OpenAI provider). All four Java test suites, three TS builds/typechecks, and the MCP vitest suite green.
 
