@@ -25,6 +25,7 @@ x-logging: &default-logging
     max-file: "3"
 
 volumes:
+  blobstore-data:
   registry-data:
   openbao-data:
   ollama-data:
@@ -601,6 +602,10 @@ services:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${SA_BLOBSTORE_PORT:-8090}:8080"
     volumes:
       - ./data/logs/blobstore:/app/logs
+      # Blob payloads live here (STORAGE_PATH=/app/data), sharded XX/YY/ZZ by the
+      # sha256 of the blob id. MUST be a persistent volume or every blob — including
+      # durable tool-catalog script artifacts — is lost on container recreation.
+      - blobstore-data:/app/data
     networks:
       - agenticnetos-backend
     restart: unless-stopped
