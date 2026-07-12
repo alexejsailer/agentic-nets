@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.25.1] - 2026-07-12
+
+### Fixed
+- **No code changes in this repo — released for parity with `core/`** (the 2.25.1 fix is a master-side script-resolution bug; see `core/CHANGELOG.md`). The version tag is created in both repos by the release pipeline.
+
 ## [2.25.0] - 2026-07-12
 
 ### Added
