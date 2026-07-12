@@ -143,6 +143,27 @@ External services can be described without a Docker image using
 `openapiUrl`. HTTP entries are stored with status `registered` — they are not
 container-validated, so they never claim `approved`.
 
+### Script tools
+
+The third binding type covers executable scripts (node / sh / bash / python3)
+that run on the executor — the pattern behind the forum automation lanes.
+Register once with `TOOL_CATALOG_REGISTER_SCRIPT` (content is stored in
+Blobstore, pinned by its sha256), then invoke from any command transition:
+
+```json
+{"executor": "script", "command": "invoke",
+ "args": {"toolId": "forum-sentinel", "argv": [], "env": {"KEY": "..."}, "timeoutMs": 110000}}
+```
+
+At FIRE time the master resolves `toolId` against the catalog, verifies the
+blob against the pinned digest, and inlines the content into the shipped
+token — executors never need blob access, so egress-only gateway deployments
+keep working. The executor re-verifies the digest and runs the script from a
+content-addressed cache in the persistent `/workspace` volume. Compared to
+copying files into the container (`docker cp ... /opt/`): the artifact
+survives container recreation, is versioned and auditable in the catalog, and
+content that doesn't hash to the registered digest is refused end to end.
+
 ## Contributing
 
 1. Create a new directory: `agenticos-tool-<name>/`

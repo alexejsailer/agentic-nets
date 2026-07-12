@@ -26,6 +26,7 @@ type GeneratedToolName =
   | "TOOL_CATALOG_GET"
   | "TOOL_CATALOG_IMPORT_IMAGE"
   | "TOOL_CATALOG_REGISTER_HTTP"
+  | "TOOL_CATALOG_REGISTER_SCRIPT"
   | "DOCKER_RUN"
   | "DOCKER_STOP"
   | "DOCKER_LIST"
@@ -268,6 +269,24 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
         openapiUrl: { type: "string" }
       },
       required: ["id", "name", "baseUrl"],
+    },
+  },
+  TOOL_CATALOG_REGISTER_SCRIPT: {
+    description: "Register an executable script artifact in the durable default-model catalog. Content is stored in Blobstore pinned by its sha256; a command transition runs it via executor 'script', command 'invoke', args {toolId, argv?, env?, input?, timeoutMs?} — the master inlines the verified content at FIRE time and the executor re-verifies the digest before running from a content-addressed cache in the persistent workspace. Registering the same id replaces the entry. This replaces copying scripts into executor containers by hand.",
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: "string", description: "Stable catalog id, e.g. forum-sentinel" },
+        name: { type: "string" },
+        runtime: { type: "string" },
+        content: { type: "string", description: "Script source (UTF-8 text)" },
+        contentBase64: { type: "string", description: "Alternative to content for transport-safe delivery" },
+        description: { type: "string" },
+        capabilities: { type: "array" },
+        version: { type: "string" },
+        filename: { type: "string", description: "Cache filename, defaults to <id> + runtime extension" }
+      },
+      required: ["id", "name", "runtime"],
     },
   },
   DOCKER_RUN: {

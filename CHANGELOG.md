@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Script command handler — catalog scripts run digest-verified on the executor** (`agentic-net-executor` — new `ScriptCommandHandler`, executor type `script`, command `invoke`; config `executor.command.script.{timeout,cache-dir,max-bytes}`). The master inlines a registered script's content + pinned SHA-256 into the command token at FIRE time; the handler re-verifies the digest (refusing anything that doesn't hash to what was registered, including a tampered cache file, which it repairs), materializes the script into a content-addressed cache in the persistent `/workspace` volume, and runs it with the declared runtime. stdin always gets written-then-closed (`args.input` as JSON when present), argv/env/timeout are per-invocation, and large output offloads to the blobstore exactly like bash. Replaces hand-copied `/opt/*.cjs` scripts that were wiped on every container recreation.
+- **`TOOL_CATALOG_REGISTER_SCRIPT` in the CLI** (`agentic-net-cli` — `roles.ts`, `tool-executor.ts`, regenerated `tools.generated.ts`), gated by the D flag like the rest of the catalog tools and picked up automatically by the MCP native layer. Tools guide documents the script workflow (`agentic-net-tools/README.md`).
+
 ## [2.23.0] - 2026-07-12
 
 ### Added

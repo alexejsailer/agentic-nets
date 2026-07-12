@@ -32,7 +32,7 @@ jobs:
           cache-dependency-path: ${{ matrix.service }}/pom.xml
 
       - name: Build ${{ matrix.service }}
-        run: cd ${{ matrix.service }} && ./mvnw clean package -DskipTests -B
+        run: cd ${{ matrix.service }} && ./mvnw clean verify -B
 
       - name: Upload JAR
         uses: actions/upload-artifact@v7
@@ -55,12 +55,16 @@ jobs:
           cache-dependency-path: |
             agentic-net-cli/package-lock.json
             agentic-net-chat/package-lock.json
+            agentic-net-mcp/package-lock.json
 
-      - name: Build agentic-net-cli
-        run: cd agentic-net-cli && npm install && npx tsup
+      - name: Build and typecheck agentic-net-cli
+        run: cd agentic-net-cli && npm ci && npm run build && npm run typecheck
 
-      - name: Build agentic-net-chat
-        run: cd agentic-net-chat && npm install && npx tsup
+      - name: Build and typecheck agentic-net-chat
+        run: cd agentic-net-chat && npm ci && npm run build && npm run typecheck
+
+      - name: Build, typecheck, and test agentic-net-mcp
+        run: cd agentic-net-mcp && npm ci && npm run build && npm run typecheck && npm test
 
       - name: Upload CLI dist
         uses: actions/upload-artifact@v7
@@ -74,6 +78,13 @@ jobs:
         with:
           name: chat-dist
           path: agentic-net-chat/dist/
+          retention-days: 1
+
+      - name: Upload MCP dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-dist
+          path: agentic-net-mcp/dist/
           retention-days: 1
 
   docker-smoke:
@@ -104,8 +115,9 @@ jobs:
 
       - name: Build TypeScript services
         run: |
-          cd agentic-net-cli && npm install && npx tsup && cd ..
-          cd agentic-net-chat && npm install && npx tsup && cd ..
+          cd agentic-net-cli && npm ci && npm run build && cd ..
+          cd agentic-net-chat && npm ci && npm run build && cd ..
+          cd agentic-net-mcp && npm ci && npm run build && cd ..
 
       - name: Build Docker image - gateway
         run: docker build --no-cache -f deployment/dockerfiles/Dockerfile.agentic-net-gateway -t agenticos-gateway:ci agentic-net-gateway/
@@ -127,3 +139,6 @@ jobs:
 
       - name: Build Docker image - chat
         run: docker build --no-cache -f deployment/dockerfiles/Dockerfile.agentic-net-chat -t agenticos-chat:ci .
+
+      - name: Build Docker image - mcp
+        run: docker build --no-cache -f deployment/dockerfiles/Dockerfile.agentic-net-mcp -t agenticos-mcp:ci .

@@ -1,8 +1,7 @@
-# Maintenance convention: routine bumps are applied directly on main (all test
-# suites must be green), so open dependabot PRs auto-close on the next check
-# rather than being merged one by one. Editing THIS file triggers an immediate
-# dependabot run for every ecosystem below — useful to reconcile stale PRs
-# right after a batch of direct bumps lands on main.
+# Maintenance convention: routine version bumps are applied directly on main
+# after their test suites pass. Dependabot is retained for security updates only;
+# open-pull-requests-limit: 0 disables routine version-update PRs without
+# disabling security-update PRs.
 version: 2
 updates:
   # Java services — Maven
@@ -10,7 +9,7 @@ updates:
     directory: /agentic-net-gateway
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     ignore:
       # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
       # we track the supported 3.5.x patch line until that migration is scheduled.
@@ -21,7 +20,7 @@ updates:
     directory: /agentic-net-executor
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     ignore:
       # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
       # we track the supported 3.5.x patch line until that migration is scheduled.
@@ -32,7 +31,7 @@ updates:
     directory: /agentic-net-vault
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     ignore:
       # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
       # we track the supported 3.5.x patch line until that migration is scheduled.
@@ -48,7 +47,7 @@ updates:
     directory: /sa-blobstore
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     ignore:
       # Spring Boot 4 / Framework 7 is a deliberate migration, not a routine bump —
       # we track the supported 3.5.x patch line until that migration is scheduled.
@@ -63,7 +62,7 @@ updates:
     directory: /agentic-net-cli
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     ignore:
       # TypeScript 6 is blocked by Angular/tooling peer ranges (>=5.9 <6.0);
       # @types/node tracks the Node 22 runtime the services actually run on.
@@ -76,11 +75,28 @@ updates:
     directory: /agentic-net-chat
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: npm
+    directory: /agentic-net-mcp
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  # Standalone npm-based tool images
+  - package-ecosystem: npm
+    directories:
+      - /agentic-net-tools/agenticos-tool-crawler
+      - /agentic-net-tools/agenticos-tool-reddit
+      - /agentic-net-tools/agenticos-tool-rss
+      - /agentic-net-tools/agenticos-tool-search
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
 
   # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0

@@ -254,6 +254,8 @@ export class ToolExecutor {
           return this.executeToolCatalogImportImage(params);
         case 'TOOL_CATALOG_REGISTER_HTTP':
           return this.executeToolCatalogRegisterHttp(params);
+        case 'TOOL_CATALOG_REGISTER_SCRIPT':
+          return this.executeToolCatalogRegisterScript(params);
         case 'DOCKER_RUN':
           return this.executeDockerRun(params);
         case 'DOCKER_STOP':
@@ -1610,6 +1612,11 @@ export class ToolExecutor {
 
   private async executeToolCatalogRegisterHttp(params: Record<string, any>): Promise<ToolResult> {
     const data = await this.masterApi.post('/tool-catalog/http', params);
+    return { success: true, data };
+  }
+
+  private async executeToolCatalogRegisterScript(params: Record<string, any>): Promise<ToolResult> {
+    const data = await this.masterApi.post('/tool-catalog/scripts', params);
     return { success: true, data };
   }
 

@@ -63,6 +63,11 @@ export type AgentTool =
   // Registry Discovery (R flag)
   | 'REGISTRY_LIST_IMAGES'
   | 'REGISTRY_GET_IMAGE_INFO'
+  // Native Tool Catalog (D flag)
+  | 'TOOL_CATALOG_SEARCH'
+  | 'TOOL_CATALOG_GET'
+  | 'TOOL_CATALOG_IMPORT_IMAGE'
+  | 'TOOL_CATALOG_REGISTER_HTTP'
   // Docker Lifecycle (X flag)
   | 'DOCKER_RUN'
   | 'DOCKER_STOP'
