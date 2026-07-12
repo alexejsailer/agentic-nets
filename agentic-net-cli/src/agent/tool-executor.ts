@@ -1595,13 +1595,14 @@ export class ToolExecutor {
 
   private async executeToolCatalogSearch(params: Record<string, any>): Promise<ToolResult> {
     const qs = new URLSearchParams();
-    for (const key of ['query', 'type', 'status', 'limit']) if (params[key] != null) qs.set(key, String(params[key]));
+    for (const key of ['query', 'type', 'status', 'limit', 'model']) if (params[key] != null) qs.set(key, String(params[key]));
     const data = await this.masterApi.get(`/tool-catalog?${qs.toString()}`);
     return { success: true, data };
   }
 
   private async executeToolCatalogGet(params: Record<string, any>): Promise<ToolResult> {
-    const data = await this.masterApi.get(`/tool-catalog/${encodeURIComponent(params.id)}`);
+    const qs = params.model ? `?model=${encodeURIComponent(params.model)}` : '';
+    const data = await this.masterApi.get(`/tool-catalog/${encodeURIComponent(params.id)}${qs}`);
     return { success: true, data };
   }
 

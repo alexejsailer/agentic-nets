@@ -221,24 +221,26 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
     },
   },
   TOOL_CATALOG_SEARCH: {
-    description: "Search the durable, cross-agent tool catalog stored in the always-available default model. Results may be backed by approved local Docker images or external HTTP services.",
+    description: "Search the durable tool catalog. Scoped: your model's LOCAL catalog is searched first, then the GLOBAL one (default model); entries are labeled scope local|global and a global entry shadowed by a local id is marked. Results are filtered to the binding types your flags reveal (d docker, h http, t net, s script).",
     schema: {
       type: 'object',
       properties: {
         query: { type: "string", description: "Free-text match across id, name, description, capabilities and contract metadata (case-insensitive)" },
         type: { type: "string" },
-        status: { type: "string", description: "Lifecycle filter: approved (validated docker imports) or registered (external http)" },
+        status: { type: "string", description: "Lifecycle filter: approved (validated docker imports, pinned scripts) or registered (external http)" },
+        model: { type: "string", description: "Scope model for the local catalog (defaults to your current model)" },
         limit: { type: "number", description: "Maximum results (default 50)" }
       },
       required: [],
     },
   },
   TOOL_CATALOG_GET: {
-    description: "Get one durable tool catalog entry including its OpenAPI contract URN and Docker/HTTP/script binding.",
+    description: "Get one durable tool catalog entry including its contract and binding. Scoped: a local entry (your model's catalog) shadows the global one with the same id.",
     schema: {
       type: 'object',
       properties: {
-        id: { type: "string", description: "Catalog tool id" }
+        id: { type: "string", description: "Catalog tool id" },
+        model: { type: "string", description: "Scope model for the local catalog (defaults to your current model)" }
       },
       required: ["id"],
     },
@@ -255,7 +257,7 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
     },
   },
   TOOL_CATALOG_REGISTER_HTTP: {
-    description: "Register an external HTTP service in the durable default-model catalog. Supply OpenAPI inline or by URL; the full document is stored in Blobstore. Stored with status registered (external services are not container-validated); registering the same id replaces the entry.",
+    description: "Register an external HTTP service in the GLOBAL catalog (http bindings are always global: external APIs exist independent of any model). Supply OpenAPI inline or by URL; the full document is stored in Blobstore. Stored with status registered (not container-validated); registering the same id replaces the entry.",
     schema: {
       type: 'object',
       properties: {
@@ -272,7 +274,7 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
     },
   },
   TOOL_CATALOG_REGISTER_SCRIPT: {
-    description: "Register an executable script artifact in the durable default-model catalog. Content is stored in Blobstore pinned by its sha256; a command transition runs it via executor 'script', command 'invoke', args {toolId, argv?, env?, input?, timeoutMs?} — the master inlines the verified content at FIRE time and the executor re-verifies the digest before running from a content-addressed cache in the persistent workspace. Registering the same id replaces the entry. This replaces copying scripts into executor containers by hand.",
+    description: "Register an executable script artifact in the tool catalog. SCOPED: defaults to your model's LOCAL catalog (scripts are the model-scoped binding); pass model 'default' to register globally. Content is stored in Blobstore pinned by its sha256; a command transition runs it via executor 'script', command 'invoke', args {toolId, argv?, env?, input?, timeoutMs?} — the master resolves local-first at FIRE time, inlines the verified content, and the executor re-verifies the digest before running from a content-addressed cache. Registering the same id replaces the entry.",
     schema: {
       type: 'object',
       properties: {
@@ -284,7 +286,8 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
         description: { type: "string" },
         capabilities: { type: "array" },
         version: { type: "string" },
-        filename: { type: "string", description: "Cache filename, defaults to <id> + runtime extension" }
+        filename: { type: "string", description: "Cache filename, defaults to <id> + runtime extension" },
+        model: { type: "string", description: "Catalog scope: a model id for that model's local catalog (agents default to their own model), or 'default' for the global catalog" }
       },
       required: ["id", "name", "runtime"],
     },

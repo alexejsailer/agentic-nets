@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **S (scripts) flag + scoped-catalog params in the CLI** (`agentic-net-cli` — `roles.ts`, `tools.ts`, `tool-executor.ts`, regenerated `tools.generated.ts`; inherited by chat and MCP). The role string grows to `rwxhludcts`: script-catalog registration moves off D onto the new S flag, HTTP registration moves onto H, and catalog search/get are granted by any binding-type flag (D/H/T/S). Catalog search/get/register-script gain an optional `model` param for local-vs-global scope. The MCP native layer subsumes that scope param into its own model routing, so a search resolves the routed model's local catalog first, then the global one (single-model MCP configs still advertise no `model` param). See `core/CHANGELOG.md` for the catalog scoping itself.
+
 ## [2.24.0] - 2026-07-12
 
 ### Added

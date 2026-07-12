@@ -68,6 +68,7 @@ export type AgentTool =
   | 'TOOL_CATALOG_GET'
   | 'TOOL_CATALOG_IMPORT_IMAGE'
   | 'TOOL_CATALOG_REGISTER_HTTP'
+  | 'TOOL_CATALOG_REGISTER_SCRIPT'
   // Docker Lifecycle (X flag)
   | 'DOCKER_RUN'
   | 'DOCKER_STOP'

@@ -81,8 +81,13 @@ export function registerCatalogTools(server: McpServer, ctx: AppContext): void {
   for (const tool of nativeCatalog()) {
     const shape: Record<string, z.ZodTypeAny> = { ...modelParam };
     const required = new Set(tool.input_schema?.required ?? []);
+    // A native tool that declares its own `model` property (the tool-catalog scope param) has it
+    // subsumed by the MCP scope param: the model the call routes to IS the catalog scope. Always
+    // drop the native `model` from the advertised schema so it never appears twice (or at all in
+    // single-model mode), and re-inject the resolved model as scope in the handler below.
+    const declaresModelScope = 'model' in (tool.input_schema?.properties ?? {});
     for (const [key, prop] of Object.entries(tool.input_schema?.properties ?? {})) {
-      if (key === 'model' && scope.multiModel) continue; // never let a native param shadow the scope param
+      if (key === 'model') continue;
       shape[key] = propToZod(prop, required.has(key));
     }
     server.registerTool(
@@ -94,7 +99,11 @@ export function registerCatalogTools(server: McpServer, ctx: AppContext): void {
       },
       wrapTool(scope, config.mode, { name: tool.name, mutates: true }, async (model, args) => {
         const { model: _m, ...params } = args ?? {};
-        const res = await ctx.executorFor(model).execute(tool.name as any, params);
+        // Catalog-scope tools resolve local-first against the routed model.
+        const res = await ctx.executorFor(model).execute(
+          tool.name as any,
+          declaresModelScope ? { ...params, model } : params,
+        );
         if (!res.success) throw new Error(res.error ?? `${tool.name} failed`);
         return res.data ?? { ok: true };
       }),
