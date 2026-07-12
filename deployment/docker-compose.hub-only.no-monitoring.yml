@@ -239,6 +239,10 @@ services:
       EXECUTOR_AUTH_CLIENT_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
       EXECUTOR_AUTH_CLIENT_SECRET_FILE: /app/gateway-data/jwt/executor-secret
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      # Blobstore for large-output offload + binaryUrn uploads. Without this the
+      # executor falls back to localhost:8095 (nothing listens there in a container),
+      # so a >128KB stdout was silently truncated instead of offloaded.
+      BLOBSTORE_HOST: http://sa-blobstore:8080
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
@@ -288,6 +292,10 @@ services:
       EXECUTOR_AUTH_CLIENT_SECRET: ${AGENTICOS_EXECUTOR_SECRET:-}
       EXECUTOR_AUTH_CLIENT_SECRET_FILE: /app/gateway-data/jwt/executor-secret
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      # Blobstore for large-output offload + binaryUrn uploads. Without this the
+      # executor falls back to localhost:8095 (nothing listens there in a container),
+      # so a >128KB stdout was silently truncated instead of offloaded.
+      BLOBSTORE_HOST: http://sa-blobstore:8080
       LOG_PATH: /app/logs
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
