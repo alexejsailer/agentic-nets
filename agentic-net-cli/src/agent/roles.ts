@@ -66,6 +66,8 @@ const EXECUTE_TOOLS = new Set<AgentTool>([
 // Container/registry tools require the dedicated D grant (mirrors master's D flag)
 const DOCKER_TOOLS = new Set<AgentTool>([
   'REGISTRY_LIST_IMAGES', 'REGISTRY_GET_IMAGE_INFO',
+  'TOOL_CATALOG_SEARCH', 'TOOL_CATALOG_GET',
+  'TOOL_CATALOG_IMPORT_IMAGE', 'TOOL_CATALOG_REGISTER_HTTP',
   'DOCKER_RUN', 'DOCKER_STOP', 'DOCKER_LIST', 'DOCKER_LOGS',
   'WRAP_DOCKER_TOOL',
 ]);

@@ -22,6 +22,10 @@ type GeneratedToolName =
   | "SCAFFOLD_TOOL_NET"
   | "REGISTRY_LIST_IMAGES"
   | "REGISTRY_GET_IMAGE_INFO"
+  | "TOOL_CATALOG_SEARCH"
+  | "TOOL_CATALOG_GET"
+  | "TOOL_CATALOG_IMPORT_IMAGE"
+  | "TOOL_CATALOG_REGISTER_HTTP"
   | "DOCKER_RUN"
   | "DOCKER_STOP"
   | "DOCKER_LIST"
@@ -213,6 +217,57 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
         tag: { type: "string", description: "Image tag (default \"latest\")" }
       },
       required: ["image"],
+    },
+  },
+  TOOL_CATALOG_SEARCH: {
+    description: "Search the durable, cross-agent tool catalog stored in the always-available default model. Results may be backed by approved local Docker images or external HTTP services.",
+    schema: {
+      type: 'object',
+      properties: {
+        query: { type: "string", description: "Free-text match across id, name, description, capabilities and contract metadata (case-insensitive)" },
+        type: { type: "string" },
+        status: { type: "string", description: "Lifecycle filter: approved (validated docker imports) or registered (external http)" },
+        limit: { type: "number", description: "Maximum results (default 50)" }
+      },
+      required: [],
+    },
+  },
+  TOOL_CATALOG_GET: {
+    description: "Get one durable tool catalog entry including its OpenAPI contract URN and Docker/HTTP/script binding.",
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: "string", description: "Catalog tool id" }
+      },
+      required: ["id"],
+    },
+  },
+  TOOL_CATALOG_IMPORT_IMAGE: {
+    description: "Validate and catalog an image that a coding agent already pushed to the local AgenticOS registry. Pins its digest, starts a temporary validation container, checks OpenAPI, stores the spec in Blobstore, and writes an approved entry to the default model. Re-importing the same id replaces the entry; a re-pushed tag must be re-imported before it may run again.",
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: "string", description: "Local registry image, e.g. localhost:5001/agenticos-tool-pdf:1.0.0" },
+        id: { type: "string", description: "Optional stable catalog id; defaults to the repository short name" }
+      },
+      required: ["image"],
+    },
+  },
+  TOOL_CATALOG_REGISTER_HTTP: {
+    description: "Register an external HTTP service in the durable default-model catalog. Supply OpenAPI inline or by URL; the full document is stored in Blobstore. Stored with status registered (external services are not container-validated); registering the same id replaces the entry.",
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: "string" },
+        name: { type: "string" },
+        baseUrl: { type: "string" },
+        version: { type: "string" },
+        description: { type: "string" },
+        capabilities: { type: "array" },
+        openapi: { type: "string" },
+        openapiUrl: { type: "string" }
+      },
+      required: ["id", "name", "baseUrl"],
     },
   },
   DOCKER_RUN: {

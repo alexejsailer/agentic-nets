@@ -246,6 +246,14 @@ export class ToolExecutor {
           return this.executeRegistryListImages(params);
         case 'REGISTRY_GET_IMAGE_INFO':
           return this.executeRegistryGetImageInfo(params);
+        case 'TOOL_CATALOG_SEARCH':
+          return this.executeToolCatalogSearch(params);
+        case 'TOOL_CATALOG_GET':
+          return this.executeToolCatalogGet(params);
+        case 'TOOL_CATALOG_IMPORT_IMAGE':
+          return this.executeToolCatalogImportImage(params);
+        case 'TOOL_CATALOG_REGISTER_HTTP':
+          return this.executeToolCatalogRegisterHttp(params);
         case 'DOCKER_RUN':
           return this.executeDockerRun(params);
         case 'DOCKER_STOP':
@@ -1580,6 +1588,28 @@ export class ToolExecutor {
     const image = params.image as string;
     const tag = (params.tag as string) || 'latest';
     const data = await this.masterApi.get(`/registry/images/${encodeURIComponent(image)}/info?tag=${encodeURIComponent(tag)}`);
+    return { success: true, data };
+  }
+
+  private async executeToolCatalogSearch(params: Record<string, any>): Promise<ToolResult> {
+    const qs = new URLSearchParams();
+    for (const key of ['query', 'type', 'status', 'limit']) if (params[key] != null) qs.set(key, String(params[key]));
+    const data = await this.masterApi.get(`/tool-catalog?${qs.toString()}`);
+    return { success: true, data };
+  }
+
+  private async executeToolCatalogGet(params: Record<string, any>): Promise<ToolResult> {
+    const data = await this.masterApi.get(`/tool-catalog/${encodeURIComponent(params.id)}`);
+    return { success: true, data };
+  }
+
+  private async executeToolCatalogImportImage(params: Record<string, any>): Promise<ToolResult> {
+    const data = await this.masterApi.post('/tool-catalog/images/import', { image: params.image, id: params.id });
+    return { success: true, data };
+  }
+
+  private async executeToolCatalogRegisterHttp(params: Record<string, any>): Promise<ToolResult> {
+    const data = await this.masterApi.post('/tool-catalog/http', params);
     return { success: true, data };
   }
 

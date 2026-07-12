@@ -103,6 +103,46 @@ REGISTRY=docker.io/alexejsailer ./build-and-push.sh 2.1.8
 4. DOCKER_STOP when done
 ```
 
+## Durable Tool Catalog
+
+The OCI registry answers “which images exist”; the AgenticOS tool catalog answers
+“which callable tools are known and what is their contract”. Catalog entries are
+stored as tokens in the always-available `default` model, place
+`p-tool-catalog`. Full OpenAPI documents are stored in Blobstore and referenced
+by immutable URNs from the catalog token.
+
+A coding agent connected through MCP builds on its own Docker host, pushes to
+the bundled registry, and asks AgenticOS to validate/catalog the result:
+
+```bash
+docker build -t localhost:5001/agenticos-tool-example:1.0.0 ./example
+docker push localhost:5001/agenticos-tool-example:1.0.0
+```
+
+```json
+TOOL_CATALOG_IMPORT_IMAGE {
+  "image": "localhost:5001/agenticos-tool-example:1.0.0",
+  "id": "example"
+}
+```
+
+Import accepts only the configured local registry. The master starts a temporary
+validation container, checks the declared OpenAPI document, stores the spec in
+Blobstore, records the registry digest, and writes an approved catalog entry. It
+does not build images. Search with `TOOL_CATALOG_SEARCH`; inspect the contract and
+binding with `TOOL_CATALOG_GET`.
+
+The catalog upserts by id: re-importing the same id replaces the previous entry
+(one entry per tool). The pinned digest is enforced at run time — once an image
+ref is cataloged, starting it requires the registry digest to still match, so a
+re-pushed tag must be re-imported before it runs again. Uncataloged images are
+unaffected and remain governed by the image allowlist alone.
+
+External services can be described without a Docker image using
+`TOOL_CATALOG_REGISTER_HTTP` with `baseUrl` plus inline `openapi` or an
+`openapiUrl`. HTTP entries are stored with status `registered` — they are not
+container-validated, so they never claim `approved`.
+
 ## Contributing
 
 1. Create a new directory: `agenticos-tool-<name>/`
