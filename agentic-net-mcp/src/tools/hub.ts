@@ -22,13 +22,16 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Publish a NetHub artifact',
       description:
-        'Publish a net, session, or whole model as a versioned, shareable artifact. tokens controls what data ships: "none" = structure + inscriptions only; "config" (default) = also tokens in *-config/*-charter places or marked config; "all" = everything. visibility "public" (default) is what peers can discover when the hub public catalog is enabled; "private" stays local. Credentials are always scrubbed.',
+        'Publish a versioned, shareable, SELF-CONTAINED artifact. Kinds: "net"/"session"/"model" (net structure + inscriptions), "toolnet" (a tool-net + its manifest), "tool" (one catalog tool), "catalog" (a whole tool catalog), "blob" (raw blobs by URN). Any tool dependency the artifact uses (script/http/docker catalog entries and their blobs) travels with it, sha256-pinned, so it runs after install on another instance. tokens controls what token data ships: "none" = structure + inscriptions only; "config" (default) = also *-config/*-charter or marked tokens; "all" = everything. visibility "public" (default) is peer-discoverable when the hub public catalog is enabled. Credentials are always scrubbed.',
       inputSchema: {
-        kind: z.enum(['net', 'session', 'model']).describe('What to publish'),
+        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob']).describe('What to publish'),
         name: z.string(),
         version: z.string().describe('Semantic version, e.g. 1.0.0'),
-        netId: z.string().optional().describe('Required for kind=net'),
-        sessionId: z.string().optional().describe('Required for kind=net/session (default: the MCP session)'),
+        netId: z.string().optional().describe('Required for kind=net/toolnet'),
+        sessionId: z.string().optional().describe('Required for kind=net/session/toolnet (default: the MCP session)'),
+        toolId: z.string().optional().describe('Required for kind=tool — the catalog tool id'),
+        catalogScope: z.enum(['global', 'local']).optional().describe('kind=catalog: "global" (the default catalog) or "local" (this model\'s own catalog)'),
+        blobUrns: z.array(z.string()).optional().describe('Required for kind=blob — urn:agenticos:blob:... list'),
         tokens: z.enum(['none', 'config', 'all']).optional().describe('Token export policy (default config)'),
         configPlaces: z.array(z.string()).optional().describe('Override config-token place globs/ids (default *-config,*-charter)'),
         visibility: z.enum(['public', 'private']).optional(),
@@ -49,7 +52,14 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         visibility: args.visibility,
         tokens: args.tokens,
         configPlaces: args.configPlaces,
-        source: { modelId: model, sessionId: args.sessionId ?? config.session, netId: args.netId },
+        source: {
+          modelId: model,
+          sessionId: args.sessionId ?? config.session,
+          netId: args.netId,
+          toolId: args.toolId,
+          catalogScope: args.catalogScope,
+          blobUrns: args.blobUrns,
+        },
       });
     }),
   );
@@ -59,9 +69,9 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Search the NetHub catalog',
       description:
-        'Browse published artifacts — local by default, or a peer instance when the remote param names a registered remote. Filter by kind (net|session|model), free-text search, and tags. Returns a compact list plus the true total; page with offset when more exist.',
+        'Browse published artifacts — local by default, or a peer instance when the remote param names a registered remote. Filter by kind (net|session|model|toolnet|tool|catalog|blob), free-text search, and tags. Returns a compact list plus the true total; page with offset when more exist.',
       inputSchema: {
-        kind: z.enum(['net', 'session', 'model']).optional(),
+        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob']).optional(),
         search: z.string().optional(),
         tags: z.string().optional().describe('Comma-separated'),
         remote: z.string().optional().describe('A registered remote to browse instead of local'),

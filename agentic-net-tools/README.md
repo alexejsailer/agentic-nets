@@ -164,6 +164,42 @@ copying files into the container (`docker cp ... /opt/`): the artifact
 survives container recreation, is versioned and auditable in the catalog, and
 content that doesn't hash to the registered digest is refused end to end.
 
+## Portable packages (NetHub)
+
+Publishing a net used to ship only pointers: an inscription referenced a script
+by `scriptUrn` + sha256, a docker tool by image digest, an OpenAPI contract by
+`specUrn` — but the catalog entries and their blobs stayed behind, so a net that
+used any tool installed onto another instance as a dangling pointer and did not
+run. NetHub packages are now **self-contained**: `hub_publish` scans the
+artifact's inscriptions for every referenced `toolId`, `action.image`, and
+`urn:agenticos:blob:*`, resolves the matching catalog entries (local catalog
+first, then global), and bundles them together with the blobs they point at
+(each carried as base64 + its sha256).
+
+On `hub_install` the bundled dependencies are re-materialized on the receiving
+instance before the net structure lands: the package's integrity hash is
+verified, every blob's sha256 is re-checked and uploaded to the local blobstore
+(content-addressed, so the id is identical on every instance and the
+inscription's URN still resolves), and each catalog entry is registered into the
+correct **scope** — docker/http entries into the shared `default` catalog,
+script/tool-net entries into the installed model's own `p-tool-catalog`. Content
+that does not hash to its pinned digest is refused, the same discipline the
+executor enforces at run time.
+
+Beyond `net`/`session`/`model`, `hub_publish` accepts four dependency-aware
+kinds:
+
+| kind | publishes | installs into |
+|------|-----------|---------------|
+| `toolnet` | one tool-net (net + inscriptions + manifest) + its tool deps | re-scaffolded net + manifest re-registered (local) |
+| `tool` | one catalog tool (docker/http/script) + its blob(s) | its scope (global for docker/http, local for script) |
+| `catalog` | a whole catalog (`catalogScope` global or a model's local) + all blobs | merged into the target scope |
+| `blob` | raw blobs by `blobUrns` | uploaded to the target blobstore |
+
+Package payloads are stored content-addressed in blobstore (not as a node leaf),
+so they carry their bundled blobs without a size ceiling and each package has a
+verifiable content hash.
+
 ## Contributing
 
 1. Create a new directory: `agenticos-tool-<name>/`

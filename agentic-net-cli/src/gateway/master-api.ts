@@ -180,7 +180,7 @@ export class MasterApi {
 
   // ---- NetHub (/api/hub) ----
   async hubPublish(params: {
-    kind?: string; // net | session | model
+    kind?: string; // net | session | model | toolnet | tool | catalog | blob
     name: string;
     version: string;
     description?: string;
@@ -189,7 +189,14 @@ export class MasterApi {
     visibility?: string; // public | private
     tokens?: string; // none | config | all
     configPlaces?: string[];
-    source: { modelId: string; sessionId?: string; netId?: string };
+    source: {
+      modelId?: string;
+      sessionId?: string;
+      netId?: string;
+      toolId?: string; // kind=tool
+      catalogScope?: string; // kind=catalog: global | local
+      blobUrns?: string[]; // kind=blob
+    };
   }): Promise<any> {
     return this.client.masterApi('POST', '/hub/publish', params);
   }

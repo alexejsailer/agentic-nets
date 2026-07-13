@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.26.0] - 2026-07-13
+
+### Added
+- **`hub_publish` gains the dependency-aware kinds — `toolnet`, `tool`, `catalog`, `blob`** (`agentic-net-mcp` — `tools/hub.ts`; `agentic-net-cli` — `master-api.ts`, inherited by chat). The MCP `hub_publish` / `hub_search` tools now expose the four new kinds plus the `toolId` / `catalogScope` / `blobUrns` source fields that drive them; the tool description explains that any script/http/docker/tool-net dependency an artifact uses now travels with it, sha256-pinned, so it runs after install on another instance. See `core/CHANGELOG.md` for the packaging itself.
+- **"Portable packages (NetHub)" section in the tools guide** (`agentic-net-tools/README.md`). Documents self-contained packages, the four new publishable kinds and where each installs, the scope-aware re-materialization (docker/http → global, script/tool-net → the installed model), and the package integrity hash.
+
+### Changed
+- **Isolated dev/test stack runs blobstore and polls the master directly** (`deployment/docker-compose.test.override.yml`, `.env.test`). The `agenticos-test` stack now includes `sa-blobstore` (NetHub package payloads and script tools live there) and, with no gateway in that stack, its executor polls the master directly (`EXECUTOR_UPSTREAM_URL` + a blank client id); the override drops the executor's gateway health-dependency to match. Internal CI/test tooling — no runtime behavior change.
+
 ## [2.25.1] - 2026-07-12
 
 ### Fixed

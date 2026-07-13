@@ -15,6 +15,14 @@ services:
       agentic-net-vault:
         condition: service_healthy
 
+  # The test stack has no gateway: the executor polls the master directly
+  # (EXECUTOR_UPSTREAM_URL + blank client id in .env.test), so drop the
+  # gateway health-dependency and keep only the perms init.
+  agentic-net-executor:
+    depends_on: !override
+      init-perms:
+        condition: service_completed_successfully
+
 # Declare the isolated node-data named volume referenced via AGENTICNETOS_NODE_DATA_DIR
 # in .env.test (a bare name => named volume). Project-scoped (agenticos-test_test-node-data),
 # so the test node's data is isolated from the dev's ~/.agenticos and is chownable by init-perms.
