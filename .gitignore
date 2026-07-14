@@ -44,3 +44,6 @@ Thumbs.db
 # Deployment data and runtime secrets
 deployment/data/
 **/data/jwt/
+
+# Agent field-report working notes (source material for improvement waves, not documentation)
+agentic-net-mcp/improvement*.md

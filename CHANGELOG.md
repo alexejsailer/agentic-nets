@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.28.0] - 2026-07-14
+
+### Added
+- **Bundled knowledge pack — work over MCP like you have the source** (`agentic-net-mcp` — `src/knowledge/*.md`, `src/tools/knowledge.ts`, `resources.ts`). Fourteen curated operational docs (concepts, the PNML-vs-runtime two-layer architecture, per-kind inscription templates, ArcQL, template interpolation + functions, emit semantics, command lanes + executors, LLM-transition failure modes, scheduling, token shapes, troubleshooting playbooks, recipes, security) compiled INTO the MCP binary and served as `agenticnets://docs/{topic}`. New **`search_knowledge`** tool greps the pack offline (registered in readonly mode too — zero network, zero mutation) and returns topics + excerpts + resource URIs. A new **leak-gate test** scans every shipped string (docs, instructions, templates) for credentials, IPs, personal paths, internal hostnames, and CI details, plus enforces size caps (8KB/doc, 64KB pack, 15KB instructions) — curated rewrites of private knowledge ship safely by construction.
+- **`scheduler_status` MCP tool** (`agentic-net-mcp` — `tools/observe.ts`). Per scheduled transition: `lastFiredAt`/`lastFiredAgo`, `nextFireAt`, live status, `ready`, `eligibility` (on masters ≥ 2.28), and an `overdue` flag with a recovery hint when the scheduler has not re-armed a lane (the classic post-redeploy freeze). Answers "my autonomous nets silently stopped" in one call. GET-based, readonly-safe.
+- **`llm_health` MCP tool** (`agentic-net-mcp` — `tools/observe.ts`). Wraps the master's LLM-provider health check (READY / MODEL_NOT_FOUND / UNREACHABLE) with a cost warning — the pre-flight for building any llm/agent lane. GET-based, readonly-safe.
+
+### Fixed
+- **MCP-created agents silently ran without their granted capabilities** (`agentic-net-mcp` — `inscriptions.ts`). The agent builder wrote `role` only at the inscription root, but the engine reads it exclusively from `action.role` — so every `spawn_persona`/`add_transition` agent (including `capability:"execute"` workers) actually ran as `rw--` (no commands, no tool-nets). The role now lands in `action.role`.
+- **`LIST_ALL_INSCRIPTIONS` naming trap defused** (`agentic-net-cli` — `agent/tools.ts`). Its description now states that it returns bare ids without `includeContent:true` and points at the curated `list_transitions` (which cross-references back) — an agent field report lost an hour to this and published a wrong conclusion.
+- **Token stringification documented at point of use** (`agentic-net-mcp` — `query_tokens` description + the tokens knowledge doc). Nested objects/arrays round-trip as JSON-encoded strings; consumers must parse (sometimes twice for LLM output).
+
 ## [2.27.0] - 2026-07-14
 
 ### Added

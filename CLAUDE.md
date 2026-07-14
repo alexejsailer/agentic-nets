@@ -259,9 +259,18 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   polls, the classic "queued, no output" stall — the no-logs cockpit),
   **`list_executors`** (registered executors + `coverageForModel`: `covered`/`allowedButIdle` verdict
   for build-time executor choice AND debug-time "why don't my command lanes fire"),
+  **`list_transitions`** (the model audit: kind + schedule + live status + places per transition in
+  one call), **`scheduler_status`** (lastFiredAt/nextFireAt/eligibility/overdue per scheduled lane —
+  the "my nets went silent" answer), **`llm_health`** (provider READY/MODEL_NOT_FOUND/UNREACHABLE
+  pre-flight; all three GET-based ⇒ readonly-safe),
   **`verify_inscription`** / **`dry_run_transition`** / **`diagnose_transition`** (per-transition
   diagnosis — for command transitions diagnose adds the executor-coverage check the master itself
-  cannot see; rw-only — they travel as POST, readonly registers only `net_stats` from this group).
+  cannot see; rw-only — they travel as POST, readonly registers only `net_stats` from this group);
+  **knowledge pack**: 14 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
+  loader) served as `agenticnets://docs/{topic}` + searched by **`search_knowledge`** (offline grep,
+  registered in readonly too) — content is leak-gated by `test/knowledge-leaks.test.ts` (scans every
+  shipped string for credentials/IPs/paths/CI internals; size caps 8KB/doc, 64KB pack, 15KB
+  instructions), so curated rewrites of private-repo knowledge can ship safely.
   The server `instructions` + recipes teach clients: 6-field cron scheduling (nets act overnight —
   always tell the user what you armed), spawning full Claude Code instances via command transitions
   (`claude -p '…' --allowedTools … --no-session-persistence < /dev/null` — stdin redirect mandatory),
