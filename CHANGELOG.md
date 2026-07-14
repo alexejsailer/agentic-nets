@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.27.0] - 2026-07-14
+
+### Added
+- **Executor-coverage diagnostics in the MCP** (`agentic-net-mcp` — `tools/observe.ts`). `net_stats` gains an `executorCoverage` block, `list_executors` returns a `coverageForModel` verdict (`covered` / `allowedButIdle`) plus a field guide reconciling `status`/`connected` and `models`/`allowedModels`, and `diagnose_transition` adds an executor-coverage check for command transitions. A command lane can look RUNNING with a full queue yet never fire when no executor is polling its model; these surface that where an agent already looks instead of behind a tool nobody thinks to call.
+- **`list_transitions` MCP tool** (`agentic-net-mcp` — `tools/observe.ts`). Every transition's kind, schedule, live status, action type, and input/output places in one call — the model-audit read, far cheaper than one `GET_TRANSITION` per id. Degrades to id+status under the readonly scope.
+- **`set_transition_credentials` MCP tool** (`agentic-net-mcp` — `tools/nets.ts`). Stores per-transition secrets vault-backed (`POST /api/transitions/{id}/credentials`), so the documented `${credentials.KEY}` secure-injection path is reachable from MCP instead of forcing secrets into inscriptions or event-sourced tokens. Never echoes secret values back.
+- **Rich `http` on `add_transition`** (`agentic-net-mcp` — `tools/nets.ts`, `inscriptions.ts`). `add_transition` kind:http now accepts `headers`, `body`, `auth`, `retry`, `emit`, and `errorPlace`, so an authenticated HTTP net is buildable without hand-authoring inscriptions; `errorPlace` splits success/error emits so a failed call lands somewhere visible.
+
+### Changed
+- **`net_overview` can no longer be misread as model-wide** (`agentic-net-mcp` — `tools/observe.ts`). Without a `netId` it returns `sessionNetCount`/`sessionNets` (renamed from `netCount`/`nets`) plus a model-wide `modelSessionCount`/`sessionIds`, so a freshly-connected empty session is not mistaken for an empty model. Accepts an explicit `sessionId`.
+- **`create_model` checks the node, not the allowlist** (`agentic-net-mcp` — `tools/nets.ts`). A model that is allowlisted but absent on the node is now created rather than reported as already present.
+- **`event_trail` pages backwards and caps its window** (`agentic-net-mcp` — `tools/observe.ts`). New `before` param walks into older history; `limit` is capped at 200 (a large page could truncate into invalid JSON).
+- **`placeId`/`place` accepted everywhere a place is expected** (`agentic-net-cli` — `agent/tool-executor.ts`; `agentic-net-mcp` — `query_tokens`). No more failed call + retry across three argument names.
+
+### Fixed
+- **`CREATE_RUNTIME_PLACE` provisions its parent chain** (`agentic-net-cli` — `agent/tool-executor.ts`). A brand-new model has only `root`; creating a place under the missing `root/workspace/places` used to 404. It now ensures the container path, fixing `add_place` and persona creation on fresh models.
+- **`DEPLOY_TRANSITION` no longer silently no-ops** (`agentic-net-cli` — `agent/tool-executor.ts`). Without an inscription parameter it returned success while assigning nothing; it now assigns the effective inscription, routed by kind (command → executor, else master).
+- **`add_place` reports partial state** (`agentic-net-mcp` — `tools/nets.ts`). On a runtime-half failure it returns `{designtime:true, runtime:false, error}` instead of throwing.
+- **Gateway 404s name the resource** (`agentic-net-cli` — `gateway/client.ts`). `GatewayError` now includes the attempted `METHOD /path`, so a not-found says which model/net/place/parent was missing.
+
 ## [2.26.0] - 2026-07-13
 
 ### Added
