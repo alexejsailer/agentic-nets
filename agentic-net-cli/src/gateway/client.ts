@@ -6,9 +6,21 @@ export class GatewayError extends Error {
   constructor(
     public readonly status: number,
     public readonly body: string,
+    /** The method + path that was attempted, so a 404 says WHICH resource was missing. */
+    public readonly path?: string,
   ) {
-    super(`Gateway ${status}: ${body}`);
+    super(`Gateway ${status}${path ? ` (${path})` : ''}: ${body}`);
     this.name = 'GatewayError';
+  }
+}
+
+/** Compact request path for error messages: strip the origin, keep path + query. */
+function reqPath(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.pathname + u.search;
+  } catch {
+    return url;
   }
 }
 
@@ -54,7 +66,7 @@ export class GatewayClient {
       },
     });
     if (!res.ok) {
-      throw new GatewayError(res.status, await res.text());
+      throw new GatewayError(res.status, await res.text(), `${method} ${reqPath(url)}`);
     }
     const text = await res.text();
     if (!text) return undefined as T;
@@ -164,7 +176,9 @@ export class GatewayClient {
 
     if (!res.ok) {
       const errorBody = await res.text();
-      throw new GatewayError(res.status, errorBody);
+      // Include method + path so a 404 says which resource was missing (model / net / place /
+      // parent container all otherwise share one opaque "resource not found" body).
+      throw new GatewayError(res.status, errorBody, `${method} ${reqPath(url)}`);
     }
 
     const text = await res.text();

@@ -343,7 +343,7 @@ export class ToolExecutor {
   }
 
   private async executeQueryTokens(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     const query = params.query || params.arcql || 'FROM $ LIMIT 100';
     const fields: string[] | undefined = Array.isArray(params.fields) ? params.fields : undefined;
     let maxValueLength: number | undefined =
@@ -388,7 +388,7 @@ export class ToolExecutor {
   }
 
   private async executeCreateToken(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     // Resolve parent UUID
     const parentInfo = await this.nodeApi.resolve(this.modelId, placePath);
     const parentId = parentInfo?.id || parentInfo;
@@ -417,7 +417,7 @@ export class ToolExecutor {
   }
 
   private async executeDeleteToken(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     const tokenName = params.tokenName;
     const tokenId = params.tokenId;
 
@@ -449,8 +449,9 @@ export class ToolExecutor {
     const placeId = params.placeId as string;
     const placesPath = 'root/workspace/places';
 
-    // Check if place already exists (idempotent)
-    const children = await this.nodeApi.getChildren(this.modelId, placesPath);
+    // Check if place already exists (idempotent). Tolerate a 404 here: a brand-new model may not
+    // have the root/workspace/places container yet — it is provisioned below.
+    const children = await this.nodeApi.getChildren(this.modelId, placesPath).catch(() => [] as any[]);
     const existing = children.find((c: any) => c.name === placeId);
     if (existing) {
       const existingType = String(existing?.type || existing?.kind || '').toLowerCase();
@@ -471,9 +472,13 @@ export class ToolExecutor {
       return { success: true, data: { placeId, exists: true, id: existing.id, type: existing.type || existing.kind } };
     }
 
-    // Resolve parent UUID for root/workspace/places
-    const placesInfo = await this.nodeApi.resolve(this.modelId, placesPath);
-    const parentId = placesInfo?.id || placesInfo;
+    // Ensure the runtime-places container exists first: a brand-new model has only `root`, and
+    // creating a node under a missing parent 404s. This is the single biggest new-model papercut.
+    const placesInfo = await this.nodeApi.resolve(this.modelId, placesPath).catch(() => null);
+    let parentId = placesInfo?.id || (typeof placesInfo === 'string' ? placesInfo : undefined);
+    if (!parentId) {
+      parentId = await this.ensureNodePath(placesPath);
+    }
 
     await this.nodeApi.executeEvents(this.modelId, [{
       eventType: 'createNode',
@@ -483,6 +488,34 @@ export class ToolExecutor {
     }]);
 
     return { success: true, data: { placeId, created: true } };
+  }
+
+  /**
+   * Ensure every segment of a slash path exists as a node, creating missing ones under their
+   * parent (ensureNode semantics). Returns the id of the final segment. Lets a brand-new model —
+   * which has only `root` — get its `root/workspace/places` skeleton on first place creation
+   * instead of 404-ing.
+   */
+  private async ensureNodePath(path: string): Promise<string> {
+    const segments = this.normalizePath(path).split('/').filter(Boolean);
+    let parentId: string | undefined;
+    let currentPath = '';
+    for (const seg of segments) {
+      currentPath = currentPath ? `${currentPath}/${seg}` : seg;
+      const info = await this.nodeApi.resolve(this.modelId, currentPath).catch(() => null);
+      let id: string | undefined = info?.id || (typeof info === 'string' ? info : undefined);
+      if (!id) {
+        if (!parentId) {
+          throw new Error(`cannot provision '${path}': root segment '${seg}' is missing on model '${this.modelId}'`);
+        }
+        await this.nodeApi.executeEvents(this.modelId, [{ eventType: 'createNode', parentId, id: 'auto', name: seg }]);
+        const after = await this.nodeApi.resolve(this.modelId, currentPath).catch(() => null);
+        id = after?.id || (typeof after === 'string' ? after : undefined);
+        if (!id) throw new Error(`failed to create node segment '${seg}' while provisioning '${path}'`);
+      }
+      parentId = id;
+    }
+    return parentId!;
   }
 
   private async executeListPlaces(): Promise<ToolResult> {
@@ -504,7 +537,7 @@ export class ToolExecutor {
   }
 
   private async executeGetPlaceInfo(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     const children = await this.nodeApi.getChildren(this.modelId, placePath);
     return {
       success: true,
@@ -1670,7 +1703,7 @@ export class ToolExecutor {
   // ---- Extract / Discovery / Package Tools ----
 
   private async executeExtractRawData(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     const query = params.query || params.arcql || 'FROM $';
     const properties: string[] | undefined = Array.isArray(params.properties) ? params.properties : undefined;
     const separator = (params.separator as string) || '\n';
@@ -1712,7 +1745,7 @@ export class ToolExecutor {
   }
 
   private async executeInspectTokenSize(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     let arcql = (params.arcql as string) || 'FROM $ LIMIT 20';
     if (!arcql.toUpperCase().includes('LIMIT')) arcql += ' LIMIT 20';
 
@@ -2158,16 +2191,21 @@ export class ToolExecutor {
       };
     }
 
-    if (params.inscription) {
-      const result = await this.masterApi.assignTransition({
-        modelId: this.modelId,
-        transitionId,
-        agentId: 'agentic-net-executor-default',
-        inscription,
-      });
-      return { success: true, data: { ...result, preflight } };
-    }
-    return { success: true, data: { transitionId, status: 'deploy_requested', preflight } };
+    // Deploy = assign the effective inscription (the one passed, or the stored one we just
+    // loaded and preflighted). The old no-inscription branch returned success WITHOUT assigning
+    // anything — a silent no-op that read as "deployed". Route by kind: command lanes run on the
+    // executor, everything else on master (assigning a map/http/llm to the executor would be
+    // rejected as non-command).
+    const agentId = String(inscription.kind).toLowerCase() === 'command'
+      ? 'agentic-net-executor-default'
+      : 'agentic-net-master';
+    const result = await this.masterApi.assignTransition({
+      modelId: this.modelId,
+      transitionId,
+      agentId,
+      inscription,
+    });
+    return { success: true, data: { ...result, transitionId, assigned: true, agentId, preflight } };
   }
 
   private async executeStartTransition(params: Record<string, any>): Promise<ToolResult> {
@@ -2471,7 +2509,7 @@ export class ToolExecutor {
   }
 
   private async executeExtractTokenContent(params: Record<string, any>): Promise<ToolResult> {
-    const placePath = this.normalizePath(params.placePath);
+    const placePath = this.normalizePath(params.placePath ?? params.placeId ?? params.place);
     const tokenName = params.tokenName as string;
     const mode: ContentMode = params.mode || 'summarize';
     const property = params.property || 'body';
