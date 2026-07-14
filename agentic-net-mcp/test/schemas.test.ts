@@ -43,6 +43,9 @@ const CURATED = [
   'list_transitions',
   'list_models',
   'list_executors',
+  'llm_health',
+  'scheduler_status',
+  'search_knowledge',
   'diagnose_transition',
   'dry_run_transition',
   'verify_inscription',
@@ -117,7 +120,7 @@ describe('advertised tool surface', () => {
     // Model-AGNOSTIC tools have no model param by design: list_models surveys
     // the whole stack; create_model takes the NEW id; hub_search/hub_add_remote
     // are cross-instance, not model-scoped.
-    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_show', 'hub_add_remote']);
+    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_show', 'hub_add_remote', 'llm_health', 'search_knowledge']);
     for (const t of tools) {
       if (modelAgnostic.has(t.name)) continue;
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).toContain('model');
@@ -155,7 +158,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'list_transitions', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens', 'scheduler_status', 'search_knowledge'].sort(),
     );
   });
 

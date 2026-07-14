@@ -10,6 +10,7 @@ import { registerAgentTools } from './tools/agents.js';
 import { registerCatalogTools } from './tools/catalog.js';
 import { registerHostedTools } from './tools/hosted.js';
 import { registerHubTools } from './tools/hub.js';
+import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
@@ -25,8 +26,10 @@ export function createServer(ctx: AppContext): McpServer {
     { instructions: buildInstructions(ctx.config) },
   );
 
-  // Read layers are always available.
+  // Read layers are always available (search_knowledge greps the bundled docs —
+  // zero network, zero mutation — so it serves readonly observers too).
   registerObserveTools(server, ctx);
+  registerKnowledgeTools(server, ctx);
   registerResources(server, ctx);
   registerPrompts(server, ctx);
 

@@ -46,12 +46,13 @@ are gone. ${models}
   and it works each task on its own, server-side. Spawn several — they run in PARALLEL while you
   keep working here. capability:"execute" (rwxhl) may run commands / invoke tool-nets; default
   "reason" (rw--) is safe. tier:"high" uses the thinking model.
-- Monitor & debug WITHOUT logs or source: net_stats (LLM consumption, which transitions are
-  RUNNING vs stopped/error, what is SCHEDULED to fire on its own, tool-net usage, recent errors)
-  -> event_trail (the provenance trail, "why does memory say X" / what a persona did) ->
-  query_tokens on suspect places -> and, on a specific transition, verify_inscription (static
-  wiring check), dry_run_transition (simulate a fire), diagnose_transition (health + bindings).
-  net_overview gives structure. This is your whole cockpit for the parallel personas you spawned.
+- Monitor & debug WITHOUT logs or source: net_stats (LLM consumption, RUNNING vs stopped/error,
+  what is SCHEDULED, executorCoverage — can command lanes even fire? — tool-net usage, recent
+  errors) -> list_transitions (the model audit: every transition's kind + schedule + status +
+  places in ONE call) -> scheduler_status (lastFiredAt / nextFireAt / why-not-eligible per lane)
+  -> event_trail (provenance; page older history with before) -> query_tokens on suspect places
+  -> and, on one transition, verify_inscription / dry_run_transition / diagnose_transition.
+  net_overview gives structure (session-scoped without netId — sessionNetCount 0 ≠ empty model).
 
 ## Models — the whole stack, through the protocol
 list_models shows every model node knows, each with an "allowed" flag (which ones THIS connection may
@@ -68,17 +69,12 @@ inscription/status/assignment) — use it to clear transitions left STOPPED behi
 net_stats stays honest. Irreversible; re-assign to recreate.
 
 ## NetHub — share and install nets, sessions, whole models
-hub_publish {kind:"net"|"session"|"model", name, version, tokens} turns a net / session / whole model
-into a versioned, shareable artifact stored independently (it survives deletion of the source).
-tokens = none (structure+inscriptions), config (default — also *-config/*-charter place tokens + tokens
-marked config:"true", the stuff a net needs to run), or all. Credentials are always scrubbed.
-hub_search browses the local catalog (or a peer's with the remote param) — compact, paginated with
-limit/offset, and reports the true total. hub_show {name, version?} inspects ONE artifact before you
-commit: all versions, kind, visibility, token policy, readme, size, and a shape summary. hub_install
-{name, version, targetModelId?} installs it — model artifacts create a NEW model (pass a fresh
-targetModelId) and join your allowlist immediately. Federate with hub_add_remote {name, url}: register a peer instance to
-search + install its PUBLIC artifacts (the peer must run with AGENTICOS_HUB_PUBLIC_CATALOG=true; your
-own instance only serves anonymous reads when that flag is on — otherwise no token ⇒ nothing).
+hub_publish {kind, name, version, tokens} turns a net / session / model into a versioned shareable
+artifact (credentials always scrubbed; tokens = none | config | all). hub_search browses the local
+catalog or a peer's (remote param); hub_show inspects one artifact before committing; hub_install
+installs (model artifacts create a NEW model that joins your allowlist). Federate with
+hub_add_remote — peers serve anonymous reads only with their public-catalog flag on. Details live
+in the tool descriptions.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine
@@ -105,21 +101,18 @@ weekday, e.g. "0 0 3 * * *" = 03:00 nightly) or intervalMs — via add_transitio
 set_schedule on an existing transition. A scheduled transition ticks SERVER-SIDE, forever, with no
 client connected: overnight digests, periodic watchers, self-initiating personas. TELL THE USER
 when you schedule something — they should know their net will act (and possibly spend LLM) on its
-own. net_stats.scheduled lists everything armed, so always check it before assuming a model is idle.
+own. net_stats.scheduled lists everything armed; when scheduled lanes look silent, scheduler_status
+gives lastFiredAt / nextFireAt / why-not-eligible per lane (a schedule is an AND-gate with token
+binding — docs/scheduling explains the trap).
 
 ## Spawning Claude Code (or any CLI agent) from a net
-command transitions execute shell on the distributed executor — including spawning FULL Claude Code
-instances: nets that delegate whole coding tasks to a fresh agent, overnight. The safe pattern:
+command transitions execute shell on the distributed executor — including FULL Claude Code
+instances. The safe pattern:
   claude -p '<task prompt>' --allowedTools 'Read,Grep,Glob' --no-session-persistence < /dev/null
-ALWAYS redirect stdin (< /dev/null) or the process hangs forever; ALWAYS confine with
---allowedTools (least privilege — add Edit/Bash only when the task truly needs it); set the
-inscription timeoutMs generously (minutes, not seconds). This requires the executor host to have
-the claude CLI installed and is rw-mode power — treat it like production shell access.
-The platform can run MULTIPLE executors: discover them with list_executors (ONLINE/STALE,
-allowedModels) and pick one via add_transition's executorId param — it lands in the inscription's
-action.executorId. '*' offers the work to every polling executor (first token reservation wins);
-omitted = agentic-net-executor-default. If more than one executor is ONLINE and the user has not
-said which, ASK before creating the command transition.
+ALWAYS redirect stdin (it hangs forever otherwise); least-privilege --allowedTools; generous
+timeoutMs. Multiple executors: list_executors shows them + coverageForModel (is anything even
+polling this model? — the "queued, no output" diagnosis); pick one via add_transition's executorId
+('*' = any; if several are ONLINE and the user didn't say, ASK). Full reference: docs/commands.
 
 ## Model control — the user owns the switch
 You must be able to answer "what is this model consuming and how do I stop it":
@@ -145,6 +138,18 @@ first and report what was stopped.
    command tool-net (crystallize_session / scaffold_tool_net) beats re-reasoning a known workflow.
 8. Agent personas (spawn_persona) auto-route their result via autoEmit — so verify_inscription may
    report a MISSING_EMIT warning on them; that is expected and benign, not a failure.
+9. Secrets go through set_transition_credentials + \${credentials.KEY} in the inscription — NEVER
+   inline in an inscription or into a token: tokens are event-sourced, a pasted secret is permanent.
+10. LLM lanes: check llm_health BEFORE building (a not-READY provider fails every fire, billed);
+    give every llm lane an error emit branch; when output must parse, emit @response.raw and parse
+    in a downstream map (@response.json can hand you {text,parseError} instead — docs/llm).
+11. Templates have functions: \${urlencode(...)} for ANY url built from data (raw #/space/&
+    silently corrupts it), plus sum/len/default/lower/upper/trim — docs/interpolation.
 
-Read agenticnets://docs/concepts for the full model, agenticnets://docs/recipes for patterns.`;
+## The knowledge base — search it, don't guess
+search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
+returns agenticnets://docs/{topic} URIs: index · concepts · architecture · inscriptions · arcql ·
+interpolation · emit · commands · llm · scheduling · tokens · troubleshooting · recipes · security.
+Before hand-writing an inscription read docs/inscriptions; when something is broken read
+docs/troubleshooting; when unsure, search first — the traps in these docs were all found the hard way.`;
 }
