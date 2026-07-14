@@ -254,9 +254,14 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   session is connected — tokens wait safely otherwise);
   observability/debugging `net_overview`, `query_tokens`, `event_trail`, **`net_stats`** (LLM
   consumption + running/error transitions + **`scheduled`** cron/interval list + `paused` flag +
-  tool-net usage + recent errors — the no-logs cockpit),
+  tool-net usage + recent errors + **`executorCoverage`**: whether an ONLINE executor is actually
+  polling this model — command lanes can look RUNNING with a full queue yet never fire when nothing
+  polls, the classic "queued, no output" stall — the no-logs cockpit),
+  **`list_executors`** (registered executors + `coverageForModel`: `covered`/`allowedButIdle` verdict
+  for build-time executor choice AND debug-time "why don't my command lanes fire"),
   **`verify_inscription`** / **`dry_run_transition`** / **`diagnose_transition`** (per-transition
-  diagnosis; rw-only — they travel as POST, readonly registers only `net_stats` from this group).
+  diagnosis — for command transitions diagnose adds the executor-coverage check the master itself
+  cannot see; rw-only — they travel as POST, readonly registers only `net_stats` from this group).
   The server `instructions` + recipes teach clients: 6-field cron scheduling (nets act overnight —
   always tell the user what you armed), spawning full Claude Code instances via command transitions
   (`claude -p '…' --allowedTools … --no-session-persistence < /dev/null` — stdin redirect mandatory),

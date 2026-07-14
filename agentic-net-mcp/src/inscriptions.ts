@@ -44,6 +44,14 @@ export interface BuildOpts {
   url?: string;
   method?: string;
   headers?: Record<string, string>;
+  body?: any;
+  /** http auth (e.g. {type:"bearer", credentialKey:"API_TOKEN"} — resolved via ${credentials.*}). */
+  auth?: Record<string, any>;
+  retry?: Record<string, any>;
+  /** Override the default emit rules verbatim (advanced). */
+  emit?: any[];
+  /** http: a place to route error responses to (adds an `err` postset + a when:"error" emit). */
+  errorPlace?: string;
   /** map */
   template?: Record<string, any>;
   /** command — which executor runs it ('*' = any executor; omitted = default executor) */
@@ -119,21 +127,35 @@ export function buildLlmInscription(opts: BuildOpts) {
 }
 
 export function buildHttpInscription(opts: BuildOpts) {
+  const postsets: Record<string, any> = postset(opts);
+  if (opts.errorPlace) {
+    postsets.err = { placeId: opts.errorPlace, host: opts.host };
+  }
+  const action: Record<string, any> = {
+    type: 'http',
+    method: opts.method ?? 'GET',
+    url: opts.url ?? '${input.data.url}',
+    ...(opts.headers ? { headers: opts.headers } : {}),
+    ...(opts.body !== undefined ? { body: opts.body } : {}),
+    ...(opts.auth ? { auth: opts.auth } : {}),
+    ...(opts.retry ? { retry: opts.retry } : {}),
+    timeoutMs: opts.timeoutMs ?? 30000,
+  };
+  // Default emit routes the JSON body to the output; with an errorPlace, split success vs error
+  // so a failed call lands somewhere visible instead of being silently dropped.
+  const emit = opts.emit ?? [
+    { to: 'out', from: '@response.json', ...(opts.errorPlace ? { when: 'success' } : {}) },
+    ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
+  ];
   return {
     id: opts.id,
     kind: 'http',
     label: opts.label ?? opts.id,
     ...schedule(opts),
     presets: { input: preset(opts.inputPlace, opts.host) },
-    postsets: postset(opts),
-    action: {
-      type: 'http',
-      method: opts.method ?? 'GET',
-      url: opts.url ?? '${input.data.url}',
-      ...(opts.headers ? { headers: opts.headers } : {}),
-      timeoutMs: opts.timeoutMs ?? 30000,
-    },
-    emit: [{ to: 'out', from: '@response.json' }],
+    postsets,
+    action,
+    emit,
     mode: 'SINGLE',
   };
 }

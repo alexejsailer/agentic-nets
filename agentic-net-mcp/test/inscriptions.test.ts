@@ -63,6 +63,46 @@ describe('command inscription (add_transition kind:command — executor selectio
   });
 });
 
+describe('http inscription (add_transition kind:http — headers/body/auth/errorPlace)', () => {
+  it('threads headers, body, and an auth block into the http action', () => {
+    const ins: any = buildInscription('http', {
+      id: 't-http',
+      host: 'm@h:8080',
+      inputPlace: 'p-in',
+      outputPlace: 'p-out',
+      method: 'POST',
+      url: 'https://api/x',
+      headers: { 'X-Api-Key': '${credentials.KEY}' },
+      body: { q: '${input.data.q}' },
+      auth: { type: 'bearer', credentialKey: 'API_TOKEN' },
+    });
+    expect(ins.action.type).toBe('http');
+    expect(ins.action.method).toBe('POST');
+    expect(ins.action.headers['X-Api-Key']).toBe('${credentials.KEY}');
+    expect(ins.action.body).toEqual({ q: '${input.data.q}' });
+    expect(ins.action.auth).toEqual({ type: 'bearer', credentialKey: 'API_TOKEN' });
+  });
+
+  it('adds an err postset and splits success/error emits when errorPlace is set', () => {
+    const ins: any = buildInscription('http', {
+      id: 't-http',
+      host: 'm@h:8080',
+      inputPlace: 'p-in',
+      outputPlace: 'p-out',
+      errorPlace: 'p-err',
+    });
+    expect(ins.postsets.err.placeId).toBe('p-err');
+    expect(ins.emit).toContainEqual({ to: 'out', from: '@response.json', when: 'success' });
+    expect(ins.emit).toContainEqual({ to: 'err', from: '@response', when: 'error' });
+  });
+
+  it('keeps the simple single-emit default when no errorPlace', () => {
+    const ins: any = buildInscription('http', { id: 't-http', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
+    expect(ins.emit).toEqual([{ to: 'out', from: '@response.json' }]);
+    expect('err' in ins.postsets).toBe(false);
+  });
+});
+
 describe('compileSteps (session crystallization → replayable script)', () => {
   it('compiles shell + {command} + {method,url} steps into one set -e script', () => {
     const { script, count } = compileSteps([

@@ -40,6 +40,7 @@ const CURATED = [
   'query_tokens',
   'event_trail',
   'net_stats',
+  'list_transitions',
   'list_models',
   'list_executors',
   'diagnose_transition',
@@ -58,6 +59,7 @@ const CURATED = [
   'add_place',
   'add_transition',
   'set_schedule',
+  'set_transition_credentials',
   'fire_once',
   'start_transition',
   'stop_transition',
@@ -153,7 +155,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'list_transitions', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens'].sort(),
     );
   });
 

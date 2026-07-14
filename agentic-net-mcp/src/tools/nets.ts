@@ -142,8 +142,19 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(modelId)) {
           throw new Error('modelId must be lowercase letters/digits/dashes (max 64, starting alphanumeric)');
         }
-        if (scope.allowed.includes(modelId)) {
-          throw new Error(`model '${modelId}' is already in the allowlist — target it directly`);
+        // Existence is decided by the NODE, not this connection's allowlist. A model can sit in
+        // AGENTICOS_MODELS yet not exist on the node — the old allowlist-only guard told the caller
+        // to "target it directly", which then 404s on the first write. Check the node instead.
+        const existingRes = await ctx.client.nodeApi('GET', '/admin/models').catch(() => null);
+        const existingModels: any[] = Array.isArray(existingRes) ? existingRes : (existingRes?.models ?? []);
+        if (existingModels.some((m: any) => (m.modelId ?? m.id) === modelId)) {
+          grantModel(scope, modelId);
+          return {
+            created: false,
+            existed: true,
+            allowed: true,
+            note: `model '${modelId}' already exists on the node — granted to this session; target it directly.`,
+          };
         }
         try {
           await ctx.client.nodeApi('POST', '/admin/models', {
@@ -219,8 +230,13 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
         });
       const res = await ctx.executorFor(model).execute('CREATE_RUNTIME_PLACE', { placeId: args.placeId });
-      if (!res.success) throw new Error(res.error ?? 'runtime place failed');
-      return { place: args.placeId, designtime: true, runtime: true };
+      if (!res.success) {
+        // Partial success: the designtime place exists but the runtime container does not.
+        // Return both halves (don't throw) so the caller knows exactly which step failed —
+        // add_place does two writes and either can fail independently.
+        return { place: args.placeId, designtime: true, runtime: false, error: res.error ?? 'runtime place creation failed' };
+      }
+      return { place: args.placeId, designtime: true, runtime: true, ...(res.data ?? {}) };
     }),
   );
 
@@ -245,8 +261,14 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         tier: z.string().optional().describe('agent: LLM tier — omit for the worker model, "high" for the thinking model'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
-        url: z.string().optional().describe('http: target URL (default ${input.data.url})'),
+        url: z.string().optional().describe('http: target URL (default ${input.data.url}). ${...} interpolates token fields; wrap user input in ${urlencode(...)} for query params'),
         method: z.string().optional().describe('http: default GET'),
+        headers: z.record(z.string()).optional().describe('http: request headers; values may use ${...} and ${credentials.KEY}'),
+        body: z.any().optional().describe('http: request body for POST/PUT (object or ${...} template)'),
+        auth: z.record(z.any()).optional().describe('http: auth block, e.g. {type:"bearer", credentialKey:"API_TOKEN"} — pair with set_transition_credentials'),
+        retry: z.record(z.any()).optional().describe('http: retry policy passed through to HttpActionHandler'),
+        emit: z.array(z.any()).optional().describe('http/map: override the default emit rules verbatim (advanced)'),
+        errorPlace: z.string().optional().describe('http: route error responses to this place (adds an err postset + a when:"error" emit)'),
         template: z.record(z.any()).optional().describe('map: the output template object'),
         executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
@@ -301,6 +323,12 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         llmModel: args.llmModel,
         url: args.url,
         method: args.method,
+        headers: args.headers,
+        body: args.body,
+        auth: args.auth,
+        retry: args.retry,
+        emit: args.emit,
+        errorPlace: args.errorPlace,
         template: args.template,
         executorId: args.executorId,
         scheduleCron: args.scheduleCron,
@@ -327,6 +355,34 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         started = true;
       }
       return { transition: args.transitionId, kind: args.kind, started, inscription };
+    }),
+  );
+
+  server.registerTool(
+    'set_transition_credentials',
+    {
+      title: 'Set transition credentials (vault-backed)',
+      description:
+        'Store per-transition secrets the SECURE way: held in the vault (or encrypted at rest) and injected at fire time via ${credentials.KEY} — never hardcoded into the inscription or a token (tokens are event-sourced and permanent). Use for API keys / bearer tokens on http transitions: reference them as {type:"bearer", credentialKey:"API_TOKEN"} in add_transition `auth`, or as ${credentials.API_TOKEN} inside a header/url/body. Replaces the full credential set for the transition.',
+      inputSchema: {
+        transitionId: z.string(),
+        credentials: z
+          .record(z.string())
+          .describe('Key→secret map, e.g. { "API_TOKEN": "sk-..." }. Referenced in the inscription as ${credentials.API_TOKEN}.'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'set_transition_credentials', mutates: true }, async (model, args) => {
+      const keys = Object.keys(args.credentials ?? {});
+      if (!keys.length) throw new Error('provide at least one credential key/value pair');
+      await ctx.client.masterApi('POST', `/transitions/${args.transitionId}/credentials`, args.credentials, { modelId: model });
+      // Never echo secret values back — only the key names.
+      return {
+        transition: args.transitionId,
+        credentialKeys: keys,
+        stored: true,
+        note: 'Reference these as ${credentials.<KEY>} in the inscription (header value, url, body, or auth.credentialKey).',
+      };
     }),
   );
 
