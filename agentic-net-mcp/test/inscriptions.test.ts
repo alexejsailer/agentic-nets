@@ -17,6 +17,9 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
     expect(ins.kind).toBe('agent');
     expect(ins.role).toBe('rwxhl');
     expect(ins.action.type).toBe('agent');
+    // §13 regression: master reads the role EXCLUSIVELY from action.role — a root-only role
+    // silently downgraded every MCP-created agent to rw-- (no execute/http/tool-nets).
+    expect(ins.action.role).toBe('rwxhl');
     expect(ins.action.modelId).toBe('m');
     expect(ins.action.tier).toBe('high');
     expect(ins.action.maxIterations).toBe(7);
@@ -30,6 +33,7 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
   it('defaults role to rw-- (reason) and omits tier for the worker model', () => {
     const ins: any = buildAgentInscription({ id: 't-y', host: 'safe-teams@localhost:8080', inputPlace: 'p-a', outputPlace: 'p-b' });
     expect(ins.role).toBe('rw--');
+    expect(ins.action.role).toBe('rw--');
     expect(ins.action.modelId).toBe('safe-teams');
     expect(ins.action.tier).toBeUndefined();
   });

@@ -117,7 +117,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Query tokens in a place',
       description:
-        'Read tokens from any runtime place with ArcQL. Paths: bare place id (resolved under root/workspace/places) or a full node path. ArcQL: FROM $ [WHERE $.field=="value"] [ORDER BY $.f DESC] [LIMIT n] — note == and double quotes.',
+        'Read tokens from any runtime place with ArcQL. Paths: bare place id (resolved under root/workspace/places) or a full node path. ArcQL: FROM $ [WHERE $.field=="value"] [ORDER BY $.f DESC] [LIMIT n] — note == and double quotes. Token properties STRINGIFY nested objects/arrays: a field that was written as an array comes back as a JSON-encoded string — parse it (sometimes twice for LLM output) before use.',
       inputSchema: {
         place: z.string().optional().describe('Place id or full path (alias: placeId)'),
         placeId: z.string().optional().describe('Alias for `place`'),
@@ -310,7 +310,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'List transitions with kind + schedule + live status',
       description:
-        'Every transition in the model in ONE call, each with its kind, schedule (cron/interval, or none), live status (RUNNING/STOPPED/ERROR), action type, and input/output places. This is the model-audit read — "what is this model supposed to be doing, and is it actually running?" — far cheaper than GET_TRANSITION per id. Filter with kind or scheduledOnly. Pair with net_stats.executorCoverage to see whether command lanes can even fire.',
+        'Every transition in the model in ONE call, each with its kind, schedule (cron/interval, or none), live status (RUNNING/STOPPED/ERROR), action type, and input/output places. This is the model-audit read — "what is this model supposed to be doing, and is it actually running?" — far cheaper than GET_TRANSITION per id (and unlike native LIST_ALL_INSCRIPTIONS, which returns bare ids without includeContent:true). Filter with kind or scheduledOnly. Pair with scheduler_status for lastFiredAt/nextFireAt and net_stats.executorCoverage for whether command lanes can even fire.',
       inputSchema: {
         kind: z.string().optional().describe('Filter to one kind: map / llm / http / command / agent / link'),
         scheduledOnly: z.boolean().optional().describe('Only transitions that carry a schedule'),
@@ -416,6 +416,78 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           models: 'models this executor is ACTUALLY polling right now — this, not allowedModels, decides whether a command lane fires',
           allowedModels: 'models it is PERMITTED to serve (["*"] = any); a superset of `models`. Allowed-but-not-polling shows up as allowedButIdle above',
         },
+      };
+    }),
+  );
+
+  server.registerTool(
+    'llm_health',
+    {
+      title: 'LLM provider health (check BEFORE building llm nets)',
+      description:
+        "Is the master's LLM provider ready to serve llm/agent transitions? Returns provider, model, reachable, modelPresent, and status (READY | MODEL_NOT_FOUND | UNREACHABLE). Check this FIRST when building an llm/agent net or when LLM lanes fail silently — a cloud model that isn't logged in, or an unreachable provider, fails every fire (and each backoff retry is a billed call). GET-based: works in readonly mode too.",
+      inputSchema: {},
+    },
+    wrapTool(scope, config.mode, { name: 'llm_health', mutates: false }, async () => {
+      const res: any = await ctx.client.masterApi('GET', '/llm/health');
+      const status = String(res?.status ?? 'unknown').toUpperCase();
+      return {
+        ...res,
+        ...(status !== 'READY'
+          ? { warning: `LLM provider is ${status} — llm/agent transitions will fail on every fire until this is fixed (each retry billed).` }
+          : {}),
+      };
+    }),
+  );
+
+  server.registerTool(
+    'scheduler_status',
+    {
+      title: 'Scheduler status — lastFiredAt / nextFireAt / why-not-eligible per lane',
+      description:
+        'The answer to "my scheduled nets silently stopped". For each scheduled transition: schedule, lastFiredAt, nextFireAt, live status, ready (token binding), eligibility (why it is/is not firing — a schedule is an AND-gate with token binding, so RUNNING + valid schedule + unbindable preset = silent forever), and overdue (nextFireAt in the past while RUNNING = the scheduler has not re-armed it, classically after a master redeploy). Pass scheduledOnly:false for every transition. GET-based: works in readonly mode too.',
+      inputSchema: {
+        scheduledOnly: z.boolean().optional().describe('Only transitions carrying a schedule (default true)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'scheduler_status', mutates: false }, async (model, args) => {
+      const res: any = await ctx.client.masterApi('GET', `/models/${model}/execution/status`);
+      const list: any[] = res?.transitions ?? [];
+      const now = Date.now();
+      const fmtAgo = (ms: number) => {
+        const s = Math.max(0, Math.round((now - ms) / 1000));
+        return s < 120 ? `${s}s ago` : s < 7200 ? `${Math.round(s / 60)}m ago` : `${(s / 3600).toFixed(1)}h ago`;
+      };
+      let rows = list.map((t: any) => {
+        const sched = t.schedule ?? null;
+        const lastMs = sched?.lastFiredAtMillis ?? null;
+        const nextMs = sched?.nextFireAtMillis ?? null;
+        const running = String(t.status ?? '').toUpperCase() === 'RUNNING';
+        const overdue = running && typeof nextMs === 'number' && nextMs < now - 60_000;
+        return {
+          transitionId: t.transitionId,
+          kind: t.kind,
+          status: t.status,
+          ready: t.ready,
+          ...(t.eligibility ? { eligibility: t.eligibility } : {}),
+          schedule: sched,
+          lastFiredAt: typeof lastMs === 'number' ? new Date(lastMs).toISOString() : null,
+          ...(typeof lastMs === 'number' ? { lastFiredAgo: fmtAgo(lastMs) } : { neverFired: true }),
+          nextFireAt: typeof nextMs === 'number' ? new Date(nextMs).toISOString() : null,
+          ...(overdue
+            ? { overdue: true, hint: 'nextFireAt is in the past while RUNNING — the scheduler has not re-armed this lane (typical after a master redeploy). A stop → fire_once → start of any transition in the model re-registers its schedules.' }
+            : {}),
+        };
+      });
+      if (args.scheduledOnly !== false) rows = rows.filter((r) => r.schedule);
+      const overdueCount = rows.filter((r: any) => r.overdue).length;
+      return {
+        model,
+        observedAt: res?.observedAt,
+        count: rows.length,
+        ...(overdueCount ? { overdueCount } : {}),
+        transitions: rows,
       };
     }),
   );

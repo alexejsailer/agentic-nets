@@ -487,7 +487,8 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   LIST_ALL_INSCRIPTIONS: {
-    description: 'List all transition inscriptions. Use kind filter to find examples before creating new inscriptions.',
+    description:
+      'List transition inscriptions. IMPORTANT: without includeContent:true this returns ONLY bare {transitionId, id} — no kind, no schedule, no action (despite the name). Pass includeContent:true for full inscriptions, or use the curated list_transitions tool for the model audit (kind + schedule + live status + places in one call). The kind filter implies includeContent.',
     schema: {
       type: 'object',
       properties: {

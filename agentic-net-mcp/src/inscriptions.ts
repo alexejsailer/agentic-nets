@@ -204,6 +204,10 @@ export function buildAgentInscription(opts: BuildOpts) {
     kind: 'agent',
     label: opts.label ?? opts.id,
     ...(opts.description ? { description: opts.description } : {}),
+    // Root-level copy kept for human readers/back-compat, but the master reads the role
+    // EXCLUSIVELY from action.role (AgentExecutionRequest.getRole()) — a root-only role is
+    // silently ignored and the agent runs as the rw-- default. Field report §13: every
+    // spawn_persona capability:"execute" worker was secretly running without x/h/l until this.
     role: opts.role ?? 'rw--',
     ...schedule(opts),
     presets: {
@@ -212,6 +216,7 @@ export function buildAgentInscription(opts: BuildOpts) {
     postsets: postset(opts),
     action: {
       type: 'agent',
+      role: opts.role ?? 'rw--',
       modelId: opts.netModel ?? opts.host.split('@')[0],
       maxIterations: opts.maxIterations ?? 12,
       autoEmit: opts.autoEmit ?? true,
