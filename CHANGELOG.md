@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.30.0] - 2026-07-15
+
+### Added
+- **`start_domain_expert` MCP tool** (`agentic-net-mcp` — `tools/agents.ts`). Bootstraps the domain-expert as a first-class, self-maintaining inhabitant of a model: `POST /api/assistant/p/domain-expert/{model}/chat/start` creates the domain-memory skeleton (`p-{model}-domain-{entrypoints,routing,knowledge,journal}`) AND the scheduled `t-{model}-domain-maintain` agent that keeps it filled. `invoke_agent{agent:"domain-expert"}` answers one-shot but never bootstraps, so a fresh model's domain expert had no durable, auto-refreshed memory until now. Idempotent (`domainBootstrap: created|existing`).
+
+### Fixed
+- **New-model runtime places no longer need a template first** (`agentic-net-cli` — `agent/tool-executor.ts`). A model minted by `create_model` has only the ROOT sentinel, which is not a child of anything — so provisioning the first runtime place (`root/workspace/places`) threw "root segment 'root' is missing" and `add_place`/`CREATE_RUNTIME_PLACE` were unusable until a template was deployed. `ensureNodePath` now seeds the well-known ROOT id directly, matching how the MCP tree helper already resolves `root`.
+- **Native token/place tools accept `placeId`** (`agentic-net-mcp` — `tools/catalog.ts`). `CREATE_TOKEN`/`DELETE_TOKEN`/`QUERY_TOKENS`/`GET_PLACE_INFO`/`INSPECT_TOKEN_SIZE`/`EXTRACT_TOKEN_CONTENT` demanded `placePath` (which actually wants the short place id) and rejected the `placeId` the curated tools take — a schema-validation reject before the handler's own alias logic ran. They now advertise `placeId` and no longer force `placePath`.
+- **Scheduled http/llm lanes re-read their config instead of draining it** (`agentic-net-mcp` — `inscriptions.ts`). A scheduled (`scheduleCron`/`intervalMs`) http or llm lane consumed its input token and fired once; `buildHttpInscription`/`buildLlmInscription` now set `consume:false, optional:true` on scheduled lanes like map/command/agent already did — enabling a nightly fetch that re-reads a persistent config token each tick.
+- **`fire_once` states it is disabled for llm/agent lanes** (`agentic-net-mcp` — `tools/nets.ts`). The tool description now says to run those server-side via `start_transition` or client-side via `host_transition`/`EXECUTE_TRANSITION_SMART`, instead of surfacing an opaque engine error.
+- **`QUERY_TOKENS` truncation hint points to the actual fix** (`agentic-net-cli` — `agent/tool-executor.ts`). The auto-truncation hint pointed at `EXTRACT_TOKEN_CONTENT` (whose property mode returns a metadata wrapper — a dead end); it now says to re-query with a larger `maxValueLength` and explains the `[truncated, N chars total]` marker.
+
 ## [2.29.0] - 2026-07-15
 
 ### Added
