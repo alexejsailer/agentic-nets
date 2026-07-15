@@ -418,7 +418,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
   );
 
   for (const [name, tool, description] of [
-    ['fire_once', 'FIRE_ONCE', 'Fire a transition once (manual trigger). 409 while RUNNING — stop it first.'],
+    ['fire_once', 'FIRE_ONCE', 'Fire a map/http/command/pass transition once (manual trigger). 409 while RUNNING — stop it first. NOT for llm/agent lanes: FIRE_ONCE is disabled for action.type=llm|agent — run those server-side by start_transition (master polls the model), or client-side via host_transition / EXECUTE_TRANSITION_SMART.'],
     ['start_transition', 'START_TRANSITION', 'Start a transition (begins polling its input places).'],
     ['stop_transition', 'STOP_TRANSITION', 'Stop a transition (kill switch for any lane).'],
   ] as const) {

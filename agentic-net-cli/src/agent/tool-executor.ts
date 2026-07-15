@@ -9,6 +9,13 @@ import { log } from '../util/logger.js';
 
 const DEFAULT_LOCAL_TRANSITION_MAX_ITERATIONS = 8;
 
+/**
+ * The meta-filesystem ROOT sentinel. `root` is not a child of anything — it is the top node,
+ * present under this fixed UUID on EVERY model — so resolve() (which finds a node by listing its
+ * parent's children) can never locate it. Path provisioning must seed it directly.
+ */
+const ROOT_NODE_ID = '00000000-0000-0000-0000-000000000001';
+
 export interface ToolResult {
   success: boolean;
   data?: any;
@@ -502,6 +509,15 @@ export class ToolExecutor {
     let currentPath = '';
     for (const seg of segments) {
       currentPath = currentPath ? `${currentPath}/${seg}` : seg;
+      // Seed the ROOT sentinel: a brand-new `create_model` model has ONLY root, and root is not a
+      // child of anything so resolve() can never find it. Without this, provisioning the very first
+      // runtime place ('root/workspace/places') threw "root segment 'root' is missing" — the single
+      // biggest new-model papercut (add_place / CREATE_RUNTIME_PLACE were unusable until a template
+      // was deployed). ROOT_NODE_ID exists on every model, so seeding it is always correct.
+      if (seg === 'root' && !parentId) {
+        parentId = ROOT_NODE_ID;
+        continue;
+      }
       const info = await this.nodeApi.resolve(this.modelId, currentPath).catch(() => null);
       let id: string | undefined = info?.id || (typeof info === 'string' ? info : undefined);
       if (!id) {

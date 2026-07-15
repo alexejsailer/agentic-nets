@@ -86,9 +86,23 @@ export function registerCatalogTools(server: McpServer, ctx: AppContext): void {
     // drop the native `model` from the advertised schema so it never appears twice (or at all in
     // single-model mode), and re-inject the resolved model as scope in the handler below.
     const declaresModelScope = 'model' in (tool.input_schema?.properties ?? {});
-    for (const [key, prop] of Object.entries(tool.input_schema?.properties ?? {})) {
+    const props = tool.input_schema?.properties ?? {};
+    // Native token/place tools name their target `placePath`, but the ToolExecutor handler already
+    // accepts `placeId`/`place` as aliases — and `placePath` actually wants the SHORT place id
+    // (`p-input`), not a slash path. Advertise `placeId` and drop `placePath` from `required` so an
+    // MCP caller can pass the same `placeId` the curated tools take, instead of being rejected by
+    // schema validation before the handler's alias logic ever runs.
+    const hasPlacePath = 'placePath' in props;
+    if (hasPlacePath) required.delete('placePath');
+    for (const [key, prop] of Object.entries(props)) {
       if (key === 'model') continue;
       shape[key] = propToZod(prop, required.has(key));
+    }
+    if (hasPlacePath && !('placeId' in props)) {
+      shape.placeId = z
+        .string()
+        .optional()
+        .describe('Alias for placePath — the short place id (e.g. p-input) works for either.');
     }
     server.registerTool(
       tool.name,

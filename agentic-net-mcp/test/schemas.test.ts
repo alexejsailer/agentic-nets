@@ -106,13 +106,23 @@ describe('advertised tool surface', () => {
     }
   });
 
-  it('native catalog schemas keep param metadata (descriptions + required)', async () => {
+  it('native catalog schemas keep param metadata + expose the placeId alias on place tools', async () => {
     const client = await connectedClient(makeConfig());
     const { tools } = await client.listTools();
     const qt = tools.find((t) => t.name === 'QUERY_TOKENS');
     const props = (qt!.inputSchema as any).properties;
     expect(Object.keys(props).length).toBeGreaterThan(0);
-    expect((qt!.inputSchema as any).required?.length ?? 0).toBeGreaterThan(0);
+    // Descriptions flow through from the CLI schema.
+    expect(props.placePath?.description).toBeTruthy();
+    // Place tools advertise the `placeId` alias, and `placePath` is no longer strictly required —
+    // the ToolExecutor handler accepts either (catalog.ts), so an MCP caller can use the same
+    // `placeId` the curated tools take without a schema-validation rejection.
+    expect(Object.keys(props)).toContain('placeId');
+    expect((qt!.inputSchema as any).required ?? []).not.toContain('placePath');
+    // Required-ness is still preserved where the handler genuinely needs a param (transitionId,
+    // netId, …) — the relaxation is scoped to placePath only.
+    const anyRequired = tools.some((t) => ((t.inputSchema as any).required?.length ?? 0) > 0);
+    expect(anyRequired).toBe(true);
   });
 
   it('rw multi-model: every model-scoped tool gains an optional model param', async () => {
