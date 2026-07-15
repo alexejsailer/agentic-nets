@@ -76,6 +76,7 @@ const CURATED = [
   'scaffold_tool_net',
   'invoke_tool_net',
   'invoke_agent',
+  'start_domain_expert',
   'crystallize_session',
   // NetHub
   'hub_publish',

@@ -75,4 +75,37 @@ export function registerAgentTools(server: McpServer, ctx: AppContext): void {
       return { agent: args.agent, taskId, ...(collected.data as object) };
     }),
   );
+
+  server.registerTool(
+    'start_domain_expert',
+    {
+      title: 'Start (bootstrap) the model’s domain expert',
+      description:
+        'Make the domain-expert a first-class, self-maintaining inhabitant of the model: creates the ' +
+        'domain-memory skeleton (p-{model}-domain-{entrypoints,routing,knowledge,journal}) AND a ' +
+        'scheduled t-{model}-domain-maintain agent that keeps that memory filled server-side. ' +
+        'Idempotent (returns domainBootstrap "created" or "existing"). Do this ONCE per model — ' +
+        'invoke_agent{agent:"domain-expert"} alone answers one-shot but never bootstraps the skeleton ' +
+        'or the maintain lane, so a fresh model’s domain expert has no durable, auto-refreshed memory ' +
+        'until you call this. After it, a model user asks via invoke_agent and gets answers grounded ' +
+        'in memory that stays current.',
+      inputSchema: {
+        sessionId: z
+          .string()
+          .optional()
+          .describe('Optional conversation/session id; a fresh one is generated if omitted.'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'start_domain_expert', mutates: true }, async (model, args) => {
+      const query = args?.sessionId ? { sessionId: String(args.sessionId) } : undefined;
+      const res: any = await ctx.client.masterApi(
+        'POST',
+        `/assistant/p/domain-expert/${model}/chat/start`,
+        undefined,
+        query,
+      );
+      return res ?? { ok: true, note: 'domain-expert start returned no body' };
+    }),
+  );
 }

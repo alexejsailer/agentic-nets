@@ -44,6 +44,18 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
     expect(ins.presets.input.consume).toBe(false);
     expect(ins.presets.input.optional).toBe(true);
   });
+
+  it('a scheduled http/llm lane re-reads its config token instead of consuming it (repeating fetch)', () => {
+    const http: any = buildInscription('http', { id: 't-h', host: 'm@h', inputPlace: 'p-cfg', outputPlace: 'p-raw', scheduleCron: '0 0 5 * * *', url: '${input.data.url}' });
+    expect(http.schedule).toEqual({ type: 'cron', cron: '0 0 5 * * *' });
+    expect(http.presets.input.consume).toBe(false);
+    expect(http.presets.input.optional).toBe(true);
+    const llm: any = buildInscription('llm', { id: 't-l', host: 'm@h', inputPlace: 'p-in', outputPlace: 'p-out', intervalMs: 3600000 });
+    expect(llm.presets.input.consume).toBe(false);
+    // a NON-scheduled http lane still consumes its input (one-shot queue processing)
+    const oneShot: any = buildInscription('http', { id: 't-h2', host: 'm@h', inputPlace: 'p-q', outputPlace: 'p-raw', url: '${input.data.url}' });
+    expect(oneShot.presets.input.consume).toBe(true);
+  });
 });
 
 describe('command inscription (add_transition kind:command — executor selection)', () => {

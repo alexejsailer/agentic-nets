@@ -113,7 +113,13 @@ export function buildLlmInscription(opts: BuildOpts) {
     kind: 'llm',
     label: opts.label ?? opts.id,
     ...schedule(opts),
-    presets: { input: preset(opts.inputPlace, opts.host) },
+    presets: {
+      input: preset(
+        opts.inputPlace,
+        opts.host,
+        opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {},
+      ),
+    },
     postsets: postset(opts),
     action: {
       type: 'llm',
@@ -152,7 +158,13 @@ export function buildHttpInscription(opts: BuildOpts) {
     kind: 'http',
     label: opts.label ?? opts.id,
     ...schedule(opts),
-    presets: { input: preset(opts.inputPlace, opts.host) },
+    presets: {
+      input: preset(
+        opts.inputPlace,
+        opts.host,
+        opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {},
+      ),
+    },
     postsets,
     action,
     emit,
