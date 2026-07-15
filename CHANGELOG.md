@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.29.0] - 2026-07-15
+
 ### Added
 - **Tool-catalog, cost, and NetHub knowledge in the MCP pack** (`agentic-net-mcp` — `src/knowledge/{tool-catalog,cost,nethub}.md`). Three new bundled docs (17 total) teaching the concepts from the July platform posts: the full positional `rwxhludcts` capability string (with the d/h/t/s binding-type flags and the authoring-vs-invoking W/T split), the global + per-model local-first tool catalog (shadowing, contract-vs-binding, the sha256 double-check that makes `approved` cryptographic), the token-cost meter loop (measure → rank → retune → watch, including the invisible script-spawned-model-call category), and NetHub export/import (all seven publish kinds, self-contained packages, scope-aware install, federation).
 - **`usage_report` MCP tool** (`agentic-net-mcp` — `tools/observe.ts`). Wraps the master's per-transition token meter (`/api/usage/transitions`): ranked burn with per-fire averages and the scheduled-vs-work `burnSplit`, plus per-transition drill-down. GET-based, readonly-safe — the entry point of the cost loop.
