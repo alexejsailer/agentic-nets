@@ -388,7 +388,7 @@ export class ToolExecutor {
     if (maxValueLength && !fields) {
       const data = result as any;
       if (data?.results?.length > 0 || data?.resultCount > 0) {
-        data._hint = `Values truncated to ${maxValueLength} chars. Use EXTRACT_TOKEN_CONTENT(placePath, tokenName, mode) to read full content of individual tokens.`;
+        data._hint = `Long values capped at ${maxValueLength} chars; a "[truncated, N chars total]" marker means a value was cut (and cut JSON will not parse). To read a field IN FULL, re-query with a larger maxValueLength (e.g. maxValueLength: 100000). For very large blobs, INSPECT_TOKEN_SIZE then EXTRACT_TOKEN_CONTENT(mode:"auto"|"summarize").`;
       }
     }
     return { success: true, data: result };
