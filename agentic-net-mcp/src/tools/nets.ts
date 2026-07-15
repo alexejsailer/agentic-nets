@@ -245,7 +245,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Add a transition (pre-wired by kind)',
       description:
-        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call: prompt template, optional model override), http (API call), command (executes command-shaped tokens on the executor), agent (autonomous multi-step persona — rwxhlud role gating, tier-selected LLM, watches its input place), link (pure structure edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
+        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call: prompt template, optional model override), http (API call), command (executes command-shaped tokens on the executor), agent (autonomous multi-step persona — positional rwxhludcts role gating, tier-selected LLM, watches its input place), link (pure structure edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
       inputSchema: {
         netId: z.string(),
         transitionId: z.string().describe('Convention: t-<name>'),
@@ -257,7 +257,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         y: z.number().optional(),
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
         llmModel: z.string().optional().describe('llm: per-transition model override (e.g. glm-5.2:cloud)'),
-        role: z.string().optional().describe('agent: rwxhlud capability flags (default rw-- = reason+write; rwxhl = may run commands / invoke tool-nets)'),
+        role: z.string().optional().describe('agent: positional rwxhludcts capability string (r read, w write, x execute, h http, l logs, u user-await, d docker, c coordinate-personas, t tool-nets, s scripts). Default rw--; rwxhl---t = commands + tool-net invocation (INVOKE_TOOL_NET needs t, not x) — see docs/tool-catalog'),
         tier: z.string().optional().describe('agent: LLM tier — omit for the worker model, "high" for the thinking model'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
@@ -640,7 +640,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Spawn an autonomous worker persona',
       description:
-        'Stand up a COMPLETE self-driving persona net (like a safe-team developer): charter + task inbox + an agent-kind transition that watches the inbox and works each task autonomously (multi-step, tools, tier-selected LLM) + an output place. STARTED by default, so it runs server-side in parallel with everything else — spawn several and they work concurrently while you keep going here. Use a `preset` (developer | reviewer | researcher | operator | assistant) for a ready-made archetype, or give your own role. Feed it with memory_write place:"p-<name>-task" (or query_tokens/net_stats to watch it). capability:"execute" grants command/tool-net access (rwxhl); default "reason" is rw-- (safe).',
+        'Stand up a COMPLETE self-driving persona net (like a safe-team developer): charter + task inbox + an agent-kind transition that watches the inbox and works each task autonomously (multi-step, tools, tier-selected LLM) + an output place. STARTED by default, so it runs server-side in parallel with everything else — spawn several and they work concurrently while you keep going here. Use a `preset` (developer | reviewer | researcher | operator | assistant) for a ready-made archetype, or give your own role. Feed it with memory_write place:"p-<name>-task" (or query_tokens/net_stats to watch it). capability:"execute" grants command/tool-net access (rwxhl---t — t gates tool-net invocation); default "reason" is rw-- (safe).',
       inputSchema: {
         name: z.string().describe('Short id, e.g. "dev" or "researcher"'),
         preset: z
@@ -649,7 +649,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           .describe('Ready-made persona archetype — fills capability/tier/instruction (and a default role). Your own role/instruction/capability/tier override it.'),
         role: z.string().optional().describe('What this persona is responsible for (required unless a preset is given)'),
         instruction: z.string().optional().describe('Full agent instruction (nl). Default: a solid charter built from role + preset framing + capability.'),
-        capability: z.enum(['reason', 'execute']).optional().describe('reason (rw--, default) or execute (rwxhl — may run commands / invoke tool-nets)'),
+        capability: z.enum(['reason', 'execute']).optional().describe('reason (rw--, default) or execute (rwxhl---t — may run commands / invoke tool-nets; t is the tool-net flag)'),
         tier: z.enum(['worker', 'high']).optional().describe('LLM tier: worker (default) or high (the thinking model)'),
         scheduleCron: z.string().optional().describe('6-field cron — makes the persona self-initiate periodically (default: reactive, fires when a task lands)'),
         intervalMs: z.number().optional().describe('Alternative to cron for a periodic persona'),
@@ -670,7 +670,11 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       if (!responsibility) throw new Error('provide `role` (or a `preset` that supplies one)');
       const capability = args.capability ?? preset?.capability ?? 'reason';
       const tier = args.tier ?? preset?.tier; // 'worker' | 'high' | undefined
-      const roleFlags = capability === 'execute' ? 'rwxhl' : 'rw--';
+      // Master role string is positional rwxhludcts. 'execute' grants read/write/execute/http/logs
+      // AND t (tooling): the persona's instruction tells it to DESCRIBE/INVOKE_TOOL_NET, which the
+      // master gates behind t — the previous 'rwxhl' silently withheld exactly the tools the
+      // instruction promised (tool-net invocation was a no-op grant).
+      const roleFlags = capability === 'execute' ? 'rwxhl---t' : 'rw--';
       const charter = `p-${id}-charter`;
       const task = `p-${id}-task`;
       const output = `p-${id}-output`;

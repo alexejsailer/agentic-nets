@@ -44,7 +44,7 @@ are gone. ${models}
 - Spawn autonomous workers: spawn_persona stands up a COMPLETE self-driving persona net (charter +
   task inbox + a started agent transition + output). Feed it via memory_write place:"p-<name>-task"
   and it works each task on its own, server-side. Spawn several — they run in PARALLEL while you
-  keep working here. capability:"execute" (rwxhl) may run commands / invoke tool-nets; default
+  keep working here. capability:"execute" (rwxhl---t) may run commands / invoke tool-nets; default
   "reason" (rw--) is safe. tier:"high" uses the thinking model.
 - Monitor & debug WITHOUT logs or source: net_stats (LLM consumption, RUNNING vs stopped/error,
   what is SCHEDULED, executorCoverage — can command lanes even fire? — tool-net usage, recent
@@ -149,7 +149,8 @@ first and report what was stopped.
 ## The knowledge base — search it, don't guess
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
 returns agenticnets://docs/{topic} URIs: index · concepts · architecture · inscriptions · arcql ·
-interpolation · emit · commands · llm · scheduling · tokens · troubleshooting · recipes · security.
+interpolation · emit · commands · tool-catalog · llm · scheduling · cost · tokens ·
+troubleshooting · recipes · nethub · security.
 Before hand-writing an inscription read docs/inscriptions; when something is broken read
 docs/troubleshooting; when unsure, search first — the traps in these docs were all found the hard way.`;
 }

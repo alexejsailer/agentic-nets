@@ -58,7 +58,7 @@ export interface BuildOpts {
   executorId?: string;
   /** output capacity */
   capacity?: number;
-  /** agent — autonomous multi-step persona (rwxhlud capability gating + tier-selected LLM) */
+  /** agent — autonomous multi-step persona (rwxhludcts capability gating + tier-selected LLM) */
   netModel?: string;
   role?: string;
   nl?: string;
@@ -191,8 +191,9 @@ export function buildCommandInscription(opts: BuildOpts) {
 
 /**
  * Autonomous multi-step AGENT persona — the shape the safe-team personas use
- * (t-dev-plan etc.). `role` is rwxhlud capability gating (rw-- = reason+write,
- * rwxhl = may execute commands / invoke tool-nets). `action.modelId` is the net
+ * (t-dev-plan etc.). `role` is the positional rwxhludcts capability string (rw-- = reason+write;
+ * rwxhl---t adds execute/http/logs + t for tool-net invocation — INVOKE_TOOL_NET is gated by
+ * the t flag, not x). `action.modelId` is the net
  * model; `tier` selects the LLM (default = worker, "high" = the thinking model).
  * autoEmit:true routes the agent's final result to the single postset — a
  * self-driving worker: STARTED, it watches its input place and processes each

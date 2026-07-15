@@ -15,8 +15,10 @@ import architectureMd from './architecture.md';
 import arcqlMd from './arcql.md';
 import commandsMd from './commands.md';
 import conceptsMd from './concepts.md';
+import costMd from './cost.md';
 import emitMd from './emit.md';
 import indexMd from './index.md';
+import nethubMd from './nethub.md';
 import inscriptionsMd from './inscriptions.md';
 import interpolationMd from './interpolation.md';
 import llmMd from './llm.md';
@@ -24,6 +26,7 @@ import recipesMd from './recipes.md';
 import schedulingMd from './scheduling.md';
 import securityMd from './security.md';
 import tokensMd from './tokens.md';
+import toolCatalogMd from './tool-catalog.md';
 import troubleshootingMd from './troubleshooting.md';
 
 export interface KnowledgeDoc {
@@ -40,8 +43,11 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   interpolation: { title: 'Templates: ${...} and the function set', text: interpolationMd },
   emit: { title: 'Emit rules & token-loss prevention', text: emitMd },
   commands: { title: 'Command lanes: token schema + executors', text: commandsMd },
+  'tool-catalog': { title: 'The Tool Catalog: four flags, two scopes', text: toolCatalogMd },
   llm: { title: 'LLM transitions: the riskiest kind', text: llmMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },
+  cost: { title: 'Watching the meter: token cost', text: costMd },
+  nethub: { title: 'NetHub: export, import, self-contained packages', text: nethubMd },
   tokens: { title: 'Token shapes, stringification, size', text: tokensMd },
   troubleshooting: { title: 'Troubleshooting playbooks', text: troubleshootingMd },
   recipes: { title: 'Recipes', text: recipesMd },

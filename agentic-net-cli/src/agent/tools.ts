@@ -622,16 +622,19 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   HUB_PUBLISH: {
-    description: 'Publish a NetHub artifact (net | session | model) as a versioned, shareable package. tokens=none|config|all controls whether config/data tokens ship (default config: config-named places + marked tokens only). visibility=public|private.',
+    description: 'Publish a NetHub artifact (net | session | model | toolnet | tool | catalog | blob) as a versioned, shareable package. Dependency-aware: any script/http/docker/tool-net tool the artifact uses travels with it, sha256-pinned, so it runs after install. tokens=none|config|all controls whether config/data tokens ship (default config: config-named places + marked tokens only). visibility=public|private.',
     schema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', description: 'net | session | model (default inferred from source)' },
+        kind: { type: 'string', description: 'net | session | model | toolnet | tool | catalog | blob (default inferred from source)' },
         name: { type: 'string', description: 'Artifact name' },
         version: { type: 'string', description: 'Semantic version (e.g., 1.0.0)' },
         modelId: { type: 'string', description: 'Source model (defaults to current model)' },
-        sessionId: { type: 'string', description: 'Source session (net/session kinds)' },
-        netId: { type: 'string', description: 'Source net (net kind)' },
+        sessionId: { type: 'string', description: 'Source session (net/session/toolnet kinds)' },
+        netId: { type: 'string', description: 'Source net (net/toolnet kinds)' },
+        toolId: { type: 'string', description: 'kind=tool: the tool-catalog entry to publish (with its blobs)' },
+        catalogScope: { type: 'string', description: "kind=catalog: 'global' (the default model's catalog) or 'local' (the source model's own)" },
+        blobUrns: { type: 'array', items: { type: 'string' }, description: 'kind=blob: raw blob URNs to publish' },
         tokens: { type: 'string', description: 'none | config (default) | all' },
         configPlaces: { type: 'array', items: { type: 'string' }, description: 'Override config-token place globs/ids (default *-config,*-charter)' },
         visibility: { type: 'string', description: 'public (default) | private' },
@@ -643,11 +646,11 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   HUB_CATALOG: {
-    description: 'Browse the NetHub catalog. Without remote: local published artifacts. With remote: a peer instance\'s public catalog. Filter by kind (net|session|model), search text, and tags.',
+    description: 'Browse the NetHub catalog. Without remote: local published artifacts. With remote: a peer instance\'s public catalog. Filter by kind (net|session|model|toolnet|tool|catalog|blob), search text, and tags.',
     schema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', description: 'Filter by kind: net | session | model' },
+        kind: { type: 'string', description: 'Filter by kind: net | session | model | toolnet | tool | catalog | blob' },
         search: { type: 'string', description: 'Text search across name/description' },
         tags: { type: 'string', description: 'Comma-separated tag filter' },
         remote: { type: 'string', description: 'Name of a registered remote to browse instead of local' },

@@ -492,6 +492,40 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+  server.registerTool(
+    'usage_report',
+    {
+      title: 'Token-cost meter — ranked per-transition burn',
+      description:
+        'The answer to "what is this model\'s spend, and which lanes cause it". Ranks every transition that fired by MEASURED tokens (per-fire average, iterations, duration) over a window, with the burnSplit headline: how much is scheduled coordinators firing on idle vs real work. The analyze-and-adapt loop: (1) usage_report ranks the burn, (2) the expensive lanes are almost always agent-kind thinkers, not the frequent cheap command lanes, (3) retune with set_schedule / a schedule.intervalMs edit — live, no redeploy (lengthening never triggers a fire; shortening can fire immediately), (4) scheduler_status shows the new nextFireAt. Caveat: command lanes whose scripts spawn their OWN model calls are invisible to this counter — read the script bodies when the ranking looks too clean. GET-based: works in readonly mode too.',
+      inputSchema: {
+        since: z.string().optional().describe('Window, e.g. 1h / 24h / 7d (default 24h)'),
+        sort: z.string().optional().describe('tokens (default) | fires | avgDuration'),
+        limit: z.number().optional().describe('Max ranked rows (default 20)'),
+        transitionId: z.string().optional().describe('Drill into ONE transition: aggregate + its recent fires'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'usage_report', mutates: false }, async (model, args) => {
+      if (args.transitionId) {
+        return ctx.client.masterApi('GET', `/usage/transitions/${args.transitionId}`, undefined, { modelId: model });
+      }
+      const res: any = await ctx.client.masterApi('GET', '/usage/transitions', undefined, {
+        modelId: model,
+        sort: String(args.sort ?? 'tokens'),
+        since: String(args.since ?? '24h'),
+        limit: String(args.limit ?? 20),
+      });
+      const top = (res?.transitions ?? [])[0];
+      return {
+        ...res,
+        ...(top?.totalTokens
+          ? { hint: `Top burner: ${top.transitionId ?? '?'} (${top.totalTokens} tokens in ${res.since}). If it is an agent/llm lane on a schedule, one set_schedule interval edit dials it down live — docs/cost.` }
+          : {}),
+      };
+    }),
+  );
+
   // Master-side diagnostics — debug a net WITHOUT source or log access. These
   // travel as POST, which the readonly gateway scope rejects (like ArcQL), so
   // they are only registered in rw mode. net_stats (all GET) stays readonly-safe.

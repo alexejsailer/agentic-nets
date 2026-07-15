@@ -1,0 +1,70 @@
+# NetHub: export, import, and self-contained packages
+
+NetHub is how work leaves one instance and lands runnable on another: publish an artifact,
+search/inspect it, install it — locally or across federated peers. The curated tools are
+`hub_publish`, `hub_search`, `hub_show`, `hub_install`, `hub_add_remote` (plus native `HUB_*` /
+`PACKAGE_*` tools for raw registry access).
+
+## What you can publish (kinds)
+
+- **net** — one net: structure + inscriptions.
+- **session** — every net in a session (a whole workflow bundle).
+- **model** — an entire model; installing creates a NEW model (pass a fresh `targetModelId`) that
+  joins your allowlist immediately.
+- **toolnet** — a reusable tool-net (net + inscriptions + manifest; re-scaffolded and its manifest
+  re-registered on install).
+- **tool** — a single tool-catalog entry WITH its blobs (script body / OpenAPI, sha256-pinned).
+- **catalog** — an entire catalog (a model's local one, or the global `default`).
+- **blob** — raw blobs by URN.
+
+## Self-contained packages — the part that makes installs actually run
+
+A published net used to carry only POINTERS to the tools its inscriptions used (a script's URN, a
+docker digest) — installed elsewhere, those dangled and the net could not run. Now publish SCANS
+the inscriptions (including stringified command templates) for every referenced `toolId`,
+`action.image`, and blob URN, resolves them local-first against the catalog, and bundles the
+entries plus the blobs they point at (each base64 + sha256). On install the package integrity hash
+is verified first (a tampered artifact is refused), every blob is re-verified and uploaded
+content-addressed (same URN resolves identically on any instance), and each catalog entry lands in
+the RIGHT scope: docker/http → the global catalog, script/tool-net → the installed model's local
+catalog. Result: a net that uses script/http/docker/tool-net tools runs after install, not just
+renders.
+
+## Token policy & credential safety
+
+`tokens` on publish: `none` (structure + inscriptions only), `config` (default — also carries
+`*-config`/`*-charter` place tokens and tokens marked `config:"true"`, i.e. what a net needs to
+run), or `all`. **Credentials are ALWAYS scrubbed** — vault-backed secrets never travel; after
+install, re-set them with `set_transition_credentials` on the target.
+
+## The export/import workflow
+
+1. Export: `hub_publish {kind, name, version, tokens}` — versioned, survives deletion of the source.
+2. Inspect before committing: `hub_show {name, version?}` — all versions, kind, token policy,
+   readme, size, shape summary. Browse with `hub_search` (paginated, true totals) or the
+   `agenticnets://hub` resource.
+3. Import: `hub_install {name, version, targetModelId?}` — model-kind creates the new model;
+   installed nets arrive with runtime places provisioned and lifecycle wired.
+4. After install: start the lanes you want live (installed transitions arrive stopped), re-set
+   credentials, and check `list_executors` coverage if the net has command lanes (docs/commands).
+
+## Federation (peer instances)
+
+`hub_add_remote {name, url}` registers a peer; `hub_search {remote}` browses it and `hub_install`
+pulls from it. A peer serves anonymous reads only when its operator enabled the public-catalog
+flag — otherwise no token ⇒ nothing. Publishing to your own hub never exposes it externally by
+itself.
+
+## Curated vs native, and where NetHub lives
+
+Prefer the curated lowercase `hub_*` tools: the native UPPERCASE `HUB_*` mirror the same API but
+are the raw layer. NetHub is a CLIENT-side surface (MCP/CLI → the master's hub API) — in-net agent
+transitions do not have HUB_* tools at all; inside a net the portable-package primitives are
+`PACKAGE_SEARCH` / `PACKAGE_PUBLISH` / `PACKAGE_INSTALL`.
+
+## Portability guarantee
+
+Everything is content-addressed: the same tool re-registered on a fresh install lands at the same
+URN the catalog already points at, so re-imported packages keep working. For a file-level export
+of just the drawing, EXPORT_PNML still exists — but NetHub is the path that preserves RUNTIME
+behavior, not just the picture.

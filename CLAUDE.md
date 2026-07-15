@@ -266,11 +266,17 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   **`verify_inscription`** / **`dry_run_transition`** / **`diagnose_transition`** (per-transition
   diagnosis — for command transitions diagnose adds the executor-coverage check the master itself
   cannot see; rw-only — they travel as POST, readonly registers only `net_stats` from this group);
-  **knowledge pack**: 14 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
+  **`usage_report`** (the token meter: ranked per-transition burn + burnSplit scheduled-vs-work,
+  drill-down per transition; GET ⇒ readonly-safe — the measure→rank→retune→watch loop);
+  **knowledge pack**: 17 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
   loader) served as `agenticnets://docs/{topic}` + searched by **`search_knowledge`** (offline grep,
-  registered in readonly too) — content is leak-gated by `test/knowledge-leaks.test.ts` (scans every
+  registered in readonly too) — includes `tool-catalog` (rwxhludcts flags, global/local-first
+  scoping, sha256 double-check), `cost` (the meter loop), `nethub` (export/import + self-contained
+  packages) — content is leak-gated by `test/knowledge-leaks.test.ts` (scans every
   shipped string for credentials/IPs/paths/CI internals; size caps 8KB/doc, 64KB pack, 15KB
-  instructions), so curated rewrites of private-repo knowledge can ship safely.
+  instructions), so curated rewrites of private-repo knowledge can ship safely. ⚠️ agent role
+  strings are the MASTER's positional `rwxhludcts` (INVOKE_TOOL_NET is t-gated, personas c-gated);
+  spawn_persona execute ⇒ `rwxhl---t`.
   The server `instructions` + recipes teach clients: 6-field cron scheduling (nets act overnight —
   always tell the user what you armed), spawning full Claude Code instances via command transitions
   (`claude -p '…' --allowedTools … --no-session-persistence < /dev/null` — stdin redirect mandatory),

@@ -34,7 +34,7 @@ spawn_persona {name, role, capability, tier} builds a complete self-driving net:
 inbox (p-<name>-task), a STARTED agent transition that watches the inbox, and an output place
 (p-<name>-output). Give it work with memory_write {place:"p-<name>-task", text:"..."}; it processes
 each task autonomously, server-side, and emits a result — in parallel with every other persona and
-with your own work here. capability:"execute" (rwxhl) lets it run commands / invoke tool-nets;
+with your own work here. capability:"execute" (rwxhl---t) lets it run commands / invoke tool-nets;
 default "reason" (rw--) is safe. tier:"high" picks the thinking model. Spawn a small team (dev +
 reviewer + researcher) and let them run while you steer.
 

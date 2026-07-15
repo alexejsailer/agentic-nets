@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Tool-catalog, cost, and NetHub knowledge in the MCP pack** (`agentic-net-mcp` — `src/knowledge/{tool-catalog,cost,nethub}.md`). Three new bundled docs (17 total) teaching the concepts from the July platform posts: the full positional `rwxhludcts` capability string (with the d/h/t/s binding-type flags and the authoring-vs-invoking W/T split), the global + per-model local-first tool catalog (shadowing, contract-vs-binding, the sha256 double-check that makes `approved` cryptographic), the token-cost meter loop (measure → rank → retune → watch, including the invisible script-spawned-model-call category), and NetHub export/import (all seven publish kinds, self-contained packages, scope-aware install, federation).
+- **`usage_report` MCP tool** (`agentic-net-mcp` — `tools/observe.ts`). Wraps the master's per-transition token meter (`/api/usage/transitions`): ranked burn with per-fire averages and the scheduled-vs-work `burnSplit`, plus per-transition drill-down. GET-based, readonly-safe — the entry point of the cost loop.
+
+### Fixed
+- **`spawn_persona` execute-personas could not invoke tool-nets** (`agentic-net-mcp` — `tools/nets.ts`). The `execute` capability granted `rwxhl`, but the persona's own instruction tells it to `DESCRIBE_TOOL_NET`/`INVOKE_TOOL_NET` — which the engine gates behind the `t` flag. The grant is now `rwxhl---t`, and every role-string description names the real positional `rwxhludcts` model.
+- **Native `HUB_PUBLISH`/`HUB_CATALOG` schemas caught up with the hub API** (`agentic-net-cli` — `agent/tools.ts`). They only advertised `net|session|model`; the master has supported `toolnet|tool|catalog|blob` (with `toolId`/`catalogScope`/`blobUrns`) since 2.26 — the native layer now exposes them like the curated `hub_publish` does.
+
 ## [2.28.0] - 2026-07-14
 
 ### Added

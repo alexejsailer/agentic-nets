@@ -23,10 +23,18 @@ inscription by hand, read `inscriptions`.
   capacity backpressure; correlation.
 - **commands** — CommandToken schema; MAP→COMMAND; executor selection; the "queued, no output"
   coverage diagnosis; spawning CLI agents safely.
+- **tool-catalog** — the durable tool registry: four flags (d docker / h http / t tool-nets /
+  s scripts), global vs local-first scoping with shadowing, contract-vs-binding, the sha256
+  double-check that makes `approved` mean something, invoking scripts by toolId.
 - **llm** — llm_health pre-flight; tier & error-branch behavior (and old-master caveats); the
   @response.json parse fallback; agent two-tier config; cost discipline.
 - **scheduling** — 6-field cron; the schedule×tokens AND-gate; the silent-scheduler diagnosis
   ladder; the autonomy contract.
+- **cost** — the token meter: usage_report ranks per-transition burn; the analyze-rank-retune-watch
+  loop; live intervalMs edits; the invisible script-spawned-model-call category.
+- **nethub** — export/import: publish kinds (net/session/model/toolnet/tool/catalog/blob),
+  self-contained packages (dependencies travel sha256-pinned, installed scope-aware), token
+  policy + credential scrubbing, federation via remotes.
 - **tokens** — stringified properties (parse, sometimes twice); size discipline; client-side
   truncation caution; config tokens; design-time `tokens: 0` ≠ live state.
 - **troubleshooting** — the playbooks: stuck lane, queued-no-output, scheduled-but-silent, dead
