@@ -40,13 +40,22 @@ install, re-set them with `set_transition_credentials` on the target.
 ## The export/import workflow
 
 1. Export: `hub_publish {kind, name, version, tokens}` — versioned, survives deletion of the source.
-2. Inspect before committing: `hub_show {name, version?}` — all versions, kind, token policy,
-   readme, size, shape summary. Browse with `hub_search` (paginated, true totals) or the
-   `agenticnets://hub` resource.
+   A `kind:net` package is the net's DESIGNTIME PNML (places/transitions/arcs) plus the inscriptions
+   of those PNML transitions. **A lane created with SET_INSCRIPTION only (a runtime inscription with
+   no PNML transition) is NOT in the PNML and is silently omitted** — build lanes with
+   `add_transition` (which creates the designtime transition + arcs) if they must travel, or publish
+   `kind:session`/`kind:model` to capture everything.
+2. Inspect before committing: `hub_show {name, version?}` — versions, kind, tokenPolicy, tags, size,
+   readme. Honest limit: it does NOT itemize a net's places/transitions/kinds or its dependency
+   manifest (model kind returns only a node count; net/session kinds return no structure). To truly
+   evaluate contents, `hub_install` into a THROWAWAY session and inspect with net_overview /
+   list_transitions. Browse with `hub_search` (paginated, true totals) or `agenticnets://hub`.
 3. Import: `hub_install {name, version, targetModelId?}` — model-kind creates the new model;
    installed nets arrive with runtime places provisioned and lifecycle wired.
 4. After install: start the lanes you want live (installed transitions arrive stopped), re-set
    credentials, and check `list_executors` coverage if the net has command lanes (docs/commands).
+   Verified: an installed command lane fires within seconds of start (executor auto-discovers the
+   new model).
 
 ## Federation (peer instances)
 
