@@ -284,6 +284,31 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       const dup = (err: any) => {
         if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
       };
+      // Ensure both endpoint places exist as DESIGNTIME places before wiring arcs. createArc
+      // returns 404 (NOT 409/422, so `dup` won't swallow it) when a source/target place is
+      // absent from the net's designtime PNML — which happens whenever the caller made the
+      // place a runtime-only container (CREATE_RUNTIME_PLACE / an emit target) instead of
+      // add_place. Mirror add_place's two idempotent writes so add_transition honours its
+      // "wires input/output arcs" contract regardless of how the places were created.
+      const ensurePlace = async (placeId: string, y: number) => {
+        await ctx.master
+          .createPlace(args.netId, {
+            modelId: model,
+            sessionId: config.session,
+            placeId,
+            label: placeId,
+            x: args.x ?? 200,
+            y,
+            tokens: 0,
+          })
+          .catch(dup);
+        await ctx
+          .executorFor(model)
+          .execute('CREATE_RUNTIME_PLACE', { placeId })
+          .catch(() => undefined);
+      };
+      await ensurePlace(args.inputPlace, (args.y ?? 100) - 60);
+      await ensurePlace(args.outputPlace, (args.y ?? 100) + 60);
       await ctx.master
         .createTransition(args.netId, {
           modelId: model,
