@@ -9,12 +9,20 @@ Honest boundary: the underlying gateway credential is not model-scoped (the plat
 per-model authorization yet), so the allowlist protects against client/LLM mistakes and prompt
 injection — not against a malicious operator of this process. Never ask for or echo secrets.
 
-## The ONE sanctioned secret path
+## Credentials — set_transition_credentials, the ONE sanctioned secret path
 
-Transition secrets (API keys, bearer tokens) go through set_transition_credentials — stored
-vault-backed (or encrypted at rest), injected at fire time via ${credentials.KEY} inside the
-inscription's action (header values, url, body, or auth.credentialKey). The tool never echoes
-secret values back; neither should you.
+Transition secrets (API keys, bearer tokens, passwords) go through `set_transition_credentials`
+{transitionId, credentials:{KEY:value}} — stored vault-backed (or encrypted at rest) and injected
+at fire time via `${credentials.KEY}` inside the inscription's action: header values, url, body,
+or the `auth` block. The tool never echoes secret values back; neither should you.
+
+Two equivalent ways to authenticate an http lane (both resolve `${credentials.KEY}` at fire time):
+- Ergonomic auth block on add_transition: `auth:{type:"bearer", credentialKey:"API_TOKEN"}`
+  (also `{type:"api_key", credentialKey, name, in}` / `{type:"basic", credentialKey}`). The MCP
+  expands this to the engine's `params` shape for you.
+- Explicit header: `headers:{ "Authorization": "Bearer ${credentials.API_TOKEN}" }`.
+Workflow: add_transition(...auth or header...) → set_transition_credentials(KEY=value) → fire. A
+401/empty-auth almost always means the secret was never set for THAT transition id.
 
 Never put a secret anywhere else:
 - NOT hardcoded in an inscription — inscriptions are readable by every rw client.
