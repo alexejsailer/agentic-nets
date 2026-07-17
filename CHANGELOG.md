@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.31.0] - 2026-07-17
+
+### Added
+- **`routes` on `add_transition`** (`agentic-net-mcp` — `inscriptions.ts`, `tools/nets.ts`). Map/llm/http lanes can now declare verdict/branch routing inline: `routes:[{place, when}]` builds one output place + one `when`-gated emit per branch (conditions mutually exclusive, no catch-all so an unmatched value stays visible), auto-creates and wires the branch places, and composes with `errorPlace`. A review/approval lane (verdict → `p-approved` vs `p-needs-work`) no longer needs a hand-authored inscription.
+- **`FOREACH` execution mode on `add_transition`** (`agentic-net-mcp` — `inscriptions.ts`, `tools/nets.ts`). A new optional `mode:"SINGLE"|"FOREACH"` exposes the engine's per-token fan-out (bounded parallelism) that was previously unreachable through the ergonomic tool — every built lane was hardcoded to SINGLE.
+- **Cron validation before a schedule is persisted** (`agentic-net-mcp` — `inscriptions.ts`, `tools/nets.ts`). `set_schedule` and every scheduled `add_transition` now reject a malformed cron (wrong field count — e.g. a 5-field crontab line where the engine wants 6 — or bad characters) with an actionable error, instead of silently storing a schedule that never fires.
+
+### Fixed
+- **HTTP `auth` credential was never injected — silent 401** (`agentic-net-mcp` — `inscriptions.ts`). The documented `auth:{type:"bearer", credentialKey:"KEY"}` shape produced no `Authorization` header because the engine reads the token from `params.token`, so calls to authenticated APIs (Jenkins/Gerrit/GitHub/…) went out unauthenticated with only a bare 401 to show for it. `add_transition` now normalizes the ergonomic bearer/api_key/basic `credentialKey` form into the engine's `params` shape (a `${credentials.KEY}` template resolved at fire time). Verified live against a header-echo endpoint.
+- **`SET_INSCRIPTION` could not UPDATE an existing inscription** (`agentic-net-cli` — `agent/tool-executor.ts`). The delete-then-recreate path sent a `deleteLeaf` event with no leaf `name`, which the node rejects (every event needs a non-empty name), so any in-place inscription edit failed with a gateway 500 while creating a brand-new one worked. The delete event now carries the leaf name — retuning prompts/schedules and net self-adaptation work again.
+- **`errorPlace` now works on llm transitions** (`agentic-net-mcp` — `inscriptions.ts`). It was http-only, so a failed llm call (bad prompt, provider down, unparseable response) was silently dropped; llm lanes now get the same `err` postset + `when:"error"` split as http.
+- **`add_transition` no longer 404s on runtime-only endpoint places** (`agentic-net-mcp` — `tools/nets.ts`). When an input/output place existed only as a runtime container (`CREATE_RUNTIME_PLACE` / an emit target) rather than a designtime place, arc-wiring returned a 404 that aborted the whole call; it now idempotently ensures both endpoints (and any route/error branch places) exist as designtime + runtime places before wiring.
+
+### Changed
+- **Bundled knowledge pack — five operational corrections and recipes** (`agentic-net-mcp` — `src/knowledge/*.md`). Shipped to every MCP client via `search_knowledge` / `agenticnets://docs`: the credentials flow is now discoverable (heading carries `set_transition_credentials`) and documents both auth paths; a NetHub export/import section corrects the `hub_show` capability claim (it does not itemize a net/session package's contents) and warns that a `kind:net` package omits runtime-only (SET_INSCRIPTION) lanes; an orchestration recipe steers toward deterministic token-chaining over fragile agent poll-loops; a troubleshooting playbook for the deploy→start race (a freshly-built lane wedged in `deployed`/`starting` — re-issue `start_transition`); and the command→llm chaining shape (`@result` `batchResults` is stringified JSON) plus the emit "every matching rule fires" warning (a catch-all next to a conditional duplicates the routed emission).
+
 ## [2.30.0] - 2026-07-15
 
 ### Added
