@@ -19,6 +19,24 @@ on what `from` resolved to — `"when": "category == 'urgent'"` checks the emitt
 (flat paths). A custom condition that references input-token fields does not work; route on the
 result, or put the decision into the result.
 
+## EVERY matching rule fires — routing needs mutually exclusive whens
+
+Emit is NOT first-match-wins: each rule is evaluated independently and every rule that matches
+emits a token (that's what makes the intentional dual-emit pattern possible). The trap: a
+conditional rule PLUS an unconditional catch-all means a matching fire emits TWICE — once to the
+routed place and once to the catch-all. For verdict/branch routing, make the conditions mutually
+exclusive and cover every value the producer can emit:
+
+```json
+"emit":[
+  {"to":"approved",  "from":"@response.json", "when":"verdict == 'APPROVE'"},
+  {"to":"needswork", "from":"@response.json", "when":"verdict == 'NEEDS_WORK'"}
+]
+```
+
+If the producer emits an unexpected value, NO rule matches — the input stays unconsumed and
+visible (the safe failure mode) instead of a duplicate landing in the wrong queue.
+
 ## Success/error split
 
 ```json
@@ -36,8 +54,10 @@ split for you when you pass `errorPlace`. Give every lane that can fail a visibl
 
 If NO emit rule matches a fire's outcome, the result is dropped AND the input tokens stay
 unconsumed — by design (data is never silently destroyed), but the lane then re-fires the same
-token forever. End every emit list with a catch-all (an unconditional rule, or a success+error
-pair) so every outcome has a destination.
+token forever. For single-sink lanes, end the emit list with a catch-all (an unconditional rule,
+or a success+error pair) so every outcome has a destination. For BRANCHED routing do NOT add a
+catch-all next to conditionals (see the mutually-exclusive-whens section above — it would
+duplicate every routed emission); cover the value space with explicit conditions instead.
 
 ## Capacity backpressure
 

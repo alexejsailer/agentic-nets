@@ -24,6 +24,26 @@ executorId, dispatch, await, timeoutMs, groupBy). Dynamic commands are built by 
 whose template produces a full CommandToken; the command transition consumes and dispatches it.
 Result arrives via emit `from: "@result"`: `batchResults[0].results[0].output.{exitCode,stdout,stderr}`.
 
+## The COMMAND→LLM pipeline (chaining a result into a prompt) — the result-token shape
+
+The `@result` emission lands as a token whose data has FLAT STRING properties:
+`{status, success, durationMs, batchPrefix, totalCommands, successCount, failedCount,
+batchResults, parsedStdout?}`. Two traps when a downstream llm/map interpolates it:
+
+- **`batchResults` is a stringified JSON array** (node property storage stringifies nested
+  objects), so `${input.data.batchResults}` resolves to the raw JSON STRING — there is no
+  `${...batchResults[0].results[0]...}` path into it.
+- **`parsedStdout` only exists when stdout WAS valid JSON.** Plain-text output (git log, build
+  logs, test output) has NO flat stdout property — it lives only inside the stringified
+  `batchResults`.
+
+Working pattern for review/analyze pipelines (proven): interpolate the WHOLE result and tell the
+model where to look —
+`"nl": "Inside batchResults below is the stdout of <what you ran>. Analyze THAT.\n${input.data.batchResults}"`.
+LLMs read the embedded, JSON-escaped stdout reliably. Alternative for deterministic consumers: make
+the command itself print a JSON object (then `parsedStdout` appears and `${input.data.parsedStdout}`
+works), or do the downstream work inside the same command (curl POST from the shell).
+
 ## Executor selection
 
 Resolution order: `action.executorId` → the persisted `assignedAgent` → the default executor
