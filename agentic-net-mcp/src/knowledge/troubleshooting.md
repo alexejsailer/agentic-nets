@@ -13,6 +13,20 @@ stuck lane — never guess what a tool can tell you.
 4. `fire_once` returns 409 while RUNNING: stop_transition → fire_once → start_transition.
 5. Downstream place at its capacity? That's backpressure, not a bug (docs/emit).
 
+## Wedged in `deployed`/`starting` right after build (the deploy→start race)
+
+A lane built with SET_INSCRIPTION → DEPLOY_TRANSITION → start_transition can wedge: everything
+reports healthy (diagnose HEALTHY, tokens waiting, executor covered) but status sits at
+`deployed` or `starting` forever and nothing fires. Cause: the executor's async deployment report
+("deployed") lands AFTER your start call and overwrites `starting`, so the START command is never
+sent — start_transition succeeded, but its effect was clobbered. Reproduced live; also the classic
+"my scheduled digest never fired" incident shape.
+
+Fix in one call: **issue `start_transition` AGAIN** (or `set_schedule`, whose version-bump
+re-registers and restarts). Verify with `scheduler_status`/`list_transitions` that status is now
+`running` — treat any freshly-built lane that isn't `running` within ~10s as this race, not as a
+deeper problem. (`add_transition` sequences assign+start for you and rarely hits it.)
+
 ## Command lane: "queued: true, but no output"
 
 Four checks, in order (full detail: docs/commands):
