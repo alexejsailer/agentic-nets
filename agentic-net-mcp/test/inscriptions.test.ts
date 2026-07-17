@@ -96,7 +96,8 @@ describe('http inscription (add_transition kind:http — headers/body/auth/error
     expect(ins.action.method).toBe('POST');
     expect(ins.action.headers['X-Api-Key']).toBe('${credentials.KEY}');
     expect(ins.action.body).toEqual({ q: '${input.data.q}' });
-    expect(ins.action.auth).toEqual({ type: 'bearer', credentialKey: 'API_TOKEN' });
+    // auth is normalized to the shape the master's applyAuth actually reads (params.token)
+    expect(ins.action.auth).toEqual({ type: 'bearer', params: { token: '${credentials.API_TOKEN}' } });
   });
 
   it('adds an err postset and splits success/error emits when errorPlace is set', () => {
@@ -154,6 +155,30 @@ describe('execution mode (add_transition mode: SINGLE | FOREACH)', () => {
       const ins: any = buildInscription(kind, { id: `t-${kind}`, host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', mode: 'FOREACH' });
       expect(ins.mode).toBe('FOREACH');
     }
+  });
+});
+
+describe('http auth normalization (credentialKey → master params shape)', () => {
+  it('bearer credentialKey → params.token with ${credentials.KEY} (what applyAuth reads)', () => {
+    const ins: any = buildInscription('http', {
+      id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      url: 'https://api/x', auth: { type: 'bearer', credentialKey: 'GH_TOKEN' },
+    });
+    expect(ins.action.auth).toEqual({ type: 'bearer', params: { token: '${credentials.GH_TOKEN}' } });
+  });
+
+  it('api_key credentialKey → params.apiKey + name/in preserved', () => {
+    const ins: any = buildInscription('http', {
+      id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      url: 'https://api/x', auth: { type: 'api_key', credentialKey: 'K', name: 'X-Api-Key', in: 'header' },
+    });
+    expect(ins.action.auth).toEqual({ type: 'api_key', params: { apiKey: '${credentials.K}', name: 'X-Api-Key', in: 'header' } });
+  });
+
+  it('already-master-shaped auth (params present) passes through unchanged', () => {
+    const auth = { type: 'oauth2_client_credentials', params: { tokenUrl: 'https://t', clientId: 'c', clientSecret: '${credentials.S}' } };
+    const ins: any = buildInscription('http', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', url: 'https://api/x', auth });
+    expect(ins.action.auth).toEqual(auth);
   });
 });
 

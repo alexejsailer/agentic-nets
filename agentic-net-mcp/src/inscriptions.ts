@@ -218,6 +218,42 @@ export function buildLlmInscription(opts: BuildOpts) {
   };
 }
 
+/**
+ * Translate the ergonomic auth shape this tool advertises ({type, credentialKey}) into the shape
+ * the master's HttpActionHandler.applyAuth actually reads: `params.token` (bearer) / `params.apiKey`
+ * (api_key) / `params.username|password` (basic), each a `${credentials.KEY}` template the master
+ * interpolates at fire time. WITHOUT this, `auth:{type:"bearer", credentialKey:"X"}` silently sends
+ * NO Authorization header (applyAuth reads params.token, which is absent) — a 401 with no clue.
+ * Anything that already supplies `params` (advanced / oauth2_client_credentials) passes through
+ * unchanged, as does an unrecognised type.
+ */
+export function normalizeAuth(auth: Record<string, any> | undefined): Record<string, any> | undefined {
+  if (!auth || typeof auth !== 'object' || auth.params) return auth;
+  const type = String(auth.type ?? '').toLowerCase();
+  const credTpl = (key: string) => '${credentials.' + key + '}';
+  if (type === 'bearer') {
+    const token = auth.token ?? (auth.credentialKey ? credTpl(auth.credentialKey) : undefined);
+    return token ? { type: 'bearer', params: { token } } : auth;
+  }
+  if (type === 'api_key' || type === 'apikey') {
+    const apiKey = auth.apiKey ?? (auth.credentialKey ? credTpl(auth.credentialKey) : undefined);
+    if (!apiKey) return auth;
+    const params: Record<string, string> = { apiKey };
+    if (auth.name) params.name = auth.name;
+    if (auth.in) params.in = auth.in;
+    return { type: 'api_key', params };
+  }
+  if (type === 'basic') {
+    const params: Record<string, string> = {};
+    if (auth.username) params.username = auth.username;
+    if (auth.usernameKey) params.username = credTpl(auth.usernameKey);
+    if (auth.password) params.password = auth.password;
+    if (auth.passwordKey ?? auth.credentialKey) params.password = credTpl(auth.passwordKey ?? auth.credentialKey);
+    return Object.keys(params).length ? { type: 'basic', params } : auth;
+  }
+  return auth;
+}
+
 export function buildHttpInscription(opts: BuildOpts) {
   const postsets: Record<string, any> = postset(opts);
   if (opts.errorPlace) {
@@ -229,7 +265,7 @@ export function buildHttpInscription(opts: BuildOpts) {
     url: opts.url ?? '${input.data.url}',
     ...(opts.headers ? { headers: opts.headers } : {}),
     ...(opts.body !== undefined ? { body: opts.body } : {}),
-    ...(opts.auth ? { auth: opts.auth } : {}),
+    ...(opts.auth ? { auth: normalizeAuth(opts.auth) } : {}),
     ...(opts.retry ? { retry: opts.retry } : {}),
     timeoutMs: opts.timeoutMs ?? 30000,
   };
