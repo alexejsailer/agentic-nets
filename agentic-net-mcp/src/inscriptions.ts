@@ -53,6 +53,10 @@ export interface BuildOpts {
   retry?: Record<string, any>;
   /** Override the default emit rules verbatim (advanced). */
   emit?: any[];
+  /** map/llm/http: verdict/branch routing — one postset + one when-gated emit per route, mutually
+   *  exclusive conditions, no catch-all (docs/emit). Lets you build review/branch lanes without
+   *  hand-authoring an inscription. */
+  routes?: { place: string; when: string }[];
   /** http/llm: a place to route errors to (adds an `err` postset + a when:"error" emit). */
   errorPlace?: string;
   /** map */
@@ -114,6 +118,38 @@ function postset(opts: BuildOpts) {
   };
 }
 
+/** Derive a stable, collision-free postset key from a place id (p-approved → approved). */
+function routeKey(place: string, taken: Set<string>): string {
+  const base = place.replace(/^p-/, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'r';
+  let key = base;
+  let i = 1;
+  while (taken.has(key)) key = `${base}_${i++}`;
+  taken.add(key);
+  return key;
+}
+
+/**
+ * Verdict/branch routing: turn opts.routes into one postset + one when-gated emit PER route.
+ * `from` is the kind's result expression (llm/http: @response.json, map: @response). Conditions
+ * must be mutually exclusive and cover the value space — there is deliberately NO catch-all, so an
+ * unexpected value leaves the input unconsumed and visible rather than duplicated (docs/emit).
+ * Returns null when no routes are set. Reuses the `out`/`err` keys so a route may target the
+ * declared output or error place. Lets a pure-MCP client build review/branch lanes without
+ * hand-authoring SET_INSCRIPTION.
+ */
+function routeSplit(opts: BuildOpts, from: string): { postsets: Record<string, any>; emit: any[] } | null {
+  if (!opts.routes || opts.routes.length === 0) return null;
+  const postsets: Record<string, any> = {};
+  const emit: any[] = [];
+  const taken = new Set<string>(['out', 'err']);
+  for (const r of opts.routes) {
+    const key = r.place === opts.outputPlace ? 'out' : r.place === opts.errorPlace ? 'err' : routeKey(r.place, taken);
+    postsets[key] = { placeId: r.place, host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) };
+    emit.push({ to: key, from, when: r.when });
+  }
+  return { postsets, emit };
+}
+
 export function buildLinkInscription(id: string, label: string, from: string, to: string, host: string) {
   return {
     id,
@@ -125,15 +161,16 @@ export function buildLinkInscription(id: string, label: string, from: string, to
 }
 
 export function buildMapInscription(opts: BuildOpts) {
+  const routed = routeSplit(opts, '@response');
   return {
     id: opts.id,
     kind: 'map',
     label: opts.label ?? opts.id,
     ...schedule(opts),
     presets: { input: preset(opts.inputPlace, opts.host, opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {}) },
-    postsets: postset(opts),
+    postsets: { ...postset(opts), ...(routed?.postsets ?? {}) },
     action: { type: 'map', template: opts.template ?? { value: '${input.data}' } },
-    emit: [{ to: 'out', from: '@response' }],
+    emit: opts.emit ?? routed?.emit ?? [{ to: 'out', from: '@response' }],
     mode: opts.mode ?? 'SINGLE',
   };
 }
@@ -143,14 +180,20 @@ export function buildLlmInscription(opts: BuildOpts) {
   if (opts.errorPlace) {
     postsets.err = { placeId: opts.errorPlace, host: opts.host };
   }
+  // Verdict routing: one postset+emit per route (structured verdict via @response.json). errorPlace
+  // still adds an err branch on top.
+  const routed = routeSplit(opts, '@response.json');
+  if (routed) Object.assign(postsets, routed.postsets);
   // With an errorPlace, split success vs error so a failed llm call (bad prompt, provider
   // down, unparseable response) lands somewhere visible instead of being silently dropped —
   // master 2.28+ builds errorPayloads from the when:"error" emit rules on every failure path,
   // mirroring the http lane.
-  const emit = opts.emit ?? [
-    { to: 'out', from: '@response.raw', ...(opts.errorPlace ? { when: 'success' } : {}) },
-    ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
-  ];
+  const emit = opts.emit ?? (routed
+    ? [...routed.emit, ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : [])]
+    : [
+        { to: 'out', from: '@response.raw', ...(opts.errorPlace ? { when: 'success' } : {}) },
+        ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
+      ]);
   return {
     id: opts.id,
     kind: 'llm',
@@ -190,12 +233,18 @@ export function buildHttpInscription(opts: BuildOpts) {
     ...(opts.retry ? { retry: opts.retry } : {}),
     timeoutMs: opts.timeoutMs ?? 30000,
   };
+  // Verdict routing: one postset+emit per route (parsed body via @response.json). errorPlace still
+  // adds an err branch on top.
+  const routed = routeSplit(opts, '@response.json');
+  if (routed) Object.assign(postsets, routed.postsets);
   // Default emit routes the JSON body to the output; with an errorPlace, split success vs error
   // so a failed call lands somewhere visible instead of being silently dropped.
-  const emit = opts.emit ?? [
-    { to: 'out', from: '@response.json', ...(opts.errorPlace ? { when: 'success' } : {}) },
-    ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
-  ];
+  const emit = opts.emit ?? (routed
+    ? [...routed.emit, ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : [])]
+    : [
+        { to: 'out', from: '@response.json', ...(opts.errorPlace ? { when: 'success' } : {}) },
+        ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
+      ]);
   return {
     id: opts.id,
     kind: 'http',

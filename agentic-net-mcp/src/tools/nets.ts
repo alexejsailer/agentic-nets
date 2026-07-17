@@ -269,6 +269,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         retry: z.record(z.any()).optional().describe('http: retry policy passed through to HttpActionHandler'),
         emit: z.array(z.any()).optional().describe('http/map: override the default emit rules verbatim (advanced)'),
         errorPlace: z.string().optional().describe('http/llm: route errors to this place (adds an err postset + a when:"error" emit) so a failed call lands somewhere visible instead of being silently dropped'),
+        routes: z.array(z.object({ place: z.string(), when: z.string() })).optional().describe('map/llm/http: verdict/branch routing — one output place per {place, when}. Each `when` is a condition on the RESULT data (e.g. "verdict == \'APPROVE\'"); conditions must be mutually exclusive and cover every value (NO catch-all — an unmatched value leaves the input unconsumed/visible). Builds a review or branch lane (e.g. p-approved / p-needs-work) without hand-writing an inscription'),
         template: z.record(z.any()).optional().describe('map: the output template object'),
         executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
@@ -310,6 +311,17 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       };
       await ensurePlace(args.inputPlace, (args.y ?? 100) - 60);
       await ensurePlace(args.outputPlace, (args.y ?? 100) + 60);
+      // Branch targets (routes/errorPlace) are real emit postsets — they must exist as places too,
+      // or the emitted verdict token has nowhere to land.
+      const branchPlaces = [
+        ...(Array.isArray(args.routes) ? args.routes.map((r: any) => r.place) : []),
+        ...(args.errorPlace ? [args.errorPlace] : []),
+      ].filter((p, i, a) => p && p !== args.outputPlace && p !== args.inputPlace && a.indexOf(p) === i);
+      let branchY = (args.y ?? 100) + 120;
+      for (const bp of branchPlaces) {
+        await ensurePlace(bp, branchY);
+        branchY += 60;
+      }
       await ctx.master
         .createTransition(args.netId, {
           modelId: model,
@@ -338,6 +350,18 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           targetId: args.outputPlace,
         })
         .catch(dup);
+      // Wire an output arc to each branch target so the routed net is visually complete.
+      for (let bi = 0; bi < branchPlaces.length; bi++) {
+        await ctx.master
+          .createArc(args.netId, {
+            modelId: model,
+            sessionId: config.session,
+            arcId: `a-${args.transitionId}-b${bi}`,
+            sourceId: args.transitionId,
+            targetId: branchPlaces[bi],
+          })
+          .catch(dup);
+      }
 
       const inscription = buildInscription(args.kind, {
         id: args.transitionId,
@@ -354,6 +378,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         auth: args.auth,
         retry: args.retry,
         emit: args.emit,
+        routes: args.routes,
         errorPlace: args.errorPlace,
         template: args.template,
         executorId: args.executorId,

@@ -157,6 +157,53 @@ describe('execution mode (add_transition mode: SINGLE | FOREACH)', () => {
   });
 });
 
+describe('verdict routing (add_transition routes: [{place, when}])', () => {
+  it('llm: builds one postset + one when-gated emit per route, from @response.json, no catch-all', () => {
+    const ins: any = buildInscription('llm', {
+      id: 't-review', host: 'm@h:8080', inputPlace: 'p-diff', outputPlace: 'p-out',
+      prompt: 'review ${input.data.batchResults}',
+      routes: [
+        { place: 'p-approved', when: "verdict == 'APPROVE'" },
+        { place: 'p-needs-work', when: "verdict == 'NEEDS_WORK'" },
+      ],
+    });
+    expect(ins.postsets.approved.placeId).toBe('p-approved');
+    expect(ins.postsets['needs_work'].placeId).toBe('p-needs-work');
+    expect(ins.emit).toContainEqual({ to: 'approved', from: '@response.json', when: "verdict == 'APPROVE'" });
+    expect(ins.emit).toContainEqual({ to: 'needs_work', from: '@response.json', when: "verdict == 'NEEDS_WORK'" });
+    // no unconditional catch-all next to conditionals
+    expect(ins.emit.some((e: any) => e.when === undefined)).toBe(false);
+    expect(ins.emit).toHaveLength(2);
+  });
+
+  it('routes compose with errorPlace (adds an err branch)', () => {
+    const ins: any = buildInscription('http', {
+      id: 't-h', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      url: 'https://api/x', errorPlace: 'p-err',
+      routes: [{ place: 'p-a', when: 'status == 200' }, { place: 'p-b', when: 'status == 404' }],
+    });
+    expect(ins.postsets.err.placeId).toBe('p-err');
+    expect(ins.emit).toContainEqual({ to: 'err', from: '@response', when: 'error' });
+    expect(ins.emit.filter((e: any) => e.to !== 'err')).toHaveLength(2);
+  });
+
+  it('a route targeting outputPlace reuses the out key (no duplicate postset)', () => {
+    const ins: any = buildInscription('map', {
+      id: 't-m', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      routes: [{ place: 'p-out', when: "kind == 'x'" }, { place: 'p-other', when: "kind == 'y'" }],
+    });
+    expect(ins.postsets.out.placeId).toBe('p-out');
+    expect(ins.emit).toContainEqual({ to: 'out', from: '@response', when: "kind == 'x'" });
+    expect(ins.emit).toContainEqual({ to: 'other', from: '@response', when: "kind == 'y'" });
+  });
+
+  it('no routes → unchanged single-emit default', () => {
+    const ins: any = buildInscription('llm', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
+    expect(ins.emit).toEqual([{ to: 'out', from: '@response.raw' }]);
+    expect(Object.keys(ins.postsets)).toEqual(['out']);
+  });
+});
+
 describe('llm inscription (add_transition kind:llm — errorPlace)', () => {
   it('adds an err postset and splits success/error emits when errorPlace is set', () => {
     const ins: any = buildInscription('llm', {
