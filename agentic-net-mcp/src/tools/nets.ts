@@ -275,6 +275,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         intervalMs: z.number().optional().describe('Alternative to cron: fixed interval'),
         timeoutMs: z.number().optional(),
         capacity: z.number().optional().describe('Output place capacity (backpressure)'),
+        mode: z.enum(['SINGLE', 'FOREACH']).optional().describe('Execution mode. SINGLE (default) binds all presets and fires once; FOREACH processes each bound token independently (bounded parallel fan-out) — use for per-token work like enriching every item in a batch'),
         start: z.boolean().optional().describe('Default true (links are never started)'),
         ...modelParam,
       },
@@ -360,6 +361,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         intervalMs: args.intervalMs,
         timeoutMs: args.timeoutMs,
         capacity: args.capacity,
+        mode: args.mode,
         // agent
         netModel: model,
         role: args.role,

@@ -37,6 +37,9 @@ export interface BuildOpts {
   scheduleCron?: string;
   intervalMs?: number;
   timeoutMs?: number;
+  /** Execution mode: SINGLE (bind all presets, fire once) or FOREACH (process each bound token
+   *  independently, bounded parallel fan-out). Default SINGLE. */
+  mode?: 'SINGLE' | 'FOREACH';
   /** llm */
   prompt?: string;
   llmModel?: string;
@@ -103,7 +106,7 @@ export function buildMapInscription(opts: BuildOpts) {
     postsets: postset(opts),
     action: { type: 'map', template: opts.template ?? { value: '${input.data}' } },
     emit: [{ to: 'out', from: '@response' }],
-    mode: 'SINGLE',
+    mode: opts.mode ?? 'SINGLE',
   };
 }
 
@@ -140,7 +143,7 @@ export function buildLlmInscription(opts: BuildOpts) {
       timeoutMs: opts.timeoutMs ?? 240000,
     },
     emit,
-    mode: 'SINGLE',
+    mode: opts.mode ?? 'SINGLE',
   };
 }
 
@@ -180,7 +183,7 @@ export function buildHttpInscription(opts: BuildOpts) {
     postsets,
     action,
     emit,
-    mode: 'SINGLE',
+    mode: opts.mode ?? 'SINGLE',
   };
 }
 
@@ -209,7 +212,7 @@ export function buildCommandInscription(opts: BuildOpts) {
       timeoutMs: opts.timeoutMs ?? 150000,
     },
     emit: [{ to: 'log', from: '@result' }],
-    mode: 'SINGLE',
+    mode: opts.mode ?? 'SINGLE',
   };
 }
 
@@ -252,7 +255,7 @@ export function buildAgentInscription(opts: BuildOpts) {
       ...(opts.tier ? { tier: opts.tier } : {}),
       timeoutMs: opts.timeoutMs ?? 240000,
     },
-    mode: 'SINGLE',
+    mode: opts.mode ?? 'SINGLE',
   };
 }
 

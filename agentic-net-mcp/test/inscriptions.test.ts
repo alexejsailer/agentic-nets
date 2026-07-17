@@ -119,6 +119,22 @@ describe('http inscription (add_transition kind:http — headers/body/auth/error
   });
 });
 
+describe('execution mode (add_transition mode: SINGLE | FOREACH)', () => {
+  it('defaults to SINGLE when mode is omitted', () => {
+    for (const kind of ['map', 'llm', 'http', 'command'] as const) {
+      const ins: any = buildInscription(kind, { id: `t-${kind}`, host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
+      expect(ins.mode).toBe('SINGLE');
+    }
+  });
+
+  it('threads FOREACH through every kind for per-token fan-out', () => {
+    for (const kind of ['map', 'llm', 'http', 'command', 'agent'] as const) {
+      const ins: any = buildInscription(kind, { id: `t-${kind}`, host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', mode: 'FOREACH' });
+      expect(ins.mode).toBe('FOREACH');
+    }
+  });
+});
+
 describe('llm inscription (add_transition kind:llm — errorPlace)', () => {
   it('adds an err postset and splits success/error emits when errorPlace is set', () => {
     const ins: any = buildInscription('llm', {
