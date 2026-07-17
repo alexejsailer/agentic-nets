@@ -60,6 +60,31 @@ With several executors registered, check list_executors and pass executorId on a
 pick the host that runs it ('*' = any executor; if more than one is ONLINE and the user didn't
 specify, ask which to target). Full command-lane reference: docs/commands.
 
+## Orchestration: prefer deterministic chaining over an agent poll-loop
+
+The robust way to run a multi-stage pipeline (review → fix → test, fan-out/fan-in, "do A then B
+then summarize") is DETERMINISTIC token flow, not one agent that drives everything by polling:
+wire each stage as its own map/http/command/llm lane and let the OUTPUT place of one stage be the
+INPUT place of the next. A verdict/branch is an llm/map lane with mutually-exclusive `when` emits
+(docs/emit). This is fully reachable over MCP and is reliable regardless of model strength — every
+stage is a single, bounded LLM/command call.
+
+An AGENT that orchestrates by looping AWAIT_TOKEN/QUERY_TOKENS over several places to collect
+results, then writing a summary, is the fragile pattern. Observed failure (deepseek-class worker
+model): the agent collects result A, then result B, but on each subsequent turn "forgets" it
+already holds the other and re-collects — oscillating until maxIterations, never writing the
+summary. The tool results ARE delivered correctly (AWAIT_TOKEN returns in milliseconds and the
+reasoning quotes the real values); the weak worker model just can't hold "I now have BOTH" across
+turns. THINK routes the *next single* call to the stronger thinking model but the boost is
+one-shot, so it doesn't rescue a multi-collect loop.
+
+If you must use an orchestrator agent: (1) keep it to the FEWEST steps — ideally collect nothing,
+just dispatch, and let a downstream deterministic lane assemble the summary; (2) give it an
+explicit "you now permanently HOLD X; never re-await it; when you hold all N, write immediately"
+state rule; (3) run it on the strongest tier your deployment configures (tier:"high" only helps if
+high maps to a stronger model than the default worker — verify with llm_health). When in doubt,
+make the net deterministic and reserve the agent for the genuinely fuzzy single step.
+
 ## The kill switch (full model control)
 pause_model stops EVERY running transition — zero fires, zero LLM spend, schedules frozen — and
 records what was running as an audit token in p-mcp-control. resume_model restores exactly that
