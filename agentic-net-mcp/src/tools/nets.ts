@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
-import { agentFor, assignInscription, buildInscription, persistInscriptionLeaf } from '../inscriptions.js';
+import { agentFor, assignInscription, buildInscription, persistInscriptionLeaf, validateCron } from '../inscriptions.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
@@ -428,6 +428,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     },
     wrapTool(scope, config.mode, { name: 'set_schedule', mutates: true }, async (model, args) => {
       if (!args.scheduleCron && !args.intervalMs) throw new Error('provide scheduleCron or intervalMs');
+      if (args.scheduleCron) validateCron(args.scheduleCron);
       const kids = await ctx.node.getChildren(model, `root/workspace/transitions/${args.transitionId}`);
       const leaf = (kids ?? []).find((c: any) => c.name === 'inscription');
       const value = leaf?.properties?.value ?? leaf?.value;

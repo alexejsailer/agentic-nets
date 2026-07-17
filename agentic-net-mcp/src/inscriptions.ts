@@ -70,8 +70,36 @@ export interface BuildOpts {
   autoEmit?: boolean;
 }
 
+/**
+ * Validate a cron expression before it is baked into an inscription. The engine uses SIX-field
+ * cron (second minute hour day-of-month month day-of-week), so the #1 real-world mistake is
+ * pasting a standard 5-field crontab line (e.g. "0 8 * * *") which is silently accepted and then
+ * either never fires or fires at the wrong field — the classic "my scheduled lane went silent"
+ * trap. Throws an actionable error rather than persisting a dud schedule. Light by design: it
+ * checks the field count and per-field character set (digits, * ? , - / and month/day names),
+ * not full range semantics, so it never rejects a valid Spring cron.
+ */
+export function validateCron(cron: string): void {
+  const fields = cron.trim().split(/\s+/);
+  if (fields.length !== 6) {
+    throw new Error(
+      `Invalid cron "${cron}": expected 6 fields "sec min hour day month weekday" ` +
+        `(e.g. "0 0 8 * * *" = 08:00 daily). Got ${fields.length} field(s) — a standard 5-field ` +
+        `crontab line is NOT accepted; prepend a seconds field.`,
+    );
+  }
+  const token = /^[0-9*?,\/\-A-Za-z]+$/;
+  const bad = fields.find((f) => !token.test(f));
+  if (bad !== undefined) {
+    throw new Error(`Invalid cron "${cron}": field "${bad}" contains unsupported characters.`);
+  }
+}
+
 function schedule(opts: BuildOpts): Record<string, any> {
-  if (opts.scheduleCron) return { schedule: { type: 'cron', cron: opts.scheduleCron } };
+  if (opts.scheduleCron) {
+    validateCron(opts.scheduleCron);
+    return { schedule: { type: 'cron', cron: opts.scheduleCron } };
+  }
   if (opts.intervalMs) return { schedule: { type: 'interval', intervalMs: opts.intervalMs } };
   return {};
 }

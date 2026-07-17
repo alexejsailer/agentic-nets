@@ -119,6 +119,28 @@ describe('http inscription (add_transition kind:http — headers/body/auth/error
   });
 });
 
+describe('cron validation (guards against silent non-firing schedules)', () => {
+  it('accepts a valid 6-field cron', () => {
+    expect(() => buildInscription('http', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', scheduleCron: '0 0 8 * * *' })).not.toThrow();
+  });
+
+  it('rejects a 5-field (standard crontab) expression with an actionable error', () => {
+    expect(() => buildInscription('http', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', scheduleCron: '0 8 * * *' }))
+      .toThrow(/6 fields/);
+  });
+
+  it('rejects garbage cron input (wrong field count or bad characters)', () => {
+    for (const bad of ['every day', '8am', '0 0 8 * * @@@']) {
+      expect(() => buildInscription('command', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', scheduleCron: bad })).toThrow();
+    }
+  });
+
+  it('leaves interval schedules untouched', () => {
+    const ins: any = buildInscription('http', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', intervalMs: 60000 });
+    expect(ins.schedule).toEqual({ type: 'interval', intervalMs: 60000 });
+  });
+});
+
 describe('execution mode (add_transition mode: SINGLE | FOREACH)', () => {
   it('defaults to SINGLE when mode is omitted', () => {
     for (const kind of ['map', 'llm', 'http', 'command'] as const) {
