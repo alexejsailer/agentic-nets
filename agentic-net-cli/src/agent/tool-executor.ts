@@ -1423,9 +1423,12 @@ export class ToolExecutor {
         const transChildren = await this.nodeApi.getChildren(this.modelId, `${transitionsPath}/${transitionId}`);
         const existing = transChildren.find((c: any) => c.name === 'inscription');
         if (existing) {
-          // Delete then recreate (updateProperty returns 400)
+          // Delete then recreate (updateProperty returns 400). The node validates every event
+          // for a non-empty `name` (ModelCore rejects null/empty → 400), so the deleteLeaf MUST
+          // carry the leaf's name — without it, every inscription UPDATE failed while create-new
+          // (which only createsLeaf) worked. Use the existing leaf's name (always "inscription").
           await this.nodeApi.executeEvents(this.modelId, [
-            { eventType: 'deleteLeaf', id: existing.id, parentId },
+            { eventType: 'deleteLeaf', id: existing.id, parentId, name: existing.name ?? 'inscription' },
           ]);
           await this.nodeApi.executeEvents(this.modelId, [{
             eventType: 'createLeaf',
