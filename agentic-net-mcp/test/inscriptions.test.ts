@@ -119,6 +119,28 @@ describe('http inscription (add_transition kind:http — headers/body/auth/error
   });
 });
 
+describe('llm inscription (add_transition kind:llm — errorPlace)', () => {
+  it('adds an err postset and splits success/error emits when errorPlace is set', () => {
+    const ins: any = buildInscription('llm', {
+      id: 't-llm',
+      host: 'm@h:8080',
+      inputPlace: 'p-in',
+      outputPlace: 'p-out',
+      prompt: 'analyze ${input.data.text}',
+      errorPlace: 'p-err',
+    });
+    expect(ins.postsets.err.placeId).toBe('p-err');
+    expect(ins.emit).toContainEqual({ to: 'out', from: '@response.raw', when: 'success' });
+    expect(ins.emit).toContainEqual({ to: 'err', from: '@response', when: 'error' });
+  });
+
+  it('keeps the simple single-emit default when no errorPlace', () => {
+    const ins: any = buildInscription('llm', { id: 't-llm', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
+    expect(ins.emit).toEqual([{ to: 'out', from: '@response.raw' }]);
+    expect('err' in ins.postsets).toBe(false);
+  });
+});
+
 describe('compileSteps (session crystallization → replayable script)', () => {
   it('compiles shell + {command} + {method,url} steps into one set -e script', () => {
     const { script, count } = compileSteps([

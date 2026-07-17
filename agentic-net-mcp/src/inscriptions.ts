@@ -50,7 +50,7 @@ export interface BuildOpts {
   retry?: Record<string, any>;
   /** Override the default emit rules verbatim (advanced). */
   emit?: any[];
-  /** http: a place to route error responses to (adds an `err` postset + a when:"error" emit). */
+  /** http/llm: a place to route errors to (adds an `err` postset + a when:"error" emit). */
   errorPlace?: string;
   /** map */
   template?: Record<string, any>;
@@ -108,6 +108,18 @@ export function buildMapInscription(opts: BuildOpts) {
 }
 
 export function buildLlmInscription(opts: BuildOpts) {
+  const postsets: Record<string, any> = postset(opts);
+  if (opts.errorPlace) {
+    postsets.err = { placeId: opts.errorPlace, host: opts.host };
+  }
+  // With an errorPlace, split success vs error so a failed llm call (bad prompt, provider
+  // down, unparseable response) lands somewhere visible instead of being silently dropped —
+  // master 2.28+ builds errorPayloads from the when:"error" emit rules on every failure path,
+  // mirroring the http lane.
+  const emit = opts.emit ?? [
+    { to: 'out', from: '@response.raw', ...(opts.errorPlace ? { when: 'success' } : {}) },
+    ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
+  ];
   return {
     id: opts.id,
     kind: 'llm',
@@ -120,14 +132,14 @@ export function buildLlmInscription(opts: BuildOpts) {
         opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {},
       ),
     },
-    postsets: postset(opts),
+    postsets,
     action: {
       type: 'llm',
       nl: opts.prompt ?? '${input.data.prompt}',
       ...(opts.llmModel ? { model: opts.llmModel } : {}),
       timeoutMs: opts.timeoutMs ?? 240000,
     },
-    emit: [{ to: 'out', from: '@response.raw' }],
+    emit,
     mode: 'SINGLE',
   };
 }

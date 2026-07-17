@@ -268,7 +268,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         auth: z.record(z.any()).optional().describe('http: auth block, e.g. {type:"bearer", credentialKey:"API_TOKEN"} — pair with set_transition_credentials'),
         retry: z.record(z.any()).optional().describe('http: retry policy passed through to HttpActionHandler'),
         emit: z.array(z.any()).optional().describe('http/map: override the default emit rules verbatim (advanced)'),
-        errorPlace: z.string().optional().describe('http: route error responses to this place (adds an err postset + a when:"error" emit)'),
+        errorPlace: z.string().optional().describe('http/llm: route errors to this place (adds an err postset + a when:"error" emit) so a failed call lands somewhere visible instead of being silently dropped'),
         template: z.record(z.any()).optional().describe('map: the output template object'),
         executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
