@@ -69,6 +69,18 @@ public class TransitionOrchestrator {
      *                 transition still runs exactly once. Still async so the poll loop never blocks.
      */
     public void executeWithBoundTokens(String modelId, String transitionId, Map<String, List<Map<String, Object>>> boundTokens, boolean fireOnce) {
+        executeWithBoundTokens(modelId, transitionId, boundTokens, fireOnce, null);
+    }
+
+    /**
+     * @param credentialsOverride freshly-resolved plaintext credentials shipped by the master on
+     *                            this FIRE/FIRE_ONCE poll command. The stored definition only holds
+     *                            the DEPLOY-time snapshot — credentials set (or rotated in the
+     *                            vault) after deployment would otherwise never reach the command
+     *                            env until a redeploy. Null falls back to the stored snapshot.
+     */
+    public void executeWithBoundTokens(String modelId, String transitionId, Map<String, List<Map<String, Object>>> boundTokens,
+                                       boolean fireOnce, Map<String, Object> credentialsOverride) {
         var maybeDefinition = transitionStore.get(modelId, transitionId);
         if (maybeDefinition.isEmpty()) {
             logger.warn("Cannot execute unknown transition: {}:{}", modelId, transitionId);
@@ -107,7 +119,7 @@ public class TransitionOrchestrator {
                             modelId, transitionId, latestStatus);
                     return;
                 }
-                runSingleWithBoundTokens(latest.get(), boundTokens, null, fireOnce);
+                runSingleWithBoundTokens(latest.get(), boundTokens, credentialsOverride, fireOnce);
             } finally {
                 inFlight.remove(flightKey);
             }

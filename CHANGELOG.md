@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Credential audit + revoke tools** (`agentic-net-mcp` — `tools/nets.ts`). New `list_transition_credentials` (key names + storage backend only, never plaintext; readonly-safe) and `delete_transition_credentials` (revoke a stored secret; needs a master with the DELETE credentials route). `set_transition_credentials`'s description and the `commands` knowledge doc now teach the command-lane pattern: store the secret once, reference it as a plain `$KEY` shell env var — `${credentials.KEY}` interpolation is http/llm-only.
+
+### Fixed
+- **Command lanes fired with stale (or missing) credentials until redeployed** (`agentic-net-executor` — `MasterPollingService`, `TransitionOrchestrator`). The executor captured credentials only at DEPLOY time; the freshly-resolved credentials the master ships on every FIRE/FIRE_ONCE poll command were dropped. A credential set — or rotated in the vault — after deployment never reached the command's environment until the transition was redeployed, so a `fire_once` on a just-credentialed lane ran unauthenticated (observed live as an empty `$MEMOS_TOKEN` → 401). FIRE and FIRE_ONCE now pass the poll command's credentials through to execution, falling back to the deploy-time snapshot only when the master ships none.
+
 ## [2.31.0] - 2026-07-17
 
 ### Added

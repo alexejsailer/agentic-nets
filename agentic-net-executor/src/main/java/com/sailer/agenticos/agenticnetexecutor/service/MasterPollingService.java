@@ -523,8 +523,11 @@ public class MasterPollingService {
         }
 
         if (boundTokens != null && !boundTokens.isEmpty()) {
+            // Master re-resolves vault credentials on every poll — pass them through so a
+            // credential set (or rotated) AFTER deploy reaches the command env without a redeploy.
             transitionStore.get(modelId, transitionId).ifPresentOrElse(
-                definition -> orchestrator.executeWithBoundTokens(modelId, transitionId, boundTokens),
+                definition -> orchestrator.executeWithBoundTokens(modelId, transitionId, boundTokens,
+                        false, transitionCmd.credentials()),
                 () -> logger.warn("Transition {}:{} not found for FIRE", modelId, transitionId)
             );
             return Mono.just("fire: " + transitionId + " (with " + boundTokens.size() + " preset bindings)");
@@ -550,8 +553,11 @@ public class MasterPollingService {
         }
 
         if (boundTokens != null && !boundTokens.isEmpty()) {
+            // Same credential pass-through as FIRE: fireOnce previously ran with the DEPLOY-time
+            // credential snapshot, so a lane whose secret was set after deploy fired unauthenticated.
             transitionStore.get(modelId, transitionId).ifPresentOrElse(
-                definition -> orchestrator.executeWithBoundTokens(modelId, transitionId, boundTokens, true),
+                definition -> orchestrator.executeWithBoundTokens(modelId, transitionId, boundTokens,
+                        true, transitionCmd.credentials()),
                 () -> logger.warn("Transition {}:{} not found for FIRE_ONCE", modelId, transitionId)
             );
             return Mono.just("fireOnce: " + transitionId + " (with " + boundTokens.size() + " preset bindings)");
