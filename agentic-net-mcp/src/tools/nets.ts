@@ -415,7 +415,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Set transition credentials (vault-backed)',
       description:
-        'Store per-transition secrets the SECURE way: held in the vault (or encrypted at rest) and injected at fire time via ${credentials.KEY} — never hardcoded into the inscription or a token (tokens are event-sourced and permanent). Use for API keys / bearer tokens on http transitions: reference them as {type:"bearer", credentialKey:"API_TOKEN"} in add_transition `auth`, or as ${credentials.API_TOKEN} inside a header/url/body. Replaces the full credential set for the transition.',
+        'Store per-transition secrets the SECURE way: held in the vault (or encrypted at rest) and injected at fire time — NEVER hardcoded into the inscription or a token (tokens are event-sourced and permanent). http/llm/map lanes: reference as {type:"bearer", credentialKey:"API_TOKEN"} in add_transition `auth`, or as ${credentials.API_TOKEN} inside a header/url/body. COMMAND lanes: the executor injects each secret as an ENVIRONMENT VARIABLE into the command — reference it in your command string as $API_TOKEN (a normal shell env var), so the secret never appears in the command text, argv, or any stored token. Replaces the full credential set for the transition; audit with list_transition_credentials, revoke with delete_transition_credentials.',
       inputSchema: {
         transitionId: z.string(),
         credentials: z
@@ -433,8 +433,42 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         transition: args.transitionId,
         credentialKeys: keys,
         stored: true,
-        note: 'Reference these as ${credentials.<KEY>} in the inscription (header value, url, body, or auth.credentialKey).',
+        note: 'http/llm: reference as ${credentials.<KEY>} (header/url/body/auth.credentialKey). command: reference as the shell env var $<KEY> — the executor injects it into the command environment, never the command text.',
       };
+    }),
+  );
+
+  server.registerTool(
+    'list_transition_credentials',
+    {
+      title: 'List transition credential keys (no values)',
+      description:
+        'Audit which secrets a transition holds WITHOUT revealing them: returns the credential KEY NAMES (never the values) and the storage backend (vault or legacy-encrypted). Use to confirm a lane authenticates the secure way, and to find lanes that embed a secret inline instead of using the vault. GET-based — readonly-safe.',
+      inputSchema: { transitionId: z.string(), ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'list_transition_credentials', mutates: false }, async (model, args) => {
+      const res: any = await ctx.client.masterApi('GET', `/transitions/${args.transitionId}/credentials`, undefined, { modelId: model });
+      const keys: string[] = res?.credentialKeys ?? [];
+      return {
+        transition: args.transitionId,
+        credentialKeys: keys,
+        hasCredentials: keys.length > 0,
+        storage: res?.storage ?? 'unknown',
+      };
+    }),
+  );
+
+  server.registerTool(
+    'delete_transition_credentials',
+    {
+      title: 'Delete (revoke) transition credentials',
+      description:
+        "Revoke a transition's stored secrets — removes the vault entry (or the legacy encrypted blob), completing the store → audit → revoke lifecycle. Requires master ≥ 2.32 for the DELETE route.",
+      inputSchema: { transitionId: z.string(), ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'delete_transition_credentials', mutates: true }, async (model, args) => {
+      const res: any = await ctx.client.masterApi('DELETE', `/transitions/${args.transitionId}/credentials`, undefined, { modelId: model });
+      return { transition: args.transitionId, deleted: res?.deleted ?? true, storage: res?.storage ?? 'unknown' };
     }),
   );
 

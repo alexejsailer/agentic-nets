@@ -64,6 +64,8 @@ const CURATED = [
   'add_transition',
   'set_schedule',
   'set_transition_credentials',
+  'list_transition_credentials',
+  'delete_transition_credentials',
   'fire_once',
   'start_transition',
   'stop_transition',
