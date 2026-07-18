@@ -462,6 +462,10 @@ Use \`\${credentials.KEY}\` in inscription action fields (NOT \`\${credentials.d
 - Credentials stored encrypted at \`/root/workspace/transitions/{transitionId}/credentials\`
 - Per-transition (not shared). User adds via GUI after you create the transition.
 - Never hardcode secrets — always use credential interpolation.
+- Store secrets with SET_TRANSITION_CREDENTIALS (vault-backed); audit key names with
+  LIST_TRANSITION_CREDENTIALS; revoke with DELETE_TRANSITION_CREDENTIALS.
+- COMMAND lanes are different: reference the key as a plain shell env var \`$KEY\`
+  (the executor injects it at fire time) — NOT \`\${credentials.KEY}\`.
 
 ### COMMAND Transitions (Autonomous)
 CRITICAL rules:

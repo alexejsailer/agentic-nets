@@ -91,6 +91,22 @@ export class MasterApi {
     return this.client.masterApi('DELETE', `/runtime/transitions/${id}`, undefined, { modelId });
   }
 
+  // ---- Transition credentials (vault-backed; see /transitions/{id}/credentials on master) ----
+  /** Store credentials for a transition. Vault-backed when the master has AGENTICOS_VAULT_URL. */
+  async setTransitionCredentials(id: string, modelId: string, credentials: Record<string, string>): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${id}/credentials`, credentials, { modelId });
+  }
+
+  /** Read credential KEY NAMES + storage backend (plaintext only behind the server reveal gate). */
+  async getTransitionCredentials(id: string, modelId: string): Promise<any> {
+    return this.client.masterApi('GET', `/transitions/${id}/credentials`, undefined, { modelId });
+  }
+
+  /** Revoke a transition's stored credentials (vault entry or legacy encrypted leaf). */
+  async deleteTransitionCredentials(id: string, modelId: string): Promise<any> {
+    return this.client.masterApi('DELETE', `/transitions/${id}/credentials`, undefined, { modelId });
+  }
+
   async assignTransition(params: {
     modelId: string;
     transitionId: string;

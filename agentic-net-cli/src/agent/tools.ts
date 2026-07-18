@@ -35,6 +35,9 @@ export type AgentTool =
   | 'DELETE_PLACE'
   | 'DELETE_ARC'
   | 'SET_INSCRIPTION'
+  | 'SET_TRANSITION_CREDENTIALS'
+  | 'LIST_TRANSITION_CREDENTIALS'
+  | 'DELETE_TRANSITION_CREDENTIALS'
   // External
   | 'HTTP_CALL'
   // Discovery
@@ -463,6 +466,37 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         inscription: { type: 'object', description: 'Full TransitionInscription JSON (id, kind, presets, postsets, action, emit, mode, schedule?)' },
       },
       required: ['transitionId', 'inscription'],
+    },
+  },
+  SET_TRANSITION_CREDENTIALS: {
+    description: 'Store secrets for a transition in the VAULT (never in inscriptions or tokens — tokens are event-sourced, a pasted secret is permanent). Reference them at fire time as ${credentials.KEY} in http/llm action fields, or as the plain shell env var $KEY inside a COMMAND lane (the executor injects it). Upsert semantics; keys are replaced as a set.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Transition ID the credentials belong to' },
+        credentials: { type: 'object', description: 'Key→value map of secrets, e.g. {"API_TOKEN": "..."}' },
+      },
+      required: ['transitionId', 'credentials'],
+    },
+  },
+  LIST_TRANSITION_CREDENTIALS: {
+    description: 'Audit a transition\'s stored credentials: returns key NAMES and the storage backend (vault or legacy), never plaintext. Use to check what a lane expects before firing it.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Transition ID' },
+      },
+      required: ['transitionId'],
+    },
+  },
+  DELETE_TRANSITION_CREDENTIALS: {
+    description: 'Revoke a transition\'s stored credentials (deletes the vault entry or the legacy encrypted leaf). Use when rotating or retiring a secret.',
+    schema: {
+      type: 'object',
+      properties: {
+        transitionId: { type: 'string', description: 'Transition ID' },
+      },
+      required: ['transitionId'],
     },
   },
   HTTP_CALL: {

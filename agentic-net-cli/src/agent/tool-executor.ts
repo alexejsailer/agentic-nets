@@ -177,6 +177,12 @@ export class ToolExecutor {
           return this.executeDeleteNet(params);
         case 'DELETE_TRANSITION':
           return this.executeDeleteTransition(params);
+        case 'SET_TRANSITION_CREDENTIALS':
+          return this.executeSetTransitionCredentials(params);
+        case 'LIST_TRANSITION_CREDENTIALS':
+          return this.executeListTransitionCredentials(params);
+        case 'DELETE_TRANSITION_CREDENTIALS':
+          return this.executeDeleteTransitionCredentials(params);
         case 'CREATE_PLACE':
           return this.executeCreatePlace(params);
         case 'CREATE_TRANSITION':
@@ -1285,6 +1291,65 @@ export class ToolExecutor {
       success: true,
       data: { deleted: params.netId, ...(deregistered.length ? { deregisteredTransitions: deregistered } : {}) },
     };
+  }
+
+  private async executeSetTransitionCredentials(params: Record<string, any>): Promise<ToolResult> {
+    const transitionId = params.transitionId;
+    const credentials = params.credentials;
+    if (!transitionId) {
+      return { success: false, error: 'SET_TRANSITION_CREDENTIALS requires transitionId' };
+    }
+    if (!credentials || typeof credentials !== 'object' || Object.keys(credentials).length === 0) {
+      return { success: false, error: 'SET_TRANSITION_CREDENTIALS requires a non-empty credentials object' };
+    }
+    try {
+      const result = await this.masterApi.setTransitionCredentials(transitionId, this.modelId, credentials);
+      return {
+        success: true,
+        data: {
+          transitionId,
+          credentialKeys: Object.keys(credentials),
+          storage: result?.storage,
+          note: 'Reference as ${credentials.KEY} in http/llm action fields, or as the shell env var $KEY in a COMMAND lane. Never paste the value into an inscription or token.',
+        },
+      };
+    } catch (error: any) {
+      return { success: false, error: `Failed to store credentials: ${error?.message ?? error}` };
+    }
+  }
+
+  private async executeListTransitionCredentials(params: Record<string, any>): Promise<ToolResult> {
+    const transitionId = params.transitionId;
+    if (!transitionId) {
+      return { success: false, error: 'LIST_TRANSITION_CREDENTIALS requires transitionId' };
+    }
+    try {
+      const result = await this.masterApi.getTransitionCredentials(transitionId, this.modelId);
+      return {
+        success: true,
+        data: {
+          transitionId,
+          credentialKeys: result?.credentialKeys ?? [],
+          storage: result?.storage,
+          hasCredentials: Array.isArray(result?.credentialKeys) && result.credentialKeys.length > 0,
+        },
+      };
+    } catch (error: any) {
+      return { success: false, error: `Failed to read credential metadata: ${error?.message ?? error}` };
+    }
+  }
+
+  private async executeDeleteTransitionCredentials(params: Record<string, any>): Promise<ToolResult> {
+    const transitionId = params.transitionId;
+    if (!transitionId) {
+      return { success: false, error: 'DELETE_TRANSITION_CREDENTIALS requires transitionId' };
+    }
+    try {
+      const result = await this.masterApi.deleteTransitionCredentials(transitionId, this.modelId);
+      return { success: true, data: { transitionId, deleted: result?.deleted ?? true, storage: result?.storage } };
+    } catch (error: any) {
+      return { success: false, error: `Failed to delete credentials: ${error?.message ?? error}` };
+    }
   }
 
   private async executeDeleteTransition(params: Record<string, any>): Promise<ToolResult> {
