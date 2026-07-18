@@ -30,8 +30,11 @@ surfaced (`parseError` in fire metadata; routed to the error branch when the ins
 `@response.json` AND has one). On older masters the fire reports plain SUCCESS and a downstream
 `${input.data.sentiment}` silently resolves empty.
 
-**The robust pattern regardless of version**: emit `@response.raw` and parse in a downstream map —
-raw text always round-trips; also instruct the model to "return ONLY JSON" in the prompt.
+**The working pattern**: emit `@response.json` (the add_transition default) with an `errorPlace`,
+and instruct the model to "return ONLY JSON, no fences" — parsed fields land as top-level data
+properties a downstream `${input.data.field}` interpolates. `@response.raw` is for FREEFORM text
+only: it stores the reply as a JSON-escaped string under `value`, so a JSON reply arrives
+double-encoded and its fields can never interpolate downstream (proven live).
 
 ## kind:agent — two-tier config
 

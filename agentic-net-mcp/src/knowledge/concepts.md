@@ -32,6 +32,6 @@ These are TWO layers — see docs/architecture for the rule that inscriptions bi
 
 Template interpolation: ${input.data.field} reads the bound token; the root is the PRESET KEY
 (docs/interpolation). Emit sources: @response (map/llm result), @response.json (http),
-@response.raw (llm raw), @result (command), @input.data (passthrough). Every non-link inscription
+@response.raw (llm raw text — freeform only), @result (command), @input.data (passthrough). Every non-link inscription
 should have a catch-all emit — unmatched results otherwise leave input tokens unconsumed (by
 design, to prevent data loss; docs/emit).

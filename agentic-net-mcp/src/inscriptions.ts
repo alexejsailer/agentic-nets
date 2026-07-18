@@ -191,7 +191,12 @@ export function buildLlmInscription(opts: BuildOpts) {
   const emit = opts.emit ?? (routed
     ? [...routed.emit, ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : [])]
     : [
-        { to: 'out', from: '@response.raw', ...(opts.errorPlace ? { when: 'success' } : {}) },
+        // @response.json, NOT @response.raw: raw stores the reply as a JSON-escaped string under
+        // `value`, so a prompt-for-JSON lane (the common case) can never interpolate its fields
+        // downstream — proven live (release-radar: headline/impact arrived double-encoded and the
+        // board post interpolated empty). Parsed fields land as top-level data properties; on
+        // masters ≥ 2.28 a parse failure routes to the err branch when errorPlace is set.
+        { to: 'out', from: '@response.json', ...(opts.errorPlace ? { when: 'success' } : {}) },
         ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
       ]);
   return {

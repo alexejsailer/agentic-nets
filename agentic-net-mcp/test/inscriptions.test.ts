@@ -224,7 +224,7 @@ describe('verdict routing (add_transition routes: [{place, when}])', () => {
 
   it('no routes → unchanged single-emit default', () => {
     const ins: any = buildInscription('llm', { id: 't', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
-    expect(ins.emit).toEqual([{ to: 'out', from: '@response.raw' }]);
+    expect(ins.emit).toEqual([{ to: 'out', from: '@response.json' }]);
     expect(Object.keys(ins.postsets)).toEqual(['out']);
   });
 });
@@ -240,13 +240,13 @@ describe('llm inscription (add_transition kind:llm — errorPlace)', () => {
       errorPlace: 'p-err',
     });
     expect(ins.postsets.err.placeId).toBe('p-err');
-    expect(ins.emit).toContainEqual({ to: 'out', from: '@response.raw', when: 'success' });
+    expect(ins.emit).toContainEqual({ to: 'out', from: '@response.json', when: 'success' });
     expect(ins.emit).toContainEqual({ to: 'err', from: '@response', when: 'error' });
   });
 
   it('keeps the simple single-emit default when no errorPlace', () => {
     const ins: any = buildInscription('llm', { id: 't-llm', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' });
-    expect(ins.emit).toEqual([{ to: 'out', from: '@response.raw' }]);
+    expect(ins.emit).toEqual([{ to: 'out', from: '@response.json' }]);
     expect('err' in ins.postsets).toBe(false);
   });
 });
