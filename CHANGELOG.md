@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.32.0] - 2026-07-18
+
 ### Added
 - **Credential tools for agents everywhere** (`agentic-net-cli` — `agent/tools.ts`, `agent/roles.ts`, `agent/tool-executor.ts`, `gateway/master-api.ts`). The platform tool catalog gains `SET_TRANSITION_CREDENTIALS` (w), `LIST_TRANSITION_CREDENTIALS` (r, key names + storage only), and `DELETE_TRANSITION_CREDENTIALS` (w) — so CLI agents, the chat bot, and the MCP native layer can finally follow the "never hardcode secrets" rule they were being taught without having the tools for it. Descriptions teach both syntaxes (`${credentials.KEY}` for http/llm, plain `$KEY` env for command lanes); the agent playbook's credential section now names the tools.
 - **Credential audit + revoke tools** (`agentic-net-mcp` — `tools/nets.ts`). New `list_transition_credentials` (key names + storage backend only, never plaintext; readonly-safe) and `delete_transition_credentials` (revoke a stored secret; needs a master with the DELETE credentials route). `set_transition_credentials`'s description and the `commands` knowledge doc now teach the command-lane pattern: store the secret once, reference it as a plain `$KEY` shell env var — `${credentials.KEY}` interpolation is http/llm-only.
