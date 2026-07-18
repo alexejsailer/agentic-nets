@@ -44,6 +44,28 @@ LLMs read the embedded, JSON-escaped stdout reliably. Alternative for determinis
 the command itself print a JSON object (then `parsedStdout` appears and `${input.data.parsedStdout}`
 works), or do the downstream work inside the same command (curl POST from the shell).
 
+## Credentials in a command lane — NEVER inline the secret
+
+A command that authenticates to an external API (curl to a bearer-protected endpoint, a git push,
+a CI or code-review REST call) must NOT carry the secret in `args.command`, `args.env`, or anywhere in
+the token — the token is event-sourced, so a pasted secret is permanently recorded in the model's
+history even after you delete the token. Instead:
+
+1. `set_transition_credentials {transitionId, credentials:{MEMOS_TOKEN:"..."}}` — stored in the
+   vault (or encrypted at rest), never in the tree.
+2. In the command, reference it as an ordinary shell ENV VAR `$MEMOS_TOKEN`. At fire time the master
+   pulls the secret from the vault and the executor injects it into the command's environment (it
+   merges into `args.env`), so `$MEMOS_TOKEN` is defined for the process but the value appears in no
+   argv, no command string, and no persisted token.
+
+```
+curl -s -H "Authorization: Bearer $MEMOS_TOKEN" https://api.example.com/x
+```
+
+Note the syntax difference: http/llm lanes interpolate `${credentials.KEY}` (a master-side
+template); command lanes use `$KEY` (a shell env var the executor injects). Audit with
+`list_transition_credentials` (key names only), revoke with `delete_transition_credentials`.
+
 ## Executor selection
 
 Resolution order: `action.executorId` → the persisted `assignedAgent` → the default executor
