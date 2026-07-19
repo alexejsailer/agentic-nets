@@ -274,20 +274,20 @@ export class MasterApi {
 
   // ---- Agent sessions (installed hub kind=agent templates) ----
   async agentSessions(modelId: string): Promise<any> {
-    return this.client.masterApi('GET', `/agents/${modelId}`);
+    return this.client.masterApi('GET', `/installed-agents/${modelId}`);
   }
 
   async agentSessionDescribe(modelId: string, sessionId: string): Promise<any> {
-    return this.client.masterApi('GET', `/agents/${modelId}/${sessionId}`);
+    return this.client.masterApi('GET', `/installed-agents/${modelId}/${sessionId}`);
   }
 
   async agentSessionStart(modelId: string, sessionId: string, force?: boolean): Promise<any> {
-    return this.client.masterApi('POST', `/agents/${modelId}/${sessionId}/start`, undefined,
+    return this.client.masterApi('POST', `/installed-agents/${modelId}/${sessionId}/start`, undefined,
       force ? { force: 'true' } : undefined);
   }
 
   async agentSessionStop(modelId: string, sessionId: string): Promise<any> {
-    return this.client.masterApi('POST', `/agents/${modelId}/${sessionId}/stop`);
+    return this.client.masterApi('POST', `/installed-agents/${modelId}/${sessionId}/stop`);
   }
 
   // ---- Transition validation ----
