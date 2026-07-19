@@ -6,6 +6,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from './context.js';
 import { buildInstructions } from './instructions.js';
+import { setScopeEchoSession, toolRegistry } from './scope.js';
 import { registerAgentTools } from './tools/agents.js';
 import { registerCatalogTools } from './tools/catalog.js';
 import { registerHostedTools } from './tools/hosted.js';
@@ -25,6 +26,23 @@ export function createServer(ctx: AppContext): McpServer {
     { name: SERVER_NAME, version: SERVER_VERSION },
     { instructions: buildInstructions(ctx.config) },
   );
+  setScopeEchoSession(ctx.config.session);
+
+  // Stamp MCP-standard annotations (readOnlyHint/destructiveHint) onto every
+  // registration from the wrapTool spec — clients see mutation risk in
+  // tools/list, before any call is made. wrapTool() records the spec during
+  // argument evaluation, i.e. before this wrapper body runs for that tool.
+  const registerWithAnnotations = server.registerTool.bind(server);
+  (server as any).registerTool = (name: string, config: any, handler: any) => {
+    const spec = toolRegistry.get(String(name));
+    if (config && config.annotations === undefined && spec) {
+      config = {
+        ...config,
+        annotations: { readOnlyHint: !spec.mutates, destructiveHint: spec.mutates && spec.destructive === true },
+      };
+    }
+    return registerWithAnnotations(name as any, config, handler);
+  };
 
   // Read layers are always available (search_knowledge greps the bundled docs —
   // zero network, zero mutation — so it serves readonly observers too).

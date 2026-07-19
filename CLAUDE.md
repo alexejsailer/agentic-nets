@@ -213,7 +213,10 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   tests: scope guard, blueprint invariants, protocol registration shapes, template executor)
 - **Transports**: stdio (default; `npx @agenticnets/mcp`, `claude mcp add`) and streamable HTTP
   (`AGENTICOS_MCP_TRANSPORT=http`, bearer-token-protected `POST /mcp` — used by the compose service)
-- **Tools (104 = 33 curated lowercase + 71 native UPPERCASE)**. Native layer = FULL platform parity:
+- **Tools (two fixed layers: curated lowercase + native UPPERCASE; every tool advertises MCP
+  `readOnlyHint`/`destructiveHint` annotations derived from the scope guard's `mutates` flag, and
+  every response echoes its effective `scope: {model, session}` unless the handler already states
+  it — see `protocol-hardening.md` for the trap classes behind this)**. Native layer = FULL platform parity:
   every ToolExecutor tool (the same catalog agent transitions use in-net) auto-registered from the
   CLI's `getAvailableTools(FULL)` + `buildToolSchemas` with real descriptions/schemas — new platform
   tools appear automatically after a catalog sync; excluded only `THINK`/`DONE`/`FAIL` (agent-loop
@@ -262,7 +265,10 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   **`list_transitions`** (the model audit: kind + schedule + live status + places per transition in
   one call), **`scheduler_status`** (lastFiredAt/nextFireAt/eligibility/overdue per scheduled lane —
   the "my nets went silent" answer), **`llm_health`** (provider READY/MODEL_NOT_FOUND/UNREACHABLE
-  pre-flight; all three GET-based ⇒ readonly-safe),
+  pre-flight), **`readiness`** (the whole dependency chain in ONE call: gateway auth → node →
+  model exists/state/workspace → llm provider → executor coverage, with per-layer verdicts +
+  `capabilities` {build, llmLanes, commandLanes} + a `problems` list — run FIRST on a new
+  connection or model; all four GET-based ⇒ readonly-safe),
   **`verify_inscription`** / **`dry_run_transition`** / **`diagnose_transition`** (per-transition
   diagnosis — for command transitions diagnose adds the executor-coverage check the master itself
   cannot see; rw-only — they travel as POST, readonly registers only `net_stats` from this group);
@@ -306,7 +312,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 | `AGENTICOS_MODELS` | **Required.** Model allowlist (comma-separated); first = default. Single model ⇒ tools expose NO `model` param; multiple ⇒ optional `model` validated per call (`MODEL_NOT_ALLOWED` otherwise) | — (fail-fast) |
 | `AGENTICOS_GATEWAY_URL` | Gateway base (all traffic goes through `/api` + `/node-api`) | `http://localhost:8083` |
 | `AGENTICOS_ADMIN_SECRET` / `AGENTICOS_GATEWAY_SECRET_FILE` | Client secret for the mode's client id | — (required) |
-| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the 6 GET-based read tools (`memory_recall`, `memory_graph`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`) AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations (the POST-based `diagnose/dry-run/verify` diagnostics are rw-only) | `rw` |
+| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the GET-based read tools (`memory_recall`, `memory_graph`, `domain_memory_recall`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`, `list_transitions`, `list_models`, `list_executors`, `llm_health`, `readiness`, `scheduler_status`, `usage_report`, `search_knowledge`) AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations (the POST-based `diagnose/dry-run/verify` diagnostics are rw-only) | `rw` |
 | `AGENTICOS_SESSION` | Session name for MCP-created nets/places | `mcp` |
 | `AGENTICOS_NODE_HOST` | Host injected into inscription presets/postsets (`{model}@{host}`); in-compose: `agentic-net-node:8080` | `localhost:8080` |
 | `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |

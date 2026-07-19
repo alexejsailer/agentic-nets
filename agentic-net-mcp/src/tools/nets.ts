@@ -10,7 +10,47 @@ import { agentFor, assignInscription, buildInscription, persistInscriptionLeaf, 
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
+import { ensurePlacesContainer } from '../tree.js';
 import { fetchTokens, linkPlaces } from './memory.js';
+
+/**
+ * Which add_transition params each kind actually consumes. Anything outside
+ * common + its kind's set would silently vanish into a default — an agent's
+ * misconception must bounce at the boundary instead (protocol-hardening trap
+ * #4: `tier` on the wrong kind once silently bought the EXPENSIVE model).
+ */
+const COMMON_TRANSITION_ARGS = new Set([
+  'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'x', 'y',
+  'scheduleCron', 'intervalMs', 'timeoutMs', 'capacity', 'mode', 'start', 'model',
+]);
+const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
+  map: new Set(['template', 'emit', 'routes']),
+  llm: new Set(['prompt', 'llmModel', 'tier', 'emit', 'routes', 'errorPlace']),
+  http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
+  command: new Set(['executorId']),
+  agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit']),
+  // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
+  link: new Set([]),
+};
+const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'x', 'y', 'start', 'model']);
+const PARAM_HOMES: Record<string, string> = {
+  template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
+  prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
+  executorId: 'command', errorPlace: 'llm/http', routes: 'map/llm/http', emit: 'map/llm/http',
+};
+
+/** Throws (BEFORE any write) when a param does not apply to the chosen kind. */
+export function validateKindArgs(kind: string, args: Record<string, any>): void {
+  const allowed = kind === 'link' ? LINK_ALLOWED : new Set([...COMMON_TRANSITION_ARGS, ...(KIND_TRANSITION_ARGS[kind] ?? [])]);
+  const ignored = Object.keys(args).filter((k) => args[k] !== undefined && !allowed.has(k));
+  if (!ignored.length) return;
+  const hints = ignored
+    .map((k) => (PARAM_HOMES[k] ? `${k} (applies to kind ${PARAM_HOMES[k]})` : k))
+    .join(', ');
+  throw new Error(
+    `param(s) not applicable to kind '${kind}': ${hints}. They would be silently ignored, so nothing was created — drop them or switch the kind.`,
+  );
+}
 
 /**
  * Compile a session's deterministic steps into one bash script — the replayable
@@ -149,6 +189,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         const existingModels: any[] = Array.isArray(existingRes) ? existingRes : (existingRes?.models ?? []);
         if (existingModels.some((m: any) => (m.modelId ?? m.id) === modelId)) {
           grantModel(scope, modelId);
+          await ensurePlacesContainer(ctx, modelId).catch(() => undefined);
           return {
             created: false,
             existed: true,
@@ -169,6 +210,12 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           throw err;
         }
         grantModel(scope, modelId);
+        // Eagerly provision the workspace skeleton (root/workspace/places) so the
+        // very first add_place / memory_write against the new model cannot 404 on
+        // a missing parent container — the "new model happy path" gap.
+        const provisioned = await ensurePlacesContainer(ctx, modelId)
+          .then(() => true)
+          .catch(() => false);
         let template: any;
         if (args.template) {
           const blueprint = TEMPLATES[args.template as keyof typeof TEMPLATES];
@@ -177,6 +224,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         return {
           created: modelId,
           allowed: true,
+          workspaceProvisioned: provisioned,
           note: 'Master auto-discovers active models within ~10s. The allowlist grew for THIS session only — add the id to AGENTICOS_MODELS to make it permanent.',
           ...(template ? { template } : {}),
         };
@@ -196,7 +244,27 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'create_net', mutates: true }, async (model, args) => {
-      await ctx.master.createNet({ modelId: model, sessionId: config.session, netId: args.netId, name: args.name ?? args.netId });
+      try {
+        await ctx.master.createNet({ modelId: model, sessionId: config.session, netId: args.netId, name: args.name ?? args.netId });
+      } catch (err: any) {
+        // An error after a successful mutation is the worst possible output: a
+        // careless caller retries and double-creates, a careful one debugs a
+        // non-problem. On a 5xx, verify server state before reporting failure.
+        if (err?.name === 'GatewayError' && Number(err.status) >= 500) {
+          const check = await ctx
+            .executorFor(model)
+            .execute('GET_NET_OVERVIEW', { netId: args.netId, sessionId: config.session })
+            .catch(() => null);
+          if (check?.success) {
+            return {
+              created: args.netId,
+              session: config.session,
+              note: `master answered ${err.status}, but the net verifiably exists — treated as created. Do NOT retry the create.`,
+            };
+          }
+        }
+        throw err;
+      }
       return { created: args.netId, session: config.session };
     }),
   );
@@ -258,7 +326,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
         llmModel: z.string().optional().describe('llm: per-transition model override (e.g. glm-5.2:cloud)'),
         role: z.string().optional().describe('agent: positional rwxhludcts capability string (r read, w write, x execute, h http, l logs, u user-await, d docker, c coordinate-personas, t tool-nets, s scripts). Default rw--; rwxhl---t = commands + tool-net invocation (INVOKE_TOOL_NET needs t, not x) — see docs/tool-catalog'),
-        tier: z.string().optional().describe('agent: LLM tier — omit for the worker model, "high" for the thinking model'),
+        tier: z.string().optional().describe('llm/agent: LLM tier — omit for the worker/base model, "high" for the thinking model (llm also accepts "low"/"medium"; unknown tiers fall back to the EXPENSIVE model, so stick to these)'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
         url: z.string().optional().describe('http: target URL (default ${input.data.url}). ${...} interpolates token fields; wrap user input in ${urlencode(...)} for query params'),
@@ -282,6 +350,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
+      validateKindArgs(String(args.kind), args);
       const host = ctx.hostFor(model);
       const dup = (err: any) => {
         if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
@@ -466,7 +535,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         "Revoke a transition's stored secrets — removes the vault entry (or the legacy encrypted blob), completing the store → audit → revoke lifecycle. Requires master ≥ 2.32 for the DELETE route.",
       inputSchema: { transitionId: z.string(), ...modelParam },
     },
-    wrapTool(scope, config.mode, { name: 'delete_transition_credentials', mutates: true }, async (model, args) => {
+    wrapTool(scope, config.mode, { name: 'delete_transition_credentials', mutates: true, destructive: true }, async (model, args) => {
       const res: any = await ctx.client.masterApi('DELETE', `/transitions/${args.transitionId}/credentials`, undefined, { modelId: model });
       return { transition: args.transitionId, deleted: res?.deleted ?? true, storage: res?.storage ?? 'unknown' };
     }),

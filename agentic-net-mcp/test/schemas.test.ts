@@ -44,6 +44,7 @@ const CURATED = [
   'list_models',
   'list_executors',
   'llm_health',
+  'readiness',
   'scheduler_status',
   'usage_report',
   'search_knowledge',
@@ -172,7 +173,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
     );
   });
 

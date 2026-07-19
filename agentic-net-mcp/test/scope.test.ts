@@ -19,13 +19,21 @@ describe('resolveModel', () => {
 });
 
 describe('wrapTool', () => {
-  it('injects the resolved model and returns text content', async () => {
+  it('injects the resolved model, echoes the effective scope, and returns text content', async () => {
     const handler = vi.fn(async (model: string) => ({ got: model }));
     const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, handler);
     const res = await wrapped({});
     expect(handler).toHaveBeenCalledWith('m1', {});
     expect(res.isError).toBeUndefined();
-    expect(JSON.parse(res.content[0].text)).toEqual({ got: 'm1' });
+    // Scope echo: responses that don't state their model context get it stamped
+    // in-band, so a session/model-scoped answer can never read as a global one.
+    expect(JSON.parse(res.content[0].text)).toEqual({ got: 'm1', scope: { model: 'm1' } });
+  });
+
+  it('never overrides a handler that already states its model context', async () => {
+    const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, async (model: string) => ({ model, x: 1 }));
+    const res = await wrapped({});
+    expect(JSON.parse(res.content[0].text)).toEqual({ model: 'm1', x: 1 });
   });
 
   it('rejects a SMUGGLED out-of-allowlist model even if the schema had no model param', async () => {
@@ -84,6 +92,25 @@ describe('wrapTool', () => {
       throw err;
     });
     const res = await wrapped({});
-    expect(JSON.parse(res.content[0].text).error).toMatch(/readonly/i);
+    const body = JSON.parse(res.content[0].text);
+    expect(body.error).toMatch(/forbidden/i);
+    expect(body.suggestion).toMatch(/readonly/i);
+  });
+
+  it('names the failing layer and the attempted path when the error carries one', async () => {
+    const err = Object.assign(new Error('Gateway 404 (GET /node-api/admin/models): '), {
+      name: 'GatewayError',
+      status: 404,
+      body: '',
+      path: 'GET /node-api/admin/models',
+    });
+    const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, async () => {
+      throw err;
+    });
+    const res = await wrapped({ model: 'm2' });
+    const body = JSON.parse(res.content[0].text);
+    expect(body.layer).toBe('node');
+    expect(body.attempted).toBe('GET /node-api/admin/models');
+    expect(body.suggestion).toMatch(/create_model|list_models/i);
   });
 });

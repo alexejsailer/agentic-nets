@@ -28,6 +28,37 @@ import { wrapTool } from '../scope.js';
 
 const AGENT_LOOP_ONLY = new Set(['THINK', 'DONE', 'FAIL']);
 
+/**
+ * Native tools that only READ (no state change) — drives truthful
+ * readOnlyHint annotations instead of the old blanket mutates:true. Names not
+ * matched here are treated as mutating (the safe default for an unknown tool).
+ * TOOLNET_HEALTH is deliberately NOT read-only: active=true runs a live smoke
+ * fire. COLLECT_RESULTS deletes correlated result tokens (self-cleaning).
+ */
+const READ_ONLY_NATIVE =
+  /^(GET_|LIST_|QUERY_|DESCRIBE_|FIND_|INSPECT_|EXTRACT_|SEARCH_|EXPORT_|VERIFY_|DRY_RUN_|DIAGNOSE_|OBSERVE_|REGISTRY_|AWAIT_)/;
+const READ_ONLY_EXTRA = new Set(['NET_DOCTOR', 'HUB_CATALOG', 'HUB_REMOTE_LIST', 'READ_BLOB_TEXT', 'TOOLNET_CANDIDATES', 'DOCKER_LIST', 'DOCKER_LOGS', 'TOOL_CATALOG_GET', 'TOOL_CATALOG_SEARCH']);
+/** Irreversible data removal — surfaces as destructiveHint via the annotation stamp. */
+const DESTRUCTIVE_NATIVE = /^(DELETE_|HUB_UNPUBLISH)/;
+
+export function isNativeReadOnly(name: string): boolean {
+  return READ_ONLY_NATIVE.test(name) || READ_ONLY_EXTRA.has(name);
+}
+
+/**
+ * Appended guidance for tools whose NAME or default output invites misreading
+ * (protocol-hardening trap #5: a misleading name forecloses the search — the
+ * description must point at the tool that actually answers the question).
+ */
+const DESCRIPTION_NOTES: Record<string, string> = {
+  GET_SESSION_OVERVIEW:
+    ' SCOPE WARNING: counts here are for ONE session, not the model — a fresh session reads netCount:0 even when the model is full. For the model-wide picture use net_overview (it adds modelSessionCount) or LIST_ALL_SESSIONS.',
+  EXPORT_PNML:
+    ' NOTE: designtime `tokens` counts in the export are FROZEN at design time (typically 0 forever) — they are NOT live marking. Read live tokens with query_tokens.',
+  DEPLOY_TRANSITION:
+    ' The response reports assigned:true and the resolved agentId — if no inscription is stored it fails loudly instead of "succeeding" without effect.',
+};
+
 /** The full native catalog as Anthropic-style schemas (name/description/input_schema). */
 export function nativeCatalog(): ToolSchema[] {
   // Docker/registry tools (container spawning) are included by default for parity,
@@ -108,10 +139,14 @@ export function registerCatalogTools(server: McpServer, ctx: AppContext): void {
       tool.name,
       {
         title: `${tool.name} (native)`,
-        description: tool.description,
+        description: tool.description + (DESCRIPTION_NOTES[tool.name] ?? ''),
         inputSchema: shape,
       },
-      wrapTool(scope, config.mode, { name: tool.name, mutates: true }, async (model, args) => {
+      wrapTool(
+        scope,
+        config.mode,
+        { name: tool.name, mutates: !isNativeReadOnly(tool.name), destructive: DESTRUCTIVE_NATIVE.test(tool.name) },
+        async (model, args) => {
         const { model: _m, ...params } = args ?? {};
         // Catalog-scope tools resolve local-first against the routed model.
         const res = await ctx.executorFor(model).execute(

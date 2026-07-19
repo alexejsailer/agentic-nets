@@ -77,6 +77,25 @@ export interface ToolCallResult {
 export interface ToolSpec {
   name: string;
   mutates: boolean;
+  /** Irreversibly removes data (deletes, unpublish) — surfaces as destructiveHint. */
+  destructive?: boolean;
+}
+
+/**
+ * Every wrapTool() call records its spec here; createServer() reads it to stamp
+ * the MCP-standard annotations (readOnlyHint/destructiveHint) onto the tool
+ * registration — so clients can reason about risk BEFORE calling, from the one
+ * `mutates` flag the server already maintains (protocol-hardening trap #2).
+ */
+export const toolRegistry = new Map<string, ToolSpec>();
+
+/**
+ * Connection session name echoed into responses (see wrapTool scope echo).
+ * Set once at server assembly; optional so bare unit-tested handlers still work.
+ */
+let echoSession: string | undefined;
+export function setScopeEchoSession(session: string): void {
+  echoSession = session;
 }
 
 export type ScopedHandler = (model: string, args: Record<string, any>) => Promise<any>;
@@ -87,19 +106,63 @@ function textResult(data: any, isError = false): ToolCallResult {
 }
 
 /**
+ * Which layer answered (badly): the gateway routes /api → master, /node-api →
+ * node, /vault-api → vault. Naming the layer turns "GATEWAY_ERROR 404" into a
+ * debuggable statement (protocol-hardening trap #7).
+ */
+function layerOf(path: string | undefined): string {
+  const p = String(path ?? '').replace(/^[A-Z]+\s+/, '');
+  if (p.startsWith('/node-api')) return 'node';
+  if (p.startsWith('/vault-api')) return 'vault';
+  if (p.startsWith('/api')) return 'master';
+  return 'gateway';
+}
+
+/** An executable next step per failure shape — a wrong suggestion is worse than none, so stay generic where we cannot know. */
+function suggestionFor(status: number, path: string | undefined, model: string | undefined): string | undefined {
+  const p = String(path ?? '');
+  if (status === 401) return 'gateway rejected the credential — check AGENTICOS_ADMIN_SECRET / AGENTICOS_GATEWAY_SECRET_FILE against the gateway data/jwt secrets';
+  if (status === 403) return 'the credential lacks this scope (readonly blocks every POST, including ArcQL and native reads) — use rw mode for mutations';
+  if (status === 404) {
+    if (/\/admin\/models/.test(p)) return 'the model does not exist on the node — list_models shows what exists; create_model mints it';
+    return (
+      'the id/path does not exist server-side — verify with list_models / net_overview / list_transitions' +
+      (model ? `; if '${model}' is brand-new, run readiness to check its workspace containers` : '')
+    );
+  }
+  if (status >= 500) return 'server-side failure — the mutation may still have been applied; re-read the resource before retrying (a blind retry can double-create)';
+  return undefined;
+}
+
+/**
  * Wrap a tool handler with model-scope + readonly enforcement and uniform
  * error shaping. Errors come back as TOOL results (isError), never protocol
  * errors — that keeps the client LLM in the loop and able to correct itself.
  */
 export function wrapTool(scope: ModelScope, mode: 'rw' | 'readonly', spec: ToolSpec, handler: ScopedHandler) {
+  toolRegistry.set(spec.name, spec);
   return async (args: Record<string, any> = {}): Promise<ToolCallResult> => {
+    let model: string | undefined;
     try {
       if (mode === 'readonly' && spec.mutates) {
         throw new ReadonlyError(spec.name);
       }
-      const model = resolveModel(scope, args?.model);
+      model = resolveModel(scope, args?.model);
       const data = await handler(model, args ?? {});
-      return textResult(data ?? { ok: true });
+      const payload = data ?? { ok: true };
+      // Scope echo (protocol-hardening trap #1): any answer that depends on the
+      // connection's implicit context must carry that context IN the data. Only
+      // added when the handler didn't already state it — never overrides.
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        !Array.isArray(payload) &&
+        (payload as any).model === undefined &&
+        (payload as any).scope === undefined
+      ) {
+        (payload as any).scope = { model, ...(echoSession ? { session: echoSession } : {}) };
+      }
+      return textResult(payload);
     } catch (err: any) {
       if (err instanceof ScopeError) {
         return textResult({ code: err.code, error: err.message, allowedModels: err.allowed }, true);
@@ -107,19 +170,32 @@ export function wrapTool(scope: ModelScope, mode: 'rw' | 'readonly', spec: ToolS
       if (err instanceof ReadonlyError) {
         return textResult({ code: err.code, error: err.message }, true);
       }
-      // GatewayError from @agenticos/cli carries status + body. Empty-body errors
-      // (common on 404) render as a bare "Gateway 404: " — add a hint so the client
-      // LLM isn't left guessing.
+      // GatewayError from @agenticos/cli carries status + body + the attempted
+      // "METHOD /path" — surface all of it, name the failing layer, and give an
+      // executable next step. Empty-body errors (common on 404) otherwise render
+      // as a bare "Gateway 404: " and leave the client LLM guessing.
       if (err?.name === 'GatewayError') {
         const body = String(err.body ?? '').trim();
+        const path: string | undefined = err.path ? String(err.path) : undefined;
         const hint =
           body ||
           (err.status === 404
-            ? 'resource not found — check the id/path'
+            ? 'resource not found'
             : err.status === 403
-              ? 'forbidden (readonly mode blocks writes; ArcQL POSTs are readonly-blocked)'
+              ? 'forbidden'
               : 'no response body');
-        return textResult({ code: 'GATEWAY_ERROR', status: err.status, error: hint.slice(0, 500) }, true);
+        const suggestion = suggestionFor(Number(err.status), path, model);
+        return textResult(
+          {
+            code: 'GATEWAY_ERROR',
+            status: err.status,
+            layer: layerOf(path),
+            ...(path ? { attempted: path } : {}),
+            error: hint.slice(0, 500),
+            ...(suggestion ? { suggestion } : {}),
+          },
+          true,
+        );
       }
       return textResult({ code: 'TOOL_ERROR', error: String(err?.message ?? err).slice(0, 500) }, true);
     }

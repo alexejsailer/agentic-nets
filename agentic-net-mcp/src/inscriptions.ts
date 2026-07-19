@@ -216,6 +216,10 @@ export function buildLlmInscription(opts: BuildOpts) {
       type: 'llm',
       nl: opts.prompt ?? '${input.data.prompt}',
       ...(opts.llmModel ? { model: opts.llmModel } : {}),
+      // Master ≥ 2.28 resolves action.tier via LlmTierResolver (explicit model
+      // wins). Forwarding it here is what makes `tier` on kind:llm real — a
+      // dropped tier silently hands the caller the EXPENSIVE base model.
+      ...(opts.tier ? { tier: opts.tier } : {}),
       timeoutMs: opts.timeoutMs ?? 240000,
     },
     emit,

@@ -59,6 +59,28 @@ export function coverageWarning(
   return msg;
 }
 
+/**
+ * Loud, structural truncation of long string values (protocol-hardening trap
+ * #3: any cap must cut at a boundary AND announce itself — silent truncation
+ * composes catastrophically once an LLM consumes the result). Marker mirrors
+ * node's ArcQL convention. max <= 0 disables.
+ */
+export function clampValues(value: any, max: number, state: { truncated: boolean }): any {
+  if (max <= 0) return value;
+  if (typeof value === 'string') {
+    if (value.length <= max) return value;
+    state.truncated = true;
+    return value.slice(0, max) + `...[truncated, ${value.length} chars total]`;
+  }
+  if (Array.isArray(value)) return value.map((v) => clampValues(v, max, state));
+  if (value && typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = clampValues(v, max, state);
+    return out;
+  }
+  return value;
+}
+
 export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
   const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
@@ -134,7 +156,33 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // readonly scope too (ArcQL travels as POST, which readonly rejects).
       if (!args.arcql && !place.includes('/')) {
         const tokens = await fetchTokens(ctx, model, place);
-        return { place, resultCount: tokens.length, results: tokens };
+        // Honor `fields` on this path too (it used to be silently ignored here —
+        // an ignored param is a misconception that must not vanish, trap #4).
+        const state = { truncated: false };
+        let results: any[];
+        if (args.fields?.length) {
+          results = tokens.map((t: any) => {
+            const src = t?.data && Object.keys(t.data).length ? t.data : (t?.properties ?? {});
+            const out: Record<string, any> = {};
+            for (const f of args.fields as string[]) if (src[f] !== undefined) out[f] = src[f];
+            return out;
+          });
+        } else {
+          // Apply the documented per-value cap on this path too (the ArcQL path
+          // already defaults to 500 server-side). Loud + structural: whole values
+          // get an inline marker and the response carries truncated:true — pass
+          // maxValueLength:0 for uncapped values.
+          const max = Number(args.maxValueLength ?? 500);
+          results = clampValues(tokens, max, state);
+        }
+        return {
+          place,
+          resultCount: tokens.length,
+          results,
+          ...(state.truncated
+            ? { truncated: true, note: `long values shortened (inline "...[truncated" markers) — re-query with maxValueLength:0 for full values` }
+            : {}),
+        };
       }
       const placePath = place.includes('/') ? place : `root/workspace/places/${place}`;
       const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
@@ -436,6 +484,103 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         ...(status !== 'READY'
           ? { warning: `LLM provider is ${status} — llm/agent transitions will fail on every fire until this is fixed (each retry billed).` }
           : {}),
+      };
+    }),
+  );
+
+  server.registerTool(
+    'readiness',
+    {
+      title: 'Readiness — the whole dependency chain, one read-only call',
+      description:
+        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway (reachable + credential accepted), node (reachable, model exists, state, workspace containers), LLM provider (READY / MODEL_NOT_FOUND / UNREACHABLE — gates llm/agent lanes), and executors (polling coverage — gates command lanes). Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE you build anything. `ready:true` means no problems found; otherwise `problems` lists each blocking issue with its fix. GET-based — readonly-safe. Run this first on a new connection, a new model, or whenever anything fails four tools deep.",
+      inputSchema: { ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'readiness', mutates: false }, async (model) => {
+      const problems: string[] = [];
+      const gateway: any = { url: config.gatewayUrl, reachable: false, authenticated: false };
+      const node: any = { reachable: false };
+      let models: any[] = [];
+      // One authenticated node read proves gateway reachability, credential
+      // acceptance, and node health in a single round-trip; the error shape
+      // tells us which layer broke.
+      try {
+        const res: any = await ctx.client.nodeApi('GET', '/admin/models');
+        models = Array.isArray(res) ? res : (res?.models ?? []);
+        gateway.reachable = true;
+        gateway.authenticated = true;
+        node.reachable = true;
+      } catch (err: any) {
+        if (err?.name === 'GatewayError') {
+          gateway.reachable = true;
+          if (err.status === 401 || err.status === 403) {
+            problems.push(
+              `gateway rejected the credential (${err.status}) — check AGENTICOS_ADMIN_SECRET / AGENTICOS_GATEWAY_SECRET_FILE against the gateway's data/jwt secrets`,
+            );
+          } else {
+            gateway.authenticated = true;
+            problems.push(`node did not answer through the gateway (${err.status}) — is agentic-net-node up?`);
+          }
+        } else {
+          problems.push(`gateway unreachable at ${config.gatewayUrl}: ${String(err?.message ?? err).slice(0, 120)}`);
+        }
+      }
+
+      const entry = models.find((m: any) => (m.modelId ?? m.id) === model);
+      const modelReport: any = { id: model, exists: Boolean(entry), state: entry?.state ?? entry?.status ?? null };
+      if (node.reachable && !entry) {
+        problems.push(`model '${model}' is allowlisted for this connection but does NOT exist on the node — create_model mints it (list_models shows what exists)`);
+      }
+      if (entry) {
+        const st = String(modelReport.state ?? '').toUpperCase();
+        if (st && st !== 'ACTIVE') {
+          problems.push(`model '${model}' is ${st}, not ACTIVE — master only polls ACTIVE models, so nothing fires`);
+        }
+        const kids = await ctx.node.getChildren(model, 'root/workspace').catch(() => null);
+        modelReport.workspaceProvisioned = Array.isArray(kids) && kids.some((c: any) => c.name === 'places');
+        if (modelReport.workspaceProvisioned === false) {
+          modelReport.note = 'no root/workspace/places yet — provisioned automatically on the first place write (not a blocker)';
+        }
+      }
+
+      // LLM provider — gates llm/agent lanes; every failed fire retries billed.
+      let llm: any;
+      try {
+        llm = await ctx.client.masterApi('GET', '/llm/health');
+        const status = String(llm?.status ?? '').toUpperCase();
+        if (status !== 'READY') {
+          problems.push(`LLM provider is ${status || 'UNKNOWN'} — every llm/agent fire fails until fixed (each backoff retry is a billed call)`);
+        }
+      } catch (err: any) {
+        llm = { status: 'UNKNOWN', error: String(err?.message ?? err).slice(0, 120) };
+        problems.push('master /llm/health did not answer — llm/agent readiness unknown (is agentic-net-master up?)');
+      }
+
+      // Executors — gate command lanes only.
+      const executors = await fetchExecutors(ctx);
+      const cov = coverageFromExecutors(executors, model);
+      const covReport = {
+        online: cov.online,
+        polling: cov.polling,
+        covered: cov.covered,
+        ...(cov.allowedButIdle.length ? { allowedButIdle: cov.allowedButIdle } : {}),
+        ...(cov.covered ? {} : { note: 'only blocks COMMAND lanes — map/llm/http/agent run on master with no executor' }),
+      };
+
+      return {
+        ready: problems.length === 0,
+        checkedAt: new Date().toISOString(),
+        gateway,
+        node,
+        model: modelReport,
+        llm,
+        executors: covReport,
+        capabilities: {
+          build: gateway.authenticated === true && node.reachable === true && modelReport.exists === true,
+          llmLanes: String(llm?.status ?? '').toUpperCase() === 'READY',
+          commandLanes: cov.covered,
+        },
+        ...(problems.length ? { problems } : {}),
       };
     }),
   );
