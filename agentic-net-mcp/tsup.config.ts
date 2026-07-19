@@ -19,6 +19,10 @@ export default defineConfig({
   // Keep real npm packages external
   external: [/^[^./](?!.*@agenticos\/cli)/],
   banner: {
-    js: '#!/usr/bin/env node\n',
+    // The createRequire shim backs esbuild's __require fallback: without it, any
+    // stray CJS require() inside the bundled @agenticos/cli sources throws
+    // "Dynamic require of X is not supported" at the exact moment the real error
+    // it sits next to should have surfaced (proven live on the auth 401 path).
+    js: '#!/usr/bin/env node\nimport { createRequire as __agenticosCreateRequire } from "node:module"; const require = __agenticosCreateRequire(import.meta.url);\n',
   },
 });

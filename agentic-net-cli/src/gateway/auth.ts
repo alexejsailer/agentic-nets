@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { getTokensDir, ensureConfigDir } from '../config/config.js';
 import { log } from '../util/logger.js';
@@ -30,7 +30,9 @@ class TokenStore {
   removeToken(profile: string): void {
     const file = this.tokenFile(profile);
     if (existsSync(file)) {
-      const { unlinkSync } = require('node:fs');
+      // Static import, NOT a CJS require: a dynamic require('node:fs') throws
+      // "Dynamic require of fs is not supported" inside the ESM-bundled MCP
+      // binary, replacing the real auth error on the 401 fallback path.
       unlinkSync(file);
     }
   }

@@ -521,6 +521,13 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
             gateway.authenticated = true;
             problems.push(`node did not answer through the gateway (${err.status}) — is agentic-net-node up?`);
           }
+        } else if (/auth|401|invalid_client/i.test(String(err?.message ?? ''))) {
+          // Token ACQUISITION failures surface as plain Errors, not GatewayErrors —
+          // still a credential problem, not an unreachable gateway (proven live).
+          gateway.reachable = true;
+          problems.push(
+            `gateway rejected the credential during token acquisition — check AGENTICOS_ADMIN_SECRET / AGENTICOS_GATEWAY_SECRET_FILE against the gateway's data/jwt secrets (${String(err?.message ?? err).slice(0, 120)})`,
+          );
         } else {
           problems.push(`gateway unreachable at ${config.gatewayUrl}: ${String(err?.message ?? err).slice(0, 120)}`);
         }
