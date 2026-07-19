@@ -55,6 +55,13 @@ export type AgentTool =
   | 'PACKAGE_SEARCH'
   | 'PACKAGE_PUBLISH'
   | 'PACKAGE_INSTALL'
+  // Agent-session templates (R: search/describe/list, W: install, X: start/stop)
+  | 'AGENT_HUB_SEARCH'
+  | 'DESCRIBE_AGENT_TEMPLATE'
+  | 'INSTALL_AGENT_TEMPLATE'
+  | 'LIST_AGENT_SESSIONS'
+  | 'START_AGENT_SESSION'
+  | 'STOP_AGENT_SESSION'
   // NetHub (R/W flag) — publish/discover/install net|session|model artifacts across instances
   | 'HUB_PUBLISH'
   | 'HUB_CATALOG'
@@ -653,6 +660,67 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
         targetSessionId: { type: 'string', description: 'Session to install into' },
       },
       required: ['name', 'version'],
+    },
+  },
+  AGENT_HUB_SEARCH: {
+    description: "Search the hub catalogue for installable agent-session templates (kind=agent): ready-made persona teams (e.g. health coach, dev crew) built from net elements. Use DESCRIBE_AGENT_TEMPLATE before installing.",
+    schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query (substring match)' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Filter by tags' },
+        source: { type: 'string', description: "'local' (default) or a registered remote name" },
+        limit: { type: 'number', description: 'Max results (default: 20)' },
+      },
+      required: [],
+    },
+  },
+  DESCRIBE_AGENT_TEMPLATE: {
+    description: "Get one agent template's full contract: agent-manifest (personas + teamRoles, entry inbox/outbox, configuration places/credentials, requirements, startPlan), readme, versions. Call BEFORE INSTALL_AGENT_TEMPLATE so you know what to configure.",
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Template name' },
+        version: { type: 'string', description: 'Version (default: latest)' },
+      },
+      required: ['name'],
+    },
+  },
+  INSTALL_AGENT_TEMPLATE: {
+    description: 'Install an agent-session template into THIS model. Lands STOPPED; the response carries the configure-then-start checklist (required config places, credentials, requirements, startPlan). After configuring, arm with START_AGENT_SESSION.',
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Template name' },
+        version: { type: 'string', description: 'Version (default: latest)' },
+        sessionId: { type: 'string', description: "Target session (default: 'agent-<name>')" },
+      },
+      required: ['name'],
+    },
+  },
+  LIST_AGENT_SESSIONS: {
+    description: "List agent sessions installed in this model: [{sessionId, name, domain, personas, armed ('running'|'partial'|'stopped'), configReady}].",
+    schema: { type: 'object', properties: {}, required: [] },
+  },
+  START_AGENT_SESSION: {
+    description: 'Arm an installed agent session: starts every startPlan transition in order (orchestrator last). REFUSES while a required config place is empty unless force=true.',
+    schema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'The agent session to arm' },
+        force: { type: 'boolean', description: 'Arm despite empty required config places' },
+      },
+      required: ['sessionId'],
+    },
+  },
+  STOP_AGENT_SESSION: {
+    description: 'Disarm an agent session: stops every startPlan transition in reverse order.',
+    schema: {
+      type: 'object',
+      properties: {
+        sessionId: { type: 'string', description: 'The agent session to disarm' },
+      },
+      required: ['sessionId'],
     },
   },
   HUB_PUBLISH: {

@@ -22,9 +22,9 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Publish a NetHub artifact',
       description:
-        'Publish a versioned, shareable, SELF-CONTAINED artifact. Kinds: "net"/"session"/"model" (net structure + inscriptions), "toolnet" (a tool-net + its manifest), "tool" (one catalog tool), "catalog" (a whole tool catalog), "blob" (raw blobs by URN). Any tool dependency the artifact uses (script/http/docker catalog entries and their blobs) travels with it, sha256-pinned, so it runs after install on another instance. tokens controls what token data ships: "none" = structure + inscriptions only; "config" (default) = also *-config/*-charter or marked tokens; "all" = everything. visibility "public" (default) is peer-discoverable when the hub public catalog is enabled. Credentials are always scrubbed.',
+        'Publish a versioned, shareable, SELF-CONTAINED artifact. Kinds: "net"/"session"/"model" (net structure + inscriptions), "toolnet" (a tool-net + its manifest), "tool" (one catalog tool), "catalog" (a whole tool catalog), "blob" (raw blobs by URN), "agent" (a whole persona-team session carrying its agent-manifest leaf — write the leaf first). Any tool dependency the artifact uses (script/http/docker catalog entries and their blobs) travels with it, sha256-pinned, so it runs after install on another instance. tokens controls what token data ships: "none" = structure + inscriptions only; "config" (default) = also *-config/*-charter or marked tokens; "all" = everything. visibility "public" (default) is peer-discoverable when the hub public catalog is enabled. Credentials are always scrubbed.',
       inputSchema: {
-        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob']).describe('What to publish'),
+        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob', 'agent']).describe('What to publish'),
         name: z.string(),
         version: z.string().describe('Semantic version, e.g. 1.0.0'),
         netId: z.string().optional().describe('Required for kind=net/toolnet'),
@@ -69,9 +69,9 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Search the NetHub catalog',
       description:
-        'Browse published artifacts — local by default, or a peer instance when the remote param names a registered remote. Filter by kind (net|session|model|toolnet|tool|catalog|blob), free-text search, and tags. Returns a compact list plus the true total; page with offset when more exist.',
+        'Browse published artifacts — local by default, or a peer instance when the remote param names a registered remote. Filter by kind (net|session|model|toolnet|tool|catalog|blob|agent — agent = installable persona-team templates), free-text search, and tags. Returns a compact list plus the true total; page with offset when more exist.',
       inputSchema: {
-        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob']).optional(),
+        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob', 'agent']).optional(),
         search: z.string().optional(),
         tags: z.string().optional().describe('Comma-separated'),
         remote: z.string().optional().describe('A registered remote to browse instead of local'),
@@ -179,7 +179,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Install a NetHub artifact',
       description:
-        'Install an artifact into this stack. source "local" (default) or a registered remote name; remote installs download, re-scrub, and keep a provenance copy locally. Model artifacts create a NEW model (targetModelId required; mode CREATE_NEW default, REPLACE to overwrite) and it joins this connection\'s allowlist immediately. Net/session artifacts import into targetSessionId.',
+        'Install an artifact into this stack. source "local" (default) or a registered remote name; remote installs download, re-scrub, and keep a provenance copy locally. Model artifacts create a NEW model (targetModelId required; mode CREATE_NEW default, REPLACE to overwrite) and it joins this connection\'s allowlist immediately. Net/session artifacts import into targetSessionId. kind=agent installs a STOPPED persona-team session (its own "agent-<name>" session unless targetSessionId is set) and returns the configure-then-start checklist — fill the required config places, then arm via START_AGENT_SESSION.',
       inputSchema: {
         name: z.string(),
         version: z.string().describe('Version or "latest"'),
@@ -191,12 +191,22 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'hub_install', mutates: true }, async (model, args) => {
+      // Agent templates get their own session (master defaults to "agent-<name>") — only
+      // net/session kinds fall back to the MCP working session. Probe the kind when the
+      // caller didn't pin a session; on lookup failure keep the classic default.
+      let targetSessionId: string | undefined = args.targetSessionId ?? config.session;
+      if (args.targetSessionId === undefined) {
+        try {
+          const art = await ctx.master.hubArtifact(args.name, args.version || 'latest');
+          if (art?.kind === 'agent') targetSessionId = undefined;
+        } catch { /* remote-only artifact — keep the session default */ }
+      }
       const res = await ctx.master.hubInstall({
         source: args.source,
         name: args.name,
         version: args.version,
         targetModelId: args.targetModelId ?? model,
-        targetSessionId: args.targetSessionId ?? config.session,
+        targetSessionId,
         mode: args.mode,
       });
       // A freshly installed model must be immediately targetable via the `model` param.

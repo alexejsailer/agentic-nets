@@ -255,6 +255,18 @@ export class ToolExecutor {
           return this.executeHubRemoteList();
         case 'HUB_REMOTE_REMOVE':
           return this.executeHubRemoteRemove(params);
+        case 'AGENT_HUB_SEARCH':
+          return this.executeAgentHubSearch(params);
+        case 'DESCRIBE_AGENT_TEMPLATE':
+          return this.executeDescribeAgentTemplate(params);
+        case 'INSTALL_AGENT_TEMPLATE':
+          return this.executeInstallAgentTemplate(params);
+        case 'LIST_AGENT_SESSIONS':
+          return this.executeListAgentSessions();
+        case 'START_AGENT_SESSION':
+          return this.executeStartAgentSession(params);
+        case 'STOP_AGENT_SESSION':
+          return this.executeStopAgentSession(params);
         case 'REGISTRY_LIST_IMAGES':
           return this.executeRegistryListImages(params);
         case 'REGISTRY_GET_IMAGE_INFO':
@@ -2250,6 +2262,92 @@ export class ToolExecutor {
       return { success: true, data: { removed: params.name } };
     } catch (err: any) {
       return { success: false, error: `HUB_REMOTE_REMOVE failed: ${err.message || err}` };
+    }
+  }
+
+  // ---- Agent-session templates ("real agents") ----
+
+  private async executeAgentHubSearch(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const tags = Array.isArray(params.tags) ? params.tags.join(',') : params.tags;
+      const opts = { kind: 'agent', search: params.query, tags, limit: params.limit };
+      const data = params.source && params.source !== 'local'
+        ? await this.masterApi.hubRemoteCatalog(params.source, opts)
+        : await this.masterApi.hubCatalog(opts);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `AGENT_HUB_SEARCH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeDescribeAgentTemplate(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'DESCRIBE_AGENT_TEMPLATE requires name' };
+    try {
+      const pkg = await this.masterApi.hubArtifact(params.name, params.version || 'latest');
+      if (pkg?.kind && pkg.kind !== 'agent') {
+        return { success: false, error: `'${params.name}' is a ${pkg.kind} package, not an agent template` };
+      }
+      const versions = await this.masterApi.hubVersions(params.name).catch(() => []);
+      return {
+        success: true,
+        data: {
+          name: params.name,
+          version: pkg?.manifest?.version,
+          versions,
+          description: pkg?.manifest?.description,
+          tags: pkg?.manifest?.tags,
+          agentManifest: pkg?.agentManifest,
+          readme: pkg?.readme,
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: `DESCRIBE_AGENT_TEMPLATE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeInstallAgentTemplate(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'INSTALL_AGENT_TEMPLATE requires name' };
+    try {
+      const data = await this.masterApi.hubInstall({
+        source: 'local',
+        name: params.name,
+        version: params.version || 'latest',
+        targetModelId: this.modelId,
+        // Blank ⇒ master defaults to 'agent-<templateName>'; never dump into the working session.
+        targetSessionId: params.sessionId,
+      });
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `INSTALL_AGENT_TEMPLATE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeListAgentSessions(): Promise<ToolResult> {
+    try {
+      const data = await this.masterApi.agentSessions(this.modelId);
+      return { success: true, data: { agentSessions: data } };
+    } catch (err: any) {
+      return { success: false, error: `LIST_AGENT_SESSIONS failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeStartAgentSession(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.sessionId) return { success: false, error: 'START_AGENT_SESSION requires sessionId' };
+    try {
+      const data = await this.masterApi.agentSessionStart(this.modelId, params.sessionId, params.force === true);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `START_AGENT_SESSION failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeStopAgentSession(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.sessionId) return { success: false, error: 'STOP_AGENT_SESSION requires sessionId' };
+    try {
+      const data = await this.masterApi.agentSessionStop(this.modelId, params.sessionId);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `STOP_AGENT_SESSION failed: ${err.message || err}` };
     }
   }
 

@@ -272,6 +272,24 @@ export class MasterApi {
     return this.client.masterApi('GET', `/hub/remotes/${remoteName}/catalog`, undefined, q);
   }
 
+  // ---- Agent sessions (installed hub kind=agent templates) ----
+  async agentSessions(modelId: string): Promise<any> {
+    return this.client.masterApi('GET', `/agents/${modelId}`);
+  }
+
+  async agentSessionDescribe(modelId: string, sessionId: string): Promise<any> {
+    return this.client.masterApi('GET', `/agents/${modelId}/${sessionId}`);
+  }
+
+  async agentSessionStart(modelId: string, sessionId: string, force?: boolean): Promise<any> {
+    return this.client.masterApi('POST', `/agents/${modelId}/${sessionId}/start`, undefined,
+      force ? { force: 'true' } : undefined);
+  }
+
+  async agentSessionStop(modelId: string, sessionId: string): Promise<any> {
+    return this.client.masterApi('POST', `/agents/${modelId}/${sessionId}/stop`);
+  }
+
   // ---- Transition validation ----
   async dryRunTransition(transitionId: string, modelId: string): Promise<any> {
     return this.client.masterApi('POST', `/transitions/${transitionId}/dry-run`, undefined, { modelId });

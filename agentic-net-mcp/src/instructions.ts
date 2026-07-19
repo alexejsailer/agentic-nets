@@ -75,6 +75,11 @@ catalog or a peer's (remote param); hub_show inspects one artifact before commit
 installs (model artifacts create a NEW model that joins your allowlist). Federate with
 hub_add_remote — peers serve anonymous reads only with their public-catalog flag on. Details live
 in the tool descriptions.
+Ready-made agents: hub_search {kind:"agent"} finds installable persona-team templates (health
+coach, dev crew, ...). hub_install lands one STOPPED in its own agent-<name> session and returns a
+configure-then-start checklist — fill the required config places (CREATE_TOKEN), then arm with the
+native START_AGENT_SESSION; STOP_AGENT_SESSION disarms. LIST_AGENT_SESSIONS shows what is installed
+and whether it is running/configured. Talk to an armed agent through its manifest entry inbox place.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine
