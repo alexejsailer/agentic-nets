@@ -2287,7 +2287,9 @@ export class ToolExecutor {
       if (pkg?.kind && pkg.kind !== 'agent') {
         return { success: false, error: `'${params.name}' is a ${pkg.kind} package, not an agent template` };
       }
-      const versions = await this.masterApi.hubVersions(params.name).catch(() => []);
+      // hubVersions returns { name, versions: string[], count }; surface just the array.
+      const versionsResp = await this.masterApi.hubVersions(params.name).catch(() => null);
+      const versions = Array.isArray(versionsResp?.versions) ? versionsResp.versions : [];
       return {
         success: true,
         data: {
