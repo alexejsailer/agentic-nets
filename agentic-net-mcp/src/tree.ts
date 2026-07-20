@@ -37,6 +37,8 @@ export interface LinkEdge {
   from: string;
   to: string;
   label: string;
+  /** Typed edge semantics (what TARGET is to SOURCE); "relates" when the link carries none. */
+  relation: string;
   transitionId: string;
 }
 
@@ -60,7 +62,15 @@ export async function discoverLinkEdges(ctx: AppContext, model: string): Promise
       if (ins.kind !== 'link') continue;
       const from = Object.values<any>(ins.presets ?? {})[0]?.placeId;
       const to = Object.values<any>(ins.postsets ?? {})[0]?.placeId;
-      if (from && to) edges.push({ from, to, label: ins.label ?? t.name, transitionId: t.name });
+      if (from && to) {
+        edges.push({
+          from,
+          to,
+          label: ins.label ?? t.name,
+          relation: typeof ins.relation === 'string' && ins.relation ? ins.relation : 'relates',
+          transitionId: t.name,
+        });
+      }
     } catch {
       /* non-JSON inscription — skip */
     }

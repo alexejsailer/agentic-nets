@@ -196,7 +196,7 @@ export class MasterApi {
 
   // ---- NetHub (/api/hub) ----
   async hubPublish(params: {
-    kind?: string; // net | session | model | toolnet | tool | catalog | blob
+    kind?: string; // net | session | model | toolnet | tool | catalog | blob | agent | context
     name: string;
     version: string;
     description?: string;
@@ -288,6 +288,54 @@ export class MasterApi {
 
   async agentSessionStop(modelId: string, sessionId: string): Promise<any> {
     return this.client.masterApi('POST', `/installed-agents/${modelId}/${sessionId}/stop`);
+  }
+
+  // ---- Context nets (installed hub kind=context templates) ----
+  async contexts(modelId: string): Promise<any> {
+    return this.client.masterApi('GET', `/installed-contexts/${modelId}`);
+  }
+
+  async contextDescribe(modelId: string, sessionId: string): Promise<any> {
+    return this.client.masterApi('GET', `/installed-contexts/${modelId}/${sessionId}`);
+  }
+
+  async contextStart(modelId: string, sessionId: string, force?: boolean): Promise<any> {
+    return this.client.masterApi('POST', `/installed-contexts/${modelId}/${sessionId}/start`, undefined,
+      force ? { force: 'true' } : undefined);
+  }
+
+  async contextStop(modelId: string, sessionId: string): Promise<any> {
+    return this.client.masterApi('POST', `/installed-contexts/${modelId}/${sessionId}/stop`);
+  }
+
+  async contextAttach(modelId: string, sessionId: string, attachment: string, targetPlaceId: string): Promise<any> {
+    return this.client.masterApi('POST', `/installed-contexts/${modelId}/${sessionId}/attach`,
+      { attachment, targetPlaceId });
+  }
+
+  async contextTree(modelId: string, opts: {
+    start: string; depth?: number; direction?: string; relations?: string; includeCounts?: boolean;
+  }): Promise<any> {
+    const query: Record<string, string> = { start: opts.start };
+    if (opts.depth !== undefined) query.depth = String(opts.depth);
+    if (opts.direction) query.direction = opts.direction;
+    if (opts.relations) query.relations = opts.relations;
+    if (opts.includeCounts) query.includeCounts = 'true';
+    return this.client.masterApi('GET', `/installed-contexts/${modelId}/tree`, undefined, query);
+  }
+
+  async contextLink(modelId: string, body: {
+    from: string; to: string; relation: string; label?: string; sessionId?: string;
+  }): Promise<any> {
+    return this.client.masterApi('POST', `/installed-contexts/${modelId}/links`, body);
+  }
+
+  async contextCreate(modelId: string, body: Record<string, any>): Promise<any> {
+    return this.client.masterApi('POST', `/installed-contexts/${modelId}/contexts`, body);
+  }
+
+  async contextAddStore(modelId: string, sessionId: string, body: Record<string, any>): Promise<any> {
+    return this.client.masterApi('POST', `/installed-contexts/${modelId}/${sessionId}/stores`, body);
   }
 
   // ---- Transition validation ----

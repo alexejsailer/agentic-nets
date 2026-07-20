@@ -80,6 +80,14 @@ coach, dev crew, ...). hub_install lands one STOPPED in its own agent-<name> ses
 configure-then-start checklist — fill the required config places (CREATE_TOKEN), then arm with the
 native START_AGENT_SESSION; STOP_AGENT_SESSION disarms. LIST_AGENT_SESSIONS shows what is installed
 and whether it is running/configured. Talk to an armed agent through its manifest entry inbox place.
+Context nets: hub_search {kind:"context"} finds installable context templates. hub_show exposes their
+named stores, scope, hierarchy, attachments, data policy, and maintenance startPlan. hub_install puts
+one in its own context-<name> session. Structural kind=link transitions express semantic/hierarchical
+relationships and never fire; START_CONTEXT and STOP_CONTEXT control only maintenance transitions.
+Wire a declared attachment (e.g. a parent context) with ATTACH_CONTEXT {sessionId, attachment,
+targetPlaceId} — it creates the typed link; links carry an optional "relation" (contains,
+derives-from, promotes-to, ...) readable via GET_LINKED_PLACES and memory_graph.
+Agent manifests can declare required or optional contexts, and START_AGENT_SESSION reports readiness.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine

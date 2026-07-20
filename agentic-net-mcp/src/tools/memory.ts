@@ -93,11 +93,12 @@ export async function linkPlaces(
   from: string,
   to: string,
   label: string,
+  relation?: string,
 ): Promise<string> {
   await ensurePlace(ctx, model, from);
   await ensurePlace(ctx, model, to);
   const tid = `t-link-${from.replace(/^p-/, '')}-${to.replace(/^p-/, '')}`;
-  const inscription = buildLinkInscription(tid, label, from, to, ctx.hostFor(model));
+  const inscription = buildLinkInscription(tid, label, from, to, ctx.hostFor(model), relation);
   // Links are pure structure: assigned, NEVER started.
   await assignInscription(ctx, model, inscription, 'agentic-net-master');
   return tid;
@@ -205,10 +206,13 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
-  // --- Domain memory: the model's OWN durable memory base, in its domain net ---
-  // Same idea as memory_write/recall, but the places are `p-{model}-domain-{store}` — the
-  // exact places the master's MEMORY_WRITE and the domain-expert persona use, so a memory
-  // written from any of them is visible to all of them. Added ALONGSIDE p-mem-* (unchanged).
+  // --- Domain memory: the model's OWN durable memory base, in its domain context ---
+  // Same idea as memory_write/recall, but targeting the model-shared memory base the master's
+  // MEMORY_WRITE and the domain-expert persona use, so a memory written from any of them is
+  // visible to all of them. Added ALONGSIDE p-mem-* (unchanged). The store ROLE resolves through
+  // the model's installed context manifest (GET /installed-contexts); the legacy
+  // `p-{model}-domain-{store}` naming is the fallback — on the canonical path the master
+  // materializes the domain skeleton AS a context whose stores point at those same places.
   const DOMAIN_STORES = ['knowledge', 'journal', 'insights'] as const;
   const domainPlace = (model: string, store: string): string => `p-${model}-domain-${store}`;
   const resolveDomainStore = (s?: string): (typeof DOMAIN_STORES)[number] => {
@@ -216,13 +220,38 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     if ((DOMAIN_STORES as readonly string[]).includes(n)) return n as (typeof DOMAIN_STORES)[number];
     throw new Error(`store must be one of ${DOMAIN_STORES.join(', ')}`);
   };
+  // role→placeId per model, ~30s TTL so hot write/recall paths don't rescan manifests.
+  const domainStoreCache = new Map<string, { stores: Record<string, string>; expires: number }>();
+  const resolveDomainPlace = async (model: string, store: string): Promise<string> => {
+    const cached = domainStoreCache.get(model);
+    if (cached && cached.expires > Date.now()) return cached.stores[store] ?? domainPlace(model, store);
+    try {
+      const res = await ctx.master.contexts(model);
+      const list: any[] = Array.isArray(res) ? res : (res?.contexts ?? []);
+      // model-scoped contexts win; within a scope the first-listed wins per role
+      const ordered = [...list].sort(
+        (a, b) => (a?.scope === 'model' ? 0 : 1) - (b?.scope === 'model' ? 0 : 1),
+      );
+      const stores: Record<string, string> = {};
+      for (const context of ordered) {
+        for (const s of context?.stores ?? []) {
+          if (s?.role && s?.placeId && !(s.role in stores)) stores[s.role] = s.placeId;
+        }
+      }
+      domainStoreCache.set(model, { stores, expires: Date.now() + 30_000 });
+      return stores[store] ?? domainPlace(model, store);
+    } catch {
+      // no contexts endpoint / no installed context — legacy naming keeps working
+      return domainPlace(model, store);
+    }
+  };
 
   server.registerTool(
     'domain_memory_write',
     {
       title: "Write to the model's domain memory base",
       description:
-        "Persist a memory into THIS model's domain net (p-{model}-domain-{store}) — its durable, shared knowledge/memory base, the same one the master MEMORY_WRITE tool and the domain-expert persona use. Store: knowledge (default, durable facts/capabilities), journal (what happened), insights.",
+        "Persist a memory into THIS model's domain memory base — durable and shared, the same one the master MEMORY_WRITE tool and the domain-expert persona use. The store resolves through the model's installed context manifest (stores by role; legacy p-{model}-domain-{store} fallback). Store: knowledge (default, durable facts/capabilities), journal (what happened), insights.",
       inputSchema: {
         content: z.string().optional().describe('The memory as prose (stored as {content})'),
         data: z.record(z.any()).optional().describe('Structured fields to store alongside/instead of content'),
@@ -235,8 +264,10 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     wrapTool(scope, config.mode, { name: 'domain_memory_write', mutates: true }, async (model, args) => {
       if (!args.content && !args.data) throw new Error('provide content and/or data');
       const store = resolveDomainStore(args.store);
-      const placeId = domainPlace(model, store);
-      await ensurePlace(ctx, model, placeId);
+      const placeId = await resolveDomainPlace(model, store);
+      // Context-resolved stores were created by the install/bootstrap; only the legacy
+      // convention may need the place materialized on first use.
+      if (placeId === domainPlace(model, store)) await ensurePlace(ctx, model, placeId);
       const data = {
         kind: 'domain-memory',
         ...(args.content ? { content: args.content } : {}),
@@ -257,7 +288,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     {
       title: "Recall from the model's domain memory base",
       description:
-        "Read memories previously stored in THIS model's domain net (p-{model}-domain-{store}), newest first. Query: an ArcQL string starting with 'FROM ', or a plain substring matched across token fields.",
+        "Read memories previously stored in THIS model's domain memory base (store resolved via the installed context manifest, legacy p-{model}-domain-{store} fallback), newest first. Query: an ArcQL string starting with 'FROM ', or a plain substring matched across token fields.",
       inputSchema: {
         store: z.string().optional().describe('knowledge (default) | journal | insights'),
         query: z.string().optional().describe('ArcQL (starts with "FROM ") or a plain substring; omit for most-recent'),
@@ -267,7 +298,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     },
     wrapTool(scope, config.mode, { name: 'domain_memory_recall', mutates: false }, async (model, args) => {
       const store = resolveDomainStore(args.store);
-      const placeId = domainPlace(model, store);
+      const placeId = await resolveDomainPlace(model, store);
       const limit = args.limit ?? 20;
       const query = (args.query ?? '').trim();
       const isArcql = /^\s*FROM\s/i.test(query);
@@ -304,15 +335,17 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       inputSchema: {
         from: z.string().describe('Source place (short or full id)'),
         to: z.string().describe('Target place (short or full id)'),
-        label: z.string().optional().describe('Edge semantics, e.g. "decision derives from note"'),
+        label: z.string().optional().describe('Human-readable edge label, e.g. "decision derives from note"'),
+        relation: z.string().optional().describe('Typed edge semantics (what TARGET is to SOURCE): relates | contains | references | derives-from | supersedes | promotes-to | archives-to | ... (open vocabulary)'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'memory_link', mutates: true }, async (model, args) => {
       const from = resolveMemoryPlace(args.from);
       const to = resolveMemoryPlace(args.to);
-      const tid = await linkPlaces(ctx, model, from, to, args.label ?? `${from} -> ${to}`);
-      return { linked: true, from, to, transitionId: tid };
+      const tid = await linkPlaces(
+        ctx, model, from, to, args.label ?? args.relation ?? `${from} -> ${to}`, args.relation);
+      return { linked: true, from, to, relation: args.relation ?? 'relates', transitionId: tid };
     }),
   );
 

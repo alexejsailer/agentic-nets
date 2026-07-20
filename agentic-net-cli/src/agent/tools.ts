@@ -62,6 +62,18 @@ export type AgentTool =
   | 'LIST_AGENT_SESSIONS'
   | 'START_AGENT_SESSION'
   | 'STOP_AGENT_SESSION'
+  // Context-net templates (R: search/describe/list, W: install, X: start/stop)
+  | 'CONTEXT_HUB_SEARCH'
+  | 'DESCRIBE_CONTEXT_TEMPLATE'
+  | 'INSTALL_CONTEXT_TEMPLATE'
+  | 'ATTACH_CONTEXT'
+  | 'LIST_CONTEXTS'
+  | 'GET_CONTEXT_TREE'
+  | 'LINK_PLACES'
+  | 'CREATE_CONTEXT'
+  | 'CONTEXT_ADD_STORE'
+  | 'START_CONTEXT'
+  | 'STOP_CONTEXT'
   // NetHub (R/W flag) — publish/discover/install net|session|model artifacts across instances
   | 'HUB_PUBLISH'
   | 'HUB_CATALOG'
@@ -723,12 +735,79 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
       required: ['sessionId'],
     },
   },
+  CONTEXT_HUB_SEARCH: {
+    description: 'Search NetHub for installable context-net templates (kind=context). Use DESCRIBE_CONTEXT_TEMPLATE before installing.',
+    schema: { type: 'object', properties: {
+      query: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } },
+      source: { type: 'string' }, limit: { type: 'number' },
+    }, required: [] },
+  },
+  DESCRIBE_CONTEXT_TEMPLATE: {
+    description: "Get a context template's stores, scope, hierarchy, attachments, data policy, configuration, and maintenance startPlan.",
+    schema: { type: 'object', properties: {
+      name: { type: 'string' }, version: { type: 'string' },
+    }, required: ['name'] },
+  },
+  INSTALL_CONTEXT_TEMPLATE: {
+    description: 'Install a context template into this model. It lands STOPPED and structural links never execute.',
+    schema: { type: 'object', properties: {
+      name: { type: 'string' }, version: { type: 'string' }, sessionId: { type: 'string' },
+    }, required: ['name'] },
+  },
+  ATTACH_CONTEXT: {
+    description: "Wire a context's manifest-declared attachment (e.g. a parent context) to a concrete place — creates the structural link with the manifest's relation; idempotent.",
+    schema: { type: 'object', properties: {
+      sessionId: { type: 'string' }, attachment: { type: 'string' }, targetPlaceId: { type: 'string' },
+    }, required: ['sessionId', 'attachment', 'targetPlaceId'] },
+  },
+  LIST_CONTEXTS: {
+    description: 'List context nets installed in this model with stores, scope, readiness, and maintenance state.',
+    schema: { type: 'object', properties: {}, required: [] },
+  },
+  GET_CONTEXT_TREE: {
+    description: 'Walk the typed link graph from a start place — semantic/hierarchical context navigation (down follows source→target, up finds parents).',
+    schema: { type: 'object', properties: {
+      placeId: { type: 'string' }, depth: { type: 'number' }, direction: { type: 'string' },
+      relations: { type: 'array', items: { type: 'string' } }, includeCounts: { type: 'boolean' },
+    }, required: ['placeId'] },
+  },
+  LINK_PLACES: {
+    description: 'Create a typed structural link between two places or context store roles (never fires; idempotent per pair). relation: contains | derives-from | promotes-to | ... (open vocabulary).',
+    schema: { type: 'object', properties: {
+      from: { type: 'string' }, to: { type: 'string' }, relation: { type: 'string' },
+      label: { type: 'string' }, sessionId: { type: 'string' },
+    }, required: ['from', 'to', 'relation'] },
+  },
+  CREATE_CONTEXT: {
+    description: 'Author a NEW context from store roles + typed relations — creates session, places, manifest, and links; publishable via hub_publish kind:context.',
+    schema: { type: 'object', properties: {
+      name: { type: 'string' }, stores: { type: 'array' }, links: { type: 'array' },
+      scope: { type: 'string' }, description: { type: 'string' },
+    }, required: ['name', 'stores'] },
+  },
+  CONTEXT_ADD_STORE: {
+    description: 'Adapt an installed context: add a store role → place to its manifest, optionally wiring a typed link from an existing store.',
+    schema: { type: 'object', properties: {
+      sessionId: { type: 'string' }, role: { type: 'string' }, placeId: { type: 'string' },
+      description: { type: 'string' }, linkFrom: { type: 'string' }, relation: { type: 'string' },
+    }, required: ['sessionId', 'role'] },
+  },
+  START_CONTEXT: {
+    description: "Arm only an installed context's executable maintenance startPlan; structural links never run.",
+    schema: { type: 'object', properties: {
+      sessionId: { type: 'string' }, force: { type: 'boolean' },
+    }, required: ['sessionId'] },
+  },
+  STOP_CONTEXT: {
+    description: "Stop an installed context's maintenance startPlan in reverse order.",
+    schema: { type: 'object', properties: { sessionId: { type: 'string' } }, required: ['sessionId'] },
+  },
   HUB_PUBLISH: {
-    description: 'Publish a NetHub artifact (net | session | model | toolnet | tool | catalog | blob) as a versioned, shareable package. Dependency-aware: any script/http/docker/tool-net tool the artifact uses travels with it, sha256-pinned, so it runs after install. tokens=none|config|all controls whether config/data tokens ship (default config: config-named places + marked tokens only). visibility=public|private.',
+    description: 'Publish a NetHub artifact (net | session | model | toolnet | tool | catalog | blob | agent | context) as a versioned, shareable package. Context packages carry a context-manifest and structural link transitions.',
     schema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', description: 'net | session | model | toolnet | tool | catalog | blob (default inferred from source)' },
+        kind: { type: 'string', description: 'net | session | model | toolnet | tool | catalog | blob | agent | context (default inferred from source)' },
         name: { type: 'string', description: 'Artifact name' },
         version: { type: 'string', description: 'Semantic version (e.g., 1.0.0)' },
         modelId: { type: 'string', description: 'Source model (defaults to current model)' },

@@ -267,6 +267,28 @@ export class ToolExecutor {
           return this.executeStartAgentSession(params);
         case 'STOP_AGENT_SESSION':
           return this.executeStopAgentSession(params);
+        case 'CONTEXT_HUB_SEARCH':
+          return this.executeContextHubSearch(params);
+        case 'DESCRIBE_CONTEXT_TEMPLATE':
+          return this.executeDescribeContextTemplate(params);
+        case 'INSTALL_CONTEXT_TEMPLATE':
+          return this.executeInstallContextTemplate(params);
+        case 'ATTACH_CONTEXT':
+          return this.executeAttachContext(params);
+        case 'LIST_CONTEXTS':
+          return this.executeListContexts();
+        case 'GET_CONTEXT_TREE':
+          return this.executeGetContextTree(params);
+        case 'LINK_PLACES':
+          return this.executeLinkPlaces(params);
+        case 'CREATE_CONTEXT':
+          return this.executeCreateContext(params);
+        case 'CONTEXT_ADD_STORE':
+          return this.executeContextAddStore(params);
+        case 'START_CONTEXT':
+          return this.executeStartContext(params);
+        case 'STOP_CONTEXT':
+          return this.executeStopContext(params);
         case 'REGISTRY_LIST_IMAGES':
           return this.executeRegistryListImages(params);
         case 'REGISTRY_GET_IMAGE_INFO':
@@ -2350,6 +2372,142 @@ export class ToolExecutor {
       return { success: true, data };
     } catch (err: any) {
       return { success: false, error: `STOP_AGENT_SESSION failed: ${err.message || err}` };
+    }
+  }
+
+  // ---- Context-net templates ----
+
+  private async executeContextHubSearch(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const tags = Array.isArray(params.tags) ? params.tags.join(',') : params.tags;
+      const opts = { kind: 'context', search: params.query, tags, limit: params.limit };
+      const data = params.source && params.source !== 'local'
+        ? await this.masterApi.hubRemoteCatalog(params.source, opts)
+        : await this.masterApi.hubCatalog(opts);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `CONTEXT_HUB_SEARCH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeDescribeContextTemplate(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'DESCRIBE_CONTEXT_TEMPLATE requires name' };
+    try {
+      const pkg = await this.masterApi.hubArtifact(params.name, params.version || 'latest');
+      if (pkg?.kind && pkg.kind !== 'context') {
+        return { success: false, error: `'${params.name}' is a ${pkg.kind} package, not a context template` };
+      }
+      const versionsResp = await this.masterApi.hubVersions(params.name).catch(() => null);
+      return { success: true, data: {
+        name: params.name, version: pkg?.manifest?.version,
+        versions: Array.isArray(versionsResp?.versions) ? versionsResp.versions : [],
+        description: pkg?.manifest?.description, tags: pkg?.manifest?.tags,
+        contextManifest: pkg?.contextManifest, readme: pkg?.readme,
+      } };
+    } catch (err: any) {
+      return { success: false, error: `DESCRIBE_CONTEXT_TEMPLATE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeInstallContextTemplate(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'INSTALL_CONTEXT_TEMPLATE requires name' };
+    try {
+      const data = await this.masterApi.hubInstall({
+        source: 'local', name: params.name, version: params.version || 'latest',
+        targetModelId: this.modelId, targetSessionId: params.sessionId,
+      });
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `INSTALL_CONTEXT_TEMPLATE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeAttachContext(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.sessionId || !params.attachment || !params.targetPlaceId) {
+      return { success: false, error: 'ATTACH_CONTEXT requires sessionId, attachment, and targetPlaceId' };
+    }
+    try {
+      return { success: true, data: await this.masterApi.contextAttach(
+        this.modelId, params.sessionId, params.attachment, params.targetPlaceId) };
+    } catch (err: any) {
+      return { success: false, error: `ATTACH_CONTEXT failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeListContexts(): Promise<ToolResult> {
+    try {
+      return { success: true, data: { contexts: await this.masterApi.contexts(this.modelId) } };
+    } catch (err: any) {
+      return { success: false, error: `LIST_CONTEXTS failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeStartContext(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.sessionId) return { success: false, error: 'START_CONTEXT requires sessionId' };
+    try {
+      return { success: true, data: await this.masterApi.contextStart(
+        this.modelId, params.sessionId, params.force === true) };
+    } catch (err: any) {
+      return { success: false, error: `START_CONTEXT failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeGetContextTree(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.placeId) return { success: false, error: 'GET_CONTEXT_TREE requires placeId' };
+    try {
+      return { success: true, data: await this.masterApi.contextTree(this.modelId, {
+        start: params.placeId, depth: params.depth, direction: params.direction,
+        relations: Array.isArray(params.relations) ? params.relations.join(',') : params.relations,
+        includeCounts: params.includeCounts,
+      }) };
+    } catch (err: any) {
+      return { success: false, error: `GET_CONTEXT_TREE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeLinkPlaces(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.from || !params.to || !params.relation) {
+      return { success: false, error: 'LINK_PLACES requires from, to, and relation' };
+    }
+    try {
+      return { success: true, data: await this.masterApi.contextLink(this.modelId, {
+        from: params.from, to: params.to, relation: params.relation,
+        label: params.label, sessionId: params.sessionId,
+      }) };
+    } catch (err: any) {
+      return { success: false, error: `LINK_PLACES failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeCreateContext(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name || !params.stores) {
+      return { success: false, error: 'CREATE_CONTEXT requires name and stores' };
+    }
+    try {
+      return { success: true, data: await this.masterApi.contextCreate(this.modelId, params) };
+    } catch (err: any) {
+      return { success: false, error: `CREATE_CONTEXT failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeContextAddStore(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.sessionId || !params.role) {
+      return { success: false, error: 'CONTEXT_ADD_STORE requires sessionId and role' };
+    }
+    try {
+      return { success: true, data: await this.masterApi.contextAddStore(
+        this.modelId, params.sessionId, params) };
+    } catch (err: any) {
+      return { success: false, error: `CONTEXT_ADD_STORE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeStopContext(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.sessionId) return { success: false, error: 'STOP_CONTEXT requires sessionId' };
+    try {
+      return { success: true, data: await this.masterApi.contextStop(this.modelId, params.sessionId) };
+    } catch (err: any) {
+      return { success: false, error: `STOP_CONTEXT failed: ${err.message || err}` };
     }
   }
 

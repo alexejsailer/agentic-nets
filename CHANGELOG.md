@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.34.0] - 2026-07-20
+
+### Added
+- **Context-net templates — CLI + MCP surface for the new NetHub `context` kind** (`agentic-net-cli` — `agent/tools.ts`, `agent/roles.ts`, `agent/tool-executor.ts`, `gateway/master-api.ts`; `agentic-net-mcp` — `tools/hub.ts`, `tools/catalog.ts`, `instructions.ts`). A context template packages named store places, structural `kind=link` topology, and an optional maintenance `startPlan` behind a `contextManifest` contract. Seven new tools: `CONTEXT_HUB_SEARCH` / `DESCRIBE_CONTEXT_TEMPLATE` / `LIST_CONTEXTS` (read), `INSTALL_CONTEXT_TEMPLATE` / `ATTACH_CONTEXT` (write — install lands STOPPED in its own `context-<name>` session; attach wires a manifest-declared attachment such as a parent context as a typed link), `START_CONTEXT` / `STOP_CONTEXT` (execute — maintenance transitions only; links never fire). `hub_publish` / `hub_search` / `hub_install` learn the `context` kind, `hub_show` surfaces `agentManifest`/`contextManifest`, and remote installs resolve the kind through the peer catalog so contexts get their own session there too.
+- **Typed link relations in the memory layer** (`agentic-net-mcp` — `inscriptions.ts`, `tools/nets.ts`, `tools/memory.ts`, `tree.ts`). `memory_link` and `add_transition kind:link` accept an optional `relation` (what TARGET is to SOURCE: `contains`, `derives-from`, `promotes-to`, … open vocabulary); `memory_graph` edges now carry each link's `relation` (absent → `relates`), and a link's `label` defaults from its relation.
+- **Semantic navigation + context authoring in the CLI/MCP tool surface** (`agentic-net-cli` — `agent/tools.ts`, `agent/roles.ts`, `agent/tool-executor.ts`, `gateway/master-api.ts`; auto-flows into the MCP native catalog). `GET_CONTEXT_TREE` (walk the typed link graph — down/up/both, relation filter), `LINK_PLACES` (typed-edge primitive, accepts store roles with a context sessionId), `CREATE_CONTEXT` (author a context from roles + relations, no template), `CONTEXT_ADD_STORE` (adapt an installed template's manifest). Backed by the new master `/api/installed-contexts` navigation/authoring endpoints.
+- **`domain_memory_write`/`domain_memory_recall` resolve stores through the installed context** (`agentic-net-mcp` — `tools/memory.ts`). The store ROLE (journal/insights/knowledge) now resolves via `GET /installed-contexts` manifests (model-scoped contexts win, ~30s cache) instead of assuming `p-{model}-domain-{store}`; the legacy naming stays as the fallback so nothing changes on models without a context. Master ≥ this release materializes every domain skeleton as a context, so MCP, in-net agents, and the domain-expert persona all read and write ONE memory base — and a hub-installed context template can redirect it.
+
 ## [2.33.0] - 2026-07-20
 
 ### Added

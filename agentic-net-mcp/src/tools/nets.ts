@@ -30,9 +30,9 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   command: new Set(['executorId']),
   agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit']),
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
-  link: new Set([]),
+  link: new Set(['relation']),
 };
-const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'x', 'y', 'start', 'model']);
+const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'relation', 'x', 'y', 'start', 'model']);
 const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
   prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
@@ -321,6 +321,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         inputPlace: z.string(),
         outputPlace: z.string(),
         label: z.string().optional(),
+        relation: z.string().optional().describe('link: typed edge semantics (what TARGET is to SOURCE) — relates | contains | references | derives-from | supersedes | promotes-to | archives-to | ... (open vocabulary; label defaults from it)'),
         x: z.number().optional(),
         y: z.number().optional(),
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
@@ -435,6 +436,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       const inscription = buildInscription(args.kind, {
         id: args.transitionId,
         label: args.label,
+        relation: args.relation,
         host,
         inputPlace: args.inputPlace,
         outputPlace: args.outputPlace,

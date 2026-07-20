@@ -29,6 +29,8 @@ function preset(placeId: string, host: string, over: Partial<PresetSpec> = {}): 
 export interface BuildOpts {
   id: string;
   label?: string;
+  /** link — typed edge semantics (what TARGET is to SOURCE), e.g. contains | derives-from. */
+  relation?: string;
   description?: string;
   host: string;
   inputPlace: string;
@@ -150,11 +152,22 @@ function routeSplit(opts: BuildOpts, from: string): { postsets: Record<string, a
   return { postsets, emit };
 }
 
-export function buildLinkInscription(id: string, label: string, from: string, to: string, host: string) {
+export function buildLinkInscription(
+  id: string,
+  label: string,
+  from: string,
+  to: string,
+  host: string,
+  relation?: string,
+) {
   return {
     id,
     kind: 'link',
-    label,
+    // relation is the typed edge semantics (what TARGET is to SOURCE); label stays human-readable
+    // free text. label defaults from relation, but NOT vice versa — copying prose labels into
+    // relation would trip the master's LINK_UNKNOWN_RELATION vocabulary warning on every link.
+    label: label || relation || id,
+    ...(relation ? { relation } : {}),
     presets: { from: preset(from, host, { consume: false, optional: true }) },
     postsets: { to: { placeId: to, host } },
   };
@@ -384,7 +397,8 @@ export function buildAgentInscription(opts: BuildOpts) {
 export function buildInscription(kind: string, opts: BuildOpts): Record<string, any> {
   switch (kind) {
     case 'link':
-      return buildLinkInscription(opts.id, opts.label ?? opts.id, opts.inputPlace, opts.outputPlace, opts.host);
+      return buildLinkInscription(
+        opts.id, opts.label ?? '', opts.inputPlace, opts.outputPlace, opts.host, opts.relation);
     case 'map':
       return buildMapInscription(opts);
     case 'llm':
