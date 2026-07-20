@@ -232,7 +232,7 @@ services:
       agenticnetos-registry:
         condition: service_healthy
     environment:
-      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.32.0}
+      AGENTICNETOS_VERSION: ${AGENTICNETOS_VERSION:-2.33.0}
       AGENTICNETOS_REGISTRY_PORT: ${AGENTICNETOS_REGISTRY_PORT:-5001}
       AGENTICOS_TOOL_REGISTRY_HOST: ${AGENTICOS_TOOL_REGISTRY_HOST:-localhost:5001}
       AGENTICOS_TOOL_SOURCE_REGISTRY: ${AGENTICOS_TOOL_SOURCE_REGISTRY:-docker.io/alexejsailer}
@@ -256,7 +256,7 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-node
     depends_on:
       init-perms:
@@ -299,7 +299,7 @@ services:
       start_period: 60s
 
   agentic-net-master:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master
     depends_on:
       init-perms:
@@ -386,7 +386,7 @@ services:
   # instead, set EXECUTOR_UPSTREAM_URL=http://agentic-net-master:8082 and
   # EXECUTOR_AUTH_CLIENT_ID= (empty) in .env.
   agentic-net-executor:
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
     depends_on:
       init-perms:
@@ -438,7 +438,7 @@ services:
       start_period: 60s
 
   agentic-net-executor-2:
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor-2
     depends_on:
       init-perms:
@@ -539,7 +539,7 @@ services:
       start_period: 10s
 
   agentic-net-vault:
-    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-vault
     depends_on:
       init-perms:
@@ -584,7 +584,7 @@ services:
   # ===========================================================================
 
   agentic-net-gateway:
-    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gateway
     depends_on:
       init-perms:
@@ -639,7 +639,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gui
     depends_on:
       init-perms:
@@ -670,7 +670,7 @@ services:
       start_period: 30s
 
   agentic-net-cli:
-    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-cli:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-cli
     depends_on:
       init-perms:
@@ -696,7 +696,7 @@ services:
           cpus: "${AGENTICNETOS_CLI_CPU_LIMIT:-0.5}"
 
   agentic-net-chat:
-    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-chat:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-chat
     profiles:
       - telegram
@@ -752,7 +752,7 @@ services:
   # clients (Claude Code/Desktop, Cursor, ...) can use this stack as working
   # memory + net builder. Opt-in: COMPOSE_PROFILES=mcp and set AGENTICOS_MCP_HTTP_TOKEN.
   agentic-net-mcp:
-    image: alexejsailer/agenticnetos-mcp:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-mcp:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-mcp
     profiles:
       - mcp
@@ -781,7 +781,7 @@ services:
     logging: *default-logging
 
   sa-blobstore:
-    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.32.0}
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.33.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-blobstore
     depends_on:
       init-perms:
