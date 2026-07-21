@@ -130,9 +130,22 @@ public class MasterPollingService {
      * WebClient with the JDK DNS resolver (~30s cache) instead of Reactor-Netty's default,
      * which honors Docker DNS's 600s TTL — after the upstream container is recreated with a
      * new IP, the default resolver keeps connecting to the dead address for up to 10 minutes.
+     *
+     * <p>The response buffer is raised well beyond the WebFlux 256KB default: a poll
+     * response carries EVERY assigned transition's inscription plus bound tokens (with
+     * resolved script bodies inlined), so a model with a few dozen script lanes exceeds
+     * 256KB — and the executor then dropped the ENTIRE payload every poll, forever,
+     * logging only a DEBUG "Poll failed … DataBufferLimitException". That silent drop
+     * starved every command lane of the safe-teams model (2026-07-21) while small
+     * models kept working. A hand-built WebClient ignores spring.codec.max-in-memory-size,
+     * so the limit must be set here.</p>
      */
     private static WebClient.Builder freshDnsWebClientBuilder() {
+        int maxBufferBytes = Integer.getInteger("executor.poll.max-buffer-bytes", 16 * 1024 * 1024);
         return WebClient.builder()
+                .exchangeStrategies(org.springframework.web.reactive.function.client.ExchangeStrategies.builder()
+                        .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(maxBufferBytes))
+                        .build())
                 .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(
                         reactor.netty.http.client.HttpClient.create()
                                 .resolver(io.netty.resolver.DefaultAddressResolverGroup.INSTANCE)));
@@ -297,8 +310,21 @@ public class MasterPollingService {
                 .bodyToMono(new ParameterizedTypeReference<PollResponse>() {})
                 .timeout(Duration.ofSeconds(5))
                 .onErrorResume(error -> {
-                    logger.debug("Poll failed for model {} (upstream may be unavailable): {}",
-                            modelId, error.getMessage());
+                    // A buffer overflow is NOT transient unavailability: the payload will be
+                    // just as large on every subsequent poll, so the model's command lanes
+                    // starve silently forever. Shout, don't whisper (it hid the safe-teams
+                    // outage behind a DEBUG line, 2026-07-21).
+                    if (error instanceof org.springframework.core.io.buffer.DataBufferLimitException
+                            || (error.getMessage() != null
+                                && error.getMessage().contains("DataBufferLimitException"))) {
+                        logger.error("Poll response for model {} exceeds the WebClient buffer — "
+                                + "EVERY poll for this model is being dropped and its command lanes "
+                                + "cannot fire. Raise -Dexecutor.poll.max-buffer-bytes. Cause: {}",
+                                modelId, error.getMessage());
+                    } else {
+                        logger.debug("Poll failed for model {} (upstream may be unavailable): {}",
+                                modelId, error.getMessage());
+                    }
                     return Mono.just(new PollResponse(executorId, modelId, Instant.now(), 0, List.of()));
                 });
     }
