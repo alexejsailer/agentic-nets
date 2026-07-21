@@ -23,6 +23,8 @@ interface AgentLoopOptions {
   maxToolCalls?: number;
   maxThinkCalls?: number;
   maxConsecutiveSameToolCalls?: number;
+  /** Return a denial reason to block a tool before it reaches the executor. */
+  authorizeTool?: (tool: AgentTool, input: Record<string, any>) => string | undefined;
 }
 
 /**
@@ -168,10 +170,16 @@ export async function* agentLoop(
 
       // Execute tool
       let result: ToolResult;
-      try {
-        result = await toolExecutor.execute(toolUse.name as AgentTool, toolUse.input);
-      } catch (err: any) {
-        result = { success: false, error: err.message };
+      const tool = toolUse.name as AgentTool;
+      const denial = options?.authorizeTool?.(tool, toolUse.input);
+      if (denial) {
+        result = { success: false, error: `Capability policy denied ${tool}: ${denial}` };
+      } else {
+        try {
+          result = await toolExecutor.execute(tool, toolUse.input);
+        } catch (err: any) {
+          result = { success: false, error: err.message };
+        }
       }
 
       yield {

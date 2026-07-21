@@ -1,25 +1,29 @@
-# Capability model: `rwxhludct` + agent tools
+# Capability model: `rwxhludcts` + agent tools
 
-In-net agents (and personas) get a **role** = nine independent capability flags. The role gates which of the
-~79 agent tools are available. When you drive a persona or author an `agent`/`llm` transition, you pick a role.
+In-net agents (and personas) get a **role** = ten independent capability flags. The role gates which of the
+agent tools are available. When you drive a persona or author an `agent`/`llm` transition, you pick a role.
+The role is only the coarse CEILING — an inscription may additionally name a `capabilityProfile` that narrows
+the exact tool set (the profile can never widen the role; profile tools the role does not grant fail template
+validation loudly).
 
-## The nine flags
+## The ten flags
 
 | Flag | Name | Grants |
 |------|------|--------|
 | **r** | read | inspect places, tokens, transitions, nets, sessions, blobs |
 | **w** | write | create/delete tokens, places, nets, transitions, arcs, inscriptions; author + register tool-nets |
 | **x** | execute | deploy / start / stop / fireOnce / execute transitions |
-| **h** | http | make HTTP calls |
+| **h** | http | make HTTP calls (+ register http catalog bindings) |
 | **l** | logs | query events, event facets, event trail |
 | **u** | user (inhabitant) | AWAIT_TOKEN (fire-and-wait; first-class net participant) |
 | **d** | docker | OCI registry discovery + tool-container lifecycle |
 | **c** | coordinate | invoke/delegate to personas + collect results |
 | **t** | tooling | discover/describe/invoke the tool-net library (use, not author) |
+| **s** | scripts | register executable script artifacts in the tool catalog |
 
 Named roles (canonical flag string): `READ_ONLY r----`, `READ_WRITE rw---`, `READ_WRITE_EXECUTE rwx--`,
 `FULL rwxh-`, `FULL_WITH_LOGS rwxhl`, `INHABITANT rwxhlu`, `INHABITANT_WITH_DOCKER rwxhlud`,
-`COORDINATOR rwxhludc`, `TOOL_BUILDER rwxhlud-t`. Full coordinator+tooling = `rwxhludct` (the Universal
+`COORDINATOR rwxhludc`, `TOOL_BUILDER rwxhlud-ts` (the Forge role). All ten = `rwxhludcts` (the Universal
 Assistant and Persona). `THINK / DONE / FAIL` control tools are always available.
 
 ## Tool groups (representative members)
@@ -39,9 +43,11 @@ Assistant and Persona). `THINK / DONE / FAIL` control tools are always available
 - **DOCKER (d):** REGISTRY_LIST_IMAGES, REGISTRY_GET_IMAGE_INFO, DOCKER_RUN, DOCKER_STOP, DOCKER_LIST, DOCKER_LOGS
 - **COORDINATE (c):** INVOKE_PERSONA, DELEGATE_TASK, COLLECT_RESULTS
 - **TOOLING (t):** LIST_TOOL_NETS, DESCRIBE_TOOL_NET, INVOKE_TOOL_NET, TOOLNET_HEALTH, TOOLNET_CANDIDATES
+- **SCRIPTS (s):** TOOL_CATALOG_REGISTER_SCRIPT (+ catalog search/get)
 
 Note: **authoring** tool-nets (REGISTER/SCAFFOLD/PROMOTE_TOOL_NET) is under **w**; **using** the tool-net
-library (LIST/DESCRIBE/INVOKE + health/candidates) is under **t**. A pure consumer is `r-------t`.
+library (LIST/DESCRIBE/INVOKE + health/candidates) is under **t**. A pure consumer is `r-------t-`,
+a pure script registrar `r--------s`.
 
 You can drive these tools without the LLM loop via `POST /api/agent-action/execute` or the per-tool REST
 endpoint `POST /api/assistant/universal/{modelId}/tools/{toolName}/execute`. Catalog: `GET /api/agent/tools/catalog`.

@@ -57,12 +57,16 @@ upstream map. Executor choice via `action.executorId` ('*' = any).
 ## agent — autonomous multi-step persona
 
 ```json
-"action":{"type":"agent","nl":"Work the task: ${input.data}","modelId":"{model}","role":"rwxhl",
+"action":{"type":"agent","nl":"Work the task: ${input.data}","modelId":"{model}","role":"rwxhl---t",
  "maxIterations":12,"autoEmit":true,"timeoutMs":240000}
 ```
 **`role` must be inside `action`** — a root-level role is ignored by the engine and the agent
-silently runs as `rw--` (no execute/http/tool-nets). Two-tier config: `toolsModel`/`thinkingModel`/
-`activeTier` pick the LLM per fire. `autoEmit: true` routes the final result to the single postset.
+silently runs as `rw--` (no execute/http/tool-nets). INVOKE_TOOL_NET is gated by the `t` flag, so a
+worker that should call tool-nets needs `rwxhl---t` (plain `rwxhl` cannot invoke them). Optionally
+add `"capabilityProfile"` to narrow the exact tool set below the role ceiling (profiles can only
+narrow — a profile tool the role does not grant fails template validation). Two-tier config:
+`toolsModel`/`thinkingModel`/`activeTier` pick the LLM per fire. `autoEmit: true` routes the final
+result to the single postset.
 
 ## link — pure structure edge, never fires
 

@@ -4,8 +4,10 @@ import type { ToolExecutor } from './tool-executor.js';
 import type { AgentEvent } from './runtime.js';
 import { agentLoop } from './runtime.js';
 import { buildSystemPrompt } from './prompts.js';
-import { parseRole, getAvailableTools } from './roles.js';
+import { parseRole } from './roles.js';
 import { buildToolSchemas } from './tools.js';
+import { resolveCapabilityPolicy } from './capabilities.js';
+import { authorizeContextPlace, resolveContextCapsule, type ExecutionFrame } from './context.js';
 
 export interface TransitionExecutionResult {
   success: boolean;
@@ -112,14 +114,44 @@ export async function executeTransitionLocally(
   // 5. Build sub-agent prompt with bound token context
   const roleStr = inscription.action?.role || 'rw';
   const subRole = parseRole(roleStr);
+  const capabilityPolicy = resolveCapabilityPolicy(inscription.action, subRole);
+  let executionSessionId = inscription.action?.sessionId || sessionId;
+  const taskId = firstBoundField(bindings, ['taskId', 'requestId']);
+  const correlationId = firstBoundField(bindings, ['_correlationId', 'correlationId', 'requestId']);
+  const frame: ExecutionFrame = {
+    modelId,
+    sessionId: executionSessionId,
+    transitionId,
+    netId: inscription.action?.netId || inscription.metadata?.netId,
+    agentInstanceId: inscription.action?.agentInstanceId || executionSessionId,
+    taskId: inscription.action?.taskId || taskId,
+    correlationId: inscription.action?.correlationId || correlationId,
+    capabilityProfile: capabilityPolicy.profile,
+  };
+  let contextCapsule;
+  try {
+    contextCapsule = await resolveContextCapsule(nodeApi, frame, inscription.action || {});
+    executionSessionId = contextCapsule.executionFrame.sessionId;
+  } catch (err: any) {
+    return { success: false, error: `Context preflight failed: ${err.message || err}`,
+      iterationsUsed: 0, emittedTokens: 0, consumedTokens: 0 };
+  }
 
   const tokenContext = buildBoundTokenContext(bindings);
 
   const taskDescription = `${resolvedNl}${tokenContext}`;
-  const subSystemPrompt = buildSystemPrompt({ role: subRole, modelId, sessionId, task: taskDescription });
+  const subSystemPrompt = buildSystemPrompt({
+    role: subRole,
+    modelId,
+    sessionId: executionSessionId,
+    task: taskDescription,
+    availableTools: capabilityPolicy.tools,
+    capabilityProfile: capabilityPolicy.profile,
+    contextCapsule,
+  });
 
   // 6. Build tool schemas — remove EXECUTE_TRANSITION to prevent recursion
-  const subTools = getAvailableTools(subRole);
+  const subTools = new Set(capabilityPolicy.tools);
   subTools.delete('EXECUTE_TRANSITION' as any);
   const subToolSchemas = buildToolSchemas(subTools);
 
@@ -153,6 +185,10 @@ export async function executeTransitionLocally(
         maxToolCalls: Math.min(SUB_AGENT_MAX_TOOL_CALLS, Math.max(1, maxIter * 2)),
         maxThinkCalls: SUB_AGENT_MAX_THINK_CALLS,
         maxConsecutiveSameToolCalls: SUB_AGENT_MAX_CONSECUTIVE_SAME_TOOL_CALLS,
+        authorizeTool(tool, params) {
+          return capabilityPolicy.authorize(tool, params, executionSessionId)
+            ?? authorizeContextPlace(contextCapsule, tool, params);
+        },
       },
     )) {
       sawEvents = true;
@@ -471,6 +507,19 @@ function buildBoundTokenContext(bindings: Map<string, any[]>): string {
   }
   const full = `\n\n## Bound Token Context\n\n${contextParts.join('\n\n')}`;
   return truncateText(full, MAX_BOUND_CONTEXT_CHARS);
+}
+
+function firstBoundField(bindings: Map<string, any[]>, fields: string[]): string | undefined {
+  for (const tokens of bindings.values()) {
+    for (const token of tokens) {
+      const data = token?.data ?? token?.value?.data ?? token?.value ?? token;
+      for (const field of fields) {
+        const value = data?.[field] ?? token?.[field];
+        if (value !== undefined && value !== null && String(value).trim()) return String(value);
+      }
+    }
+  }
+  return undefined;
 }
 
 function renderResolvedValue(value: any, maxChars: number): string {

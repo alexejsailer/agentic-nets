@@ -1,5 +1,6 @@
 import { type AgentRole, getAvailableTools, roleToString } from './roles.js';
-import { buildToolSchemas, type ToolSchema } from './tools.js';
+import { buildToolSchemas, type AgentTool, type ToolSchema } from './tools.js';
+import type { ContextCapsule } from './context.js';
 
 /**
  * Build system prompt for the agent based on role and context.
@@ -10,8 +11,11 @@ export function buildSystemPrompt(opts: {
   modelId: string;
   sessionId: string;
   task?: string;
+  availableTools?: Set<AgentTool>;
+  capabilityProfile?: string;
+  contextCapsule?: ContextCapsule;
 }): string {
-  const tools = getAvailableTools(opts.role);
+  const tools = opts.availableTools ?? getAvailableTools(opts.role);
   const schemas = buildToolSchemas(tools);
   const roleStr = roleToString(opts.role);
 
@@ -20,11 +24,11 @@ export function buildSystemPrompt(opts: {
   // Identity
   sections.push(`# AgenticNetOS Agent
 
-You are a AgenticNetOS autonomous agent with role **${roleStr}** operating on model \`${opts.modelId}\` in session \`${opts.sessionId}\`.
+You are a AgenticNetOS autonomous agent with role **${roleStr}** and capability profile **${opts.capabilityProfile ?? 'legacy-role'}** operating on model \`${opts.modelId}\` in session \`${opts.sessionId}\`.
 
 ## Your Capabilities
-- You interact with AgenticNetOS through tool calls that map to REST API operations
-- You can create, query, and manage Petri net workflows (places, transitions, arcs, tokens)
+- You interact with AgenticNetOS only through the exact tool calls listed below
+- Your role is a coarse ceiling; the named capability profile and resource scopes are the effective authority
 - All data operations go through the AgenticNetOS gateway`);
 
   // Task
@@ -33,34 +37,48 @@ You are a AgenticNetOS autonomous agent with role **${roleStr}** operating on mo
 ${opts.task}`);
   }
 
+  if (opts.contextCapsule) {
+    sections.push(`## Resolved Context Capsule
+This is the bounded context projection for this fire. Do not assume access to contexts not listed here.
+\`\`\`json
+${JSON.stringify({
+  executionFrame: opts.contextCapsule.executionFrame,
+  contexts: opts.contextCapsule.contexts,
+  budget: opts.contextCapsule.budget,
+  warnings: opts.contextCapsule.warnings,
+}, null, 2)}
+\`\`\``);
+  }
+
   // Core knowledge
-  sections.push(CORE_KNOWLEDGE);
+  const focused = !!opts.capabilityProfile && opts.capabilityProfile !== 'legacy-role';
+  sections.push(focused ? FOCUSED_CORE_KNOWLEDGE : CORE_KNOWLEDGE);
 
   // Write knowledge (if role allows)
-  if (opts.role.write) {
+  if (!focused && opts.role.write) {
     sections.push(WRITE_KNOWLEDGE);
   }
 
   // Execute knowledge (if role allows)
-  if (opts.role.execute) {
+  if (!focused && opts.role.execute) {
     sections.push(EXECUTE_KNOWLEDGE);
   }
 
   // Autonomous knowledge (if full write+execute)
-  if (opts.role.write && opts.role.execute) {
+  if (!focused && opts.role.write && opts.role.execute) {
     sections.push(AUTONOMOUS_KNOWLEDGE);
   }
 
   // Workflow playbooks (all roles)
-  sections.push(PLAYBOOK_KNOWLEDGE);
+  if (!focused) sections.push(PLAYBOOK_KNOWLEDGE);
 
   // Available tools
   sections.push(`## Available Tools
 
 ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
 
-  // Rules
-  sections.push(`## RULES (MUST FOLLOW)
+  // Broad builder rules are intentionally omitted from narrow runtime profiles.
+  if (!focused) sections.push(`## RULES (MUST FOLLOW)
 
 1. **THINK FOR PLANNING ONLY**: Before mutating state (creating nets, places, inscriptions), call THINK with goal, plan, risks, successCriteria. If mutating nets, run an analysis tool first (LIST_SESSION_NETS, EXPORT_PNML, or VERIFY_NET). Do NOT use THINK for diagnosing existing problems — use DIAGNOSE_TRANSITION instead.
 2. **ONE READ, THEN ACT**: Call GET_NET_STRUCTURE or EXPORT_PNML ONCE to see the full net. That single response tells you all places, transitions, and arcs. Do NOT then call GET_PLACE_INFO, GET_TRANSITION, or LIST_ALL_INSCRIPTIONS individually — you already have the data. Spend iterations CREATING and SETTING, not re-reading.
@@ -81,6 +99,13 @@ ${schemas.map(s => `- **${s.name}**: ${s.description}`).join('\n')}`);
 16. **HIERARCHICAL ACCESS**: Use \`\${<presetKey>.data.field}\` for token data, \`\${<presetKey>._meta.id}\` for metadata. The prefix (e.g., \`input\`) must match the preset key name in the inscription exactly.
 17. **ArcQL SYNTAX**: Paths start with \`$\`, use \`==\` (double equals), strings in double quotes: \`$.status=="active"\`
 18. **MODEL SCOPE**: All operations are scoped to model \`${opts.modelId}\`, session \`${opts.sessionId}\`.`);
+  else sections.push(`## Focused Runtime Rules
+
+1. Work only on the stated task with the exact tools and context stores listed above.
+2. Use bound presets and the context capsule first; re-query only for freshness, pagination, or verification.
+3. A denied tool or place is an authorization boundary; never work around it.
+4. Call THINK once before mutation, use unique token names, verify the requested result, then DONE.
+5. Never invent model, session, net, place, transition, or context identifiers.`);
 
   return sections.join('\n\n');
 }
@@ -91,6 +116,14 @@ export function getToolSchemas(role: AgentRole): ToolSchema[] {
 }
 
 // ---- Embedded knowledge (condensed from agent-knowledge-*.md) ----
+
+const FOCUSED_CORE_KNOWLEDGE = `## Focused Runtime Contract
+- Work only on the task, model, session, tools, and context stores listed above.
+- Use bound preset tokens and the resolved context capsule first; re-query only for freshness, pagination, or verification.
+- Tool grants are exact. A denied tool or place is a boundary, not a prompt to work around it.
+- Use ArcQL paths from \`$\`, string equality with \`==\`, and a bounded \`LIMIT\`.
+- Before mutation call THINK once with a short plan; after the requested outcome is verified call DONE.
+- Never invent place, transition, session, or context identifiers.`;
 
 const CORE_KNOWLEDGE = `## Core Knowledge
 

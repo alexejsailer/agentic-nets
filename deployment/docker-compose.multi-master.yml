@@ -98,7 +98,7 @@ services:
   # ===========================================================================
 
   agentic-net-node:
-    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-node:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-node
     depends_on:
       init-perms:
@@ -140,7 +140,7 @@ services:
   # Master 1 — serves MASTER_1_MODELS (default: "default"). Self-registers with
   # the gateway and only polls/fires transitions of models inside its scope.
   agentic-net-master-1:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master-1
     depends_on:
       init-perms:
@@ -211,7 +211,7 @@ services:
   # Master 2 — serves MASTER_2_MODELS (default: "default-2"). Keep the scope
   # DISJOINT from master-1 or both schedulers will fire the shared models.
   agentic-net-master-2:
-    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-master:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-master-2
     depends_on:
       init-perms:
@@ -284,7 +284,7 @@ services:
   # ===========================================================================
 
   agentic-net-executor:
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor
     depends_on:
       init-perms:
@@ -334,7 +334,7 @@ services:
       start_period: 60s
 
   agentic-net-executor-2:
-    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-executor:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-executor-2
     depends_on:
       init-perms:
@@ -433,7 +433,7 @@ services:
       start_period: 10s
 
   agentic-net-vault:
-    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-vault:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-vault
     depends_on:
       init-perms:
@@ -475,7 +475,7 @@ services:
   # ===========================================================================
 
   agentic-net-gateway:
-    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-gateway:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gateway
     depends_on:
       init-perms:
@@ -526,7 +526,7 @@ services:
   # ===========================================================================
 
   agentic-net-gui:
-    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-gui:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-gui
     depends_on:
       init-perms:
@@ -561,7 +561,7 @@ services:
   # ===========================================================================
 
   sa-blobstore:
-    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.21.2}
+    image: alexejsailer/agenticnetos-blobstore:${AGENTICNETOS_VERSION:-2.35.0}
     container_name: ${COMPOSE_PROJECT_NAME:-agenticnetos}-blobstore
     depends_on:
       init-perms:

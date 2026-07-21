@@ -4,7 +4,7 @@
  * Registers every tool the Agentic-Nets ToolExecutor implements (the same
  * catalog agent transitions use in-net) as a first-class MCP tool under its
  * canonical UPPERCASE name. The set and the schemas come straight from the
- * CLI's role registry (`getAvailableTools(FULL)` + `buildToolSchemas`), so new
+ * CLI's role registry (`getAvailableTools(ALL)` + `buildToolSchemas`), so new
  * platform tools appear here automatically on the next CLI sync — no MCP code
  * change needed.
  *
@@ -21,7 +21,7 @@
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { FULL, getAvailableTools } from '@agenticos/cli/agent/roles';
+import { ALL, getAvailableTools } from '@agenticos/cli/agent/roles';
 import { buildToolSchemas, type ToolSchema } from '@agenticos/cli/agent/tools';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
@@ -66,7 +66,7 @@ export function nativeCatalog(): ToolSchema[] {
   // mirroring the master's dedicated D capability flag instead of folding
   // container power into plain read/execute.
   const dockerGranted = process.env.AGENTICOS_DOCKER_TOOLS !== 'false';
-  return buildToolSchemas(getAvailableTools({ ...FULL, docker: dockerGranted }))
+  return buildToolSchemas(getAvailableTools({ ...ALL, docker: dockerGranted }))
     .filter((t) => !AGENT_LOOP_ONLY.has(t.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -41,13 +41,14 @@ type GeneratedToolName =
 
 export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
   CREATE_MODEL: {
-    description: "Create a new model (an isolated world with its own tree, sessions, places, and event line). Idempotent — succeeds if it already exists. To then work in it, call FOCUS_WORKSPACE action 'switch-model'.",
+    description: "Create a new model with its model-root domain context and an optional composition profile. Idempotent — succeeds if it already exists. To then work in it, call FOCUS_WORKSPACE action 'switch-model'.",
     schema: {
       type: 'object',
       properties: {
         modelId: { type: "string", description: "New model id. Letters, digits, '.', '_' or '-' only (no spaces or slashes)." },
         name: { type: "string", description: "Optional display name." },
-        description: { type: "string", description: "Optional human description." }
+        description: { type: "string", description: "Optional human description." },
+        profile: { type: "string", description: "Optional product composition installed after the model-root context. Defaults to standard." }
       },
       required: ["modelId"],
     },

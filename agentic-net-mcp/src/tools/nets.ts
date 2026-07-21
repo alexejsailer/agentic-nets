@@ -175,6 +175,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
             .enum(Object.keys(TEMPLATES) as [string, ...string[]])
             .optional()
             .describe('Deploy a starter template into the new model right away (e.g. working-memory)'),
+          profile: z
+            .enum(['standard', 'research', 'knowledge', 'development'])
+            .optional()
+            .describe('Model composition profile — provisions resident net-agents on top of the domain context (research: research-analyst; knowledge: context-curator + crystallizer; development: dev-crew + crystallizer). Routed through master; a partial provisioning returns an error with per-artifact detail (re-run with the same profile to complete — installs are idempotent).'),
         },
       },
       wrapTool(scope, config.mode, { name: 'create_model', mutates: true }, async (_model, args) => {
@@ -197,15 +201,42 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
             note: `model '${modelId}' already exists on the node — granted to this session; target it directly.`,
           };
         }
+        let profileResult: any;
         try {
-          await ctx.client.nodeApi('POST', '/admin/models', {
-            modelId,
-            name: args.name ?? modelId,
-            description: args.description ?? `Created via MCP session '${config.session}'`,
-          });
+          if (args.profile) {
+            // A profile composition needs the MASTER create path: it provisions the
+            // domain context AND installs the resident net-agents. Master returns a
+            // non-201 (with modelCreated:true) when provisioning is incomplete —
+            // surface that honestly instead of a blanket success.
+            const res: any = await ctx.client.masterApi('POST', '/admin/models', {
+              modelId,
+              name: args.name ?? modelId,
+              description: args.description ?? `Created via MCP session '${config.session}'`,
+              profile: args.profile,
+            });
+            profileResult = res?.modelProfile;
+          } else {
+            await ctx.client.nodeApi('POST', '/admin/models', {
+              modelId,
+              name: args.name ?? modelId,
+              description: args.description ?? `Created via MCP session '${config.session}'`,
+            });
+          }
         } catch (err: any) {
           if (err?.status === 400) {
             throw new Error(`model '${modelId}' could not be created — it likely already exists (list_models to check)`);
+          }
+          // GatewayError carries the raw body string — a non-201 with modelCreated:true
+          // means the model EXISTS but the profile composition is incomplete.
+          if (args.profile && typeof err?.body === 'string' && err.body.includes('"modelCreated"')) {
+            let parsed: any = {};
+            try { parsed = JSON.parse(err.body); } catch { /* keep the raw message below */ }
+            if (parsed?.modelCreated === true) {
+              grantModel(scope, modelId);
+              throw new Error(`model '${modelId}' was created but profile '${args.profile}' provisioning is `
+                + `incomplete: ${JSON.stringify(parsed?.modelProfile?.artifacts ?? [])} — re-run `
+                + `create_model with the same profile to complete it (installs are idempotent)`);
+            }
           }
           throw err;
         }
@@ -227,6 +258,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           workspaceProvisioned: provisioned,
           note: 'Master auto-discovers active models within ~10s. The allowlist grew for THIS session only — add the id to AGENTICOS_MODELS to make it permanent.',
           ...(template ? { template } : {}),
+          ...(profileResult ? { modelProfile: profileResult } : {}),
         };
       }),
     );

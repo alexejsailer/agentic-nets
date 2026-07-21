@@ -11,6 +11,7 @@
     "dev": "tsup --watch",
     "start": "node dist/bin/agenticos.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rm -rf dist",
     "sync-tools": "node --experimental-strip-types --no-warnings scripts/sync-tool-schemas.ts"
   },
@@ -27,7 +28,8 @@
   "devDependencies": {
     "@types/node": "^22.20.1",
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -37,6 +39,9 @@
     "./agent/tool-executor": "./src/agent/tool-executor.ts",
     "./agent/tools": "./src/agent/tools.ts",
     "./agent/roles": "./src/agent/roles.ts",
+    "./agent/capabilities": "./src/agent/capabilities.ts",
+    "./agent/context": "./src/agent/context.ts",
+    "./agent/tool-targets": "./src/agent/tool-targets.ts",
     "./agent/prompts": "./src/agent/prompts.ts",
     "./llm/provider": "./src/llm/provider.ts",
     "./llm/anthropic": "./src/llm/anthropic.ts",

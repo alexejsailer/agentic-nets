@@ -749,9 +749,10 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     }, required: ['name'] },
   },
   INSTALL_CONTEXT_TEMPLATE: {
-    description: 'Install a context template into this model. It lands STOPPED and structural links never execute.',
+    description: 'Install a context template into this model. It lands STOPPED; session/agent/task scopes require scopeOwnerId.',
     schema: { type: 'object', properties: {
       name: { type: 'string' }, version: { type: 'string' }, sessionId: { type: 'string' },
+      scopeOwnerId: { type: 'string' },
     }, required: ['name'] },
   },
   ATTACH_CONTEXT: {
@@ -782,7 +783,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     description: 'Author a NEW context from store roles + typed relations — creates session, places, manifest, and links; publishable via hub_publish kind:context.',
     schema: { type: 'object', properties: {
       name: { type: 'string' }, stores: { type: 'array' }, links: { type: 'array' },
-      scope: { type: 'string' }, description: { type: 'string' },
+      scope: { type: 'string' }, scopeOwnerId: { type: 'string' }, description: { type: 'string' },
     }, required: ['name', 'stores'] },
   },
   CONTEXT_ADD_STORE: {

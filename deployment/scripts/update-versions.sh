@@ -19,10 +19,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Every compose file that pins a released image version. Missing entries here
+# silently rot: multi-master and local-infra sat at 2.21.2 for fourteen releases
+# because they were not listed. Add new compose files to this list.
 COMPOSE_FILES=(
   "${DEPLOY_DIR}/docker-compose.yml"
   "${DEPLOY_DIR}/docker-compose.hub-only.yml"
   "${DEPLOY_DIR}/docker-compose.hub-only.no-monitoring.yml"
+  "${DEPLOY_DIR}/docker-compose.multi-master.yml"
+  "${DEPLOY_DIR}/docker-compose.local-infra.yml"
 )
 ENV_TEMPLATE="${DEPLOY_DIR}/.env.template"
 

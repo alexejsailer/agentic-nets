@@ -1,11 +1,17 @@
 /**
- * Regenerate `src/agent/tools.generated.ts` from the master-side catalog.
+ * Regenerate `src/agent/tools.generated.ts` from the master-side catalog, and
+ * sync `src/agent/capability-profiles.json` verbatim from the master's canonical
+ * capability catalog.
  *
- * Source of truth: `core/agentic-net-master/src/main/resources/agent-tool-catalog.json`.
+ * Sources of truth (both owned by core/agentic-net-master/src/main/resources/):
+ *   - `agent-tool-catalog.json`         → tools.generated.ts (code-generated)
+ *   - `agent-capability-profiles.json`  → capability-profiles.json (verbatim copy)
  *
- * Reads the JSON from one of two places, in order:
+ * Tool catalog is read from one of two places, in order:
  *   1. the repo's filesystem path (preferred, works offline)
  *   2. a running master at $AGENTIC_MASTER_URL/api/agent/tools/catalog
+ * The capability catalog syncs only from the filesystem (private core checkout);
+ * public checkouts keep the committed copy — both loaders assert schemaVersion.
  *
  * Run via `npm run sync-tools` from the agentic-net-cli directory.
  */
@@ -25,6 +31,11 @@ const catalogFsPath = path.resolve(
 );
 const outputPath = path.resolve(cliRoot, 'src/agent/tools.generated.ts');
 const handToolsPath = path.resolve(cliRoot, 'src/agent/tools.ts');
+const capabilityCatalogFsPath = path.resolve(
+  repoRoot,
+  'core/agentic-net-master/src/main/resources/agent-capability-profiles.json'
+);
+const capabilityCatalogOutPath = path.resolve(cliRoot, 'src/agent/capability-profiles.json');
 
 /**
  * Tools already hand-defined in tools.ts TOOL_DEFS keep their curated schemas —
@@ -131,7 +142,23 @@ ${entries}
   return header + unionBlock + exportBlock;
 }
 
+/** Verbatim copy — the CLI's capability semantics must be byte-identical to master's. */
+function syncCapabilityCatalog(): void {
+  if (!fs.existsSync(capabilityCatalogFsPath)) {
+    console.log('Capability catalog source not present (public checkout) — keeping committed copy');
+    return;
+  }
+  const source = fs.readFileSync(capabilityCatalogFsPath, 'utf-8');
+  const parsed = JSON.parse(source) as { schemaVersion?: string };
+  if (!parsed.schemaVersion) {
+    throw new Error(`Capability catalog at ${capabilityCatalogFsPath} has no schemaVersion`);
+  }
+  fs.writeFileSync(capabilityCatalogOutPath, source, 'utf-8');
+  console.log(`Synced capability catalog (schemaVersion ${parsed.schemaVersion}) to ${capabilityCatalogOutPath}`);
+}
+
 async function main() {
+  syncCapabilityCatalog();
   const catalog = await loadCatalog();
   if (!Array.isArray(catalog.tools) || catalog.tools.length === 0) {
     throw new Error('Catalog has no tools');

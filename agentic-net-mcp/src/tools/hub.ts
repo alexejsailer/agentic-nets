@@ -187,8 +187,9 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         version: z.string().describe('Version or "latest"'),
         source: z.string().optional().describe('local (default) or a registered remote name'),
         targetModelId: z.string().optional().describe('Target model (REQUIRED for kind=model — use a fresh id)'),
-        targetSessionId: z.string().optional(),
+        targetSessionId: z.string().optional().describe('kind=agent/context with instancePolicy=multiple: REQUIRED unique instance session id (becomes the deterministic namespace); singleton templates refuse a second differing session'),
         mode: z.enum(['CREATE_NEW', 'REPLACE']).optional().describe('model-kind only (default CREATE_NEW)'),
+        scopeOwnerId: z.string().optional().describe('kind=context with scope=session/agent/task: REQUIRED id of the owning session/agent/task (model scope derives it automatically)'),
         ...modelParam,
       },
     },
@@ -218,6 +219,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         targetModelId: args.targetModelId ?? model,
         targetSessionId,
         mode: args.mode,
+        scopeOwnerId: args.scopeOwnerId,
       });
       // A freshly installed model must be immediately targetable via the `model` param.
       if (res?.kind === 'model' && res?.targetModelId) {

@@ -246,6 +246,7 @@ export class MasterApi {
     targetModelId?: string;
     targetSessionId?: string;
     mode?: string; // model-kind: CREATE_NEW | REPLACE
+    scopeOwnerId?: string; // context-kind: required for non-model scopes (session/agent/task)
   }): Promise<any> {
     return this.client.masterApi('POST', '/hub/install', params);
   }

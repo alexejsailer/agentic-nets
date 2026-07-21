@@ -11,11 +11,35 @@ search/inspect it, install it — locally or across federated peers. The curated
 - **session** — every net in a session (a whole workflow bundle).
 - **model** — an entire model; installing creates a NEW model (pass a fresh `targetModelId`) that
   joins your allowlist immediately.
+- **agent** — a persona-team session with an `agent-manifest` (personas, entry inbox/outbox,
+  startPlan, config places, context requirements). Installs STOPPED: configure → arm. The install
+  response is a machine-readable configure-then-start checklist.
+- **context** — a context-net session with a `context-manifest`: named stores (role → place),
+  hierarchy policies (`readPolicy` local-first|local-only|parent-first, `resolution`
+  nearest|explicit|merge) and structural `kind=link` relations. Links never fire;
+  START_CONTEXT arms only maintenance transitions.
 - **toolnet** — a reusable tool-net (net + inscriptions + manifest; re-scaffolded and its manifest
   re-registered on install).
 - **tool** — a single tool-catalog entry WITH its blobs (script body / OpenAPI, sha256-pinned).
 - **catalog** — an entire catalog (a model's local one, or the global `default`).
 - **blob** — raw blobs by URN.
+
+## Agent/context install semantics (instancePolicy, ownership, upgrades)
+
+- **instancePolicy** in the manifest: `singleton` (one instance per model — a second install to a
+  different session is refused) or `multiple` (each install REQUIRES a unique `targetSessionId`,
+  which becomes a deterministic namespace rewriting every net/place/transition id so instances
+  never collide).
+- **scopeOwnerId** (context installs): a context with `scope: session|agent|task` must name its
+  owner (`scopeOwnerId` = the owning session/agent/task id). Model-scoped contexts derive the
+  owner automatically. Agents only bind contexts owned by their own execution frame.
+- **Upgrades** are forward-only: reinstalling a newer version preserves runtime tokens and lands
+  STOPPED; downgrades are refused (republish a forward migration instead). The install response
+  carries `upgrade: {from, to, kind}`.
+- **Model profiles** (create_model `profile` param): `standard` (domain context only), `research`
+  (+ research-analyst), `knowledge` (+ context-curator + crystallizer), `development` (+ dev-crew
+  + crystallizer). Resident agents install STOPPED; a partial provisioning surfaces as an error
+  listing per-artifact status — re-run with the same profile to complete (installs are idempotent).
 
 ## Self-contained packages — the part that makes installs actually run
 

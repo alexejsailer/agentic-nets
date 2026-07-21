@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.35.0] - 2026-07-21
+
+The CLI transition host now speaks the same capability and context language as master: one shared catalog, the same exact-profile tool grants, and the same bounded context capsule per agent firing.
+
+### Added
+- **Capability profiles and context capsules in the CLI transition host** (`agentic-net-cli` — `src/agent/capabilities.ts`, `src/agent/context.ts`, `src/agent/tool-targets.ts`, `src/agent/transition-executor.ts`, `src/agent/runtime.ts`, `src/agent/prompts.ts`). A locally executed `agent` transition resolves `action.capabilityProfile` into an exact tool set and resolves its declared context requirements into a bounded capsule — the same hierarchy policies (`local-first` / `local-only` / `parent-first`, `nearest` / `explicit` / `merge`), read-only inheritance, version constraints and budget clamps master applies. Both are enforced before a tool runs, not just reflected in the system prompt, and a profile-driven agent gets a focused prompt with only its granted tools.
+- **Shared capability catalog** (`agentic-net-cli` — `src/agent/capability-profiles.json`, `scripts/sync-tool-schemas.ts`). The catalog (schema 2.0) carries the capability profiles, the per-tool resource classification, and the resolver constants both runtimes must agree on: context budget defaults and clamps, scope ranking, hierarchy policies and depths, and the relation direction sets. It is synced verbatim from master by `npm run sync-tools`, and both runtimes hard-assert the schema version at startup so a stale copy fails fast instead of granting a drifted tool set.
+- **Test suite for the CLI agent runtime** (`agentic-net-cli` — `test/`, `vitest.config.ts`, `npm test`). Sixty-one tests covering role parsing, the shared semver matcher (driven by the catalog's test vectors, which master runs against its own matcher), profile resolution and denial shapes, capsule binding/access, context selection and scoping, hierarchy expansion, and budget truncation.
+- **MCP surfaces context ownership and model profiles** (`agentic-net-mcp` — `src/tools/hub.ts`, `src/tools/nets.ts`). `hub_install` accepts `scopeOwnerId` (required for `session`/`agent`/`task`-scoped contexts) and documents when `targetSessionId` is mandatory for `instancePolicy: multiple` templates; `create_model` accepts `profile` (`standard` / `research` / `knowledge` / `development`), routing through master so the domain context and resident net-agents are provisioned — and reporting per-artifact detail when a composition is only partly installed.
+
+### Changed
+- **The CLI speaks the canonical `rwxhludcts` role syntax** (`agentic-net-cli` — `src/agent/roles.ts`). It previously implemented a six-flag `rwxhds` variant, so master roles such as `rw--l-----` could not be parsed and the two runtimes grouped tools differently. Logs, user/await, coordination and tooling are now their own flags, matching master exactly; previously saved short-form roles still parse.
+- **`FULL` is now `ALL` in the CLI role exports** (`agentic-net-cli` — `src/agent/roles.ts`, consumed by `agentic-net-mcp`). The name meant "every flag" here but the narrower `rwxh-` role in master. `ALL` matches master's naming; `FULL` remains as a deprecated alias for one release.
+- **MCP knowledge documents the packaging model** (`agentic-net-mcp` — `src/knowledge/nethub.md`, `src/knowledge/inscriptions.md`). NetHub knowledge now covers the `agent` and `context` kinds, `instancePolicy` and instance namespacing, `scopeOwnerId`, forward-only upgrades and model composition profiles. The sample worker inscription uses `rwxhl---t` — `INVOKE_TOOL_NET` is gated by the `t` flag, so the previous `rwxhl` example could not call tool-nets.
+- **Capability reference covers all ten flags** (`claude-plugin/agenticos-control/.../capability-model.md`). It documented nine and omitted `s` (scripts); it also now explains that a role is the ceiling and a `capabilityProfile` narrows it.
+
 ## [2.34.0] - 2026-07-20
 
 ### Added
