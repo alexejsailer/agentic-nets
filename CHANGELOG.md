@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.35.1] - 2026-07-22
+
+### Fixed
+- **Executor: poll responses larger than 256KB were silently dropped, starving a model's command lanes** (`agentic-net-executor` — `service/MasterPollingService.java`). A poll response carries every assigned transition's inscription plus its bound tokens, with resolved script bodies inlined — so a model with a few dozen script-backed command lanes exceeds WebFlux's 256KB default buffer. The executor then discarded the **entire** payload on every poll ("Received 0 transitions"), reporting it only as a DEBUG line reading "upstream may be unavailable". Every command lane of that model stopped executing indefinitely while smaller models kept working, and the downstream effect was a model that looked completely idle: scheduled lanes emit into capacity-limited places, the command tokens sitting there were never consumed, and the capacity gate then blocked the schedules too. The executor's hand-built `WebClient` ignores `spring.codec.max-in-memory-size`, so the limit is now set on the builder (16 MB, override with `-Dexecutor.poll.max-buffer-bytes`), and a buffer overflow logs at ERROR naming the affected model and the fix instead of hiding at DEBUG.
+
 ## [2.35.0] - 2026-07-21
 
 The CLI transition host now speaks the same capability and context language as master: one shared catalog, the same exact-profile tool grants, and the same bounded context capsule per agent firing.
