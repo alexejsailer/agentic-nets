@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.36.0] - 2026-07-24
+
+The gateway becomes the control point for a deployment-wide LLM kill switch (the master + GUI halves ship in the core release of the same version).
+
+### Added
+- **Fleet-wide LLM freeze fan-out** (`agentic-net-gateway` — `rest/SystemControlController.java`). New `GET`/`POST /api/system/llm-freeze/fleet`. A single request loops the master registry and calls each registered master's `/api/system/llm-freeze`, so an operator freezes or thaws the whole deployment at once — deliberately not the model-routed `/api/**` proxy, which would only reach the one master that owns a given model. `GET` aggregates per-master state (the fleet reads as frozen only when *every* reachable master is frozen) together with the auto-freeze threshold (max across masters) and the summed 24h token spend, so a client can show "spent / limit" at a glance. Both require JWT via the existing `/api/**` rule, and because readonly tokens are write-blocked, only an admin token can POST a freeze.
+
 ## [2.35.1] - 2026-07-22
 
 ### Fixed
