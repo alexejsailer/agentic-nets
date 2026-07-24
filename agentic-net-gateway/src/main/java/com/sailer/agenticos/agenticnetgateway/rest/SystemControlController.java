@@ -98,10 +98,21 @@ public class SystemControlController {
         r.put("reason", state.getOrDefault("reason", ""));
         r.put("by", state.getOrDefault("by", ""));
         r.put("at", state.getOrDefault("at", ""));
+        r.put("autoFreezeThreshold", asLong(state.get("autoFreezeThreshold")));
+        r.put("tokensLast24h", asLong(state.get("tokensLast24h")));
         if (error != null) {
             r.put("error", error);
         }
         return r;
+    }
+
+    private static long asLong(Object v) {
+        if (v instanceof Number n) return n.longValue();
+        try {
+            return (v == null) ? 0L : Long.parseLong(String.valueOf(v).trim());
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -110,12 +121,22 @@ public class SystemControlController {
         long frozenCount = rows.stream()
                 .filter(r -> Boolean.TRUE.equals(r.get("reachable")) && Boolean.TRUE.equals(r.get("frozen")))
                 .count();
+        long tokensLast24h = rows.stream()
+                .filter(r -> Boolean.TRUE.equals(r.get("reachable")))
+                .mapToLong(r -> asLong(r.get("tokensLast24h"))).sum();
+        // Threshold is set fleet-wide; surface the max seen so a partially-applied change is visible.
+        long threshold = rows.stream()
+                .filter(r -> Boolean.TRUE.equals(r.get("reachable")))
+                .mapToLong(r -> asLong(r.get("autoFreezeThreshold"))).max().orElse(0L);
+
         Map<String, Object> out = new LinkedHashMap<>();
         // Fleet counts as frozen only when every reachable master is frozen (and at least one exists).
         out.put("frozen", reachable > 0 && frozenCount == reachable);
         out.put("total", rows.size());
         out.put("reachable", reachable);
         out.put("frozenCount", frozenCount);
+        out.put("autoFreezeThreshold", threshold);
+        out.put("tokensLast24h", tokensLast24h);
         out.put("masters", rows);
         return out;
     }
