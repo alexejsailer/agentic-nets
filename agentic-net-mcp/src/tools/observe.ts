@@ -258,12 +258,16 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const byStatus: Record<string, number> = {};
       const running: string[] = [];
       const notRunning: any[] = [];
+      const external: string[] = [];
       for (const t of txList) {
         const id = t.transitionId ?? t.id ?? t.name ?? '?';
         const status = String(t.status ?? t.state ?? (t.running ? 'RUNNING' : 'STOPPED')).toUpperCase();
         byStatus[status] = (byStatus[status] ?? 0) + 1;
         if (status === 'RUNNING') running.push(id);
         else notRunning.push({ transitionId: id, status, ...(t.kind ? { kind: t.kind } : {}) });
+        // External lane: master deliberately skips these — a client fires them
+        // (list_external_fires / prepare_external_fire), so they are not "stalled".
+        if (status === 'EXTERNAL') external.push(id);
       }
 
       // --- LLM consumption + activity + recent errors from the event line ---
@@ -337,6 +341,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         // paused = nothing is polling: no transition can fire until resume_model / start_transition.
         paused: txList.length > 0 && running.length === 0,
         transitions: { total: txList.length, byStatus, running, notRunning },
+        ...(external.length
+          ? { externalFires: { transitions: external, note: 'client-fired lane — see list_external_fires' } }
+          : {}),
         scheduled,
         executorCoverage,
         ...(hosted.length ? { hosted } : {}),

@@ -15,6 +15,8 @@ export interface ModelScope {
   allowed: string[];
   defaultModel: string;
   multiModel: boolean;
+  /** Optional per-call gate installed by AppContext (used by active external agent fires). */
+  toolGuard?: (model: string, spec: ToolSpec, args: Record<string, any>) => Promise<void>;
 }
 
 export function scopeFromConfig(
@@ -148,6 +150,9 @@ export function wrapTool(scope: ModelScope, mode: 'rw' | 'readonly', spec: ToolS
         throw new ReadonlyError(spec.name);
       }
       model = resolveModel(scope, args?.model);
+      if (scope.toolGuard) {
+        await scope.toolGuard(model, spec, args ?? {});
+      }
       const data = await handler(model, args ?? {});
       const payload = data ?? { ok: true };
       // Scope echo (protocol-hardening trap #1): any answer that depends on the

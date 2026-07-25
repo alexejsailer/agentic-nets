@@ -17,6 +17,7 @@ import commandsMd from './commands.md';
 import conceptsMd from './concepts.md';
 import costMd from './cost.md';
 import emitMd from './emit.md';
+import externalFireMd from './external-fire.md';
 import indexMd from './index.md';
 import nethubMd from './nethub.md';
 import inscriptionsMd from './inscriptions.md';
@@ -45,6 +46,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   commands: { title: 'Command lanes: token schema + executors', text: commandsMd },
   'tool-catalog': { title: 'The Tool Catalog: four flags, two scopes', text: toolCatalogMd },
   llm: { title: 'LLM transitions: the riskiest kind', text: llmMd },
+  'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },
   cost: { title: 'Watching the meter: token cost', text: costMd },
   nethub: { title: 'NetHub: export, import, self-contained packages', text: nethubMd },

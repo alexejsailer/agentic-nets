@@ -148,7 +148,8 @@ export function registerHostedTools(server: McpServer, ctx: AppContext): void {
       description:
         `Execute an llm/agent transition HERE instead of on master, using the client side's own LLM (provider '${config.llmProvider}'${config.llmModel ? `, model ${config.llmModel}` : ''} — zero server-side LLM setup). ` +
         'The transition is stopped on master (so it does not double-fire) and this process becomes its executor: mode "watch" polls its input place and works each arriving token; mode "once" executes a single waiting token now and returns the result. ' +
-        'Honest semantics: hosted lanes run only while this session is connected — tokens arriving meanwhile wait safely in the input place. Monitor via net_stats.hosted; stop with unhost_transition.',
+        'Honest semantics: hosted lanes run only while this session is connected — tokens arriving meanwhile wait safely in the input place. Monitor via net_stats.hosted; stop with unhost_transition. ' +
+        'Alternative: when the HOST MODEL itself should do the reasoning (no local provider config at all), use set_external + prepare/complete_external_fire instead — master keeps the emit-rule pipeline and this session supplies the answer.',
       inputSchema: {
         transitionId: z.string(),
         mode: z.enum(['watch', 'once']).optional().describe('watch = keep polling (default); once = single execution now'),

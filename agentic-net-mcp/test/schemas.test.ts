@@ -74,6 +74,12 @@ const CURATED = [
   'resume_model',
   'host_transition',
   'unhost_transition',
+  // external fires — the host model is the LLM
+  'list_external_fires',
+  'set_external',
+  'prepare_external_fire',
+  'complete_external_fire',
+  'abandon_external_fire',
   'create_persona',
   'spawn_persona',
   'scaffold_tool_net',
@@ -173,7 +179,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
     );
   });
 

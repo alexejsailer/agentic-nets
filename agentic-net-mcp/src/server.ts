@@ -9,6 +9,7 @@ import { buildInstructions } from './instructions.js';
 import { setScopeEchoSession, toolRegistry } from './scope.js';
 import { registerAgentTools } from './tools/agents.js';
 import { registerCatalogTools } from './tools/catalog.js';
+import { registerExternalReaders, registerExternalTools } from './tools/external.js';
 import { registerHostedTools } from './tools/hosted.js';
 import { registerHubTools } from './tools/hub.js';
 import { registerKnowledgeTools } from './tools/knowledge.js';
@@ -56,6 +57,8 @@ export function createServer(ctx: AppContext): McpServer {
     // register the module and rely on wrapTool to reject the mutators is NOT
     // enough here — we want them absent. So: register only the readers.
     registerMemoryReaders(server, ctx);
+    // External-fire discovery is GET-based — readonly observers can see the lane.
+    registerExternalReaders(server, ctx);
   } else {
     registerMemoryTools(server, ctx);
     registerNetTools(server, ctx);
@@ -65,6 +68,8 @@ export function createServer(ctx: AppContext): McpServer {
     registerHubTools(server, ctx);
     // Client-hosted llm/agent execution — this process as the transition runner.
     registerHostedTools(server, ctx);
+    // External fires — the host model itself answers llm/agent transitions via master.
+    registerExternalTools(server, ctx);
     // Full native parity: every ToolExecutor tool, canonical UPPERCASE names.
     registerCatalogTools(server, ctx);
   }

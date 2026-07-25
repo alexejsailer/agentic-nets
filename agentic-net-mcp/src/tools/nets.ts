@@ -498,6 +498,13 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         maxIterations: args.maxIterations,
         autoEmit: args.autoEmit,
       });
+      // Execution-mode inheritance resolves net/session policy from inscription metadata.
+      // Keep it on both runtime and designtime copies so re-deploys preserve the scope.
+      inscription.metadata = {
+        ...(inscription.metadata ?? {}),
+        sessionId: config.session,
+        netId: String(args.netId),
+      };
       // A concrete executorId doubles as the assignedAgent; '*' keeps the default
       // assignment (master offers the work to every polling executor).
       const agentId = (args.kind === 'command' && args.executorId && args.executorId !== '*') ? args.executorId : agentFor(args.kind);
@@ -506,10 +513,24 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
 
       let started = false;
       if (args.kind !== 'link' && args.start !== false) {
-        await ctx.master.startTransition(args.transitionId, model);
-        started = true;
+        const runtime: any = await ctx.client.masterApi(
+          'GET',
+          `/transitions/${encodeURIComponent(String(args.transitionId))}/status`,
+          undefined,
+          { modelId: model },
+        );
+        if (runtime?.status !== 'external') {
+          await ctx.master.startTransition(args.transitionId, model);
+          started = true;
+        }
       }
-      return { transition: args.transitionId, kind: args.kind, started, inscription };
+      return {
+        transition: args.transitionId,
+        kind: args.kind,
+        started,
+        external: args.kind !== 'link' && args.start !== false && !started,
+        inscription,
+      };
     }),
   );
 

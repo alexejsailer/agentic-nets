@@ -711,7 +711,6 @@ export class ToolExecutor {
         error: `No inscription found for transition '${transitionId}'. Set inscription first with SET_INSCRIPTION.`,
       };
     }
-
     const check = await this.verifyRuntimeBindings(transitionId, inscription);
     if (check.ok) {
       return {
@@ -2523,6 +2522,14 @@ export class ToolExecutor {
         error: `Cannot deploy '${transitionId}': no inscription found. Use SET_INSCRIPTION first.`,
       };
     }
+    inscription = {
+      ...inscription,
+      metadata: {
+        ...(inscription.metadata ?? {}),
+        sessionId: inscription.metadata?.sessionId ?? this.sessionId,
+        ...(params.netId ? { netId: String(params.netId) } : {}),
+      },
+    };
 
     const preflight = await this.verifyRuntimeBindings(transitionId, inscription);
     if (!preflight.ok) {

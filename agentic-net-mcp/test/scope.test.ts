@@ -62,6 +62,32 @@ describe('wrapTool', () => {
     expect(res.isError).toBeUndefined();
   });
 
+  it('runs the installed per-fire tool guard before the handler', async () => {
+    const guarded = scopeFromConfig({ models: ['m1'] });
+    const guard = vi.fn(async () => {
+      throw new Error('capability denied');
+    });
+    guarded.toolGuard = guard;
+    const handler = vi.fn(async () => 'must not run');
+    const wrapped = wrapTool(
+      guarded,
+      'rw',
+      { name: 'HTTP_CALL', mutates: true },
+      handler,
+    );
+
+    const result = await wrapped({ url: 'https://example.invalid' });
+
+    expect(guard).toHaveBeenCalledWith(
+      'm1',
+      { name: 'HTTP_CALL', mutates: true },
+      { url: 'https://example.invalid' },
+    );
+    expect(handler).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(JSON.parse(result.content[0].text).error).toMatch(/capability denied/);
+  });
+
   it('maps GatewayError to a tool-level error with status', async () => {
     const err = Object.assign(new Error('Gateway 503: down'), { name: 'GatewayError', status: 503, body: 'down' });
     const wrapped = wrapTool(scope, 'rw', { name: 't', mutates: false }, async () => {

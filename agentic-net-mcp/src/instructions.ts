@@ -108,6 +108,24 @@ execution. Stats live in net_stats.hosted; stop with unhost_transition. Honest r
 run only while this session is connected — tokens wait safely in the input place meanwhile. Put
 lanes that must run 24/7 unattended on master (llm kind with a server-side model) instead.
 
+## External fires — YOU are the LLM (no provider config at all)
+The third execution mode: set_external {transitionId, external:true} (bulk: transitionIds / netId /
+sessionId / all:true) marks an llm/agent transition status "external" — master's schedulers skip it
+and tokens wait in its input places until a client fires it. Model/session/net choices persist and
+apply to newly deployed transitions carrying matching metadata; a transition choice overrides them.
+Then: list_external_fires shows which
+have work; prepare_external_fire {transitionId} returns the EXACT interpolated prompt (llm) or nl
+instruction (agent) plus leased bound tokens + fireId. For agents it also returns the exact
+allowedTools/resourceScopes; use only those tools (master authorizes every call). You reason AS THE
+HOST MODEL; complete_external_fire
+{transitionId, fireId, response | emissions | summary} hands the answer to master, which runs the
+same emit-rule pipeline as a master fire, consumes the shown tokens, and books usage as
+provider external:mcp-<session> (never against the master LLM breaker). success:false or
+abandon_external_fire preserves the inputs. Mixed nets are normal — some llm/agent transitions on
+master, others external, in one net. Difference vs host_transition: external fires use the HOST
+MODEL itself (zero provider setup, master keeps emit semantics); host_transition runs a separately
+configured provider unattended in this process. start_transition returns a lane to master.
+
 ## Scheduling — nets that run while everyone sleeps
 Any non-link transition accepts a schedule: scheduleCron (6-field cron: sec min hour day month
 weekday, e.g. "0 0 3 * * *" = 03:00 nightly) or intervalMs — via add_transition, spawn_persona, or
