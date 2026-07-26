@@ -570,6 +570,31 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         problems.push('master /llm/health did not answer — llm/agent readiness unknown (is agentic-net-master up?)');
       }
 
+      // Credential vault — the layer readiness used to skip entirely. It is not optional plumbing:
+      // with the vault down, fireOnce 500s on `Connection refused: agentic-net-vault:8085` even for a
+      // pure map lane that references no credentials, while readiness happily reported ready:true and
+      // capabilities.build:true. Reported as its own layer so a green readiness means green.
+      let vault: any;
+      try {
+        const res: any = await ctx.client.masterApi('GET', '/vault/health');
+        const status = String(res?.status ?? (res?.healthy === true ? 'UP' : '')).toUpperCase();
+        vault = { reachable: true, status: status || 'UNKNOWN', ...(res?.backend ? { backend: res.backend } : {}) };
+        if (status && !['UP', 'OK', 'READY', 'HEALTHY'].includes(status)) {
+          problems.push(`credential vault reports ${status} — fire_once fails for EVERY lane while it is down, including lanes that use no credentials`);
+        }
+      } catch (err: any) {
+        // A 404 means this master predates the vault health endpoint, not that the vault is down.
+        if (err?.name === 'GatewayError' && err.status === 404) {
+          vault = { reachable: null, status: 'UNKNOWN', note: 'master exposes no /vault/health — cannot verify this layer' };
+        } else {
+          vault = { reachable: false, status: 'UNREACHABLE', error: String(err?.message ?? err).slice(0, 120) };
+          problems.push(
+            'credential vault did not answer — fire_once fails for EVERY lane while it is down (even credential-free map lanes); ' +
+              'check agentic-net-vault and its OpenBao backend',
+          );
+        }
+      }
+
       // Executors — gate command lanes only.
       const executors = await fetchExecutors(ctx);
       const cov = coverageFromExecutors(executors, model);
@@ -588,9 +613,16 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         node,
         model: modelReport,
         llm,
+        vault,
         executors: covReport,
         capabilities: {
-          build: gateway.authenticated === true && node.reachable === true && modelReport.exists === true,
+          // `build` gates on the vault too: a stack that cannot resolve credentials cannot fire, so
+          // reporting build:true there is exactly the false confidence this call exists to prevent.
+          build:
+            gateway.authenticated === true &&
+            node.reachable === true &&
+            modelReport.exists === true &&
+            vault?.reachable !== false,
           llmLanes: String(llm?.status ?? '').toUpperCase() === 'READY',
           commandLanes: cov.covered,
         },

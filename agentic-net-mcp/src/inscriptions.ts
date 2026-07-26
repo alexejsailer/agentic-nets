@@ -38,6 +38,18 @@ export interface BuildOpts {
   /** 6-field cron or interval ms — either arms a schedule. */
   scheduleCron?: string;
   intervalMs?: number;
+  /**
+   * What a SCHEDULED lane does when its input place is empty at tick time. Ignored without a schedule.
+   *
+   * - `fire` (default, and what scheduling has always done here): the preset becomes
+   *   `consume:false, optional:true`, so the lane ticks whether or not a token is there and never
+   *   consumes. This is the sentinel/heartbeat shape (see the `watcher` template). Beware: if the
+   *   action interpolates `${input.*}`, every tick on an empty place emits a token with those fields
+   *   silently missing, marked `_status:"success"`, and they accumulate forever.
+   * - `skip`: the preset stays required and consuming, so the schedule is an AND-gate with token
+   *   availability — the lane drains a queue on a timer and stays quiet when there is nothing to do.
+   */
+  onEmpty?: 'fire' | 'skip';
   timeoutMs?: number;
   /** Execution mode: SINGLE (bind all presets, fire once) or FOREACH (process each bound token
    *  independently, bounded parallel fan-out). Default SINGLE. */
@@ -110,6 +122,42 @@ function schedule(opts: BuildOpts): Record<string, any> {
   return {};
 }
 
+/**
+ * The preset overrides a SCHEDULE implies — one definition, so every kind agrees and so
+ * `set_schedule` can apply exactly the same rule to a transition built earlier.
+ *
+ * Arming a schedule quietly rewrites the input preset, which is a much bigger behaviour change than
+ * "it now also runs on a timer": with `onEmpty:'fire'` the lane stops consuming and starts ticking on
+ * an empty place. That was previously implicit, undocumented, and applied on one code path only.
+ */
+export function schedulePresetOverride(opts: Pick<BuildOpts, 'scheduleCron' | 'intervalMs' | 'onEmpty'>) {
+  if (!opts.scheduleCron && !opts.intervalMs) return {};
+  return (opts.onEmpty ?? 'fire') === 'skip' ? { consume: true, optional: false } : { consume: false, optional: true };
+}
+
+/**
+ * Warn when a scheduled lane will tick on an empty place while its action interpolates `${input.*}`.
+ *
+ * That pair provably emits junk: the template resolves against nothing, the referenced keys are
+ * dropped from the output entirely, and the result is still stamped `_status:"success"` — one such
+ * token per tick, forever. Returned as advice rather than an error because a heartbeat lane that
+ * happens to mention input in a comment is legitimate.
+ */
+export function scheduleEmptyFireWarning(opts: BuildOpts): string | null {
+  if (!opts.scheduleCron && !opts.intervalMs) return null;
+  if ((opts.onEmpty ?? 'fire') !== 'fire') return null;
+  const usesInput = [opts.prompt, opts.nl, opts.url, JSON.stringify(opts.template ?? null), JSON.stringify(opts.body ?? null)]
+    .filter(Boolean)
+    .some((s) => /\$\{\s*input\./.test(String(s)));
+  if (!usesInput) return null;
+  return (
+    `Scheduled lane '${opts.id}' fires even when '${opts.inputPlace}' is empty (onEmpty:"fire", the default) ` +
+    `while its action interpolates \${input.*}. Every tick on an empty place emits a token with those fields ` +
+    `missing, marked success, and they accumulate without bound. Pass onEmpty:"skip" to make the schedule ` +
+    `an AND-gate with token availability.`
+  );
+}
+
 function postset(opts: BuildOpts) {
   return {
     out: {
@@ -180,7 +228,7 @@ export function buildMapInscription(opts: BuildOpts) {
     kind: 'map',
     label: opts.label ?? opts.id,
     ...schedule(opts),
-    presets: { input: preset(opts.inputPlace, opts.host, opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {}) },
+    presets: { input: preset(opts.inputPlace, opts.host, schedulePresetOverride(opts)) },
     postsets: { ...postset(opts), ...(routed?.postsets ?? {}) },
     action: { type: 'map', template: opts.template ?? { value: '${input.data}' } },
     emit: opts.emit ?? routed?.emit ?? [{ to: 'out', from: '@response' }],
@@ -221,7 +269,7 @@ export function buildLlmInscription(opts: BuildOpts) {
       input: preset(
         opts.inputPlace,
         opts.host,
-        opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {},
+        schedulePresetOverride(opts),
       ),
     },
     postsets,
@@ -312,7 +360,7 @@ export function buildHttpInscription(opts: BuildOpts) {
       input: preset(
         opts.inputPlace,
         opts.host,
-        opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {},
+        schedulePresetOverride(opts),
       ),
     },
     postsets,
@@ -334,7 +382,7 @@ export function buildCommandInscription(opts: BuildOpts) {
     label: opts.label ?? opts.id,
     ...schedule(opts),
     presets: {
-      input: preset(opts.inputPlace, opts.host, opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {}),
+      input: preset(opts.inputPlace, opts.host, schedulePresetOverride(opts)),
     },
     postsets: { log: { placeId: opts.outputPlace, host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) } },
     action: {
@@ -374,7 +422,7 @@ export function buildAgentInscription(opts: BuildOpts) {
     role: opts.role ?? 'rw--',
     ...schedule(opts),
     presets: {
-      input: preset(opts.inputPlace, opts.host, opts.scheduleCron || opts.intervalMs ? { consume: false, optional: true } : {}),
+      input: preset(opts.inputPlace, opts.host, schedulePresetOverride(opts)),
     },
     postsets: postset(opts),
     action: {

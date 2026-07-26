@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildInscription, buildAgentInscription } from '../src/inscriptions.js';
+import { buildInscription, buildAgentInscription, scheduleEmptyFireWarning } from '../src/inscriptions.js';
 import { compileSteps } from '../src/tools/nets.js';
 
 describe('agent inscription (spawn_persona / add_transition kind:agent)', () => {
@@ -271,5 +271,80 @@ describe('compileSteps (session crystallization → replayable script)', () => {
   it('counts nothing for empty / unrecognized steps', () => {
     expect(compileSteps([{}, { foo: 'bar' }]).count).toBe(0);
     expect(compileSteps([]).count).toBe(0);
+  });
+});
+
+describe('scheduled-lane preset semantics (onEmpty)', () => {
+  const base = { id: 't-s', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' };
+
+  it('arming a schedule makes the preset optional and non-consuming by default', () => {
+    const ins: any = buildInscription('map', { ...base, intervalMs: 30_000, template: { a: 1 } });
+    expect(ins.presets.input.optional).toBe(true);
+    expect(ins.presets.input.consume).toBe(false);
+  });
+
+  it('onEmpty:"skip" keeps the schedule AND-gated with token availability', () => {
+    const ins: any = buildInscription('map', {
+      ...base,
+      intervalMs: 30_000,
+      onEmpty: 'skip',
+      template: { a: 1 },
+    });
+    expect(ins.presets.input.optional).toBe(false);
+    expect(ins.presets.input.consume).toBe(true);
+  });
+
+  it('an unscheduled lane is unaffected by onEmpty', () => {
+    const ins: any = buildInscription('map', { ...base, onEmpty: 'fire', template: { a: 1 } });
+    expect(ins.presets.input.consume).toBe(true);
+    expect(ins.presets.input.optional).toBeUndefined();
+  });
+
+  it('applies the same rule across kinds, so scheduling means one thing', () => {
+    for (const kind of ['map', 'llm', 'http', 'command'] as const) {
+      const ins: any = buildInscription(kind, {
+        ...base,
+        intervalMs: 30_000,
+        onEmpty: 'skip',
+        template: { a: 1 },
+        prompt: 'p',
+        url: 'http://x',
+      });
+      expect(ins.presets.input.consume, `${kind} preset should consume`).toBe(true);
+      expect(ins.presets.input.optional, `${kind} preset should be required`).toBe(false);
+    }
+  });
+});
+
+describe('scheduleEmptyFireWarning', () => {
+  const base = { id: 't-s', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out' };
+
+  it('warns when a tick-on-empty lane interpolates ${input.*} (emits junk every tick)', () => {
+    const w = scheduleEmptyFireWarning({ ...base, intervalMs: 30_000, template: { tick: '${input.data.seq}' } } as any);
+    expect(w).toContain('onEmpty');
+    expect(w).toContain('t-s');
+  });
+
+  it('stays quiet when onEmpty is skip', () => {
+    expect(
+      scheduleEmptyFireWarning({
+        ...base,
+        intervalMs: 30_000,
+        onEmpty: 'skip',
+        template: { tick: '${input.data.seq}' },
+      } as any),
+    ).toBeNull();
+  });
+
+  it('stays quiet for a heartbeat lane that references no input', () => {
+    expect(
+      scheduleEmptyFireWarning({ ...base, intervalMs: 30_000, template: { probe: 'ping' } } as any),
+    ).toBeNull();
+  });
+
+  it('stays quiet without a schedule', () => {
+    expect(
+      scheduleEmptyFireWarning({ ...base, template: { tick: '${input.data.seq}' } } as any),
+    ).toBeNull();
   });
 });

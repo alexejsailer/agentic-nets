@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`onEmpty` names what a scheduled lane does on an empty input place** (`agentic-net-mcp` — `src/inscriptions.ts`, `src/tools/nets.ts`). Arming a schedule silently rewrote the input preset to `consume:false, optional:true`, and only on the `add_transition` path: the same net scheduled via `set_schedule` kept a consuming, required preset. Two behaviours, chosen implicitly by which tool built the lane, documented nowhere. Both tools now take `onEmpty: "fire" | "skip"` — `fire` is the sentinel shape (tick regardless, never consume; the previous `add_transition` default, unchanged), `skip` keeps the schedule AND-gated with token availability. `set_schedule` leaves existing presets alone unless you pass it. Both tools now report the resulting `presetSemantics`, and `add_transition` warns when a tick-on-empty lane interpolates `${input.*}`, which emits a token with those fields silently missing on every empty tick, marked success, without bound.
+- **Referential integrity on `netId`** (`agentic-net-mcp` — `src/tools/nets.ts`). `add_place` against an unknown net used to auto-create it, so one typo split a topology across two nets with no warning: both individually valid, nothing downstream complaining, half your places missing from the net you thought you were building. An unknown `netId` is now an error listing the known nets; pass `createIfMissing: true` for the rare intentional case. Never blocks the write when the net list itself cannot be read.
+
+### Changed
+- **`readiness` checks the credential vault** (`agentic-net-mcp` — `src/tools/observe.ts`). It walked gateway, node, LLM and executors but not the vault — the one layer that, when down, makes `fire_once` fail with `Connection refused: agentic-net-vault:8085` for *every* lane, including pure `map` lanes that reference no credentials. Readiness reported `ready: true` throughout. The vault is now its own reported layer and gates `capabilities.build`.
+
 ## [2.36.0] - 2026-07-25
 
 The gateway becomes the control point for a deployment-wide LLM kill switch, and the MCP server learns to **fire `llm`/`agent` transitions itself** using the connected client's own model (the master + GUI halves ship in the core release of the same version).

@@ -6,7 +6,15 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
-import { agentFor, assignInscription, buildInscription, persistInscriptionLeaf, validateCron } from '../inscriptions.js';
+import {
+  agentFor,
+  assignInscription,
+  buildInscription,
+  persistInscriptionLeaf,
+  scheduleEmptyFireWarning,
+  schedulePresetOverride,
+  validateCron,
+} from '../inscriptions.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
@@ -305,17 +313,42 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     'add_place',
     {
       title: 'Add a place',
-      description: 'Add a place to a net (designtime, for the GUI) AND as a runtime token container (so transitions can bind it).',
+      description:
+        'Add a place to a net (designtime, for the GUI) AND as a runtime token container (so transitions can bind it). The net must already exist — a netId typo used to silently vivify a NEW net and split your topology across two; pass createIfMissing:true if you really do want it created here.',
       inputSchema: {
         netId: z.string(),
         placeId: z.string().describe('Convention: p-<name>'),
         label: z.string().optional(),
         x: z.number().optional(),
         y: z.number().optional(),
+        createIfMissing: z
+          .boolean()
+          .optional()
+          .describe('Create the net when it does not exist (default false — an unknown netId is an error, because it is almost always a typo).'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'add_place', mutates: true }, async (model, args) => {
+      // Referential integrity on netId. Auto-vivification made a single typo split a topology across
+      // two nets with no warning: both are individually valid, nothing downstream complains, and you
+      // find half your places missing from the net you thought you were building.
+      if (!args.createIfMissing) {
+        const known: any = await ctx
+          .executorFor(model)
+          .execute('LIST_SESSION_NETS', { sessionId: config.session })
+          .catch(() => null);
+        const netIds: string[] = (known?.data?.nets ?? known?.data ?? [])
+          .map((n: any) => (typeof n === 'string' ? n : n?.netId ?? n?.name))
+          .filter(Boolean);
+        // Only enforce when we could actually read the net list — never block a write on a failed read.
+        if (netIds.length && !netIds.includes(String(args.netId))) {
+          throw new Error(
+            `Net '${args.netId}' does not exist in model '${model}' (session '${config.session}'). ` +
+              `Known nets: ${netIds.join(', ')}. Check the id for a typo, create it with create_net, ` +
+              `or pass createIfMissing:true if you intend a new net here.`,
+          );
+        }
+      }
       await ctx.master
         .createPlace(args.netId, {
           modelId: model,
@@ -375,6 +408,12 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
         intervalMs: z.number().optional().describe('Alternative to cron: fixed interval'),
+        onEmpty: z
+          .enum(['fire', 'skip'])
+          .optional()
+          .describe(
+            'SCHEDULED lanes only: what to do when the input place is empty at tick time. "fire" (default) makes the preset consume:false/optional:true — the lane ticks regardless and never consumes (the sentinel/heartbeat shape); if the action interpolates ${input.*} every empty tick emits a token with those fields missing, marked success, forever. "skip" keeps the preset required and consuming, so the schedule is an AND-gate with token availability (drain a queue on a timer).',
+          ),
         timeoutMs: z.number().optional(),
         capacity: z.number().optional().describe('Output place capacity (backpressure)'),
         mode: z.enum(['SINGLE', 'FOREACH']).optional().describe('Execution mode. SINGLE (default) binds all presets and fires once; FOREACH processes each bound token independently (bounded parallel fan-out) — use for per-token work like enriching every item in a batch'),
@@ -487,6 +526,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         executorId: args.executorId,
         scheduleCron: args.scheduleCron,
         intervalMs: args.intervalMs,
+        onEmpty: args.onEmpty,
         timeoutMs: args.timeoutMs,
         capacity: args.capacity,
         mode: args.mode,
@@ -524,11 +564,41 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           started = true;
         }
       }
+      // Arming a schedule rewrites the input preset; say so in the response instead of leaving the
+      // caller to discover it by reading the inscription back.
+      const scheduled = Boolean(args.scheduleCron || args.intervalMs);
+      const warning = scheduleEmptyFireWarning({
+        id: String(args.transitionId),
+        host,
+        inputPlace: String(args.inputPlace),
+        outputPlace: String(args.outputPlace),
+        scheduleCron: args.scheduleCron,
+        intervalMs: args.intervalMs,
+        onEmpty: args.onEmpty,
+        prompt: args.prompt,
+        nl: args.prompt,
+        url: args.url,
+        template: args.template,
+        body: args.body,
+      });
       return {
         transition: args.transitionId,
         kind: args.kind,
         started,
         external: args.kind !== 'link' && args.start !== false && !started,
+        ...(scheduled
+          ? {
+              presetSemantics: {
+                onEmpty: args.onEmpty ?? 'fire',
+                consume: (inscription as any)?.presets?.input?.consume ?? true,
+                note:
+                  (args.onEmpty ?? 'fire') === 'fire'
+                    ? 'scheduled lane ticks even when the input place is empty and never consumes'
+                    : 'scheduled lane only fires when its input place has a token, and consumes it',
+              },
+            }
+          : {}),
+        ...(warning ? { warning } : {}),
         inscription,
       };
     }),
@@ -600,11 +670,18 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     'set_schedule',
     {
       title: 'Set / change a transition schedule',
-      description: 'Merge a cron or interval schedule into an existing transition and restart it (assign stops a transition — this handles the restart).',
+      description:
+        'Merge a cron or interval schedule into an existing transition and restart it (assign stops a transition — this handles the restart). Pass `onEmpty` to also set the tick-on-empty semantics, the same knob add_transition exposes; omit it and the transition keeps whatever preset flags it already has (this tool does NOT silently rewrite them).',
       inputSchema: {
         transitionId: z.string(),
         scheduleCron: z.string().optional().describe('6-field cron'),
         intervalMs: z.number().optional(),
+        onEmpty: z
+          .enum(['fire', 'skip'])
+          .optional()
+          .describe(
+            'What this scheduled lane does when its input place is empty. "fire" = preset becomes consume:false/optional:true (ticks regardless, never consumes — the heartbeat shape add_transition defaults to). "skip" = preset stays required and consuming (schedule AND-gated with token availability). Omit to leave the existing preset untouched.',
+          ),
         netId: z.string().optional().describe('If given, the designtime inscription copy is updated too'),
         ...modelParam,
       },
@@ -620,11 +697,35 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       inscription.schedule = args.scheduleCron
         ? { type: 'cron', cron: args.scheduleCron }
         : { type: 'interval', intervalMs: args.intervalMs };
+      // The two ways of arming a schedule used to disagree: add_transition rewrote the input preset to
+      // consume:false/optional:true, set_schedule left it consuming and required. Same net, two
+      // behaviours, chosen implicitly by which tool built it. `onEmpty` now names the choice on both;
+      // omitting it here preserves the existing preset rather than mutating a working lane.
+      if (args.onEmpty) {
+        const override = schedulePresetOverride({
+          scheduleCron: args.scheduleCron,
+          intervalMs: args.intervalMs,
+          onEmpty: args.onEmpty,
+        });
+        for (const preset of Object.values(inscription.presets ?? {})) {
+          Object.assign(preset as Record<string, unknown>, override);
+        }
+      }
       const agentId = inscription.kind === 'command' ? 'agentic-net-executor-default' : 'agentic-net-master';
       await assignInscription(ctx, model, inscription, agentId);
       if (args.netId) await persistInscriptionLeaf(ctx, model, args.netId, args.transitionId, inscription);
       await ctx.master.startTransition(args.transitionId, model);
-      return { transition: args.transitionId, schedule: inscription.schedule, restarted: true };
+      const first: any = Object.values(inscription.presets ?? {})[0] ?? {};
+      return {
+        transition: args.transitionId,
+        schedule: inscription.schedule,
+        restarted: true,
+        presetSemantics: {
+          onEmpty: args.onEmpty ?? (first.optional === true ? 'fire' : 'skip'),
+          consume: first.consume ?? true,
+          ...(args.onEmpty ? {} : { note: 'existing preset flags left untouched — pass onEmpty to change them' }),
+        },
+      };
     }),
   );
 
