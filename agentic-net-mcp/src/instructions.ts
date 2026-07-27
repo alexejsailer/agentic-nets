@@ -19,6 +19,17 @@ HTTP call / shell command), and emit results to output places. Everything you st
 this session, is queryable, and can be PROCESSED AUTONOMOUSLY by scheduled transitions while you
 are gone. ${models}
 
+## Read these two FIRST — they change what you build, not just how you call it
+- **\`agenticnets://docs/index\`** — 17 operational docs (emit · scheduling · llm · cost · tokens ·
+  troubleshooting · recipes · …). Grep them with search_knowledge. Field report from a client that
+  found them only halfway through its second session: reading docs/emit and docs/recipes CHANGED
+  ITS ARCHITECTURE (deterministic chaining instead of agent orchestration) and corrected two of
+  its own conclusions. Read the index before designing a pipeline, not after it misbehaves.
+- **\`agenticnets://limits\`** — every hard cap, default and enum. These are NOT in the tool
+  schemas. The 8192-char HTTP body clip in particular decides whether a fetch-and-parse pipeline
+  can work at all; a client that met it by accident shipped a confidently wrong verdict built on
+  a truncated page.
+
 ## When to use what
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate

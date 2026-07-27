@@ -10,6 +10,7 @@ import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
 import { validateKindArgs, validateScheduleArgs } from '../src/tools/nets.js';
+import { dedupeTokenPayload } from '../src/tools/observe.js';
 import { clampValues } from '../src/tools/observe.js';
 
 function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
@@ -136,5 +137,57 @@ describe('onEmpty is accepted where it applies and bounced where it does not', (
     expect(() => validateScheduleArgs({ ...base, intervalMs: 60_000 })).not.toThrow();
     expect(() => validateScheduleArgs({ ...base, intervalMs: 60_000, onEmpty: 'fire' })).not.toThrow();
     expect(() => validateScheduleArgs({ ...base, scheduleCron: '0 0 8 * * *', onEmpty: 'skip' })).not.toThrow();
+  });
+});
+
+describe('dedupeTokenPayload (P3: the projection has to actually reduce the payload)', () => {
+  const twin = () => ({
+    results: [
+      {
+        data: { severity: 'CRITICAL', reason: 'SQL injection', extra: 'x'.repeat(200) },
+        _meta: {
+          id: 'u1',
+          name: 't1',
+          properties: { severity: 'CRITICAL', reason: 'SQL injection', extra: 'x'.repeat(200) },
+        },
+      },
+    ],
+  });
+
+  it('drops _meta.properties when it merely repeats data', () => {
+    const out: any = dedupeTokenPayload(twin());
+    expect(out.results[0]._meta.properties).toBeUndefined();
+    expect(out.results[0].data.severity).toBe('CRITICAL');
+    expect(out._note).toMatch(/omitted/);
+  });
+
+  it('keeps the small, load-bearing part of _meta', () => {
+    const out: any = dedupeTokenPayload(twin());
+    expect(out.results[0]._meta.id).toBe('u1');
+    expect(out.results[0]._meta.name).toBe('t1');
+  });
+
+  it('projects _meta.properties when it genuinely differs, keeping engine metadata', () => {
+    const payload: any = {
+      results: [
+        {
+          data: { a: 1 },
+          _meta: { id: 'u1', properties: { a: 1, b: 2, _lock: '{"owner":"t-x"}', _parentPlace: 'p-in' } },
+        },
+      ],
+    };
+    const out: any = dedupeTokenPayload(payload, ['a']);
+    const props = out.results[0]._meta.properties;
+    expect(props.a).toBe(1);
+    expect(props.b).toBeUndefined();
+    // _lock must survive a projection — dropping it hides why a token cannot be bound.
+    expect(props._lock).toBe('{"owner":"t-x"}');
+    expect(props._parentPlace).toBe('p-in');
+  });
+
+  it('passes through anything that is not a token list', () => {
+    expect(dedupeTokenPayload({ count: 0 })).toEqual({ count: 0 });
+    expect(dedupeTokenPayload(null)).toBeNull();
+    expect(dedupeTokenPayload('text')).toBe('text');
   });
 });

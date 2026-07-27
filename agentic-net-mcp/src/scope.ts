@@ -81,6 +81,18 @@ export interface ToolSpec {
   mutates: boolean;
   /** Irreversibly removes data (deletes, unpublish) — surfaces as destructiveHint. */
   destructive?: boolean;
+  /**
+   * Reaches OUTSIDE this deployment (an arbitrary URL, a peer hub) rather than only touching
+   * model state. Surfaces as `openWorldHint`, and suppresses the internal-resource error advice:
+   * a 404 from `https://example.com/rss.xml` must not be answered with "verify with list_models"
+   * (an actively misleading suggestion is worse than none).
+   */
+  openWorld?: boolean;
+  /**
+   * Repeating the call with the same arguments leaves the same end state. Surfaces as
+   * `idempotentHint` so a client can decide whether a retry after a timeout is safe.
+   */
+  idempotent?: boolean;
 }
 
 /**
@@ -112,27 +124,57 @@ function textResult(data: any, isError = false): ToolCallResult {
  * node, /vault-api → vault. Naming the layer turns "GATEWAY_ERROR 404" into a
  * debuggable statement (protocol-hardening trap #7).
  */
-function layerOf(path: string | undefined): string {
+function layerOf(path: string | undefined, openWorld = false): string {
   const p = String(path ?? '').replace(/^[A-Z]+\s+/, '');
   if (p.startsWith('/node-api')) return 'node';
   if (p.startsWith('/vault-api')) return 'vault';
   if (p.startsWith('/api')) return 'master';
-  return 'gateway';
+  // An outward-facing tool that failed on a non-internal path failed at the REMOTE end. Calling
+  // that 'gateway' points the reader at their own infrastructure for someone else's 404.
+  return openWorld ? 'remote' : 'gateway';
 }
 
-/** An executable next step per failure shape — a wrong suggestion is worse than none, so stay generic where we cannot know. */
-function suggestionFor(status: number, path: string | undefined, model: string | undefined): string | undefined {
+/**
+ * An executable next step per failure shape — a wrong suggestion is worse than none, so stay
+ * generic where we cannot know.
+ *
+ * <p>`openWorld` matters here: for a tool that fetches an arbitrary URL, a 404 describes the
+ * REMOTE resource, not anything in this deployment. Answering it with "verify with list_models /
+ * net_overview" sent a client hunting through its own model for a page that simply is not on
+ * someone else's web server. Those tools get remote-shaped advice, or none.
+ */
+function suggestionFor(
+  status: number,
+  path: string | undefined,
+  model: string | undefined,
+  openWorld = false,
+): string | undefined {
   const p = String(path ?? '');
-  if (status === 401) return 'gateway rejected the credential — check AGENTICOS_ADMIN_SECRET / AGENTICOS_GATEWAY_SECRET_FILE against the gateway data/jwt secrets';
-  if (status === 403) return 'the credential lacks this scope (readonly blocks every POST, including ArcQL and native reads) — use rw mode for mutations';
+  if (status === 401) {
+    return openWorld
+      ? 'the REMOTE endpoint rejected the credential — check the auth block / credentialKey for this lane, not the gateway secret'
+      : 'gateway rejected the credential — check AGENTICOS_ADMIN_SECRET / AGENTICOS_GATEWAY_SECRET_FILE against the gateway data/jwt secrets';
+  }
+  if (status === 403) {
+    return openWorld
+      ? 'the REMOTE endpoint refused the request (auth, rate limit, or bot protection) — this is not a scope problem on this deployment'
+      : 'the credential lacks this scope (readonly blocks every POST, including ArcQL and native reads) — use rw mode for mutations';
+  }
   if (status === 404) {
+    if (openWorld) {
+      return 'the REMOTE url returned 404 — check the target URL itself; nothing in this model needs changing';
+    }
     if (/\/admin\/models/.test(p)) return 'the model does not exist on the node — list_models shows what exists; create_model mints it';
     return (
       'the id/path does not exist server-side — verify with list_models / net_overview / list_transitions' +
       (model ? `; if '${model}' is brand-new, run readiness to check its workspace containers` : '')
     );
   }
-  if (status >= 500) return 'server-side failure — the mutation may still have been applied; re-read the resource before retrying (a blind retry can double-create)';
+  if (status >= 500) {
+    return openWorld
+      ? 'the REMOTE endpoint failed — retry is usually safe for a read; for a write, check the remote side before repeating'
+      : 'server-side failure — the mutation may still have been applied; re-read the resource before retrying (a blind retry can double-create)';
+  }
   return undefined;
 }
 
@@ -189,12 +231,12 @@ export function wrapTool(scope: ModelScope, mode: 'rw' | 'readonly', spec: ToolS
             : err.status === 403
               ? 'forbidden'
               : 'no response body');
-        const suggestion = suggestionFor(Number(err.status), path, model);
+        const suggestion = suggestionFor(Number(err.status), path, model, spec.openWorld === true);
         return textResult(
           {
             code: 'GATEWAY_ERROR',
             status: err.status,
-            layer: layerOf(path),
+            layer: layerOf(path, spec.openWorld === true),
             ...(path ? { attempted: path } : {}),
             error: hint.slice(0, 500),
             ...(suggestion ? { suggestion } : {}),

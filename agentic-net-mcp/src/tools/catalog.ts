@@ -41,8 +41,27 @@ const READ_ONLY_EXTRA = new Set(['NET_DOCTOR', 'HUB_CATALOG', 'HUB_REMOTE_LIST',
 /** Irreversible data removal — surfaces as destructiveHint via the annotation stamp. */
 const DESTRUCTIVE_NATIVE = /^(DELETE_|HUB_UNPUBLISH)/;
 
+/**
+ * Tools that reach OUTSIDE this deployment: an arbitrary URL, a peer hub, a container registry,
+ * or a shell on the executor. Surfaces as `openWorldHint`, and switches the gateway-error advice
+ * to remote-shaped wording — a 404 from someone else's web server must not be answered with
+ * "verify with list_models / net_overview", which sends a client hunting through its own model
+ * for a page that was never there.
+ */
+const OPEN_WORLD_NATIVE = new Set([
+  'HTTP_CALL',
+  'HUB_REMOTE_ADD', 'HUB_REMOTE_LIST', 'HUB_REMOTE_REMOVE',
+  'REGISTRY_LIST_IMAGES', 'REGISTRY_GET_IMAGE_INFO', 'TOOL_CATALOG_IMPORT_IMAGE',
+  'DOCKER_RUN', 'DOCKER_STOP', 'DOCKER_LIST', 'DOCKER_LOGS', 'WRAP_DOCKER_TOOL',
+  'AGENT_HUB_SEARCH', 'CONTEXT_HUB_SEARCH',
+]);
+
 export function isNativeReadOnly(name: string): boolean {
   return READ_ONLY_NATIVE.test(name) || READ_ONLY_EXTRA.has(name);
+}
+
+export function isNativeOpenWorld(name: string): boolean {
+  return OPEN_WORLD_NATIVE.has(name);
 }
 
 /**
@@ -145,7 +164,12 @@ export function registerCatalogTools(server: McpServer, ctx: AppContext): void {
       wrapTool(
         scope,
         config.mode,
-        { name: tool.name, mutates: !isNativeReadOnly(tool.name), destructive: DESTRUCTIVE_NATIVE.test(tool.name) },
+        {
+          name: tool.name,
+          mutates: !isNativeReadOnly(tool.name),
+          destructive: DESTRUCTIVE_NATIVE.test(tool.name),
+          openWorld: isNativeOpenWorld(tool.name),
+        },
         async (model, args) => {
         const { model: _m, ...params } = args ?? {};
         // Catalog-scope tools resolve local-first against the routed model.

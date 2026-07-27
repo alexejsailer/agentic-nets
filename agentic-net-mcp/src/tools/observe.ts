@@ -60,6 +60,48 @@ export function coverageWarning(
 }
 
 /**
+ * Every ArcQL token comes back with its content TWICE — once as `data`, once as
+ * `_meta.properties` — byte-identical. Worse, a `fields` projection trimmed only `data`, so asking
+ * for 2 fields of a 2828-char token still shipped the whole token and the projection did nothing
+ * for the payload size it exists to control.
+ *
+ * Drop `_meta.properties` when it merely repeats `data`, and project it when it does not (the two
+ * genuinely differ on some paths — properties can carry `_lock`, `_parentPlace` and friends that
+ * `data` omits — so this narrows rather than discards). The rest of `_meta` (id, name, parentId,
+ * type) is small and load-bearing, and stays.
+ */
+export function dedupeTokenPayload(data: any, fields?: string[]): any {
+  if (!data || typeof data !== 'object') return data;
+  const rows = (data as any).results ?? (data as any).tokens;
+  if (!Array.isArray(rows)) return data;
+
+  let deduped = 0;
+  for (const row of rows) {
+    const meta = row?._meta;
+    const props = meta?.properties;
+    if (!props || typeof props !== 'object') continue;
+
+    const body = row?.data && typeof row.data === 'object' ? row.data : null;
+    const sameAsData = body && JSON.stringify(body) === JSON.stringify(props);
+    if (sameAsData) {
+      delete meta.properties;
+      deduped++;
+      continue;
+    }
+    if (fields?.length) {
+      const kept: Record<string, any> = {};
+      // Keep the projected fields plus the underscore-prefixed engine metadata that only ever
+      // lives here — dropping _lock would hide why a token cannot be bound.
+      for (const [k, v] of Object.entries(props)) {
+        if (fields.includes(k) || k.startsWith('_')) kept[k] = v;
+      }
+      meta.properties = kept;
+    }
+  }
+  return deduped ? { ...data, _note: `${deduped} token(s): _meta.properties omitted (identical to data)` } : data;
+}
+
+/**
  * Loud, structural truncation of long string values (protocol-hardening trap
  * #3: any cap must cut at a boundary AND announce itself — silent truncation
  * composes catastrophically once an LLM consumes the result). Marker mirrors
@@ -192,7 +234,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         ...(args.maxValueLength != null ? { maxValueLength: args.maxValueLength } : {}),
       });
       if (!res.success) throw new Error(res.error ?? 'QUERY_TOKENS failed');
-      return res.data;
+      return dedupeTokenPayload(res.data, args.fields as string[] | undefined);
     }),
   );
 

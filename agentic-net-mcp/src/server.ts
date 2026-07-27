@@ -39,7 +39,16 @@ export function createServer(ctx: AppContext): McpServer {
     if (config && config.annotations === undefined && spec) {
       config = {
         ...config,
-        annotations: { readOnlyHint: !spec.mutates, destructiveHint: spec.mutates && spec.destructive === true },
+        annotations: {
+          readOnlyHint: !spec.mutates,
+          destructiveHint: spec.mutates && spec.destructive === true,
+          // A read is idempotent by definition; a write only when it declares itself so. Lets a
+          // client decide whether retrying after a timeout is safe instead of guessing from prose.
+          idempotentHint: !spec.mutates || spec.idempotent === true,
+          // Whether the tool can reach outside this deployment. Everything here talks to the
+          // model unless it says otherwise, so the safe default is false.
+          openWorldHint: spec.openWorld === true,
+        },
       };
     }
     return registerWithAnnotations(name as any, config, handler);

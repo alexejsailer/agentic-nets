@@ -15,6 +15,7 @@ import {
   schedulePresetOverride,
   validateCron,
 } from '../inscriptions.js';
+import { clampValues } from './observe.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
@@ -757,7 +758,20 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       {
         title: description.split('(')[0].trim(),
         description,
-        inputSchema: { transitionId: z.string(), ...modelParam },
+        inputSchema: {
+          transitionId: z.string(),
+          ...(name === 'fire_once'
+            ? {
+                maxResponseChars: z
+                  .number()
+                  .optional()
+                  .describe(
+                    'Cap on any single inlined response/body value (default 4000; 0 = uncapped). fire_once returns what the lane produced, so firing an http lane at a web page can otherwise dump the whole page into your context — one 81KB page is ~20k tokens. The token itself is stored in full either way; read it with query_tokens.',
+                  ),
+              }
+            : {}),
+          ...modelParam,
+        },
       },
       wrapTool(scope, config.mode, { name, mutates: true }, async (model, args) => {
         // An unknown transition surfaces differently per lifecycle op (fire → empty 404,
@@ -785,7 +799,25 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           }
           throw new Error(res.error ?? `${tool} failed for '${args.transitionId}'`);
         }
-        return res.data ?? { ok: true };
+        const payload = res.data ?? { ok: true };
+        // fire_once returns whatever the lane produced, inline and unbounded. An http lane pointed
+        // at a web page therefore spent the caller's context on the page — which pushed clients
+        // away from the manual-trigger tool entirely, onto start_transition + place inspection,
+        // inverting its whole ergonomic point. Cap it loudly here; the stored token keeps the full
+        // value, so nothing is lost, only deferred to a deliberate read.
+        if (name === 'fire_once') {
+          const max = Number(args.maxResponseChars ?? 4000);
+          const state = { truncated: false };
+          const clamped = clampValues(payload, max, state);
+          return state.truncated
+            ? {
+                ...clamped,
+                truncated: true,
+                note: `long values shortened to ${max} chars for this response only — the stored token is intact; read it with query_tokens, or re-fire with maxResponseChars:0`,
+              }
+            : clamped;
+        }
+        return payload;
       }),
     );
   }

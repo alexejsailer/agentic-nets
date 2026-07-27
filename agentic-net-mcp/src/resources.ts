@@ -106,6 +106,87 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
     },
   );
 
+  // Every hard cap, default and enum a client must respect, in ONE place.
+  //
+  // Why this exists: these were discoverable only by tripping over them. The 8192-char HTTP body
+  // clip was found by fetching a page and noticing `body` was exactly 8192 chars — and only got a
+  // human-readable explanation because that particular body ALSO failed JSON parsing, which routed
+  // a note into `_parseError`. A valid-JSON payload over the cap has no such channel and would have
+  // been silently truncated. A cap that silently reshapes results has to be published.
+  server.registerResource(
+    'limits',
+    'agenticnets://limits',
+    {
+      title: 'Hard limits, defaults and enums',
+      description: 'Every cap and default a client must respect — read before designing a pipeline around a payload size',
+      mimeType: 'application/json',
+    },
+    async (uri) => {
+      const limits = {
+        note:
+          'Values a client cannot discover from a tool schema. Where a cap CLIPS rather than errors, ' +
+          'the truncation is marked in the payload — but design around the cap rather than relying on the marker.',
+        http: {
+          responseBodyClipChars: 8192,
+          appliesTo: 'http-kind transitions and any @response.json / default emit whose body is not JSON',
+          behaviour:
+            'the raw body is clipped and the token carries _parseError naming the clip; a JSON body under the ' +
+            'cap is passed through whole',
+          workaround:
+            'select fields at the source (e.g. a REST API with field selection) rather than fetching a page ' +
+            'and parsing it downstream',
+          defaultTimeoutMs: 240000,
+        },
+        llm: {
+          defaultTimeoutMs: 240000,
+          note: 'LlmActionHandler itself defaults to 60s, which real grounded prompts exceed — inscriptions built here set 240s explicitly',
+        },
+        agent: {
+          defaultMaxIterations: 12,
+          note: 'each iteration is a billed model call; an oscillating agent burns its whole budget before stopping',
+        },
+        tokens: {
+          reservationTtlMs: 60000,
+          note:
+            'a bound token is locked for this long. It is also the retry cadence of a lane that cannot emit, ' +
+            'and how long a stopped lane used to hold its input before stop learned to sweep its own locks',
+          propertyTypes:
+            'token properties are stored as STRINGS — numbers read back as "23813", arrays as JSON text. ' +
+            'ArcQL comparisons are therefore string comparisons; parse before use (twice for LLM output)',
+        },
+        reads: {
+          queryTokensDefaultArcql: 'FROM $ LIMIT 100',
+          queryTokensDefaultMaxValueLength: 500,
+          eventTrailDefaultLimit: 50,
+          eventTrailMaxLimit: 200,
+          note: 'event_trail clamps limit to 200 — page backwards with `before`/`nextBeforeSeq` rather than one big window',
+        },
+        scheduling: {
+          cronFields: 6,
+          cronFormat: 'sec min hour day month weekday — a 5-field crontab line is REJECTED, not silently accepted',
+          onEmptyDefault: 'fire',
+          onEmptyNote:
+            'a scheduled lane defaults to ticking even on an empty input place and never consuming; pass ' +
+            'onEmpty:"skip" to AND-gate the schedule with token availability',
+        },
+        transitions: {
+          kinds: ['map', 'llm', 'http', 'command', 'agent', 'link'],
+          modes: ['SINGLE', 'FOREACH'],
+          statuses: ['undeployed', 'DEPLOYED', 'starting', 'RUNNING', 'STOPPED', 'ERROR', 'external'],
+          health: ['HEALTHY', 'WARNING', 'BLOCKED', 'ERROR'],
+          fireOnceRestriction: 'disabled for action.type=llm|agent — use start_transition or host_transition',
+        },
+        session: {
+          modelAllowlist: ctx.scope.allowed,
+          allowlistPersistence:
+            'create_model grows the allowlist for THIS CONNECTION only — add the id to AGENTICOS_MODELS to ' +
+            'reach it from a future session',
+        },
+      };
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(limits, null, 1) }] };
+    },
+  );
+
   server.registerResource(
     'docs',
     new ResourceTemplate('agenticnets://docs/{topic}', {
