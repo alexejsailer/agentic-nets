@@ -25,6 +25,10 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
     llmProvider: 'claude-code',
     llmTier: 'medium',
     allowModelCreate: false,
+    // Durable allowlist: tests run fully isolated from any real ~/.agenticnets state.
+    persistedModels: [],
+    allowlistPath: '/tmp/agenticnets-test-allowlist.json',
+    persistAllowlist: false,
     ...over,
   };
 }

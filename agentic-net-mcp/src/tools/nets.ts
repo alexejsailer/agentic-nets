@@ -15,6 +15,7 @@ import {
   schedulePresetOverride,
   validateCron,
 } from '../inscriptions.js';
+import { createAllowlistStore } from '../allowlist-store.js';
 import { clampValues } from './observe.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
@@ -160,6 +161,7 @@ export const PERSONA_PRESETS: Record<
 
 export function registerNetTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
+  const allowlist = createAllowlistStore();
   const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
     ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
     : {};
@@ -192,9 +194,15 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       {
         title: 'Create a NEW model',
         description:
-          'Mint a brand-new model on the stack (node registers + persists it; master auto-discovers it within ~10s and starts polling its transitions). The new model joins THIS connection\'s allowlist immediately, so every tool can target it via the `model` param. Optionally deploy a starter template into it in the same call. Disable this capability with AGENTICOS_ALLOW_MODEL_CREATE=false.',
+          "Mint a brand-new model on the stack (node registers + persists it; master auto-discovers it within ~10s and starts polling its transitions). The new model joins this connection's allowlist immediately AND is remembered for future sessions, so a model you create — and any scheduled lane you arm in it — stays reachable and stoppable after you disconnect. Optionally deploy a starter template into it in the same call. Disable model creation with AGENTICOS_ALLOW_MODEL_CREATE=false; disable the remembering with AGENTICOS_PERSIST_ALLOWLIST=false.",
         inputSchema: {
           modelId: z.string().describe('New model id, e.g. "team-alpha" (lowercase letters, digits, dashes)'),
+          persistAllowlist: z
+            .boolean()
+            .optional()
+            .describe(
+              'Remember this model id so future sessions can target it (default TRUE for a newly created model). For a model that ALREADY exists on the node this defaults to FALSE and must be asked for explicitly — see the tool result for why.',
+            ),
           name: z.string().optional().describe('Display name (default: the modelId)'),
           description: z.string().optional(),
           template: z
@@ -220,11 +228,23 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         if (existingModels.some((m: any) => (m.modelId ?? m.id) === modelId)) {
           grantModel(scope, modelId);
           await ensurePlacesContainer(ctx, modelId).catch(() => undefined);
+          // Granting access to a model we did NOT create is a different act from remembering one we
+          // did. The allowlist's job is to contain client/LLM mistakes and prompt injection, so a
+          // caller that names an arbitrary pre-existing model should not be able to make that grant
+          // outlive the session by accident — it has to be asked for.
+          const persist = args.persistAllowlist === true ? allowlist.add(modelId) : null;
           return {
             created: false,
             existed: true,
             allowed: true,
-            note: `model '${modelId}' already exists on the node — granted to this session; target it directly.`,
+            persisted: persist?.persisted ?? false,
+            note:
+              `model '${modelId}' already exists on the node — granted to this session; target it directly.` +
+              (persist
+                ? persist.persisted
+                  ? ` Remembered for future sessions in ${persist.path}.`
+                  : ` NOT remembered: ${persist.error}.`
+                : ' This grant is session-scoped because the model was not created here — pass persistAllowlist:true to make it durable.'),
           };
         }
         let profileResult: any;
@@ -278,11 +298,23 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           const blueprint = TEMPLATES[args.template as keyof typeof TEMPLATES];
           template = await new TemplateExecutor(ctx, modelId).deploy(blueprint, {});
         }
+        // Remember it by default. A model minted here is exactly the set this installation should
+        // retain reach over: anything scheduled in it spends tokens unattended, and losing the
+        // allowlist entry meant losing pause_model along with it.
+        const persist = args.persistAllowlist === false ? null : allowlist.add(modelId);
         return {
           created: modelId,
           allowed: true,
+          persisted: persist?.persisted ?? false,
+          ...(persist?.persisted ? { allowlistPath: persist.path } : {}),
           workspaceProvisioned: provisioned,
-          note: 'Master auto-discovers active models within ~10s. The allowlist grew for THIS session only — add the id to AGENTICOS_MODELS to make it permanent.',
+          note:
+            'Master auto-discovers active models within ~10s. ' +
+            (persist === null
+              ? 'NOT remembered (persistAllowlist:false) — this grant ends with the session; add the id to AGENTICOS_MODELS to reach it again.'
+              : persist.persisted
+                ? `Remembered in ${persist.path}, so future sessions can still inspect, retune and pause_model it. Prune by editing that file.`
+                : `Could NOT be remembered (${persist.error}) — this grant ends with the session, so add the id to AGENTICOS_MODELS if you are arming scheduled work in it.`),
           ...(template ? { template } : {}),
           ...(profileResult ? { modelProfile: profileResult } : {}),
         };

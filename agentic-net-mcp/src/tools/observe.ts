@@ -463,21 +463,46 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'List models on the stack',
       description:
-        "All models node knows about (id, name, state) with an `allowed` flag showing which ones THIS connection may target. Models outside the allowlist are visible but not targetable — create_model minted models join the allowlist automatically.",
+        "All models node knows about (id, name, state) with an `allowed` flag showing which ones THIS connection may target, and `allowedVia` showing WHY: env (AGENTICOS_MODELS), persisted (created here in an earlier session and remembered), or session (granted by create_model during this connection, ends when it closes). Models outside the allowlist are visible but not targetable.",
       inputSchema: {},
     },
     wrapTool(scope, config.mode, { name: 'list_models', mutates: false }, async () => {
       const res = await ctx.client.nodeApi('GET', '/admin/models');
       const models: any[] = Array.isArray(res) ? res : (res?.models ?? []);
-      return {
-        count: models.length,
-        models: models.map((m: any) => ({
-          modelId: m.modelId ?? m.id,
+      const envModels = config.models.filter((m) => !config.persistedModels.includes(m));
+      // Distinguishing the three sources is the point: a `session` grant disappears on disconnect,
+      // which is precisely the trap that left scheduled work running with no way to reach it.
+      const via = (id: string): string | undefined => {
+        if (!scope.allowed.includes(id)) return undefined;
+        if (envModels.includes(id)) return 'env';
+        if (config.persistedModels.includes(id)) return 'persisted';
+        return 'session';
+      };
+      const rows = models.map((m: any) => {
+        const id = m.modelId ?? m.id;
+        return {
+          modelId: id,
           name: m.name,
           state: m.state ?? m.status,
-          allowed: scope.allowed.includes(m.modelId ?? m.id),
-        })),
+          allowed: scope.allowed.includes(id),
+          ...(via(id) ? { allowedVia: via(id) } : {}),
+        };
+      });
+      const sessionOnly = rows.filter((r) => r.allowedVia === 'session').map((r) => r.modelId);
+      return {
+        count: models.length,
+        models: rows,
         allowlist: scope.allowed,
+        allowlistPath: config.allowlistPath,
+        ...(config.persistAllowlist ? {} : { persistence: 'disabled (AGENTICOS_PERSIST_ALLOWLIST=false)' }),
+        ...(sessionOnly.length
+          ? {
+              warning:
+                `${sessionOnly.join(', ')} ${sessionOnly.length === 1 ? 'is' : 'are'} allowed for THIS SESSION only — ` +
+                'anything scheduled there keeps running after you disconnect but will not be reachable (or pausable) ' +
+                'from a new session. Re-run create_model with persistAllowlist:true, or add the id to AGENTICOS_MODELS.',
+            }
+          : {}),
       };
     }),
   );

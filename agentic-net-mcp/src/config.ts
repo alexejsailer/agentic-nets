@@ -7,6 +7,7 @@
  * can fail fast with a clear message instead of 401-ing on the first tool call.
  */
 import { existsSync } from 'node:fs';
+import { createAllowlistStore } from './allowlist-store.js';
 
 export type McpMode = 'rw' | 'readonly';
 export type McpTransport = 'stdio' | 'http';
@@ -39,16 +40,32 @@ export interface McpConfig {
    * Set AGENTICOS_ALLOW_MODEL_CREATE=false for a strictly-frozen allowlist.
    */
   allowModelCreate: boolean;
+  /**
+   * Models restored from the durable allowlist (see allowlist-store). Reported separately from
+   * `models` so `list_models` can say WHY each id is reachable, and so an operator can tell an
+   * env-pinned model from one this installation minted earlier.
+   */
+  persistedModels: string[];
+  /** Backing file for the durable allowlist — echoed to callers so pruning is a discoverable edit. */
+  allowlistPath: string;
+  /** False when AGENTICOS_PERSIST_ALLOWLIST=false. */
+  persistAllowlist: boolean;
 }
 
 export class ConfigError extends Error {}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
-  const models = (env.AGENTICOS_MODELS ?? '')
+  const envModels = (env.AGENTICOS_MODELS ?? '')
     .split(',')
     .map((m) => m.trim())
     .filter(Boolean);
-  if (models.length === 0) {
+  // Env stays authoritative: it decides the DEFAULT model (first entry) and is required even when
+  // the durable allowlist is populated. Persisted ids only widen what this installation may target,
+  // so a fresh session can still reach — and stop — a model it minted earlier.
+  const store = createAllowlistStore(env);
+  const persistedModels = store.read().filter((m) => !envModels.includes(m));
+  const models = [...envModels, ...persistedModels];
+  if (envModels.length === 0) {
     throw new ConfigError(
       'AGENTICOS_MODELS is required (comma-separated allowlist of model ids; the first is the default). ' +
         'Example: AGENTICOS_MODELS=my-notes',
@@ -98,5 +115,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     llmModel: env.AGENTICOS_LLM_MODEL || undefined,
     llmTier,
     allowModelCreate: mode === 'rw' && env.AGENTICOS_ALLOW_MODEL_CREATE !== 'false',
+    persistedModels,
+    allowlistPath: store.path,
+    persistAllowlist: store.enabled,
   };
 }

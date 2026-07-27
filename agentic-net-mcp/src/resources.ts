@@ -151,8 +151,11 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
             'a bound token is locked for this long. It is also the retry cadence of a lane that cannot emit, ' +
             'and how long a stopped lane used to hold its input before stop learned to sweep its own locks',
           propertyTypes:
-            'token properties are stored as STRINGS — numbers read back as "23813", arrays as JSON text. ' +
-            'ArcQL comparisons are therefore string comparisons; parse before use (twice for LLM output)',
+            'token properties are stored as STRINGS — a number written as 23813 reads back as "23813", ' +
+            'an array as JSON text (parse before use; twice for LLM output). ArcQL numeric comparisons DO ' +
+            'work despite this: `$.points > 100` and `ORDER BY $.points DESC` compare numerically when both ' +
+            'sides parse as numbers. A QUOTED literal stays an exact string match, so `$.zip == "01234"` ' +
+            'keeps its leading zero — quote when you mean text, do not quote when you mean a number',
         },
         reads: {
           queryTokensDefaultArcql: 'FROM $ LIMIT 100',
@@ -179,8 +182,10 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
         session: {
           modelAllowlist: ctx.scope.allowed,
           allowlistPersistence:
-            'create_model grows the allowlist for THIS CONNECTION only — add the id to AGENTICOS_MODELS to ' +
-            'reach it from a future session',
+            'a model created by create_model is remembered durably (default) so a later session can still ' +
+            'inspect, retune and pause_model it; a grant to a PRE-EXISTING model stays session-scoped unless ' +
+            'persistAllowlist:true is passed. Disable with AGENTICOS_PERSIST_ALLOWLIST=false.',
+          allowlistPath: ctx.config.allowlistPath,
         },
       };
       return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(limits, null, 1) }] };
