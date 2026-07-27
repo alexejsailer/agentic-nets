@@ -29,7 +29,9 @@ import { fetchTokens, linkPlaces } from './memory.js';
  */
 const COMMON_TRANSITION_ARGS = new Set([
   'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'x', 'y',
-  'scheduleCron', 'intervalMs', 'timeoutMs', 'capacity', 'mode', 'start', 'model',
+  // `onEmpty` rides with the schedule params: it only means anything on a scheduled lane, and it
+  // applies to every firing kind, so it belongs here rather than in a per-kind set.
+  'scheduleCron', 'intervalMs', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'start', 'model',
 ]);
 const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   map: new Set(['template', 'emit', 'routes']),
@@ -58,6 +60,21 @@ export function validateKindArgs(kind: string, args: Record<string, any>): void 
   throw new Error(
     `param(s) not applicable to kind '${kind}': ${hints}. They would be silently ignored, so nothing was created — drop them or switch the kind.`,
   );
+}
+
+/**
+ * `onEmpty` only means something on a lane that ticks on a timer. Accepting it without a schedule
+ * would silently ignore it, which is the exact failure class {@link validateKindArgs} exists to
+ * prevent, and it would read as "I chose the semantics" when nothing was chosen.
+ */
+export function validateScheduleArgs(args: Record<string, any>): void {
+  if (args.onEmpty !== undefined && !args.scheduleCron && !args.intervalMs) {
+    throw new Error(
+      "onEmpty only applies to a SCHEDULED lane — it decides what happens on a tick when the input " +
+        'place is empty. Add scheduleCron or intervalMs, or drop onEmpty (an unscheduled lane already ' +
+        'fires only when its input has a token, and consumes it).',
+    );
+  }
 }
 
 /**
@@ -423,6 +440,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     },
     wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
       validateKindArgs(String(args.kind), args);
+      validateScheduleArgs(args);
       const host = ctx.hostFor(model);
       const dup = (err: any) => {
         if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;

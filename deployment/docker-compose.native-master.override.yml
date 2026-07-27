@@ -1,0 +1,40 @@
+# Dev-Mac override: run agentic-net-master NATIVELY on the host, everything else in Docker.
+#
+# Why: the master is the service under active development, and a native run gives a normal
+# edit → `./mvnw package` → restart loop (seconds) instead of an image rebuild, plus a plain
+# log file and a debugger port. Node, gateway, executors, vault and the GUI stay containerised
+# because they are not what is being changed.
+#
+# Usage (from agentic-nets/deployment):
+#
+#   # 1. stop the containerised master so it stops competing for 127.0.0.1:8082
+#   docker compose -p agenticnetos -f docker-compose.hub-only.no-monitoring.yml stop agentic-net-master
+#
+#   # 2. point the gateway at the host instead of the (now stopped) container
+#   docker compose -p agenticnetos \
+#     -f docker-compose.hub-only.no-monitoring.yml \
+#     -f docker-compose.native-master.override.yml \
+#     up -d --no-deps agentic-net-gateway
+#
+#   # 3. run the master from source on the host
+#   cd ../../core/agentic-net-master && ./mvnw package -DskipTests
+#   AGENTIC_NET_NODE_BASE_URL=http://localhost:8080/api \
+#   AGENTICOS_VAULT_URL=http://localhost:8085 \
+#   OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=deepseek-v4-pro:cloud LLM_PROVIDER=ollama \
+#   MASTER_GATEWAY_REGISTRATION=true \
+#   MASTER_GATEWAY_URL=http://localhost:8083 \
+#   MASTER_SELF_URL=http://host.docker.internal:8082 \
+#   GATEWAY_INTERNAL_SECRET=agenticos-local-internal-secret-change-me \
+#   OTEL_SDK_DISABLED=true LOG_PATH=/tmp \
+#   java -jar target/agentic-net-master-0.0.1-SNAPSHOT.jar
+#
+# To go back to the all-Docker stack: re-run step 2 WITHOUT this override file, then
+# `docker compose ... start agentic-net-master`.
+#
+# Note on MASTER_URL: the gateway also has a master REGISTRY, and a native master with
+# MASTER_GATEWAY_REGISTRATION=true does self-register. That is not sufficient on its own —
+# the seed MASTER_URL still wins for routing — which is why this override exists.
+services:
+  agentic-net-gateway:
+    environment:
+      MASTER_URL: http://host.docker.internal:8082

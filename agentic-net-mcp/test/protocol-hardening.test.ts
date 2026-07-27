@@ -9,7 +9,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
-import { validateKindArgs } from '../src/tools/nets.js';
+import { validateKindArgs, validateScheduleArgs } from '../src/tools/nets.js';
 import { clampValues } from '../src/tools/observe.js';
 
 function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
@@ -106,5 +106,35 @@ describe('clampValues (trap #3: truncate loudly, at structural boundaries)', () 
     const state = { truncated: false };
     const out = clampValues({ a: '{"nested":"' + 'q'.repeat(999) + '"}' }, 100, state);
     expect(() => JSON.parse(JSON.stringify(out))).not.toThrow();
+  });
+});
+
+describe('onEmpty is accepted where it applies and bounced where it does not', () => {
+  const base = { netId: 'n', transitionId: 't', kind: 'map', inputPlace: 'a', outputPlace: 'b', template: { x: 1 } };
+
+  // Regression: onEmpty was added to the tool schema but not to the applicable-param allowlist,
+  // so every explicit onEmpty:"skip" was rejected outright while the default path worked. Caught
+  // only by driving the real server — the shape unit tests never exercised the guard.
+  it('accepts onEmpty on every firing kind when a schedule is present', () => {
+    const wiring = { netId: 'n', transitionId: 't', inputPlace: 'a', outputPlace: 'b' };
+    for (const kind of ['map', 'llm', 'http', 'command', 'agent']) {
+      expect(() =>
+        validateKindArgs(kind, { ...wiring, kind, intervalMs: 60_000, onEmpty: 'skip' }),
+      ).not.toThrow();
+    }
+  });
+
+  it('still bounces onEmpty on link, which never fires', () => {
+    expect(() => validateKindArgs('link', { netId: 'n', transitionId: 't', kind: 'link', inputPlace: 'a', outputPlace: 'b', onEmpty: 'skip' })).toThrow(/not applicable/);
+  });
+
+  it('bounces onEmpty without a schedule rather than ignoring it', () => {
+    expect(() => validateScheduleArgs({ ...base, onEmpty: 'skip' })).toThrow(/only applies to a SCHEDULED lane/);
+  });
+
+  it('allows a schedule without onEmpty, and onEmpty with either schedule form', () => {
+    expect(() => validateScheduleArgs({ ...base, intervalMs: 60_000 })).not.toThrow();
+    expect(() => validateScheduleArgs({ ...base, intervalMs: 60_000, onEmpty: 'fire' })).not.toThrow();
+    expect(() => validateScheduleArgs({ ...base, scheduleCron: '0 0 8 * * *', onEmpty: 'skip' })).not.toThrow();
   });
 });
