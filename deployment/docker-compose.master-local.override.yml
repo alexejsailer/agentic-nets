@@ -1,0 +1,33 @@
+# Dev-Mac override: run agentic-net-master from a LOCALLY built image instead of the Hub tag.
+#
+# Why this exists as a file rather than an edit to .env: AGENTICNETOS_VERSION is shared by every
+# service, so bumping it there would send node, gateway, executor, vault and the GUI looking for a
+# tag that only master has. Pinning one service's image is the narrow change.
+#
+# Build the image (from core/agentic-net-master, after ./mvnw package -DskipTests):
+#
+#   docker build --platform linux/amd64 \
+#     -f <path>/Dockerfile.master-vaultfix \
+#     -t alexejsailer/agenticnetos-master:2.36.0-vaultfix .
+#
+# where that Dockerfile is simply:
+#
+#   FROM alexejsailer/agenticnetos-master:2.36.0
+#   COPY --chown=agenticnet:agenticnet target/agentic-net-master-0.0.1-SNAPSHOT.jar /app/app.jar
+#
+# Inheriting the published image rather than re-running the multi-stage build keeps arch, user,
+# entrypoint, healthcheck and env byte-identical, so the ONLY variable that changes is the code.
+#
+# Apply:
+#   docker compose -p agenticnetos \
+#     -f docker-compose.hub-only.no-monitoring.yml \
+#     -f docker-compose.master-local.override.yml \
+#     up -d --no-deps agentic-net-master
+#
+# Revert to the Hub image: re-run that command WITHOUT this override file.
+#
+# Contains: the vault credential-storm fix (short-lived credential cache + bounded transition
+# hydration fan-out). Drop this override once a release image carries it.
+services:
+  agentic-net-master:
+    image: alexejsailer/agenticnetos-master:2.36.0-vaultfix
