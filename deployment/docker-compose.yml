@@ -583,6 +583,14 @@ services:
       openbao:
         condition: service_healthy
     environment:
+      # The image ships MaxRAMPercentage=75, which cannot fit this container: a 75% heap plus the
+      # ~250MB of unavoidable JVM non-heap (metaspace, code cache, thread stacks, direct buffers)
+      # exceeds the cgroup limit, so the vault walked to the ceiling and exited 0 in a loop — 136
+      # restarts, invisible to BOTH the healthcheck (it passes between cycles) and OOMKilled (the
+      # JVM shuts itself down rather than being killed). Each restart is a window where fire_once
+      # fails for EVERY lane, including credential-free map lanes. A credential CRUD service does
+      # not need a 768MB heap; 50% leaves real headroom instead.
+      JAVA_OPTS: "-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC -XX:+UseContainerSupport"
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       VAULT_OPENBAO_URL: http://openbao:8200
       VAULT_OPENBAO_TOKEN: ${OPENBAO_DEV_ROOT_TOKEN:-agenticos-dev-token}
@@ -603,7 +611,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: ${AGENTIC_NET_VAULT_MEMORY_LIMIT:-512M}
+          memory: ${AGENTIC_NET_VAULT_MEMORY_LIMIT:-1G}
           cpus: "${AGENTIC_NET_VAULT_CPU_LIMIT:-0.5}"
         reservations:
           memory: 128M
