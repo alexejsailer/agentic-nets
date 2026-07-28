@@ -583,6 +583,13 @@ services:
       openbao:
         condition: service_healthy
     environment:
+      # Connection/thread ceilings so an upstream storm cannot translate into unbounded threads.
+      # Set here as well as in the vault's application.properties so a deployment running an older
+      # published image still gets the ceiling (Spring binds these standard env names natively).
+      # See the vault's application.properties for the sizing rationale.
+      SERVER_TOMCAT_THREADS_MAX: "${VAULT_TOMCAT_THREADS_MAX:-25}"
+      SERVER_TOMCAT_MAX_CONNECTIONS: "${VAULT_TOMCAT_MAX_CONNECTIONS:-100}"
+      SERVER_TOMCAT_ACCEPT_COUNT: "${VAULT_TOMCAT_ACCEPT_COUNT:-50}"
       # The image ships MaxRAMPercentage=75, which cannot fit this container: a 75% heap plus the
       # ~250MB of unavoidable JVM non-heap (metaspace, code cache, thread stacks, direct buffers)
       # exceeds the cgroup limit, so the vault walked to the ceiling and exited 0 in a loop — 136
