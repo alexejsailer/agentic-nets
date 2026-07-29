@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.37.0] - 2026-07-29
+
 ### Fixed
 - **The vault caps its own connections and threads** (`agentic-net-vault` — `application.properties`; mirrored as env in all four compose files). It ran on Spring Boot defaults — `threads.max=200`, `max-connections=8192` — so an upstream credential storm turned 394 connections into 227 Tomcat workers and drove native RSS into the container limit. The client-side bug is fixed in master, but a service should not depend on its callers behaving. Now `threads.max=25`, `max-connections=100`, `accept-count=50`, overridable via the standard `SERVER_TOMCAT_*` env names (so an older published image still gets the ceiling). Sized by measurement: at 600 concurrent connections repeated three times, `threads.max=50` survived but ratcheted to 995 MiB (97% of cap), while `25` rested at 715 MiB (70%). Excess connections queue in the accept backlog and are then refused; master keeps pure/status lanes independent of the vault and fails credential-dependent execution closed.
 
