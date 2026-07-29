@@ -7,6 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
 import { fetchTokens } from './memory.js';
+import { createAllowlistStoreAt } from '../allowlist-store.js';
 
 /**
  * Executor coverage: is any ONLINE executor actually POLLING this model? The master advertises a
@@ -125,6 +126,7 @@ export function clampValues(value: any, max: number, state: { truncated: boolean
 
 export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
+  const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
   const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
     ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
     : {};
@@ -470,12 +472,13 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const res = await ctx.client.nodeApi('GET', '/admin/models');
       const models: any[] = Array.isArray(res) ? res : (res?.models ?? []);
       const envModels = config.models.filter((m) => !config.persistedModels.includes(m));
+      const persistedModels = allowlist.read();
       // Distinguishing the three sources is the point: a `session` grant disappears on disconnect,
       // which is precisely the trap that left scheduled work running with no way to reach it.
       const via = (id: string): string | undefined => {
         if (!scope.allowed.includes(id)) return undefined;
         if (envModels.includes(id)) return 'env';
-        if (config.persistedModels.includes(id)) return 'persisted';
+        if (persistedModels.includes(id)) return 'persisted';
         return 'session';
       };
       const rows = models.map((m: any) => {
@@ -567,7 +570,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Readiness — the whole dependency chain, one read-only call',
       description:
-        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway (reachable + credential accepted), node (reachable, model exists, state, workspace containers), LLM provider (READY / MODEL_NOT_FOUND / UNREACHABLE — gates llm/agent lanes), and executors (polling coverage — gates command lanes). Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE you build anything. `ready:true` means no problems found; otherwise `problems` lists each blocking issue with its fix. GET-based — readonly-safe. Run this first on a new connection, a new model, or whenever anything fails four tools deep.",
+        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway (reachable + credential accepted), node (reachable, model exists, state, workspace containers), credential vault/legacy fallback (gates credential-using lanes), LLM provider (gates llm/agent lanes), and executors (polling coverage — gates command lanes). Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE you build anything. `ready:true` means no problems found; otherwise `problems` lists each blocking issue with its fix. GET-based — readonly-safe. Run this first on a new connection, a new model, or whenever anything fails four tools deep.",
       inputSchema: { ...modelParam },
     },
     wrapTool(scope, config.mode, { name: 'readiness', mutates: false }, async (model) => {
@@ -637,17 +640,31 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         problems.push('master /llm/health did not answer — llm/agent readiness unknown (is agentic-net-master up?)');
       }
 
-      // Credential vault — the layer readiness used to skip entirely. It is not optional plumbing:
-      // with the vault down, fireOnce 500s on `Connection refused: agentic-net-vault:8085` even for a
-      // pure map lane that references no credentials, while readiness happily reported ready:true and
-      // capabilities.build:true. Reported as its own layer so a green readiness means green.
+      // Credential vault gates only lanes that actually consume credentials. Pure/status paths are
+      // deliberately independent of it, but the degraded capability must still be visible.
       let vault: any;
       try {
         const res: any = await ctx.client.masterApi('GET', '/vault/health');
         const status = String(res?.status ?? (res?.healthy === true ? 'UP' : '')).toUpperCase();
         vault = { reachable: true, status: status || 'UNKNOWN', ...(res?.backend ? { backend: res.backend } : {}) };
-        if (status && !['UP', 'OK', 'READY', 'HEALTHY'].includes(status)) {
-          problems.push(`credential vault reports ${status} — fire_once fails for EVERY lane while it is down, including lanes that use no credentials`);
+        if (status && !['UP', 'OK', 'READY', 'HEALTHY', 'DISABLED'].includes(status)) {
+          problems.push(`credential vault reports ${status} — credential-dependent lanes fail closed until it recovers`);
+        }
+        // The consequence, not just the cause: lanes the master is CURRENTLY withholding because
+        // their credentials cannot be resolved. This can be non-zero even with the vault UP (a
+        // credential-referencing lane with nothing stored), and it is the answer to "my command
+        // lanes are RUNNING with a full queue but never fire".
+        if (typeof res?.withheldLaneCount === 'number' && res.withheldLaneCount > 0) {
+          vault.withheldLaneCount = res.withheldLaneCount;
+          vault.withheldLanes = res.withheldLanes;
+          const names = (res.withheldLanes ?? [])
+            .slice(0, 5)
+            .map((l: any) => `${l.modelId}/${l.transitionId}`)
+            .join(', ');
+          problems.push(
+            `${res.withheldLaneCount} credential-dependent lane(s) are withheld from execution (${names}${res.withheldLaneCount > 5 ? ', …' : ''}) — ` +
+              'they resume automatically once credentials resolve; reasons in vault.withheldLanes, per-lane view in scheduler_status (eligibility CREDENTIALS_WITHHELD)',
+          );
         }
       } catch (err: any) {
         // A 404 means this master predates the vault health endpoint, not that the vault is down.
@@ -656,7 +673,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         } else {
           vault = { reachable: false, status: 'UNREACHABLE', error: String(err?.message ?? err).slice(0, 120) };
           problems.push(
-            'credential vault did not answer — fire_once fails for EVERY lane while it is down (even credential-free map lanes); ' +
+            'credential vault did not answer — credential-dependent lanes fail closed; ' +
               'check agentic-net-vault and its OpenBao backend',
           );
         }
@@ -683,13 +700,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         vault,
         executors: covReport,
         capabilities: {
-          // `build` gates on the vault too: a stack that cannot resolve credentials cannot fire, so
-          // reporting build:true there is exactly the false confidence this call exists to prevent.
           build:
             gateway.authenticated === true &&
             node.reachable === true &&
-            modelReport.exists === true &&
-            vault?.reachable !== false,
+            modelReport.exists === true,
+          credentialLanes:
+            vault?.reachable === true &&
+            ['UP', 'OK', 'READY', 'HEALTHY', 'DISABLED'].includes(
+              String(vault?.status ?? '').toUpperCase(),
+            ),
           llmLanes: String(llm?.status ?? '').toUpperCase() === 'READY',
           commandLanes: cov.covered,
         },
@@ -729,6 +748,13 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           status: t.status,
           ready: t.ready,
           ...(t.eligibility ? { eligibility: t.eligibility } : {}),
+          ...(t.credentialsWithheld
+            ? {
+                credentialsWithheld: t.credentialsWithheld,
+                credentialsHint:
+                  'The master is deliberately not assigning/executing this lane because its credentials cannot be resolved (vault outage, or a credential-referencing lane with nothing stored). It resumes automatically once credentials resolve — check readiness.vault and set_transition_credentials.',
+              }
+            : {}),
           schedule: sched,
           lastFiredAt: typeof lastMs === 'number' ? new Date(lastMs).toISOString() : null,
           ...(typeof lastMs === 'number' ? { lastFiredAgo: fmtAgo(lastMs) } : { neverFired: true }),
@@ -740,11 +766,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       });
       if (args.scheduledOnly !== false) rows = rows.filter((r) => r.schedule);
       const overdueCount = rows.filter((r: any) => r.overdue).length;
+      // Count withheld lanes across ALL transitions, not just the scheduled subset — a withheld
+      // unscheduled command lane must not vanish from this headline because of the default filter.
+      const withheldCount = list.filter((t: any) => t.credentialsWithheld).length;
       return {
         model,
         observedAt: res?.observedAt,
         count: rows.length,
         ...(overdueCount ? { overdueCount } : {}),
+        ...(withheldCount ? { credentialsWithheldCount: withheldCount } : {}),
         transitions: rows,
       };
     }),

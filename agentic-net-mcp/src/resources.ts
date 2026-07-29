@@ -135,7 +135,7 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
           workaround:
             'select fields at the source (e.g. a REST API with field selection) rather than fetching a page ' +
             'and parsing it downstream',
-          defaultTimeoutMs: 240000,
+          defaultTimeoutMs: 30000,
         },
         llm: {
           defaultTimeoutMs: 240000,

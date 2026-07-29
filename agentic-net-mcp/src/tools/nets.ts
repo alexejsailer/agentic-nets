@@ -15,7 +15,7 @@ import {
   schedulePresetOverride,
   validateCron,
 } from '../inscriptions.js';
-import { createAllowlistStore } from '../allowlist-store.js';
+import { createAllowlistStoreAt } from '../allowlist-store.js';
 import { clampValues } from './observe.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
@@ -161,7 +161,7 @@ export const PERSONA_PRESETS: Record<
 
 export function registerNetTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
-  const allowlist = createAllowlistStore();
+  const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
   const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
     ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
     : {};
@@ -227,17 +227,30 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         const existingModels: any[] = Array.isArray(existingRes) ? existingRes : (existingRes?.models ?? []);
         if (existingModels.some((m: any) => (m.modelId ?? m.id) === modelId)) {
           grantModel(scope, modelId);
+          // Persist only when explicitly requested for a pre-existing model, but do it before
+          // optional profile/workspace recovery so a downstream failure cannot discard the grant.
+          const persist = args.persistAllowlist === true ? allowlist.add(modelId) : null;
+          let profileResult: any;
+          if (args.profile) {
+            // This is also the recovery path after create returned modelCreated:true with a
+            // partially provisioned profile. Provisioning is idempotent.
+            profileResult = await ctx.client.masterApi(
+              'POST',
+              `/admin/models/${encodeURIComponent(modelId)}/profile`,
+              { profile: args.profile },
+            );
+          }
           await ensurePlacesContainer(ctx, modelId).catch(() => undefined);
           // Granting access to a model we did NOT create is a different act from remembering one we
           // did. The allowlist's job is to contain client/LLM mistakes and prompt injection, so a
           // caller that names an arbitrary pre-existing model should not be able to make that grant
           // outlive the session by accident — it has to be asked for.
-          const persist = args.persistAllowlist === true ? allowlist.add(modelId) : null;
           return {
             created: false,
             existed: true,
             allowed: true,
             persisted: persist?.persisted ?? false,
+            ...(profileResult ? { modelProfile: profileResult } : {}),
             note:
               `model '${modelId}' already exists on the node — granted to this session; target it directly.` +
               (persist
@@ -279,14 +292,23 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
             try { parsed = JSON.parse(err.body); } catch { /* keep the raw message below */ }
             if (parsed?.modelCreated === true) {
               grantModel(scope, modelId);
+              const persist = args.persistAllowlist === false ? null : allowlist.add(modelId);
               throw new Error(`model '${modelId}' was created but profile '${args.profile}' provisioning is `
                 + `incomplete: ${JSON.stringify(parsed?.modelProfile?.artifacts ?? [])} — re-run `
-                + `create_model with the same profile to complete it (installs are idempotent)`);
+                + `create_model with the same profile to complete it (installs are idempotent). `
+                + (persist === null
+                  ? 'The grant was not remembered because persistAllowlist:false.'
+                  : persist.persisted
+                    ? `The model grant was already remembered in ${persist.path}.`
+                    : `The grant could not be remembered: ${persist.error}.`));
             }
           }
           throw err;
         }
         grantModel(scope, modelId);
+        // Persist as soon as model creation is known to have succeeded. Workspace/template setup
+        // may fail afterward, but that must not strand a running model outside future sessions.
+        const persist = args.persistAllowlist === false ? null : allowlist.add(modelId);
         // Eagerly provision the workspace skeleton (root/workspace/places) so the
         // very first add_place / memory_write against the new model cannot 404 on
         // a missing parent container — the "new model happy path" gap.
@@ -298,10 +320,6 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           const blueprint = TEMPLATES[args.template as keyof typeof TEMPLATES];
           template = await new TemplateExecutor(ctx, modelId).deploy(blueprint, {});
         }
-        // Remember it by default. A model minted here is exactly the set this installation should
-        // retain reach over: anything scheduled in it spends tokens unattended, and losing the
-        // allowlist entry meant losing pause_model along with it.
-        const persist = args.persistAllowlist === false ? null : allowlist.add(modelId);
         return {
           created: modelId,
           allowed: true,

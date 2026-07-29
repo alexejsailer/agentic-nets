@@ -1,4 +1,4 @@
-# @agenticnets/mcp — working memory that runs
+# @agenticnets/mcp — working memory, Agent Hub, and external execution
 
 An [MCP](https://modelcontextprotocol.io) server that connects any MCP client (Claude Code, Claude
 Desktop, Cursor, agent frameworks) to an [AgenticNetOS](https://github.com/alexejsailer/agentic-nets)
@@ -36,7 +36,7 @@ Then, in Claude Code:
 > *"What did we decide about bundling?"* → `memory_recall` returns the **distilled** note — cleaned up
 > server-side by the always-on distiller transition while you kept working.
 
-## Tools (103 = 32 curated + 71 native)
+## Tools (164 = 54 curated + 110 native)
 
 Two layers, one server:
 
@@ -51,14 +51,16 @@ Two layers, one server:
 |---|---|
 | **Memory** | `memory_write` · `memory_recall` · `memory_link` · `memory_graph` |
 | **Net building** | `deploy_template` · `create_net` · `add_place` · `add_transition` (kind-aware: map/llm/http/command/**agent**/link, pre-wired inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · **`spawn_persona`** · `scaffold_tool_net` · `invoke_tool_net` · **`crystallize_session`** |
-| **Model lifecycle** | **`list_models`** (every model + an `allowed` flag) · **`create_model`** (mint a NEW model, optionally deploy a template into it; joins the allowlist for this session — rw, gated by `AGENTICOS_ALLOW_MODEL_CREATE`) |
+| **Model lifecycle** | **`list_models`** (every model + `allowed` / `allowedVia`) · **`create_model`** (mint a NEW model, optionally deploy a template/profile; remembered for later sessions by default — rw, gated by `AGENTICOS_ALLOW_MODEL_CREATE`) |
 | **Model control** | **`pause_model`** (kill switch: stop ALL running transitions, audit-recorded) · **`resume_model`** (restore exactly the paused set) · **`DELETE_TRANSITION`** (deregister an orphaned runtime transition) |
 | **Client-hosted execution** | **`host_transition`** (run an llm/agent transition IN the MCP process on the client side's own LLM — default the local `claude` binary; `watch` polls its inbox, `once` executes now) · **`unhost_transition`** |
-| **NetHub** | **`hub_publish`** (publish a net/session/model, agent template, or **context-net template**; `tokens=none\|config\|all`) · **`hub_search`** (browse local or peer catalogs, including `kind=context`) · **`hub_install`** (contexts get their own stopped session; structural links never execute) · **`hub_add_remote`** (register a peer instance) |
+| **External execution** | **`list_external_fires`** · **`set_external`** · **`prepare_external_fire`** · **`complete_external_fire`** · **`abandon_external_fire`** (the connected model itself reasons; master retains binding, emission, accounting, permissions, and idempotency) |
+| **Agent Hub + contexts** | Create models with standard/research/knowledge/development profiles; native tools search, install, configure, start, stop, and inspect versioned agent teams and context systems |
+| **NetHub** | **`hub_publish`** / **`hub_search`** / **`hub_show`** / **`hub_install`** for nine artifact kinds (net, session, model, agent, context, toolnet, tool, catalog, blob) · **`hub_add_remote`** for federation |
 | **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
-| **Native catalog (61)** | Structure: `CREATE/DELETE_NET·PLACE·TRANSITION·ARC·TOKEN`, `SET_INSCRIPTION`, `ADAPT_INSCRIPTIONS` · Reads: `QUERY_TOKENS`, `GET_NET_STRUCTURE`, `LIST_*`, `FIND_*`, `EXTRACT_*`, `EXPORT_PNML` · Diagnosis: `NET_DOCTOR`, `VERIFY_NET`, `VERIFY_RUNTIME_BINDINGS`, `VERIFY_INSCRIPTION`, `DIAGNOSE/DRY_RUN_TRANSITION` · Lifecycle: `DEPLOY/START/STOP_TRANSITION`, `FIRE_ONCE`, `EXECUTE_TRANSITION(_SMART)` · Tool-nets: `SCAFFOLD/REGISTER/DESCRIBE/INVOKE_TOOL_NET`, `LIST_TOOL_NETS` · Packages: `PACKAGE_SEARCH/PUBLISH/INSTALL` · Infra: `DOCKER_RUN/STOP/LIST/LOGS`, `REGISTRY_*`, `HTTP_CALL` · Sessions: `CREATE_SESSION`, `TAG_SESSION`, `LIST_ALL_SESSIONS`, … (excluded: `THINK`/`DONE`/`FAIL` — agent-loop-only primitives) |
+| **Native catalog (110)** | Full platform parity across structure, tokens, inscriptions, lifecycle, Agent Hub, contexts, NetHub, credentials, tool catalogs, Docker, HTTP, scripts, sessions, diagnosis, usage, and export. `THINK` / `DONE` / `FAIL` remain agent-loop-only and are intentionally excluded. |
 
-Four capabilities the extra tools unlock:
+Important capabilities the extra tools unlock:
 
 - **`spawn_persona`** stands up a *complete self-driving worker net* (charter + task inbox + a started
   `agent` transition + output). Feed it `memory_write place:"p-<name>-task"` and it works each task
@@ -78,6 +80,10 @@ Four capabilities the extra tools unlock:
   (`AGENTICOS_LLM_PROVIDER` — default `claude-code`, i.e. your own `claude` binary and subscription;
   or ollama/anthropic/openai). Zero server-side LLM setup. Hosted lanes run while the session is
   connected; tokens arriving meanwhile wait safely in the input place. Stats: `net_stats.hosted`.
+- **External fires** need no local provider loop. Mark one transition or a whole net/session/model
+  external; the connected host model prepares and completes each fire itself. Leases prevent two
+  clients from taking the same tokens, completion is idempotent, and an active agent fire can call
+  only the tools and resources master granted to it.
 
 Plus **resources** (`agenticnets://models`, `agenticnets://templates`, `agenticnets://tool-nets`,
 `agenticnets://docs/{concepts,arcql,recipes,security}`) and **prompts** (`setup-working-memory`,
@@ -112,6 +118,8 @@ Deploys are idempotent: re-running skips existing elements and never duplicates 
 | `AGENTICOS_LLM_PROVIDER` | LLM used when **this process** executes hosted transitions (`host_transition`): `claude-code` (local `claude` binary — your subscription), `ollama`, `claude`/`anthropic`, `openai` | `claude-code` |
 | `AGENTICOS_LLM_MODEL` / `AGENTICOS_LLM_TIER` | model + tier for the hosted-execution provider | provider default / `medium` |
 | `AGENTICOS_ALLOW_MODEL_CREATE` | register `create_model` and let it mint new models at runtime (rw only). `false` = strictly-frozen allowlist | `true` (rw) |
+| `AGENTICOS_STATE_DIR` | directory containing the durable model grant file (`allowlist.json`) | `~/.agenticnets` |
+| `AGENTICOS_PERSIST_ALLOWLIST` | remember newly created models across MCP sessions; pre-existing models still require `persistAllowlist:true` | `true` |
 | `AGENTICOS_DOCKER_TOOLS` | `false` withholds the container/registry tools (`DOCKER_*`, `REGISTRY_*`) from the native catalog — container spawning as a deliberate grant, mirroring the master's D flag | `true` |
 
 ## Claude Code hooks: memory with zero discipline
@@ -139,10 +147,13 @@ not against a malicious operator of this process.
 
 ### Readonly mode
 
-`AGENTICOS_MODE=readonly` registers **only** the six GET-safe read tools (`memory_recall`,
-`memory_graph`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`) *and* authenticates with
-the gateway's `agenticos-readonly` client — mutations are rejected by the gateway itself, not just by
-this server. Point `AGENTICOS_ADMIN_SECRET` at the readonly client's secret.
+`AGENTICOS_MODE=readonly` registers **only 16 read tools**: memory recall/graph,
+model/transition/executor discovery, external-fire discovery, health/readiness,
+scheduler and usage views, net overview/stats, token queries, event trails, and
+the bundled knowledge search. It also authenticates with the gateway's
+`agenticos-readonly` client, so mutations are rejected by the gateway itself,
+not just hidden by this server. Point `AGENTICOS_ADMIN_SECRET` at the readonly
+client's secret.
 
 ArcQL under readonly: read-only ArcQL query POSTs (`/arcql/query/*`, `/proxy/arcql/*/query`) ARE
 allowed by the gateway's readonly scope — recall and `query_tokens` work with or without an `arcql`
@@ -172,7 +183,10 @@ Verified posture (adversarial probe: 194 KB of server output + stderr audited):
 - **Model allowlist** is enforced in-process on every call (out-of-list → `MODEL_NOT_ALLOWED`); a
   single-model config exposes no `model` param at all. Honest boundary: the underlying gateway
   credential is not model-scoped (the platform has no per-model authz yet), so this guards against
-  client/LLM mistakes and prompt injection — not a malicious operator of this process.
+  client/LLM mistakes and prompt injection — not a malicious operator of this process. Models minted
+  by `create_model` are atomically remembered by default so scheduled work remains inspectable and
+  pausable after reconnect; grants to pre-existing models remain session-only unless explicitly
+  persisted.
 - **Readonly is gateway-enforced** (not just tool-filtered): `AGENTICOS_MODE=readonly` authenticates
   as the `agenticos-readonly` client, so mutations are rejected by the gateway itself.
 

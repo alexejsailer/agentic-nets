@@ -26,8 +26,8 @@
 #
 # Revert to the Hub image: re-run that command WITHOUT this override file.
 #
-# Contains: the vault credential-storm fix (short-lived credential cache + bounded transition
-# hydration fan-out). Drop this override once a release image carries it.
+# Contains: the vault credential-storm fix (lazy execution-time reads, bounded physical cache,
+# per-key coalescing and stale-load protection). Drop this override once a release image carries it.
 services:
   agentic-net-master:
     image: alexejsailer/agenticnetos-master:2.36.0-vaultfix

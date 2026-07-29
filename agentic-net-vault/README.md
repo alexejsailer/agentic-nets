@@ -15,7 +15,8 @@ Secrets service for transition credentials. Wraps [OpenBao](https://openbao.org/
 | Method | Path | Purpose |
 |---|---|---|
 | `PUT`    | `/api/vault/{modelId}/transitions/{transitionId}/credentials` | Upsert all creds |
-| `GET`    | `/api/vault/{modelId}/transitions/{transitionId}/credentials` | Read cred keys (values masked in responses) |
+| `GET`    | `/api/vault/{modelId}/transitions/{transitionId}/credentials` | Trusted master read (includes plaintext values; backend-network only) |
+| `GET`    | `/api/vault/{modelId}/transitions/{transitionId}/credentials/metadata` | Read key names/version only |
 | `DELETE` | `/api/vault/{modelId}/transitions/{transitionId}/credentials` | Delete all creds |
 
 ## Env vars
@@ -27,6 +28,13 @@ Secrets service for transition credentials. Wraps [OpenBao](https://openbao.org/
 | `VAULT_KV_MOUNT` | `secret` | KV v2 mount path |
 | `VAULT_APPROLE_ROLE_ID` | *(optional)* | AppRole auth (production) |
 | `VAULT_APPROLE_SECRET_ID` | *(optional)* | AppRole auth (production) |
+| `SERVER_TOMCAT_THREADS_MAX` | `25` | Worker ceiling; limits native-memory growth under a client storm |
+| `SERVER_TOMCAT_MAX_CONNECTIONS` | `100` | Maximum accepted connections |
+| `SERVER_TOMCAT_ACCEPT_COUNT` | `50` | Backlog after workers/connections are busy |
+
+The master resolves credentials only immediately before a lane that may use them executes. Pure
+lanes and status views do not depend on this service; a credential-dependent lane fails closed if
+the vault or OpenBao is unavailable.
 
 ## Run
 

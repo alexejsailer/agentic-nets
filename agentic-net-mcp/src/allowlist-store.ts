@@ -15,9 +15,18 @@
  * Every write fails soft. A read-only filesystem or a container without a writable home must never
  * break a session — it just means the grant stays session-scoped, and the caller is told so.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 export interface PersistResult {
   persisted: boolean;
@@ -48,8 +57,13 @@ export function resolveStatePath(env: NodeJS.ProcessEnv = process.env): string {
 }
 
 export function createAllowlistStore(env: NodeJS.ProcessEnv = process.env): AllowlistStore {
-  const path = resolveStatePath(env);
-  const enabled = env.AGENTICOS_PERSIST_ALLOWLIST !== 'false';
+  return createAllowlistStoreAt(
+    resolveStatePath(env),
+    env.AGENTICOS_PERSIST_ALLOWLIST !== 'false',
+  );
+}
+
+export function createAllowlistStoreAt(path: string, enabled = true): AllowlistStore {
 
   const read = (): string[] => {
     if (!enabled || !existsSync(path)) return [];
@@ -68,15 +82,55 @@ export function createAllowlistStore(env: NodeJS.ProcessEnv = process.env): Allo
     if (!enabled) {
       return { persisted: false, path, error: 'persistence disabled (AGENTICOS_PERSIST_ALLOWLIST=false)' };
     }
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(modelId)) {
+      return { persisted: false, path, error: 'invalid model id' };
+    }
+    const lockPath = `${path}.lock`;
+    let locked = false;
+    let tempPath: string | undefined;
     try {
+      mkdirSync(dirname(path), { recursive: true });
+      for (let attempt = 0; attempt < 100 && !locked; attempt++) {
+        try {
+          mkdirSync(lockPath);
+          locked = true;
+        } catch (err: any) {
+          if (err?.code !== 'EEXIST') throw err;
+          // A killed writer must not wedge persistence forever.
+          try {
+            if (Date.now() - statSync(lockPath).mtimeMs > 10_000) {
+              rmSync(lockPath, { recursive: true, force: true });
+              continue;
+            }
+          } catch {
+            // It disappeared between EEXIST and stat; retry.
+          }
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+        }
+      }
+      if (!locked) throw new Error('timed out acquiring allowlist write lock');
+
+      // Re-read under the lock so two MCP processes cannot overwrite one another's grants.
       const current = read();
       if (current.includes(modelId)) return { persisted: true, path };
       const next: StoreFile = { models: [...current, modelId], updatedAt: new Date().toISOString() };
-      mkdirSync(join(path, '..'), { recursive: true });
-      writeFileSync(path, JSON.stringify(next, null, 1) + '\n', 'utf8');
+      tempPath = `${path}.${process.pid}.${Math.random().toString(16).slice(2)}.tmp`;
+      writeFileSync(tempPath, JSON.stringify(next, null, 1) + '\n', {
+        encoding: 'utf8',
+        mode: 0o600,
+      });
+      renameSync(tempPath, path);
+      tempPath = undefined;
       return { persisted: true, path };
     } catch (err: any) {
       return { persisted: false, path, error: String(err?.message ?? err).slice(0, 160) };
+    } finally {
+      if (tempPath) {
+        try { unlinkSync(tempPath); } catch { /* best effort */ }
+      }
+      if (locked) {
+        try { rmSync(lockPath, { recursive: true, force: true }); } catch { /* best effort */ }
+      }
     }
   };
 

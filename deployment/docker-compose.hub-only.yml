@@ -554,13 +554,10 @@ services:
       SERVER_TOMCAT_THREADS_MAX: "${VAULT_TOMCAT_THREADS_MAX:-25}"
       SERVER_TOMCAT_MAX_CONNECTIONS: "${VAULT_TOMCAT_MAX_CONNECTIONS:-100}"
       SERVER_TOMCAT_ACCEPT_COUNT: "${VAULT_TOMCAT_ACCEPT_COUNT:-50}"
-      # The image ships MaxRAMPercentage=75, which cannot fit this container: a 75% heap plus the
-      # ~250MB of unavoidable JVM non-heap (metaspace, code cache, thread stacks, direct buffers)
-      # exceeds the cgroup limit, so the vault walked to the ceiling and exited 0 in a loop — 136
-      # restarts, invisible to BOTH the healthcheck (it passes between cycles) and OOMKilled (the
-      # JVM shuts itself down rather than being killed). Each restart is a window where fire_once
-      # fails for EVERY lane, including credential-free map lanes. A credential CRUD service does
-      # not need a 768MB heap; 50% leaves real headroom instead.
+      # Keep half the cgroup available for metaspace, code cache, direct buffers and native thread
+      # stacks. The observed restart loop was driven by an upstream credential-read storm and
+      # Tomcat worker/native RSS, not by the heap reaching its 75% ceiling; the lower heap ratio is
+      # defensive headroom alongside the client-side lazy cache and the Tomcat ceilings above.
       JAVA_OPTS: "-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC -XX:+UseContainerSupport"
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       VAULT_OPENBAO_URL: http://openbao:8200
