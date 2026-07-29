@@ -7,23 +7,18 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**Governed multi-agent runtime for stateful, permission-scoped, replayable AI agents.**
+**Build AI systems you can see, stop, replay, and move.**
 
-**The no-code backend for building agent harnesses.** Everything a harness needs
-— tools, control flow, memory, execution, agents, and guardrails — you assemble
-by prompting and chatting, not by writing code. Build one guarded agent or a
-whole virtual product team the same way, and drive it all remotely — even from
-your phone — through the Claude Code integration. You never open an editor; you
-describe what you want and the runtime builds it.
+Agentic-Nets is a governed runtime for stateful, permission-scoped AI agents.
+It puts agents, LLM calls, deterministic steps, tools, memory, approvals, and
+remote execution into formal Petri nets. Places hold typed JSON state;
+transitions do the work; every change leaves an event-sourced trail.
 
-Agentic-Nets is a runtime where agents live inside formal Petri nets and use
-those nets as context. A net defines what an agent can see, what it can do,
-where outputs go, and how it communicates with other nets. One net can model a
-single guarded agent or several agents working together inside the same net.
-Multiple nets can model a development pipeline, a virtual agile team, or an
-entire product operating system. The same approach is not tied to software
-alone: you can model any domain, process, or industry with nets as long as
-structure, communication, coordination, and verification matter.
+Use the visual Studio, an MCP client, the CLI, or the Claude Code plugin to
+build one guarded agent, install a complete persona team, or coordinate a
+network of long-running systems. The same runtime mixes server-hosted models,
+local models, and client-supplied reasoning without hiding control flow in a
+chat transcript.
 
 ## At a glance
 
@@ -31,9 +26,38 @@ structure, communication, coordination, and verification matter.
 |---|---|
 | What is it? | A Petri-net runtime for agents, tools, memory, remote execution, and audit trails. |
 | Why does it exist? | To make agent systems inspectable, permission-scoped, replayable, and reusable instead of hidden inside chat state. |
+| Can I use my own model? | Yes. Run server-side with Claude, OpenAI, or Ollama; host lanes from the CLI/MCP process; or let the connected MCP model execute selected AI transitions through external fires. |
 | What is public in this repo? | Licensed public source for the gateway, executor, vault, CLI, chat bot, MCP server, blobstore, tool containers, deployment, and monitoring. |
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
-| Current status | Beta. Suitable for evaluation, local experiments, early adopters, and contributors who are comfortable with a fast-moving stack. |
+| Current release | `v2.36.0`. Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+
+## The current platform in five points
+
+1. **External execution / bring your own model.** Mark an `llm` or `agent`
+   transition as external, or apply that policy to a net, session, or model.
+   Master leaves it alone; an MCP client leases the exact prepared prompt,
+   supplies the answer with its own model, and hands it back to the normal
+   emit-and-consume pipeline.
+2. **Installable agent teams.** Agent Hub currently ships five starting
+   templates: Dev Crew, Research Analyst, Health Coach, Context Curator, and
+   Crystallizer. Model profiles can compose the right resident agents and
+   context systems automatically.
+3. **NetHub packages whole systems.** Publish and install nine artifact kinds:
+   nets, sessions, models, agent teams, context systems, tool nets, individual
+   tools, catalogs, and blobs. Dependencies are bundled and credentials are
+   scrubbed.
+4. **Governance is enforced at runtime.** Ten positional capability flags
+   (`rwxhludcts`), named capability profiles, tool allowlists, resource scopes,
+   Vault-backed credentials, a fleet-wide LLM freeze, and an automatic spend
+   breaker bound what an agent can do.
+5. **One MCP server exposes the platform.** In the default read-write
+   configuration, `@agenticnets/mcp` exposes 164 tools: 54 curated workflows
+   plus 110 native tools from the same catalog used by in-net agents.
+
+<img src="https://alexejsailer.com/wp-content/uploads/2026/07/two-weeks-byom-featured.png" alt="Agentic-Nets net mixing an external MCP analyst with a master-run LLM editor" width="100%" />
+
+*One net, two execution locations: an external MCP agent hands structured
+findings to a master-run LLM lane.*
 
 [![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
 
@@ -53,12 +77,14 @@ layer:
 |---|---|
 | Start locally without reading everything | [Quick local run](#quick-local-run) |
 | Try the local stack | [Install in 5 minutes](#install-in-5-minutes) |
+| Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
+| Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
 | See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
 | Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
 | Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Read the whitepaper — the harness control system, complete domain automation | [docs/whitepaper/the-harness-control-system.html](docs/whitepaper/the-harness-control-system.html) ([view rendered](https://raw.githack.com/alexejsailer/agentic-nets/main/docs/whitepaper/the-harness-control-system.html)) |
 | Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
-| Connect any MCP client (working memory + net workbench) | [Connect over MCP](#or-connect-over-mcp--agentic-nets-as-working-memory--a-net-workbench) |
+| Connect any MCP client | [MCP server](agentic-net-mcp/README.md) |
 | Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
 | Ask questions or discuss use cases | [GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions) or [forum.agentic-nets.com](https://forum.agentic-nets.com) |
 | Report a security issue | [SECURITY.md](SECURITY.md) |
@@ -79,10 +105,13 @@ git clone https://github.com/alexejsailer/agentic-nets.git
 cd agentic-nets/deployment
 
 cp .env.template .env
-# Edit .env and choose one provider:
+# Optional for master-run llm/agent lanes: choose one server provider.
 # LLM_PROVIDER=claude + ANTHROPIC_API_KEY=...
 # LLM_PROVIDER=openai + OPENAI_API_KEY=...
 # LLM_PROVIDER=ollama for the bundled Ollama container
+#
+# You can instead leave AI lanes stopped/external and let a connected MCP
+# model execute them. See "Connect over MCP" below.
 
 docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 
@@ -187,19 +216,19 @@ governed by default.
 
 | A harness needs… | …you get it as (no code) |
 |---|---|
-| **Tools** | Reusable **tool-nets** (self-describing capability nets you invoke, version, and share), **Docker tool containers** agents start on demand, and `http` / `command` transitions |
+| **Tools** | Reusable **tool nets**, digest-pinned Docker tools, HTTP services, executable scripts, and `http` / `command` transitions |
 | **Control flow** | **Nets** wired from seven transition types — deterministic (`pass` / `map` / `http`) and AI (`llm` / `agent`) lanes on the same graph, with conditional routing and capacity gates |
-| **Agents** | **`agent` transitions** and ready-made **assistant personas** — a Universal Assistant front door, a Workflow Builder, a Persona specialist-builder, plus operator / domain-expert roles |
-| **Memory & state** | **Places + tokens** — typed, timestamped state queryable live with **ArcQL** — and `EMIT_MEMORY`, instead of a chat session that vanishes |
+| **Agents** | **`agent` transitions**, built-in assistant personas, and versioned **Agent Hub** teams installed as complete sessions |
+| **Memory & state** | **Places + tokens**, typed context systems, and bounded context capsules queryable with **ArcQL** |
 | **Execution** | Distributed **executors** that poll egress-only (firewall-friendly, deployable anywhere) and run scoped work in **Docker** |
-| **Governance** | **`rwxhludct` capability roles** enforced at dispatch (not in the prompt) and **Vault** secrets injected only at action time |
+| **Governance** | **`rwxhludcts` capability roles**, named profiles, tool allowlists, resource scopes, spend controls, and **Vault** secrets injected only at action time |
 | **Observability** | **Event-sourced history** — replay the log, watch the live event-line, and ask what existed at any decision point |
-| **Reuse & export** | Export **inscriptions / PNML**, publish to the **tool-net library**, and drop the same net into another model or deployment |
+| **Reuse & export** | Export **inscriptions / PNML** or use **NetHub** to move nets, sessions, models, agents, contexts, tools, catalogs, and blobs |
 | **Self-extension** | **Builder / Forge** agents that create new places, transitions, and whole tool-nets *inside the running system* — the harness grows itself |
 
-### Drive it your way — no code, any LLM
+### Drive it your way — visual, conversational, or API-first
 
-You never write code, and you are not tied to one vendor or one interface.
+You are not tied to one model vendor or one interface.
 
 **In the Studio (the GUI).** Watch every net, token, tool call, and event as it
 happens, and set the whole thing up by clicking — create models, sessions, nets,
@@ -217,21 +246,22 @@ Claude Code's **Remote Control** let you drive the entire system — build nets,
 run pipelines, even cut a release — **from anywhere, including your phone**,
 purely by chatting. See [Drive it from Claude Code](#drive-it-from-claude-code).
 
-**Bring your own model.** Nothing is vendor-locked. Point `LLM_PROVIDER` at
-Claude, OpenAI, or a local **Ollama** model (fully offline) — the same nets,
-personas, and tools run on whatever LLM you choose, and you can even route cheap
-deterministic steps to one model and deep reasoning to another.
+**Bring your own model.** Point the server at Claude, OpenAI, or a local
+**Ollama** model; host selected lanes in the CLI/MCP process; or mark AI lanes
+as external so the connected MCP model itself performs the reasoning. A single
+net can mix master-run and externally executed transitions while retaining the
+same state, emission, audit, and permission pipeline.
 
 ## The nine production gaps Agentic-Nets closes
 
 1. **Invisible state.** Every intermediate value is a token in a typed place, queryable with ArcQL while the net runs.
 2. **Vanishing memory.** Memory is structured state. Agents read and write lessons through places and `EMIT_MEMORY`.
 3. **Weak observability.** State is event-sourced. Replay the log, inspect reductions, and ask what existed at decision time.
-4. **No permission model.** Role tiers from `r----` to `rwxhl` gate tools at dispatch, not in the prompt.
+4. **No permission model.** The `rwxhludcts` role ceiling, capability profiles, allowlists, and scopes gate tools at dispatch, not only in the prompt.
 5. **Secrets in the wrong place.** Vault keeps credentials outside tokens and events, scoped per transition and injected only at action time.
 6. **Unsafe execution boundary.** Remote executors poll over egress-only links; command work runs in scoped Docker tool containers.
 7. **Hard to explain why.** Tool calls, results, emissions, and event trails keep provenance attached to the actual work.
-8. **Poor reusability.** Agents are transitions with inscriptions. Export inscriptions or PNML and reuse the net elsewhere.
+8. **Poor reusability.** NetHub packages nine artifact kinds, their referenced dependencies, and an explicit token policy for installation elsewhere.
 9. **No reflexive model.** Builder agents can create nets, places, arcs, transitions, and inscriptions inside the same runtime.
 
 ## Why this matters for coding agents
@@ -260,7 +290,7 @@ before deploying.
 
 | Layer | What | License | Who can use it |
 |---|---|---|---|
-| **Public components** (source in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
+| **Public components** (source in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `agentic-net-mcp`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
 | **Closed source** (Docker Hub images only — no source in this repo) | `alexejsailer/agenticnetos-node`, `alexejsailer/agenticnetos-master`, `alexejsailer/agenticnetos-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
 
 Both licenses include a strong **NO WARRANTY / BETA** disclaimer. Nothing here is certified for regulated environments out of the box — you are responsible for your own risk assessment. If you are unsure whether your intended use counts as commercial production, **ask before deploying**.
@@ -283,9 +313,11 @@ tools their role permits, and leave an event trail behind.
 
 ## Install in 5 minutes
 
-You need Docker Desktop or Docker Engine with Compose v2, plus one LLM backend:
-Claude API, OpenAI API, or local Ollama. You do **not** need Java, Node.js, or
-Maven unless you want to build services from source.
+You need Docker Desktop or Docker Engine with Compose v2. A server-side LLM
+backend is required only for AI lanes that master executes: choose Claude,
+OpenAI, or Ollama. External lanes can instead use the model in a connected MCP
+client, with no server API key. You do **not** need Java, Node.js, or Maven
+unless you want to build services from source.
 
 Apple Silicon Macs can run the current Docker Hub images through Docker
 Desktop's `linux/amd64` emulation. Docker may print platform-mismatch warnings
@@ -300,7 +332,7 @@ cd agentic-nets/deployment
 # 2. Create your env file
 cp .env.template .env
 
-# 3. Edit .env and choose ONE provider:
+# 3. Optional: configure ONE provider for master-run llm/agent lanes:
 #    Claude: LLM_PROVIDER=claude + ANTHROPIC_API_KEY=sk-ant-...
 #    Ollama: LLM_PROVIDER=ollama (bundled container — no host install required).
 #            Default model: deepseek-v4-pro:cloud (routes through ollama.com,
@@ -366,6 +398,13 @@ open http://localhost:4200
 the Studio and ask *"Help me build my first net."* For write operations, switch
 to or invoke the Workflow Builder persona. It can create places, transitions,
 arcs, inscriptions, and deploy the result in the active model/session.
+
+Prefer to use the model already connected to your MCP client? Start the stack,
+connect `@agenticnets/mcp`, and use `set_external` on one transition or at net,
+session, or model scope. `list_external_fires` shows which lanes are ready;
+`prepare_external_fire` and `complete_external_fire` execute the work through
+the connected model while master retains token binding, emissions, accounting,
+and the audit trail.
 
 ### Compose choices
 
@@ -504,35 +543,49 @@ Or just describe what you want: the skill routes structural work to the designer
 operator agent. Full details, the REST/API reference, and the environment-variable table are in the plugin's
 own [README](claude-plugin/agenticos-control/README.md).
 
-### Or connect over MCP — Agentic-Nets as working memory + a net workbench
+### Or connect over MCP — working memory, Agent Hub, and external execution
 
-The [`agentic-net-mcp`](agentic-net-mcp) server exposes a running stack to **any MCP client** (Claude Code,
-Claude Desktop, Cursor, or your own agent framework) over the [Model Context Protocol](https://modelcontextprotocol.io).
-Where the plugin is a curl/CLI control surface, the MCP server is a **native tool protocol** — the client calls
-Agentic-Nets as first-class tools, and gets **persistent, structured working memory that keeps working between
-sessions**.
+The [`agentic-net-mcp`](agentic-net-mcp) server exposes a running stack to **any
+MCP client** (Claude Code, Claude Desktop, Cursor, or your own agent framework)
+over the [Model Context Protocol](https://modelcontextprotocol.io). The client
+gets persistent working memory, a complete net workbench, Agent Hub and NetHub
+operations, and governed execution tools through one protocol.
 
-- **Memory that runs.** `memory_write` / `memory_recall` over event-sourced places, with an always-on server-side
-  distiller that turns raw captures into durable notes while you are gone. A `SessionStart`/`SessionEnd` hook pair
-  makes it *automatic* — every Claude Code session starts warm and ends archived, with no discipline required.
-- **Build and run nets from the client.** Deploy starter templates (working-memory, dev-team, brain, watcher),
-  spawn autonomous **persona** workers that run in parallel server-side, **crystallize** a session's steps into a
-  replayable zero-LLM tool-net, and even **host** an llm/agent transition *in the client itself* using the LLM you
-  already have (e.g. your local `claude`) — no server-side model required.
-- **Full platform parity + control.** All ~90 tools: the curated ergonomic layer **plus the complete native
-  tool catalog**, model lifecycle (`create_model` / `list_models`), a `pause_model` kill switch, and a no-logs
-  cockpit (`net_stats`, `diagnose_transition`). Scoped to an allowlist, with a gateway-enforced `readonly` mode.
+- **164 tools in the default read-write surface.** Start with 54 curated
+  lowercase tools for common workflows, or drop to 110 native uppercase tools
+  generated from the same catalog used by agent transitions inside the
+  runtime.
+- **Memory that runs.** `memory_write` / `memory_recall` use event-sourced
+  places, and scheduled server-side transitions can distill raw captures into
+  durable notes after the client disconnects.
+- **Build and operate full systems.** Create models with standard, research,
+  knowledge, or development profiles; install Agent Hub teams and context
+  systems; publish or install NetHub packages; build nets; inspect live state;
+  and diagnose transitions without shell access to the host.
+- **Two client-side execution paths.** `host_transition` runs an unattended
+  local provider loop. External fires instead let the connected model itself
+  reason: `list_external_fires`, `set_external`,
+  `prepare_external_fire`, `complete_external_fire`, and
+  `abandon_external_fire` preserve master's normal binding, emission,
+  accounting, permission, and idempotency rules.
+- **Controls that survive prompt injection.** A model allowlist, readonly mode,
+  capability profiles, per-fire tool grants and resource scopes, model pause,
+  fleet-wide LLM freeze, and spend reporting are enforced by the runtime and
+  gateway rather than merely described in a system prompt.
 
 ```bash
 claude mcp add agenticnets \
   -e AGENTICOS_GATEWAY_URL=http://localhost:8083 \
-  -e AGENTICOS_ADMIN_SECRET=$(cat deployment/data/gateway/jwt/admin-secret) \
+  -e AGENTICOS_GATEWAY_SECRET_FILE="$PWD/data/gateway/jwt/admin-secret" \
   -e AGENTICOS_MODELS=my-memory \
   -- npx @agenticnets/mcp
 ```
 
-Then just tell your assistant to *"remember this"* or *"set up my working memory"*. Full tool list, configuration,
-templates, hooks, and security model are in the server's own [README](agentic-net-mcp/README.md).
+Run that command from `deployment/` after starting the stack. Then tell your
+assistant to *"set up my working memory"*, *"install the development profile"*,
+or *"make the AI transitions in this session external."* The full tool list,
+configuration, templates, hooks, and security model are in the server's own
+[README](agentic-net-mcp/README.md).
 
 ---
 
@@ -542,9 +595,21 @@ The active [`CHANGELOG.md`](CHANGELOG.md) tracks the **current calendar
 quarter**. Older quarters are archived under
 [`changelogs/`](changelogs/) ([index](changelogs/README.md)).
 
+Agentic-Nets is a fast-moving beta. Between July 3 and July 25, 2026, the
+public repository recorded 23 version tags across 16 release days. Tags are
+not all equal in size, so the changelog, tests, and live demo are the useful
+evidence behind the cadence:
+
+| Release | Platform milestone |
+|---|---|
+| `v2.33.0` | Installable Agent Hub teams |
+| `v2.34.0` | Context systems, typed relations, and semantic navigation |
+| `v2.35.0` | Shared capability profiles and bounded context capsules across master and client hosts |
+| `v2.36.0` | External fires, fleet-wide LLM freeze, and spend-breaker controls |
+
 | Quarter | Highlights |
 |---|---|
-| **Current** | [`CHANGELOG.md`](CHANGELOG.md) |
+| **2026 Q3 (current)** | [`CHANGELOG.md`](CHANGELOG.md) |
 | 2026 Q2 | Gateway/vault maturation, tool-net library + Forge, capability flags, `glm-5.2:cloud` default — [archive](changelogs/CHANGELOG-2026-Q2.md) |
 | 2026 Q1 | First releases (`v1.6.0` → `v1.19.0`), repo split, `v1.2.0` launch — [archive](changelogs/CHANGELOG-2026-Q1.md) |
 | 2025 Q4 | Pre-release: distributed execution, agent transitions, outbound-only architecture, designtime API — [archive](changelogs/CHANGELOG-2025-Q4.md) |
@@ -557,10 +622,11 @@ quarter**. Older quarters are archived under
 |  | Prompt-with-tools frameworks | Agentic-Nets |
 |---|---|---|
 | **What can this agent see?** | Whatever you paste into context | Only the tokens in its inbound places |
-| **What can this agent do?** | Whatever tools you register | Only tools its role unlocks (`r---` → `rwxh`) |
+| **What can this agent do?** | Whatever tools you register | Only tools allowed by its `rwxhludcts` role ceiling, capability profile, allowlist, and resource scopes |
 | **Where do its outputs go?** | Back to you, mixed with reasoning | Typed tokens in declared outbound places |
 | **What did it actually do?** | Chat transcript | Token trail with full provenance |
 | **How does it get cheaper?** | It doesn't | Crystallization — agent steps collapse into deterministic transitions |
+| **Where does the model run?** | Usually wherever the framework is hosted | On master, in a local transition host, or in the connected MCP client, selectable down to one AI lane |
 
 The graph gives hallucination less room to become uncontrolled action: inputs,
 permissions, and outputs are explicit.
@@ -570,12 +636,12 @@ permissions, and outputs are explicit.
 ## Architecture
 
 ```
-    CLIENT AGENTS  (all authenticate via gateway-minted JWT)
+    CLIENTS AND WORKERS  (all authenticate via gateway-minted JWT)
   +--------------+  +--------------+  +--------------+  +---------------+
   | agentic-net  |  | agentic-net  |  | agentic-net  |  | agentic-net   |
   | gui (4200)   |  | cli          |  | chat         |  | executor      |
   | Closed core  |  | Public src   |  | (Telegram)   |  |  (8084)       |
-  |              |  |              |  | Public src   |  | Public src    |
+  |              |  | + MCP        |  | Public src   |  | Public src    |
   +------+-------+  +------+-------+  +------+-------+  +------+--------+
          |                 |                 |                 |
          | JWT             | JWT             | JWT             | JWT *
@@ -619,18 +685,25 @@ permissions, and outputs are explicit.
 
 ### Agent roles on the wire
 
-Every agent runs under a **capability role** (`rwxhl` Unix-style flags):
+Every agent runs under the positional **capability role** `rwxhludcts`. The
+role is the coarse ceiling; a named capability profile, an explicit tool
+allowlist, and resource scopes can narrow it for a particular fire.
 
-| Flag | Capability | Typical tools available |
+| Flag | Capability | Examples |
 |---|---|---|
-| `r` | Read | `QUERY_TOKENS`, `LIST_PLACES`, `GET_NET_STRUCTURE`, `DESCRIBE_TOOL_NET`, discovery |
-| `w` | Write | + `CREATE_TOKEN`, `SET_INSCRIPTION`, `CREATE_NET`, `TAG_SESSION`, `REGISTER_TOOL_NET` |
-| `x` | Execute | + `DEPLOY_TRANSITION`, `START_TRANSITION`, `FIRE_ONCE`, `INVOKE_TOOL_NET`, `DELEGATE_TASK` |
-| `h` | HTTP | + external HTTP calls |
-| `l` | Logs | + event-line observability |
+| `r` | Read | Inspect nets, places, tokens, models, contexts, and package metadata |
+| `w` | Write | Create tokens and structure; author, register, or promote tool nets |
+| `x` | Execute | Deploy, start, stop, fire, and run transitions |
+| `h` | HTTP | Call and register external HTTP services |
+| `l` | Logs | Query events, facets, and fire trails |
+| `u` | Inhabit | Await tokens and use fire-and-wait interaction patterns |
+| `d` | Docker | Discover, validate, run, stop, and inspect container tools |
+| `c` | Coordinate | Invoke personas, delegate tasks, and collect results |
+| `t` | Tool nets | Discover, inspect, and invoke reusable capability nets |
+| `s` | Scripts | Register executable script artifacts in the tool catalog |
 
-Pick minimal. A read-only diagnostic agent gets `r----`; a full coordinator
-gets `rwxhl`. The runtime refuses tool calls outside the configured role.
+A role-less agent defaults to lean read/write access, not full power. The
+runtime refuses calls outside the effective grant.
 
 ### Executor polling modes
 
@@ -651,6 +724,7 @@ anywhere:
 | **agentic-net-vault** | Secrets management (OpenBao wrapper) for agent-transition credentials | 8085 |
 | **agentic-net-cli** | Command-line agent with multi-provider LLM routing and tool-catalog sync | — |
 | **agentic-net-chat** | Telegram-facing agent with streaming tool-call batches and `/verbose` toggle | — |
+| **agentic-net-mcp** | MCP server: working memory, net workbench, Agent Hub/NetHub, and external execution | stdio / 8091 |
 | **sa-blobstore** | Distributed blob storage for large tokens, artifacts, and knowledge content | 8090 |
 | **agentic-net-tools/** | Tool containers agents start on demand (crawler, echo, reddit, rss, search, secured-api) | dynamic |
 
@@ -691,6 +765,7 @@ agentic-nets/
 ├── agentic-net-vault/            # Secrets wrapper for OpenBao (Spring Boot)
 ├── agentic-net-cli/              # CLI agent (TypeScript/Node)
 ├── agentic-net-chat/             # Telegram-facing agent (TypeScript/Node)
+├── agentic-net-mcp/              # MCP server and external-fire client surface
 ├── sa-blobstore/                 # Distributed blob storage (Spring Boot)
 ├── agentic-net-tools/            # Tool containers (Docker)
 │
@@ -739,9 +814,11 @@ Dual-license model:
 
 ---
 
-> _Much of this codebase was built with AI pair programming. Commits
-> co-authored by `Claude Opus 4.7 (1M context)` are part of that story — it
-> felt right for a governed multi-agent runtime to be built, in part, by
-> agents. See [CHANGELOG.md](CHANGELOG.md) for the human-curated release notes._
+> _Agentic-Nets is currently designed and maintained by Alexej Sailer as a
+> one-person product effort, amplified by AI pair programming and an automated
+> release pipeline. The product is therefore also a live test of its own
+> premise: agents can increase delivery speed when their state, permissions,
+> execution, and verification are made explicit. See
+> [CHANGELOG.md](CHANGELOG.md) for the human-curated evidence._
 
 Copyright (c) 2025-2026 Alexej Sailer. All rights reserved.
