@@ -3,6 +3,7 @@ package com.sailer.agenticos.agenticnetvault.service;
 import com.sailer.agenticos.agenticnetvault.config.VaultProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.vault.VaultException;
 import org.springframework.vault.core.VaultKeyValueOperations;
@@ -14,7 +15,8 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
-public class OpenBaoClient {
+@ConditionalOnProperty(name = "vault.backend", havingValue = "openbao", matchIfMissing = true)
+public class OpenBaoClient implements CredentialStore {
 
     private static final Logger logger = LoggerFactory.getLogger(OpenBaoClient.class);
     private static final Pattern SAFE_ID_PATTERN = Pattern.compile("^[a-zA-Z0-9_-]+$");
@@ -36,6 +38,7 @@ public class OpenBaoClient {
             properties.kvMount(), credentialsPath);
     }
 
+    @Override
     public void write(String modelId, String transitionId, Map<String, Object> credentials) {
         String path = buildPath(modelId, transitionId);
         executeWithRetry(() -> {
@@ -45,7 +48,8 @@ public class OpenBaoClient {
         logger.info("Stored credentials at {} ({} keys)", path, credentials.size());
     }
 
-    public VaultResponse read(String modelId, String transitionId) {
+    @Override
+    public StoredCredentials read(String modelId, String transitionId) {
         String path = buildPath(modelId, transitionId);
         try {
             VaultResponse response = executeWithRetry(() -> kvOps.get(path), "read", path);
@@ -53,7 +57,7 @@ public class OpenBaoClient {
                 logger.debug("No credentials found at {}", path);
                 return null;
             }
-            return response;
+            return new StoredCredentials(response.getData(), response.getMetadata());
         } catch (VaultException e) {
             String message = e.getMessage();
             if (message != null && message.contains("404")) {
@@ -64,6 +68,7 @@ public class OpenBaoClient {
         }
     }
 
+    @Override
     public void delete(String modelId, String transitionId) {
         String path = buildPath(modelId, transitionId);
         executeWithRetry(() -> {
@@ -73,6 +78,7 @@ public class OpenBaoClient {
         logger.info("Deleted credentials at {}", path);
     }
 
+    @Override
     public boolean isHealthy() {
         try {
             VaultResponse response = vaultTemplate.read("sys/health");
@@ -81,6 +87,11 @@ public class OpenBaoClient {
             logger.warn("OpenBao health check failed: {}", e.getMessage());
             return false;
         }
+    }
+
+    @Override
+    public String backendName() {
+        return "OpenBao";
     }
 
     private String buildPath(String modelId, String transitionId) {

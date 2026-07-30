@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.vault.support.VaultResponse;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,7 +17,7 @@ import static org.mockito.Mockito.*;
 class CredentialServiceTest {
 
     @Mock
-    private OpenBaoClient openBaoClient;
+    private CredentialStore store;
 
     private CredentialService credentialService;
 
@@ -27,21 +26,19 @@ class CredentialServiceTest {
 
     @BeforeEach
     void setUp() {
-        credentialService = new CredentialService(openBaoClient);
+        credentialService = new CredentialService(store);
     }
 
     @Test
     void storeCredentials_callsClientAndReturnsMetadata() {
         Map<String, Object> credentials = Map.of("apiKey", "sk-123", "secret", "s3cret");
 
-        VaultResponse readBack = new VaultResponse();
-        readBack.setData(credentials);
-        readBack.setMetadata(Map.of("version", 1));
-        when(openBaoClient.read(MODEL_ID, TRANSITION_ID)).thenReturn(readBack);
+        StoredCredentials readBack = new StoredCredentials(credentials, Map.of("version", 1));
+        when(store.read(MODEL_ID, TRANSITION_ID)).thenReturn(readBack);
 
         Map<String, Object> result = credentialService.storeCredentials(MODEL_ID, TRANSITION_ID, credentials);
 
-        verify(openBaoClient).write(MODEL_ID, TRANSITION_ID, credentials);
+        verify(store).write(MODEL_ID, TRANSITION_ID, credentials);
         assertThat(result.get("modelId")).isEqualTo(MODEL_ID);
         assertThat(result.get("transitionId")).isEqualTo(TRANSITION_ID);
 
@@ -56,10 +53,9 @@ class CredentialServiceTest {
         Map<String, Object> data = new HashMap<>();
         data.put("apiKey", "sk-123");
 
-        VaultResponse response = new VaultResponse();
-        response.setData(data);
-        response.setMetadata(Map.of("version", 2, "created_time", "2026-01-01T00:00:00Z"));
-        when(openBaoClient.read(MODEL_ID, TRANSITION_ID)).thenReturn(response);
+        StoredCredentials stored = new StoredCredentials(
+            data, Map.of("version", 2, "created_time", "2026-01-01T00:00:00Z"));
+        when(store.read(MODEL_ID, TRANSITION_ID)).thenReturn(stored);
 
         Map<String, Object> result = credentialService.readCredentials(MODEL_ID, TRANSITION_ID);
 
@@ -73,11 +69,12 @@ class CredentialServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> metadata = (Map<String, Object>) result.get("metadata");
         assertThat(metadata.get("version")).isEqualTo(2);
+        assertThat(metadata.get("createdAt")).isEqualTo("2026-01-01T00:00:00Z");
     }
 
     @Test
     void readCredentials_returnsNullWhenNotFound() {
-        when(openBaoClient.read(MODEL_ID, TRANSITION_ID)).thenReturn(null);
+        when(store.read(MODEL_ID, TRANSITION_ID)).thenReturn(null);
 
         Map<String, Object> result = credentialService.readCredentials(MODEL_ID, TRANSITION_ID);
 
@@ -90,10 +87,8 @@ class CredentialServiceTest {
         data.put("apiKey", "sk-123");
         data.put("secret", "hidden");
 
-        VaultResponse response = new VaultResponse();
-        response.setData(data);
-        response.setMetadata(Map.of("version", 3));
-        when(openBaoClient.read(MODEL_ID, TRANSITION_ID)).thenReturn(response);
+        StoredCredentials stored = new StoredCredentials(data, Map.of("version", 3));
+        when(store.read(MODEL_ID, TRANSITION_ID)).thenReturn(stored);
 
         Map<String, Object> result = credentialService.readMetadata(MODEL_ID, TRANSITION_ID);
 
@@ -111,6 +106,6 @@ class CredentialServiceTest {
     @Test
     void deleteCredentials_delegatesToClient() {
         credentialService.deleteCredentials(MODEL_ID, TRANSITION_ID);
-        verify(openBaoClient).delete(MODEL_ID, TRANSITION_ID);
+        verify(store).delete(MODEL_ID, TRANSITION_ID);
     }
 }

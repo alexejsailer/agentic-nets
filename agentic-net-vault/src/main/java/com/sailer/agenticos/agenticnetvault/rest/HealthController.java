@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.sailer.agenticos.agenticnetvault.service.OpenBaoClient;
+import com.sailer.agenticos.agenticnetvault.service.CredentialStore;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -22,7 +22,7 @@ public class HealthController {
     private String version;
 
     @Autowired
-    private OpenBaoClient openBaoClient;
+    private CredentialStore credentialStore;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> health() {
@@ -45,12 +45,12 @@ public class HealthController {
 
         Map<String, Object> capabilities = new HashMap<>();
         capabilities.put("secretsManagement", true);
-        capabilities.put("kvV2Engine", true);
-        capabilities.put("backend", "OpenBao");
+        capabilities.put("kvV2Engine", "OpenBao".equals(credentialStore.backendName()));
+        capabilities.put("backend", credentialStore.backendName());
 
         boolean backendReachable;
         try {
-            backendReachable = openBaoClient.isHealthy();
+            backendReachable = credentialStore.isHealthy();
         } catch (Exception e) {
             backendReachable = false;
         }

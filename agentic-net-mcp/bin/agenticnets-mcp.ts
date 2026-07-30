@@ -42,6 +42,13 @@ async function main(): Promise<void> {
   // session bookkeeping — fits the compose single-container deployment).
   const httpServer = createHttpServer(async (req, res) => {
     try {
+      // Liveness probe for supervisors (desktop launcher, compose healthcheck) —
+      // deliberately before the bearer check, and deliberately content-free.
+      if (req.method === 'GET' && (req.url ?? '') === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok' }));
+        return;
+      }
       const auth = req.headers.authorization ?? '';
       if (auth !== `Bearer ${config.httpToken}`) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -74,9 +81,26 @@ async function main(): Promise<void> {
     }
   });
 
-  httpServer.listen(config.httpPort, () => {
+  const httpHost = config.httpHost ?? '0.0.0.0';
+  httpServer.on('error', (err: NodeJS.ErrnoException) => {
+    log.error(
+      `[${SERVER_NAME}] http listen failed on ${httpHost}:${config.httpPort}: ${err.code ?? err.message}`,
+    );
+    process.exit(1);
+  });
+
+  const shutdown = (signal: string) => {
+    log.info(`[${SERVER_NAME}] ${signal} — shutting down`);
+    httpServer.close(() => process.exit(0));
+    // In-flight SSE responses can hold the server open indefinitely; cap the drain.
+    setTimeout(() => process.exit(0), 3000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  httpServer.listen(config.httpPort, httpHost, () => {
     log.info(
-      `[${SERVER_NAME}] v${SERVER_VERSION} on http://0.0.0.0:${config.httpPort}/mcp — models=[${config.models.join(', ')}] mode=${config.mode}`,
+      `[${SERVER_NAME}] v${SERVER_VERSION} on http://${httpHost}:${config.httpPort}/mcp — models=[${config.models.join(', ')}] mode=${config.mode}`,
     );
   });
 }

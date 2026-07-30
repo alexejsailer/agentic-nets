@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Self-contained credential backend — the vault no longer needs OpenBao** (`agentic-net-vault` — new `service/CredentialStore.java` seam with `service/FileCredentialStore.java`, `config/VaultProperties.java`, `application.properties`). `VAULT_BACKEND=file` switches the vault from the external OpenBao server to AES-256-GCM encrypted local files (one per `{modelId}/{transitionId}`, key auto-generated 0600 under `~/.agenticos/vault/`, paths overridable via `VAULT_FILE_PATH` / `VAULT_FILE_KEY_FILE`). The REST contract and metadata shape are unchanged, so the master works against either backend without modification. Built for the desktop/light install where a secrets server is one moving part too many. Properties: the model/transition ids are bound into the ciphertext as AAD, so an envelope copied between transitions refuses to decrypt; reads fail closed (502) on a wrong key or corrupt file instead of reporting "not found"; versions increment per write like KV2. Default backend remains `openbao` — existing deployments are untouched.
+
+- **MCP HTTP transport is supervisable** (`agentic-net-mcp` — `bin/agenticnets-mcp.ts`, `src/config.ts`). Three small gaps that mattered once a desktop launcher supervises the process: `AGENTICOS_MCP_HTTP_HOST` chooses the bind interface (default stays `0.0.0.0` for compose; a desktop bundle sets `127.0.0.1` so the endpoint is not LAN-reachable), `GET /health` answers `200 {"status":"ok"}` before the bearer check (content-free liveness for healthchecks — previously the server had no probe at all), and a failed listen (port in use) now logs a clear one-liner and exits instead of dying with an uncaught stack. SIGTERM/SIGINT close the server gracefully with a 3s drain cap.
+
 ## [2.37.0] - 2026-07-29
 
 ### Fixed

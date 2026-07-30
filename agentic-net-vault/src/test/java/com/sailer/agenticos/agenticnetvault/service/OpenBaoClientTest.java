@@ -38,10 +38,12 @@ class OpenBaoClientTest {
             .thenReturn(kvOps);
 
         VaultProperties properties = new VaultProperties(
+            null,
             "http://localhost:8200",
             "test-token",
             "secret",
             "agenticos/credentials",
+            null,
             null
         );
 
@@ -63,17 +65,17 @@ class OpenBaoClientTest {
         expected.setData(Map.of("apiKey", "test-key"));
         when(kvOps.get(EXPECTED_PATH)).thenReturn(expected);
 
-        VaultResponse result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
+        StoredCredentials result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
 
         assertThat(result).isNotNull();
-        assertThat(result.getData()).containsEntry("apiKey", "test-key");
+        assertThat(result.data()).containsEntry("apiKey", "test-key");
     }
 
     @Test
     void read_returnsNullWhenNotFound() {
         when(kvOps.get(EXPECTED_PATH)).thenReturn(null);
 
-        VaultResponse result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
+        StoredCredentials result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
 
         assertThat(result).isNull();
     }
@@ -82,7 +84,7 @@ class OpenBaoClientTest {
     void read_returnsNullOn404VaultException() {
         when(kvOps.get(EXPECTED_PATH)).thenThrow(new VaultException("Status 404 Not Found"));
 
-        VaultResponse result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
+        StoredCredentials result = openBaoClient.read(MODEL_ID, TRANSITION_ID);
 
         assertThat(result).isNull();
     }
@@ -143,7 +145,7 @@ class OpenBaoClientTest {
     void buildPath_acceptsValidIds() {
         when(kvOps.get("agenticos/credentials/Model_1/trans-2")).thenReturn(null);
 
-        VaultResponse result = openBaoClient.read("Model_1", "trans-2");
+        StoredCredentials result = openBaoClient.read("Model_1", "trans-2");
 
         assertThat(result).isNull();
     }

@@ -316,6 +316,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 | `AGENTICOS_SESSION` | Session name for MCP-created nets/places | `mcp` |
 | `AGENTICOS_NODE_HOST` | Host injected into inscription presets/postsets (`{model}@{host}`); in-compose: `agentic-net-node:8080` | `localhost:8080` |
 | `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |
+| `AGENTICOS_MCP_HTTP_HOST` | Bind interface for the HTTP transport (desktop bundles set `127.0.0.1`); `GET /health` answers 200 pre-auth for supervisors | `0.0.0.0` |
 
 Compose keys (`deployment/.env`): `AGENTICOS_MCP_MODELS` / `_MODE` / `_SESSION` / `_HTTP_TOKEN`
 (generate: `openssl rand -hex 24`), `AGENTIC_NET_MCP_PORT` (8091). Service is opt-in:
@@ -344,6 +345,12 @@ client/LLM mistakes and prompt injection, not a malicious operator of the MCP pr
 
 - **Technology**: Spring Boot 3.5.5, Java 21, spring-vault-core 3.1.1
 - **Backend**: OpenBao (MPL 2.0, API-compatible with HashiCorp Vault)
+- **Backend selector**: `VAULT_BACKEND=openbao` (default) or `file` — self-contained AES-256-GCM
+  encrypted local files (desktop/light installs, no OpenBao): one file per
+  `{modelId}/{transitionId}` under `VAULT_FILE_PATH` (default `~/.agenticos/vault/credentials`),
+  key auto-generated 0600 at `VAULT_FILE_KEY_FILE` (default `~/.agenticos/vault/vault.key`).
+  Ids are AAD-bound into the ciphertext; reads fail closed (502) on wrong key/corrupt file.
+  REST contract identical across backends — master needs no changes.
 - **Build**: `cd agentic-net-vault && ./mvnw clean package -DskipTests`
 - **KV v2 path**: `secret/agenticos/credentials/{modelId}/{transitionId}`
 - **API**: CRUD for transition credentials (`PUT/GET/DELETE /api/vault/{modelId}/transitions/{transitionId}/credentials`)

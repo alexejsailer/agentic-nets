@@ -23,6 +23,8 @@ export interface McpConfig {
   nodeHost: string;
   transport: McpTransport;
   httpPort: number;
+  /** Bind host for the HTTP transport. Default 0.0.0.0 (compose); desktop bundles set 127.0.0.1. */
+  httpHost?: string;
   /** Bearer token required on the HTTP transport (ignored for stdio). */
   httpToken?: string;
   /**
@@ -110,6 +112,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     nodeHost: env.AGENTICOS_NODE_HOST ?? 'localhost:8080',
     transport,
     httpPort: Number(env.AGENTICOS_MCP_HTTP_PORT ?? '8091'),
+    httpHost: env.AGENTICOS_MCP_HTTP_HOST ?? '0.0.0.0',
     httpToken,
     llmProvider: env.AGENTICOS_LLM_PROVIDER ?? 'claude-code',
     llmModel: env.AGENTICOS_LLM_MODEL || undefined,

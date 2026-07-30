@@ -1,5 +1,6 @@
 package com.sailer.agenticos.agenticnetvault.rest;
 
+import com.sailer.agenticos.agenticnetvault.service.CredentialStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorBody(
             "OpenBao backend error",
             "Failed to communicate with secrets backend"
+        ));
+    }
+
+    @ExceptionHandler(CredentialStoreException.class)
+    public ResponseEntity<Map<String, Object>> handleCredentialStore(CredentialStoreException ex) {
+        logger.error("Credential store error: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorBody(
+            "Credential store error",
+            "Failed to read or write the secrets backend"
         ));
     }
 
