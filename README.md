@@ -119,6 +119,32 @@ cat data/gateway/jwt/admin-secret
 open http://localhost:4200
 ```
 
+## Desktop app (macOS) — no Docker
+
+One download, the whole stack: a tray app supervises node, master, gateway, an
+executor, an encrypted local credential vault (no secrets server) and the MCP
+endpoint on bundled Java/Node runtimes, and serves Studio at
+[http://localhost:4200](http://localhost:4200).
+
+**Download**: grab `AgenticNetOS-<version>-macos-<arch>.dmg` from
+[Releases](https://github.com/alexejsailer/agentic-nets/releases), verify it
+against `SHA256SUMS.txt`, open it, accept the license and drag the app to
+Applications.
+
+**First launch**: current builds are unsigned — macOS will refuse the first
+open. Right-click the app → "Open", or allow it under System Settings →
+Privacy & Security → "Open Anyway".
+
+**Then**: the tray menu does the rest — "Open Studio" (login secret via "Copy
+Studio Admin Secret") and "Connect Claude Code", which copies a ready
+`claude mcp add --transport http …` command for the built-in MCP endpoint.
+Data lives in `~/.agenticos/` and survives updates. Settings (LLM provider,
+exposed interfaces, heaps) in `~/.agenticos/desktop/desktop.properties`.
+
+Everything binds to localhost by default. The bundled node, master and gui
+binaries are covered by the [Proprietary EULA](PROPRIETARY-EULA.md); the rest
+of the bundle is built from this repository under BSL 1.1.
+
 ## See it running in production
 
 Not slideware — these are live systems, each one Agentic-Nets running a real

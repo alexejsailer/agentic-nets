@@ -15,13 +15,22 @@
 
 ## Covered Software
 
-This EULA applies to the following proprietary Docker images distributed via Docker Hub:
+This EULA applies to the proprietary AgenticNetOS components in every binary
+distribution channel, currently:
+
+**Docker images distributed via Docker Hub:**
 
 - `alexejsailer/agenticnetos-node`
 - `alexejsailer/agenticnetos-master`
 - `alexejsailer/agenticnetos-gui`
 
-These images contain **closed-source, proprietary software** and are NOT covered by the
+**Desktop bundles distributed via GitHub Releases** (e.g. `AgenticNetOS-<version>-<os>-<arch>.dmg`):
+the bundled `agentic-net-node` and `agentic-net-master` service binaries and the compiled
+`agentic-net-gui` frontend contained in the AgenticNetOS Desktop application. The other
+components of the desktop bundle (gateway, vault, executor, MCP server, launcher) are built
+from source covered by the repository's open-source license.
+
+These components contain **closed-source, proprietary software** and are NOT covered by the
 repository's open-source license (BSL 1.1).
 
 ---
