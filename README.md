@@ -119,21 +119,25 @@ cat data/gateway/jwt/admin-secret
 open http://localhost:4200
 ```
 
-## Desktop app (macOS) — no Docker
+## Desktop app (macOS + Linux) — no Docker
 
 One download, the whole stack: a tray app supervises node, master, gateway, an
 executor, an encrypted local credential vault (no secrets server) and the MCP
 endpoint on bundled Java/Node runtimes, and serves Studio at
 [http://localhost:4200](http://localhost:4200).
 
-**Download**: grab `AgenticNetOS-<version>-macos-<arch>.dmg` from
-[Releases](https://github.com/alexejsailer/agentic-nets/releases), verify it
-against `SHA256SUMS.txt`, open it, accept the license and drag the app to
-Applications.
+**Download** from [Releases](https://github.com/alexejsailer/agentic-nets/releases)
+and verify against `SHA256SUMS.txt`:
 
-**First launch**: current builds are unsigned — macOS will refuse the first
-open. Right-click the app → "Open", or allow it under System Settings →
-Privacy & Security → "Open Anyway".
+- **macOS**: `AgenticNetOS-<version>-macos-<arch>.dmg` — open, accept the
+  license, drag to Applications. Current builds are unsigned, so macOS refuses
+  the first open: right-click the app → "Open", or allow it under System
+  Settings → Privacy & Security → "Open Anyway".
+- **Debian/Ubuntu**: `sudo apt install ./AgenticNetOS-<version>-linux-<arch>.deb`,
+  then launch the AgenticNetOS menu entry or `/opt/agenticnetos/bin/AgenticNetOS`.
+  On a server without a desktop it runs headless (no tray, same services).
+- **Fedora/RHEL**: the matching `.rpm`.
+- **Windows**: planned.
 
 **Then**: the tray menu does the rest — "Open Studio" (login secret via "Copy
 Studio Admin Secret") and "Connect Claude Code", which copies a ready
