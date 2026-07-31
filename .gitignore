@@ -47,3 +47,10 @@ deployment/data/
 
 # Agent field-report working notes (source material for improvement waves, not documentation)
 agentic-net-mcp/improvement*.md
+
+# Machine-local compose overrides (host IPs, local image pins, mounted credentials).
+# Shared overrides — native-master, master-local, test — stay tracked.
+deployment/docker-compose.cartographer.override.yml
+deployment/docker-compose.executor-local.override.yml
+deployment/docker-compose.mac-host-ollama.override.yml
+deployment/docker-compose.tailscale.override.yml
