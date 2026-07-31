@@ -16,12 +16,13 @@ class DesktopIntegrationTest {
 
     @Test
     void desktopEntryPointsAtLauncherAndIcon() {
-        String entry = DesktopIntegration.desktopEntry(
-            Path.of("/opt/agenticnetos/bin/AgenticNetOS"),
-            Path.of("/home/u/.local/share/icons/agenticnetos.png"),
-            false);
-        assertTrue(entry.contains("Exec=/opt/agenticnetos/bin/AgenticNetOS"));
-        assertTrue(entry.contains("Icon=/home/u/.local/share/icons/agenticnetos.png"));
+        Path launcher = Path.of("/opt/agenticnetos/bin/AgenticNetOS");
+        Path icon = Path.of("/home/u/.local/share/icons/agenticnetos.png");
+        String entry = DesktopIntegration.desktopEntry(launcher, icon, false);
+        // paths are rendered absolute, which differs per platform — compare to
+        // what the JDK produces rather than to a POSIX literal
+        assertTrue(entry.contains("Exec=" + launcher.toAbsolutePath()));
+        assertTrue(entry.contains("Icon=" + icon.toAbsolutePath()));
         assertTrue(entry.contains("Terminal=false"));
         assertFalse(entry.contains("Autostart"));
         assertTrue(DesktopIntegration.desktopEntry(

@@ -39,18 +39,17 @@ class DesktopOnboardingTest {
 
     @Test
     void packageInstallCommandMatchesThePackageType() {
-        assertEquals(
-            "sudo apt install '/tmp/AgenticNetOS.deb'",
-            SelfUpdater.installCommand(Path.of("/tmp/AgenticNetOS.deb"))
-        );
-        assertEquals(
-            "sudo dnf install '/tmp/AgenticNetOS.rpm'",
-            SelfUpdater.installCommand(Path.of("/tmp/AgenticNetOS.rpm"))
-        );
-        assertEquals(
-            "msiexec /i \"/tmp/AgenticNetOS.msi\"",
-            SelfUpdater.installCommand(Path.of("/tmp/AgenticNetOS.msi"))
-        );
+        // absolute-path rendering is platform-specific (/tmp/x vs D:\tmp\x), so
+        // assert the command shape around the path the JDK actually produces
+        Path deb = Path.of("/tmp/AgenticNetOS.deb");
+        Path rpm = Path.of("/tmp/AgenticNetOS.rpm");
+        Path msi = Path.of("/tmp/AgenticNetOS.msi");
+        assertEquals("sudo apt install '" + deb.toAbsolutePath() + "'",
+            SelfUpdater.installCommand(deb));
+        assertEquals("sudo dnf install '" + rpm.toAbsolutePath() + "'",
+            SelfUpdater.installCommand(rpm));
+        assertEquals("msiexec /i \"" + msi.toAbsolutePath() + "\"",
+            SelfUpdater.installCommand(msi));
     }
 
     @Test
