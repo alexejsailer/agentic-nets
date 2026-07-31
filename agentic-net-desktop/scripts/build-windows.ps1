@@ -35,6 +35,13 @@ if (-not $Version) {
 }
 function Log($msg) { Write-Host "`n[desktop-win] $msg" -ForegroundColor Cyan }
 
+# $ErrorActionPreference="Stop" only covers cmdlets — a failing mvnw/npm/jpackage
+# is otherwise ignored and the script marches on to a confusing missing-file error.
+function Invoke-Checked($what, [scriptblock]$block) {
+    & $block
+    if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
+}
+
 # ---------------------------------------------------------------------------
 # 1. Open components + closed artifacts
 # ---------------------------------------------------------------------------
@@ -42,16 +49,16 @@ if (-not $SkipBuilds) {
     Log "Building open components"
     foreach ($svc in "agentic-net-gateway", "agentic-net-vault", "agentic-net-executor") {
         $Pom = Join-Path $NetsDir "$svc\pom.xml"
-        & $Maven -q -f $Pom clean package -DskipTests
+        Invoke-Checked "maven $svc" { & $Maven -q -f $Pom clean package -DskipTests }
     }
-    & $Maven -q -f (Join-Path $ModuleDir "pom.xml") clean package
+    Invoke-Checked "maven launcher" { & $Maven -q -f (Join-Path $ModuleDir "pom.xml") clean package }
     Push-Location (Join-Path $NetsDir "agentic-net-cli")
-    if (-not (Test-Path node_modules)) { npm install }
-    if (-not (Test-Path dist)) { npx tsup }
+    if (-not (Test-Path node_modules)) { Invoke-Checked "npm install (cli)" { npm install } }
+    if (-not (Test-Path dist)) { Invoke-Checked "tsup (cli)" { npx tsup } }
     Pop-Location
     Push-Location (Join-Path $NetsDir "agentic-net-mcp")
-    if (-not (Test-Path node_modules)) { npm install }
-    npm run build
+    if (-not (Test-Path node_modules)) { Invoke-Checked "npm install (mcp)" { npm install } }
+    Invoke-Checked "npm build (mcp)" { npm run build }
     Pop-Location
 
     New-Item -ItemType Directory -Force $Closed | Out-Null
@@ -82,7 +89,11 @@ if (-not $SkipBuilds) {
         Remove-Item (Join-Path $Closed "agentic-net-gui-$Version.zip")
         $GotRelease = $true
     } catch {
-        Write-Warning "Release assets unavailable ($_) - falling back to Docker Hub images"
+        Write-Warning "Release assets unavailable: $_"
+        if ($env:GITHUB_ACTIONS -eq "true") {
+            throw "Release assets are required in CI (no Docker on Windows runners). Assets must finish uploading before this workflow runs."
+        }
+        Write-Warning "Falling back to Docker Hub images"
     }
     if (-not $GotRelease) {
         Log "Extracting closed artifacts from Docker Hub images (tag $Version, fallback latest)"
