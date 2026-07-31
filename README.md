@@ -139,6 +139,14 @@ and verify against `SHA256SUMS.txt`:
 - **Fedora/RHEL**: the matching `.rpm`.
 - **Windows**: planned.
 
+**Build the installer yourself**: clone this repository and run
+`agentic-net-desktop/scripts/build.sh` (macOS/Linux) or
+`agentic-net-desktop\scripts\build-windows.ps1`. Only a JDK 21+ and Node.js 22
+are needed — the closed-source node/master/gui binaries are fetched from the
+release assets (`agentic-net-*-<version>.jar`, `agentic-net-gui-<version>.zip`,
+checksum-verified; covered by the [EULA](PROPRIETARY-EULA.md)), with the Docker
+Hub images as automatic fallback.
+
 **Then**: the tray menu does the rest — "Open Studio" (login secret via "Copy
 Studio Admin Secret") and "Connect Claude Code", which copies a ready
 `claude mcp add --transport http …` command for the built-in MCP endpoint.

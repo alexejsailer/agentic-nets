@@ -54,7 +54,20 @@ with secrets byte-identical and full health after 15s); on macOS drag-replace in
 Applications. `UpdateChecker` polls the GitHub latest release daily (skipped for
 `dev` builds, fail-soft offline) and surfaces new versions in the tray.
 
-## Build
+## Build from a clone
+
+```bash
+scripts/build.sh                  # installer for THIS machine (macOS dmg / Linux deb, --rpm)
+scripts\build-windows.ps1         # Windows msi (app-image folder without WiX); best-effort, no Windows CI yet
+```
+
+Needs JDK 21+ (jlink/jpackage) and Node.js 22. The closed node/master/gui come
+from `scripts/fetch-closed-artifacts.sh` — source order: private `../core` tree
+(maintainers) → GitHub release assets (`agentic-net-{node,master}-<v>.jar` +
+`agentic-net-gui-<v>.zip`, SHA256-verified, EULA applies) → Docker Hub images
+(fallback, needs Docker). Force with `AGENTICOS_CLOSED_FROM=source|release|images`.
+
+## Maintainer build
 
 ```bash
 scripts/build-desktop.sh                 # macOS app-image only (fast, for testing)

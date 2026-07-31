@@ -6,9 +6,10 @@
 # Requirements:
 #   - JDK 21+ with jlink + jpackage on PATH
 #   - Node.js 22 + npm
-#   - Docker Desktop (the closed-source node/master/gui are extracted from the
-#     published Docker Hub images — governed by ..\PROPRIETARY-EULA.md)
 #   - WiX Toolset v3 on PATH for --type msi (optional)
+#   The closed-source node/master/gui (governed by ..\PROPRIETARY-EULA.md) are
+#   downloaded from the GitHub release assets; Docker Desktop is only needed as
+#   a fallback when no release carries them yet.
 #
 # NOTE: this script is maintained best-effort and is not yet exercised by the
 # maintainers' own CI (no Windows builder in the loop) — please report issues.
@@ -48,21 +49,45 @@ if (-not $SkipBuilds) {
     npm run build
     Pop-Location
 
-    Log "Extracting closed artifacts from Docker Hub images (tag $Version, fallback latest)"
     New-Item -ItemType Directory -Force $Closed | Out-Null
-    foreach ($svc in "node", "master") {
-        $img = "alexejsailer/agenticnetos-${svc}:$Version"
-        docker pull -q $img 2>$null; if ($LASTEXITCODE -ne 0) { $img = "alexejsailer/agenticnetos-${svc}:latest"; docker pull -q $img }
+    $ReleaseBase = if ($env:AGENTICOS_RELEASE_BASE) { $env:AGENTICOS_RELEASE_BASE }
+                   else { "https://github.com/alexejsailer/agentic-nets/releases/download" }
+    $GotRelease = $false
+    try {
+        Log "Trying GitHub release assets v$Version"
+        $Sums = (Invoke-WebRequest "$ReleaseBase/v$Version/SHA256SUMS.txt").Content
+        foreach ($f in "agentic-net-node-$Version.jar", "agentic-net-master-$Version.jar", "agentic-net-gui-$Version.zip") {
+            $dest = Join-Path $Closed $f
+            Invoke-WebRequest "$ReleaseBase/v$Version/$f" -OutFile $dest
+            $expected = ($Sums -split "`n" | Where-Object { $_ -match [regex]::Escape($f) }) -split "\s+" | Select-Object -First 1
+            $actual = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
+            if ($expected -ne $actual) { throw "checksum mismatch for $f" }
+        }
+        Move-Item (Join-Path $Closed "agentic-net-node-$Version.jar")   (Join-Path $Closed "agentic-net-node.jar") -Force
+        Move-Item (Join-Path $Closed "agentic-net-master-$Version.jar") (Join-Path $Closed "agentic-net-master.jar") -Force
+        if (Test-Path (Join-Path $Closed "gui")) { Remove-Item -Recurse -Force (Join-Path $Closed "gui") }
+        Expand-Archive (Join-Path $Closed "agentic-net-gui-$Version.zip") -DestinationPath (Join-Path $Closed "gui")
+        Remove-Item (Join-Path $Closed "agentic-net-gui-$Version.zip")
+        $GotRelease = $true
+    } catch {
+        Write-Warning "Release assets unavailable ($_) - falling back to Docker Hub images"
+    }
+    if (-not $GotRelease) {
+        Log "Extracting closed artifacts from Docker Hub images (tag $Version, fallback latest)"
+        foreach ($svc in "node", "master") {
+            $img = "alexejsailer/agenticnetos-${svc}:$Version"
+            docker pull -q $img 2>$null; if ($LASTEXITCODE -ne 0) { $img = "alexejsailer/agenticnetos-${svc}:latest"; docker pull -q $img }
+            $cid = docker create $img
+            docker cp "${cid}:/app/app.jar" (Join-Path $Closed "agentic-net-$svc.jar")
+            docker rm $cid | Out-Null
+        }
+        $img = "alexejsailer/agenticnetos-gui:$Version"
+        docker pull -q $img 2>$null; if ($LASTEXITCODE -ne 0) { $img = "alexejsailer/agenticnetos-gui:latest"; docker pull -q $img }
         $cid = docker create $img
-        docker cp "${cid}:/app/app.jar" (Join-Path $Closed "agentic-net-$svc.jar")
+        if (Test-Path (Join-Path $Closed "gui")) { Remove-Item -Recurse -Force (Join-Path $Closed "gui") }
+        docker cp "${cid}:/usr/share/nginx/html" (Join-Path $Closed "gui")
         docker rm $cid | Out-Null
     }
-    $img = "alexejsailer/agenticnetos-gui:$Version"
-    docker pull -q $img 2>$null; if ($LASTEXITCODE -ne 0) { $img = "alexejsailer/agenticnetos-gui:latest"; docker pull -q $img }
-    $cid = docker create $img
-    if (Test-Path (Join-Path $Closed "gui")) { Remove-Item -Recurse -Force (Join-Path $Closed "gui") }
-    docker cp "${cid}:/usr/share/nginx/html" (Join-Path $Closed "gui")
-    docker rm $cid | Out-Null
 }
 
 # ---------------------------------------------------------------------------

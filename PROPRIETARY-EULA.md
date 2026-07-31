@@ -30,6 +30,12 @@ the bundled `agentic-net-node` and `agentic-net-master` service binaries and the
 components of the desktop bundle (gateway, vault, executor, MCP server, launcher) are built
 from source covered by the repository's open-source license.
 
+**Standalone service binaries published as GitHub Release assets** (e.g.
+`agentic-net-node-<version>.jar`, `agentic-net-master-<version>.jar`,
+`agentic-net-gui-<version>.zip`) — provided so the open build scripts can bundle a desktop
+installer locally without Docker. Downloading or bundling them constitutes acceptance of this
+EULA, exactly as for the Docker images they mirror.
+
 These components contain **closed-source, proprietary software** and are NOT covered by the
 repository's open-source license (BSL 1.1).
 
