@@ -94,6 +94,31 @@ public final class DesktopConfig {
         }
     }
 
+    /**
+     * Rewrites keys in desktop.properties in place (comments and order are
+     * preserved — Properties.store would destroy them) and updates memory.
+     */
+    public synchronized void updateSettings(java.util.Map<String, String> updates) throws IOException {
+        Path file = desktopDir.resolve("desktop.properties");
+        java.util.List<String> lines = new java.util.ArrayList<>(Files.readAllLines(file));
+        java.util.Map<String, String> remaining = new java.util.LinkedHashMap<>(updates);
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i).strip();
+            int eq = line.indexOf('=');
+            if (line.startsWith("#") || eq < 0) {
+                continue;
+            }
+            String key = line.substring(0, eq).strip();
+            if (remaining.containsKey(key)) {
+                lines.set(i, key + "=" + remaining.remove(key));
+            }
+        }
+        remaining.forEach((k, v) -> lines.add(k + "=" + v));
+        Files.write(file, lines);
+        restrictFilePermissions(file);
+        updates.forEach(settings::setProperty);
+    }
+
     public String setting(String key, String fallback) {
         String value = settings.getProperty(key);
         return value == null || value.isBlank() ? fallback : value.trim();

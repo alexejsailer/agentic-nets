@@ -43,6 +43,18 @@ public final class Main {
             guiServer.stop();
         }));
 
+        guiServer.enableDesktopApi(config, () -> {
+            try {
+                // fresh config + spec so the restart carries the just-saved settings
+                DesktopConfig fresh = new DesktopConfig(appDir);
+                ServiceSpec freshMaster = buildSpecs(fresh).stream()
+                    .filter(s -> s.name().equals("master")).findFirst().orElseThrow();
+                supervisor.restartOne(freshMaster);
+                System.out.println("[desktop] master restarted with new LLM settings");
+            } catch (Exception e) {
+                System.err.println("[desktop] master restart failed: " + e.getMessage());
+            }
+        });
         guiServer.start(config.bindAddress(), DesktopConfig.GUI_PORT);
         System.out.println("[desktop] Studio on http://localhost:" + DesktopConfig.GUI_PORT
             + " (profile " + DesktopConfig.PROFILE_NAME + ", app dir " + appDir

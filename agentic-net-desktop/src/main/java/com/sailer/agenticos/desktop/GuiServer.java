@@ -93,6 +93,10 @@ public final class GuiServer {
                 handleDesktopLogin(exchange);
                 return;
             }
+            if (path.startsWith("/desktop-api/")) {
+                handleDesktopApi(exchange, path);
+                return;
+            }
             String prefix = path.indexOf('/', 1) > 0 ? path.substring(0, path.indexOf('/', 1)) : path;
             if (PROXY_PREFIXES.contains(prefix)) {
                 proxy(exchange);
@@ -112,6 +116,130 @@ public final class GuiServer {
      * SERVER-SIDE (the secret never reaches the browser) and serves a tiny page
      * that seeds the GUI's own localStorage auth contract, then enters the app.
      */
+    private DesktopConfig desktopConfig;
+    private Runnable masterRestarter;
+
+    /** Turns on the Desktop-Lite settings API (absent = 404, so the Studio card hides). */
+    public void enableDesktopApi(DesktopConfig config, Runnable masterRestarter) {
+        this.desktopConfig = config;
+        this.masterRestarter = masterRestarter;
+    }
+
+    /**
+     * Desktop-Lite settings API for the Studio Settings card. Loopback Host
+     * check + the caller's gateway JWT (validated by replaying it against an
+     * authenticated gateway route — the launcher holds no JWKS code of its own).
+     */
+    private void handleDesktopApi(HttpExchange exchange, String path) throws IOException, InterruptedException {
+        String host = exchange.getRequestHeaders().getFirst("Host");
+        if (desktopConfig == null
+            || host == null || !(host.startsWith("localhost") || host.startsWith("127.0.0.1"))) {
+            sendError(exchange, 404, "{\"error\":\"not found\"}");
+            return;
+        }
+        String auth = exchange.getRequestHeaders().getFirst("Authorization");
+        if (auth == null || !auth.startsWith("Bearer ") || !gatewayAccepts(auth)) {
+            sendError(exchange, 401, "{\"error\":\"unauthorized\"}");
+            return;
+        }
+        if (!"/desktop-api/llm-settings".equals(path)) {
+            sendError(exchange, 404, "{\"error\":\"not found\"}");
+            return;
+        }
+        if ("GET".equals(exchange.getRequestMethod())) {
+            sendJson(exchange, 200, llmSettingsJson());
+        } else if ("POST".equals(exchange.getRequestMethod())) {
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            String error = applyLlmSettings(body);
+            if (error != null) {
+                sendError(exchange, 400, "{\"error\":\"" + error + "\"}");
+                return;
+            }
+            sendJson(exchange, 200, "{\"ok\":true,\"restarting\":\"master\"}");
+            Thread.ofVirtual().start(masterRestarter);
+        } else {
+            sendError(exchange, 405, "{\"error\":\"method not allowed\"}");
+        }
+    }
+
+    private boolean gatewayAccepts(String authorizationHeader) throws IOException, InterruptedException {
+        HttpResponse<Void> probe = client.send(
+            HttpRequest.newBuilder(URI.create(gatewayOrigin + "/node-api/admin/models"))
+                .header("Authorization", authorizationHeader)
+                .timeout(Duration.ofSeconds(5)).GET().build(),
+            HttpResponse.BodyHandlers.discarding());
+        return probe.statusCode() == 200;
+    }
+
+    private String llmSettingsJson() {
+        String key = desktopConfig.setting("anthropic.api.key", "");
+        String masked = key.isEmpty() ? ""
+            : key.length() <= 12 ? "•••"
+            : key.substring(0, 7) + "…" + key.substring(key.length() - 4);
+        return """
+            {"provider":"%s","ollamaBaseUrl":"%s","ollamaModel":"%s",
+             "lowModel":"%s","mediumModel":"%s","highModel":"%s","thinkingModel":"%s",
+             "anthropicKeyMasked":"%s"}
+            """.formatted(
+                desktopConfig.setting("llm.provider", "disabled"),
+                desktopConfig.setting("ollama.base.url", ""),
+                desktopConfig.setting("ollama.model", ""),
+                desktopConfig.setting("ollama.low.model", ""),
+                desktopConfig.setting("ollama.medium.model", ""),
+                desktopConfig.setting("ollama.high.model", ""),
+                desktopConfig.setting("ollama.thinking.model", ""),
+                masked);
+    }
+
+    /** Returns an error message, or null when the settings were applied. */
+    private String applyLlmSettings(String body) {
+        String provider = jsonString(body, "provider");
+        if (!java.util.List.of("disabled", "ollama", "claude").contains(provider)) {
+            return "provider must be disabled, ollama or claude";
+        }
+        String anthropicKey = jsonString(body, "anthropicKey");
+        if ("claude".equals(provider) && anthropicKey.isEmpty()
+            && desktopConfig.setting("anthropic.api.key", "").isEmpty()) {
+            return "claude needs an Anthropic API key";
+        }
+        String baseUrl = jsonString(body, "ollamaBaseUrl");
+        if (!baseUrl.isEmpty() && !baseUrl.startsWith("http")) {
+            return "ollama base URL must start with http";
+        }
+        java.util.Map<String, String> updates = new java.util.LinkedHashMap<>();
+        updates.put("llm.provider", provider);
+        updates.put("ollama.base.url", baseUrl);
+        updates.put("ollama.model", jsonString(body, "ollamaModel"));
+        updates.put("ollama.low.model", jsonString(body, "lowModel"));
+        updates.put("ollama.medium.model", jsonString(body, "mediumModel"));
+        updates.put("ollama.high.model", jsonString(body, "highModel"));
+        updates.put("ollama.thinking.model", jsonString(body, "thinkingModel"));
+        if (!anthropicKey.isEmpty()) {
+            updates.put("anthropic.api.key", anthropicKey); // blank never wipes a stored key
+        }
+        try {
+            desktopConfig.updateSettings(updates);
+            return null;
+        } catch (IOException e) {
+            return "could not write settings: " + e.getMessage();
+        }
+    }
+
+    private static String jsonString(String body, String field) {
+        java.util.regex.Matcher m = java.util.regex.Pattern
+            .compile("\"" + java.util.regex.Pattern.quote(field) + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+            .matcher(body);
+        return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\").trim() : "";
+    }
+
+    private void sendJson(HttpExchange exchange, int status, String json) throws IOException {
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        exchange.sendResponseHeaders(status, bytes.length);
+        exchange.getResponseBody().write(bytes);
+    }
+
     public String createLoginPath() {
         byte[] bytes = new byte[16];
         random.nextBytes(bytes);
@@ -127,7 +255,18 @@ public final class GuiServer {
         // attacker hostname that resolves to 127.0.0.1 — the Host header betrays it
         String host = exchange.getRequestHeaders().getFirst("Host");
         String query = exchange.getRequestURI().getQuery();
-        String nonce = query != null && query.startsWith("once=") ? query.substring(5) : null;
+        String nonce = null;
+        String target = "/";
+        for (String param : query == null ? new String[0] : query.split("&")) {
+            if (param.startsWith("once=")) {
+                nonce = param.substring(5);
+            } else if (param.startsWith("to=")) {
+                String decoded = java.net.URLDecoder.decode(param.substring(3), StandardCharsets.UTF_8);
+                if (decoded.matches("/#/[A-Za-z0-9/_-]*")) {
+                    target = decoded; // hash routes only — never an external redirect
+                }
+            }
+        }
         boolean localHost = host != null
             && (host.startsWith("localhost") || host.startsWith("127.0.0.1"));
         Long expiry = nonce == null ? null : loginNonces.remove(nonce);
@@ -170,9 +309,9 @@ public final class GuiServer {
               localStorage.setItem('agenticos_auth_app_origin', location.origin);
               localStorage.setItem('agenticos_auth_gateway_origin',
                 'http://' + location.hostname + ':8083');
-              location.replace('/');
+              location.replace('%s');
             </script>
-            """.formatted(jwt.group(1), ttl.group(1));
+            """.formatted(jwt.group(1), ttl.group(1), target);
         byte[] bytes = page.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
         exchange.getResponseHeaders().set("Cache-Control", "no-store");

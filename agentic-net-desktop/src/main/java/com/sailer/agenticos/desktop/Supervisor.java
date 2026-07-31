@@ -110,11 +110,44 @@ public final class Supervisor {
             + spec.startTimeoutSeconds() + "s (" + spec.healthUrl() + ")");
     }
 
+    private final java.util.Set<String> manualRestarts = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Stops one child and starts it again from a freshly built spec (settings
+     * changes live in the spec's env). Health-gated like startup.
+     */
+    public void restartOne(ServiceSpec freshSpec) throws IOException, InterruptedException {
+        int index = -1;
+        for (int i = 0; i < specs.size(); i++) {
+            if (specs.get(i).name().equals(freshSpec.name())) {
+                index = i;
+            }
+        }
+        if (index < 0) {
+            throw new IOException("unknown service: " + freshSpec.name());
+        }
+        specs.set(index, freshSpec);
+        Process process = processes.get(freshSpec.name());
+        if (process != null && process.isAlive()) {
+            manualRestarts.add(freshSpec.name());
+            process.destroy();
+            if (!process.waitFor(15, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                process.waitFor(5, TimeUnit.SECONDS);
+            }
+        }
+        restarts.remove(freshSpec.name());
+        startOne(freshSpec);
+    }
+
     private void watchExit(ServiceSpec spec, Process process) {
         process.onExit().thenAccept(p -> {
             if (stopping.get()) {
                 setStatus(spec.name(), Status.STOPPED);
                 return;
+            }
+            if (manualRestarts.remove(spec.name())) {
+                return; // restartOne() owns the lifecycle and status of this exit
             }
             int count = restarts.merge(spec.name(), 1, Integer::sum);
             if (count > MAX_RESTARTS) {

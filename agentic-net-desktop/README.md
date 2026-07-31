@@ -46,7 +46,9 @@ full data reset.
 
 Status per service, Open Studio (**auto-login**: a single-use 60s link exchanges
 the admin secret for a JWT server-side and seeds the Studio session — the secret
-never reaches the browser or the user), Connect Codex (copies a ready
+never reaches the browser or the user), LLM Settings (opens the Studio
+Desktop LLM card — provider, tier models and API key, saved via the launcher
+with a ~10s master restart), Connect Codex (copies a ready
 `config.toml` block), Connect Claude Code (copies the full `claude mcp add …`
 command with token), Copy MCP URL + Token, Start at Login (XDG autostart on
 Linux, a LaunchAgent on macOS), Check for Updates, Open Logs Folder,
