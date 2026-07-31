@@ -48,6 +48,7 @@ public final class Main {
             + " (profile " + DesktopConfig.PROFILE_NAME + ", app dir " + appDir
             + ", data dir " + config.dataDir() + ")");
 
+        DesktopIntegration.installLinuxMenuEntry(config);
         TrayUi tray = new TrayUi(config, supervisor, guiServer, quit);
         boolean hasTray = tray.install();
         if (!hasTray) {

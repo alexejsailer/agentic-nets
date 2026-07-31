@@ -128,6 +128,19 @@ public final class DesktopConfig {
             && bundle.getFileName().toString().endsWith(".app") ? bundle : null;
     }
 
+    /** The installed launcher binary (menu entries, login items), else null. */
+    public Path launcherBinary() {
+        Path bundle = appBundle();
+        if (bundle != null) {
+            return bundle.resolve("Contents").resolve("MacOS").resolve("AgenticNetOS");
+        }
+        // Linux jpackage layout: <root>/lib/app ← appDir, launcher at <root>/bin/AgenticNetOS
+        Path lib = appDir.getParent();
+        Path root = lib == null ? null : lib.getParent();
+        Path bin = root == null ? null : root.resolve("bin").resolve("AgenticNetOS");
+        return bin != null && Files.isExecutable(bin) ? bin : null;
+    }
+
     public Path nodeBinary() {
         Path bundled = appDir.resolve("node-runtime").resolve("bin").resolve("node");
         if (Files.exists(bundled)) {

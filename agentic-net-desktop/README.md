@@ -48,7 +48,8 @@ Status per service, Open Studio (**auto-login**: a single-use 60s link exchanges
 the admin secret for a JWT server-side and seeds the Studio session — the secret
 never reaches the browser or the user), Connect Codex (copies a ready
 `config.toml` block), Connect Claude Code (copies the full `claude mcp add …`
-command with token), Copy MCP URL + Token, Check for Updates, Open Logs Folder,
+command with token), Copy MCP URL + Token, Start at Login (XDG autostart on
+Linux, a LaunchAgent on macOS), Check for Updates, Open Logs Folder,
 Restart Services, Quit. The icon is
 the brand glyph (a Petri place holding two tokens), monochrome to match native
 menu bar symbols — white/black following the macOS appearance, dimmed while
@@ -104,6 +105,9 @@ because jpackage cannot cross-build. Publishing to GitHub Releases:
   Open on first launch). Windows needs a Windows builder (jpackage + WiX cannot
   cross-build) — either a Windows VM running the same assemble+jpackage steps, or
   Conveyor, which would also bring signing and auto-update.
+- Linux menu entry + icon are installed per-user on the first launch inside a
+  desktop session (packages carry no xdg postinst hooks, so headless installs
+  stay clean); launch once from `/opt/agenticnetos/bin/AgenticNetOS` after install.
 - No blobstore child yet: blob URN rendering and knowledge-blob reads degrade. Command
   transitions run on the built-in executor (`agentic-net-executor-default`); lanes pinned to a
   second executor id stall until phase 2 adds multi-executor support.

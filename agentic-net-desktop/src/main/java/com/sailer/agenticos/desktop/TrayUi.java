@@ -95,6 +95,18 @@ public final class TrayUi {
         }));
         popup.addSeparator();
 
+        CheckboxMenuItem startAtLogin = new CheckboxMenuItem("Start at Login",
+            DesktopIntegration.isStartAtLoginEnabled());
+        startAtLogin.addItemListener(e -> {
+            try {
+                startAtLogin.setState(DesktopIntegration.setStartAtLogin(startAtLogin.getState(), config));
+            } catch (Exception ex) {
+                startAtLogin.setState(DesktopIntegration.isStartAtLoginEnabled());
+                notifyError("Start at Login failed", String.valueOf(ex.getMessage()));
+            }
+        });
+        popup.add(startAtLogin);
+
         updateItem = action("Check for Updates", this::onUpdateAction);
         popup.add(updateItem);
         popup.add(action("Open Logs Folder", () -> Desktop.getDesktop().open(config.logsDir().toFile())));
