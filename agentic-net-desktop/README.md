@@ -103,10 +103,13 @@ because jpackage cannot cross-build. Publishing to GitHub Releases:
 
 ## Known limitations
 
-- macOS `.dmg` + Linux `.deb`/`.rpm` (amd64 + arm64); all unsigned (macOS: right-click →
-  Open on first launch). Windows needs a Windows builder (jpackage + WiX cannot
-  cross-build) — either a Windows VM running the same assemble+jpackage steps, or
-  Conveyor, which would also bring signing and auto-update.
+- macOS `.dmg` + Linux `.deb`/`.rpm` (amd64 + arm64) built on the Mac; the Windows
+  `.msi` (x64, per-user install, in-place upgrades via fixed UpgradeCode) is built by
+  GitHub Actions per release from the release assets and folded into the signed
+  checksum manifest with `ci/scripts/sign-windows-asset.sh`. All installers are
+  unsigned (macOS: right-click → Open; Windows: SmartScreen "Run anyway") until
+  certificates exist. Windows command transitions need a bash on PATH (Git Bash) —
+  MCP-first usage, Studio, schedules and updates work without it.
 - Linux menu entry + icon are installed per-user on the first launch inside a
   desktop session (packages carry no xdg postinst hooks, so headless installs
   stay clean); launch once from `/opt/agenticnetos/bin/AgenticNetOS` after install.

@@ -24,6 +24,10 @@ public final class DesktopIntegration {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("linux");
     }
 
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
     private static Path home() {
         return Path.of(System.getProperty("user.home"));
     }
@@ -77,6 +81,9 @@ public final class DesktopIntegration {
         if (isLinux()) {
             Path icon = home().resolve(".local/share/icons/agenticnetos.png");
             Files.writeString(file, desktopEntry(launcher, icon, true));
+        } else if (isWindows()) {
+            // Startup-folder script — per-user, no elevation, no COM shortcut plumbing
+            Files.writeString(file, "@echo off\r\nstart \"\" \"" + launcher.toAbsolutePath() + "\"\r\n");
         } else {
             Files.writeString(file, """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -94,9 +101,17 @@ public final class DesktopIntegration {
     }
 
     static Path startAtLoginFile() {
-        return isLinux()
-            ? home().resolve(".config/autostart/agenticnetos.desktop")
-            : home().resolve("Library/LaunchAgents/com.sailer.agenticos.desktop.plist");
+        if (isLinux()) {
+            return home().resolve(".config/autostart/agenticnetos.desktop");
+        }
+        if (isWindows()) {
+            String appData = System.getenv("APPDATA");
+            Path roaming = appData != null && !appData.isBlank()
+                ? Path.of(appData) : home().resolve("AppData").resolve("Roaming");
+            return roaming.resolve(Path.of("Microsoft", "Windows", "Start Menu",
+                "Programs", "Startup", "AgenticNetOS.cmd"));
+        }
+        return home().resolve("Library/LaunchAgents/com.sailer.agenticos.desktop.plist");
     }
 
     static String desktopEntry(Path launcher, Path icon, boolean autostart) {

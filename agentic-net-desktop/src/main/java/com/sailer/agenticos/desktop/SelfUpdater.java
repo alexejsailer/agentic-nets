@@ -43,25 +43,45 @@ public final class SelfUpdater {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
     }
 
+    static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
     static String artifactName(String version) {
         String rawArch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
         boolean arm = rawArch.contains("aarch64") || rawArch.contains("arm");
         if (isMac()) {
             return "AgenticNetOS-" + version + "-macos-" + (arm ? "arm64" : "x64") + ".dmg";
         }
+        if (isWindows()) {
+            return "AgenticNetOS-" + version + "-windows-" + (arm ? "arm64" : "x64") + ".msi";
+        }
         boolean deb = Files.exists(Path.of("/usr/bin/dpkg"));
         return "AgenticNetOS-" + version + "-linux-" + (arm ? "arm64" : "amd64") + (deb ? ".deb" : ".rpm");
     }
 
     static String installCommand(Path packageFile) {
+        String name = packageFile.getFileName().toString();
+        if (name.endsWith(".msi")) {
+            return "msiexec /i \"" + packageFile.toAbsolutePath() + "\"";
+        }
         String path = packageFile.toAbsolutePath().toString().replace("'", "'\"'\"'");
-        if (packageFile.getFileName().toString().endsWith(".deb")) {
+        if (name.endsWith(".deb")) {
             return "sudo apt install '" + path + "'";
         }
-        if (packageFile.getFileName().toString().endsWith(".rpm")) {
+        if (name.endsWith(".rpm")) {
             return "sudo dnf install '" + path + "'";
         }
         return "open '" + path + "'";
+    }
+
+    /**
+     * Windows: start the verified msi (UAC/consent is the user's step) and quit
+     * so the installer never fights the running app over locked files.
+     */
+    static void launchWindowsInstallerAndQuit(Path msi, Runnable quit) throws IOException {
+        new ProcessBuilder("msiexec", "/i", msi.toAbsolutePath().toString()).start();
+        quit.run();
     }
 
     /** Downloads the platform artifact for {@code version} and verifies its SHA-256. */

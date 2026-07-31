@@ -159,9 +159,14 @@ public final class DesktopConfig {
         if (bundle != null) {
             return bundle.resolve("Contents").resolve("MacOS").resolve("AgenticNetOS");
         }
+        Path parent = appDir.getParent();
+        // Windows jpackage layout: <root>/app ← appDir, launcher at <root>/AgenticNetOS.exe
+        Path exe = parent == null ? null : parent.resolve("AgenticNetOS.exe");
+        if (exe != null && Files.exists(exe)) {
+            return exe;
+        }
         // Linux jpackage layout: <root>/lib/app ← appDir, launcher at <root>/bin/AgenticNetOS
-        Path lib = appDir.getParent();
-        Path root = lib == null ? null : lib.getParent();
+        Path root = parent == null ? null : parent.getParent();
         Path bin = root == null ? null : root.resolve("bin").resolve("AgenticNetOS");
         return bin != null && Files.isExecutable(bin) ? bin : null;
     }

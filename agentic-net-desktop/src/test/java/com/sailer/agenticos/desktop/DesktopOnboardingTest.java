@@ -38,7 +38,7 @@ class DesktopOnboardingTest {
     }
 
     @Test
-    void packageInstallCommandMatchesTheLinuxPackageType() {
+    void packageInstallCommandMatchesThePackageType() {
         assertEquals(
             "sudo apt install '/tmp/AgenticNetOS.deb'",
             SelfUpdater.installCommand(Path.of("/tmp/AgenticNetOS.deb"))
@@ -47,5 +47,23 @@ class DesktopOnboardingTest {
             "sudo dnf install '/tmp/AgenticNetOS.rpm'",
             SelfUpdater.installCommand(Path.of("/tmp/AgenticNetOS.rpm"))
         );
+        assertEquals(
+            "msiexec /i \"/tmp/AgenticNetOS.msi\"",
+            SelfUpdater.installCommand(Path.of("/tmp/AgenticNetOS.msi"))
+        );
+    }
+
+    @Test
+    void artifactNameFollowsTheOperatingSystem() {
+        String previousOs = System.getProperty("os.name");
+        try {
+            System.setProperty("os.name", "Windows 11");
+            assertTrue(SelfUpdater.artifactName("2.38.0").startsWith("AgenticNetOS-2.38.0-windows-"));
+            assertTrue(SelfUpdater.artifactName("2.38.0").endsWith(".msi"));
+            System.setProperty("os.name", "Mac OS X");
+            assertTrue(SelfUpdater.artifactName("2.38.0").endsWith(".dmg"));
+        } finally {
+            System.setProperty("os.name", previousOs);
+        }
     }
 }

@@ -11,8 +11,11 @@
 #   downloaded from the GitHub release assets; Docker Desktop is only needed as
 #   a fallback when no release carries them yet.
 #
-# NOTE: this script is maintained best-effort and is not yet exercised by the
-# maintainers' own CI (no Windows builder in the loop) — please report issues.
+# The official Windows msi is built by GitHub Actions per release
+# (.github/workflows/desktop-windows.yml) with this same script in release-assets
+# mode. The msi installs per-user (no admin), carries a fixed upgrade UUID so a
+# newer msi upgrades in place, and the tray self-update launches it directly.
+# Command transitions need a bash on PATH (e.g. Git Bash); MCP-first usage does not.
 param(
     [string]$Version = "",
     [switch]$SkipBuilds
@@ -152,7 +155,7 @@ jpackage --type $Type --name "AgenticNetOS" --app-version $Version --vendor "Ale
     --input $App --runtime-image $Runtime `
     --main-jar launcher.jar --main-class com.sailer.agenticos.desktop.Main `
     --java-options "-Dagenticos.desktop.version=$Version" `
-    $(if ($Type -eq "msi") { "--license-file", (Join-Path $NetsDir "PROPRIETARY-EULA.md"), "--win-menu", "--win-shortcut-prompt" }) `
+    $(if ($Type -eq "msi") { "--license-file", (Join-Path $NetsDir "PROPRIETARY-EULA.md"), "--win-menu", "--win-shortcut-prompt", "--win-per-user-install", "--win-upgrade-uuid", "8273CD7A-C745-4694-A039-7C3F143B10FA" }) `
     --dest $Out
 
 if ($Type -eq "msi") {

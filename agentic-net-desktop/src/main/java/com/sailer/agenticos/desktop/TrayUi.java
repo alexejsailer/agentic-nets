@@ -154,6 +154,9 @@ public final class TrayUi {
                 if (SelfUpdater.isMac() && bundle != null) {
                     notifyInfo("Installing update", "Services stop, the app replaces itself and relaunches.");
                     SelfUpdater.applyOnMacAndRestart(pkg, bundle, config.updatesDir(), onQuit);
+                } else if (SelfUpdater.isWindows()) {
+                    notifyInfo("Installing update", "The installer starts now; the app quits. Relaunch when it finishes.");
+                    SelfUpdater.launchWindowsInstallerAndQuit(pkg, onQuit);
                 } else {
                     copyToClipboard(SelfUpdater.installCommand(pkg));
                     notifyInfo("Update downloaded and verified",
@@ -232,19 +235,30 @@ public final class TrayUi {
         return image;
     }
 
-    /** White glyph on dark menu bars/panels, black on a light macOS menu bar. */
+    /** White glyph on dark menu bars/taskbars, black on light ones. */
     private static Color glyphColor() {
         String os = System.getProperty("os.name", "").toLowerCase();
-        if (!os.contains("mac")) {
-            return Color.WHITE; // Linux/Windows trays are dark by default
+        if (os.contains("mac")) {
+            try {
+                Process p = new ProcessBuilder("defaults", "read", "-g", "AppleInterfaceStyle").start();
+                return p.waitFor() == 0 ? Color.WHITE : Color.BLACK; // exits non-zero in light mode
+            } catch (Exception e) {
+                return Color.BLACK;
+            }
         }
-        try {
-            Process p = new ProcessBuilder("defaults", "read", "-g", "AppleInterfaceStyle").start();
-            boolean dark = p.waitFor() == 0; // exits non-zero in light mode
-            return dark ? Color.WHITE : Color.BLACK;
-        } catch (Exception e) {
-            return Color.BLACK;
+        if (os.contains("win")) {
+            try {
+                Process p = new ProcessBuilder("reg", "query",
+                    "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                    "/v", "SystemUsesLightTheme").start();
+                String out = new String(p.getInputStream().readAllBytes());
+                p.waitFor();
+                return out.contains("0x1") ? Color.BLACK : Color.WHITE;
+            } catch (Exception e) {
+                return Color.WHITE;
+            }
         }
+        return Color.WHITE; // Linux panels are dark by default
     }
 
     private MenuItem action(String label, ThrowingRunnable runnable) {

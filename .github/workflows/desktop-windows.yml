@@ -1,0 +1,59 @@
+# Builds the official Windows desktop installer for a published release and
+# attaches it to that release — no Windows hardware in the maintainer loop.
+#
+# Runs build-windows.ps1 in release-assets mode: the closed node/master/gui are
+# downloaded from the release itself (Ed25519-verified), so no Docker is needed.
+# Afterwards the maintainer runs ci/scripts/sign-windows-asset.sh to fold the
+# msi's checksum into the SIGNED SHA256SUMS.txt (the signing key never enters CI)
+# — until then, Windows self-updates refuse the release as unlisted.
+name: desktop-windows
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 2.38.0) — must have published assets"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  msi:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = "${{ github.event.inputs.version }}"
+          if (-not $v) { $v = "${{ github.event.release.tag_name }}".TrimStart("v") }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Put WiX on PATH (preinstalled on windows runners)
+        shell: pwsh
+        run: if ($env:WIX) { Add-Content $env:GITHUB_PATH (Join-Path $env:WIX "bin") }
+
+      - name: Build msi
+        shell: pwsh
+        run: .\agentic-net-desktop\scripts\build-windows.ps1 -Version "${{ steps.ver.outputs.version }}"
+
+      - name: Attach to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          gh release upload "v$v" --clobber `
+            "agentic-net-desktop\dist\out\AgenticNetOS-$v-windows-x64.msi"
