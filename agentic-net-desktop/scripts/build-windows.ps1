@@ -1,0 +1,132 @@
+# One-command desktop build on Windows — produces an .msi installer (or a plain
+# app-image folder when the WiX Toolset is not installed).
+#
+#   .\scripts\build-windows.ps1 [-Version 2.38.0] [-SkipBuilds]
+#
+# Requirements:
+#   - JDK 21+ with jlink + jpackage on PATH
+#   - Node.js 22 + npm
+#   - Docker Desktop (the closed-source node/master/gui are extracted from the
+#     published Docker Hub images — governed by ..\PROPRIETARY-EULA.md)
+#   - WiX Toolset v3 on PATH for --type msi (optional)
+#
+# NOTE: this script is maintained best-effort and is not yet exercised by the
+# maintainers' own CI (no Windows builder in the loop) — please report issues.
+param(
+    [string]$Version = "",
+    [switch]$SkipBuilds
+)
+$ErrorActionPreference = "Stop"
+
+$ScriptDir = $PSScriptRoot
+$ModuleDir = Split-Path -Parent $ScriptDir
+$NetsDir   = Split-Path -Parent $ModuleDir
+$Dist      = Join-Path $ModuleDir "dist"
+$Closed    = Join-Path $ModuleDir "closed-artifacts"
+$NodeVer   = "22.14.0"
+
+if (-not $Version) {
+    try { $Version = (git -C $NetsDir describe --tags --abbrev=0).TrimStart("v") } catch { $Version = "0.0.0" }
+}
+function Log($msg) { Write-Host "`n[desktop-win] $msg" -ForegroundColor Cyan }
+
+# ---------------------------------------------------------------------------
+# 1. Open components + closed artifacts
+# ---------------------------------------------------------------------------
+if (-not $SkipBuilds) {
+    Log "Building open components"
+    foreach ($svc in "agentic-net-gateway", "agentic-net-vault", "agentic-net-executor") {
+        Push-Location (Join-Path $NetsDir $svc); .\mvnw.cmd -q clean package -DskipTests; Pop-Location
+    }
+    Push-Location $ModuleDir; .\mvnw.cmd -q clean package; Pop-Location
+    Push-Location (Join-Path $NetsDir "agentic-net-cli")
+    if (-not (Test-Path node_modules)) { npm install }
+    if (-not (Test-Path dist)) { npx tsup }
+    Pop-Location
+    Push-Location (Join-Path $NetsDir "agentic-net-mcp")
+    if (-not (Test-Path node_modules)) { npm install }
+    npm run build
+    Pop-Location
+
+    Log "Extracting closed artifacts from Docker Hub images (tag $Version, fallback latest)"
+    New-Item -ItemType Directory -Force $Closed | Out-Null
+    foreach ($svc in "node", "master") {
+        $img = "alexejsailer/agenticnetos-${svc}:$Version"
+        docker pull -q $img 2>$null; if ($LASTEXITCODE -ne 0) { $img = "alexejsailer/agenticnetos-${svc}:latest"; docker pull -q $img }
+        $cid = docker create $img
+        docker cp "${cid}:/app/app.jar" (Join-Path $Closed "agentic-net-$svc.jar")
+        docker rm $cid | Out-Null
+    }
+    $img = "alexejsailer/agenticnetos-gui:$Version"
+    docker pull -q $img 2>$null; if ($LASTEXITCODE -ne 0) { $img = "alexejsailer/agenticnetos-gui:latest"; docker pull -q $img }
+    $cid = docker create $img
+    if (Test-Path (Join-Path $Closed "gui")) { Remove-Item -Recurse -Force (Join-Path $Closed "gui") }
+    docker cp "${cid}:/usr/share/nginx/html" (Join-Path $Closed "gui")
+    docker rm $cid | Out-Null
+}
+
+# ---------------------------------------------------------------------------
+# 2. Assemble app dir
+# ---------------------------------------------------------------------------
+Log "Assembling app dir"
+$App = Join-Path $Dist "app"
+if (Test-Path $App) { Remove-Item -Recurse -Force $App }
+New-Item -ItemType Directory -Force "$App\services", "$App\gui", "$App\mcp\dist\bin", "$App\node-runtime" | Out-Null
+
+Copy-Item (Join-Path $ModuleDir "target\launcher.jar") "$App\launcher.jar"
+Copy-Item (Join-Path $Closed "agentic-net-node.jar")   "$App\services\agentic-net-node.jar"
+Copy-Item (Join-Path $Closed "agentic-net-master.jar") "$App\services\agentic-net-master.jar"
+foreach ($svc in "gateway", "vault", "executor") {
+    Copy-Item (Get-Item (Join-Path $NetsDir "agentic-net-$svc\target\agentic-net-$svc-*.jar"))[0] "$App\services\agentic-net-$svc.jar"
+}
+Copy-Item -Recurse (Join-Path $Closed "gui\*") "$App\gui\"
+Copy-Item (Join-Path $NetsDir "LICENSE.md") "$App\LICENSE.md"
+Copy-Item (Join-Path $NetsDir "PROPRIETARY-EULA.md") "$App\EULA.md"
+
+Copy-Item (Join-Path $NetsDir "agentic-net-mcp\dist\bin\agenticnets-mcp.js") "$App\mcp\dist\bin\"
+node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));fs.writeFileSync(process.argv[2],JSON.stringify({name:p.name,version:p.version,type:p.type,dependencies:p.dependencies},null,2))" `
+    (Join-Path $NetsDir "agentic-net-mcp\package.json") "$App\mcp\package.json"
+Push-Location "$App\mcp"; npm install --omit=dev --ignore-scripts --no-audit --no-fund --silent; Pop-Location
+
+Log "Fetching Node runtime win-x64"
+$NodeZip = Join-Path $Dist "cache\node-v$NodeVer-win-x64.zip"
+New-Item -ItemType Directory -Force (Join-Path $Dist "cache") | Out-Null
+if (-not (Test-Path $NodeZip)) {
+    Invoke-WebRequest "https://nodejs.org/dist/v$NodeVer/node-v$NodeVer-win-x64.zip" -OutFile $NodeZip
+}
+Expand-Archive $NodeZip -DestinationPath (Join-Path $Dist "cache\node-win") -Force
+Copy-Item (Join-Path $Dist "cache\node-win\node-v$NodeVer-win-x64\node.exe") "$App\node-runtime\node.exe"
+
+# ---------------------------------------------------------------------------
+# 3. jlink + jpackage
+# ---------------------------------------------------------------------------
+Log "Building jlink runtime"
+$Runtime = Join-Path $Dist "runtime"
+if (Test-Path $Runtime) { Remove-Item -Recurse -Force $Runtime }
+jlink --add-modules "java.se,jdk.unsupported,jdk.crypto.ec,jdk.crypto.cryptoki,jdk.httpserver,jdk.zipfs,jdk.charsets,jdk.localedata,jdk.management,jdk.security.auth,jdk.naming.dns" `
+    --output $Runtime --no-header-files --no-man-pages --compress zip-6
+
+Log "Packaging v$Version"
+$Out = Join-Path $Dist "out"
+if (Test-Path $Out) { Remove-Item -Recurse -Force $Out }
+$Type = "msi"
+if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+    Write-Warning "WiX Toolset not found - producing an app-image folder instead of an .msi"
+    $Type = "app-image"
+}
+jpackage --type $Type --name "AgenticNetOS" --app-version $Version --vendor "Alexej Sailer" `
+    --input $App --runtime-image $Runtime `
+    --main-jar launcher.jar --main-class com.sailer.agenticos.desktop.Main `
+    --java-options "-Dagenticos.desktop.version=$Version" `
+    $(if ($Type -eq "msi") { "--license-file", (Join-Path $NetsDir "PROPRIETARY-EULA.md"), "--win-menu", "--win-shortcut-prompt" }) `
+    --dest $Out
+
+if ($Type -eq "msi") {
+    $Msi = Get-Item (Join-Path $Out "AgenticNetOS-$Version.msi")
+    Rename-Item $Msi "AgenticNetOS-$Version-windows-x64.msi"
+    Get-FileHash (Join-Path $Out "AgenticNetOS-$Version-windows-x64.msi") -Algorithm SHA256 |
+        ForEach-Object { "$($_.Hash.ToLower())  AgenticNetOS-$Version-windows-x64.msi" } |
+        Set-Content (Join-Path $Out "SHA256SUMS.txt")
+}
+Log "Done: $Out"
+Get-ChildItem $Out
