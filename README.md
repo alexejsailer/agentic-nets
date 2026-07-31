@@ -145,6 +145,11 @@ Studio Admin Secret") and "Connect Claude Code", which copies a ready
 Data lives in `~/.agenticos/` and survives updates. Settings (LLM provider,
 exposed interfaces, heaps) in `~/.agenticos/desktop/desktop.properties`.
 
+**Updating**: quit the app, install the new package over the old one (macOS:
+drag-replace in Applications; Debian/Ubuntu: `sudo apt install ./<new>.deb`),
+relaunch. All data and settings live in `~/.agenticos/` and survive updates —
+the app itself is stateless. The tray notifies you when a new release is out.
+
 Everything binds to localhost by default. The bundled node, master and gui
 binaries are covered by the [Proprietary EULA](PROPRIETARY-EULA.md); the rest
 of the bundle is built from this repository under BSL 1.1.
