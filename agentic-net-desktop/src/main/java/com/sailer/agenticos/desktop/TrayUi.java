@@ -209,23 +209,34 @@ public final class TrayUi {
     }
 
     /**
-     * The brand glyph: a Petri-net place (circle outline) holding two tokens,
-     * monochrome like native menu bar symbols — white on a dark menu bar, black
-     * on a light one. Starting = dimmed tokens; attention = small red badge.
+     * The brand glyph, matching the favicon: three connected places — left and
+     * right nodes with a raised middle node, two arcs through it and a fainter
+     * bottom arc closing the triangle. Monochrome like native menu bar symbols
+     * (white/black per theme). Starting = dimmed; attention = small red badge.
      */
-    private static BufferedImage trayImage(boolean attention, boolean starting) {
+    static BufferedImage trayImage(boolean attention, boolean starting) {
         int size = 44;
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setColor(glyphColor());
-        if (starting) {
-            g.setComposite(java.awt.AlphaComposite.SrcOver.derive(0.45f));
-        }
-        g.setStroke(new java.awt.BasicStroke(3.5f));
-        g.drawOval(4, 4, size - 9, size - 9);
-        g.fillOval(11, 17, 9, 9);
-        g.fillOval(24, 17, 9, 9);
+        Color fg = glyphColor();
+        float base = starting ? 0.45f : 1f;
+        g.setComposite(java.awt.AlphaComposite.SrcOver.derive(base));
+
+        // favicon geometry, spread wide so the three places stay distinct at 16-22px
+        g.setColor(fg);
+        g.setStroke(new java.awt.BasicStroke(2.6f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.draw(new java.awt.geom.QuadCurve2D.Float(9f, 26f, 14.5f, 17f, 22f, 14f));
+        g.draw(new java.awt.geom.QuadCurve2D.Float(22f, 14f, 29.5f, 17f, 35f, 26f));
+        g.setComposite(java.awt.AlphaComposite.SrcOver.derive(base * 0.55f));
+        g.setStroke(new java.awt.BasicStroke(2f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.draw(new java.awt.geom.QuadCurve2D.Float(9f, 26f, 22f, 32f, 35f, 26f));
+
+        g.setComposite(java.awt.AlphaComposite.SrcOver.derive(base));
+        g.fill(new java.awt.geom.Ellipse2D.Float(9 - 4.5f, 26 - 4.5f, 9f, 9f));    // left place
+        g.fill(new java.awt.geom.Ellipse2D.Float(22 - 5.5f, 14 - 5.5f, 11f, 11f)); // middle place (larger, raised)
+        g.fill(new java.awt.geom.Ellipse2D.Float(35 - 4.5f, 26 - 4.5f, 9f, 9f));   // right place
+
         if (attention) {
             g.setComposite(java.awt.AlphaComposite.SrcOver);
             g.setColor(new Color(0xE0443A));

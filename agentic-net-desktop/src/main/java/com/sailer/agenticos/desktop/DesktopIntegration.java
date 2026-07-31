@@ -128,17 +128,25 @@ public final class DesktopIntegration {
             + (autostart ? "X-GNOME-Autostart-enabled=true\n" : "");
     }
 
-    /** The brand glyph (a place holding two tokens) as a 128px app icon. */
+    /** The brand glyph (three connected places, favicon geometry) as a 128px app icon. */
     private static BufferedImage appIcon() {
         int size = 128;
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setColor(new Color(0x2F3A4A));
-        g.setStroke(new java.awt.BasicStroke(10f));
-        g.drawOval(12, 12, size - 26, size - 26);
-        g.fillOval(34, 51, 26, 26);
-        g.fillOval(70, 51, 26, 26);
+        Color fg = new Color(0x2F3A4A);
+        g.setColor(fg);
+        // same spread constellation as the tray glyph, scaled 44 → 128
+        g.setStroke(new java.awt.BasicStroke(7.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.draw(new java.awt.geom.QuadCurve2D.Float(26f, 76f, 42f, 49f, 64f, 41f));
+        g.draw(new java.awt.geom.QuadCurve2D.Float(64f, 41f, 86f, 49f, 102f, 76f));
+        g.setComposite(java.awt.AlphaComposite.SrcOver.derive(0.55f));
+        g.setStroke(new java.awt.BasicStroke(5.5f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+        g.draw(new java.awt.geom.QuadCurve2D.Float(26f, 76f, 64f, 93f, 102f, 76f));
+        g.setComposite(java.awt.AlphaComposite.SrcOver);
+        g.fillOval(26 - 13, 76 - 13, 26, 26);
+        g.fillOval(64 - 16, 41 - 16, 32, 32);
+        g.fillOval(102 - 13, 76 - 13, 26, 26);
         g.dispose();
         return image;
     }
