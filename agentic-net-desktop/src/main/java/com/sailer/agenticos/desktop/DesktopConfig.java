@@ -64,7 +64,7 @@ public final class DesktopConfig {
                 # Optional advanced values: ollama, claude (needs anthropic.api.key).
                 llm.provider=disabled
                 ollama.base.url=http://127.0.0.1:11434
-                ollama.model=deepseek-v4-pro:cloud
+                ollama.model=glm-5.2:cloud
                 # Optional per-tier model routing (blank = master defaults)
                 ollama.low.model=
                 ollama.medium.model=

@@ -327,10 +327,10 @@ services:
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-5.2:cloud}
       # Dynamic post-THINK routing for agent sessions (2.17.0): the inference right after a
       # successful THINK tool call runs on this model. Blank = routing off.
-      OLLAMA_THINKING_MODEL: ${OLLAMA_THINKING_MODEL:-}
+      OLLAMA_THINKING_MODEL: ${OLLAMA_THINKING_MODEL:-kimi-k3:cloud}
       CLAUDE_THINKING_MODEL: ${CLAUDE_THINKING_MODEL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
@@ -788,10 +788,10 @@ services:
       OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
       OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
-      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-llama3.2}
-      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-llama3.2}
-      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-llama3.2}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-5.2:cloud}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k3:cloud}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-glm-5.2:cloud}
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-glm-5.2:cloud}
     volumes:
       - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
       - ./data/logs/chat:/app/logs
