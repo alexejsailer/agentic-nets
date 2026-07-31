@@ -35,7 +35,7 @@ public final class GuiServer {
     private static final Set<String> SKIP_REQUEST_HEADERS = Set.of(
         "host", "connection", "content-length", "expect", "upgrade", "transfer-encoding");
     private static final Set<String> SKIP_RESPONSE_HEADERS = Set.of(
-        "connection", "transfer-encoding", "keep-alive");
+        "connection", "content-length", "transfer-encoding", "keep-alive");
 
     private static final Map<String, String> CONTENT_TYPES = Map.ofEntries(
         Map.entry("html", "text/html; charset=utf-8"),

@@ -75,8 +75,8 @@ layer:
 
 | Goal | Link |
 |---|---|
-| Start locally without reading everything | [Quick local run](#quick-local-run) |
-| Try the local stack | [Install in 5 minutes](#install-in-5-minutes) |
+| Fastest local creator/operator setup (no Docker) | [Desktop Lite](#desktop-lite-macos--linux--no-docker-or-server-llm) |
+| Run the production-like Docker stack | [Install in 5 minutes](#install-in-5-minutes) |
 | Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
 | Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
 | See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
@@ -92,7 +92,8 @@ layer:
 > **Licensing note.** Agentic-Nets is a hybrid stack. Public components in this
 > repository are licensed under BSL 1.1 and convert to Apache 2.0 on
 > 2030-02-22. The orchestration core ships as closed-source Docker Hub images
-> under the Proprietary EULA. See [licensing](#licensing) before production use.
+> and desktop release assets under the Proprietary EULA. See
+> [licensing](#licensing) before production use.
 
 ## Quick local run
 
@@ -119,12 +120,18 @@ cat data/gateway/jwt/admin-secret
 open http://localhost:4200
 ```
 
-## Desktop app (macOS + Linux) — no Docker
+## Desktop Lite (macOS + Linux) — no Docker or server LLM
 
-One download, the whole stack: a tray app supervises node, master, gateway, an
-executor, an encrypted local credential vault (no secrets server) and the MCP
-endpoint on bundled Java/Node runtimes, and serves Studio at
-[http://localhost:4200](http://localhost:4200).
+This is the fastest local creator/operator setup: install one package, start the
+tray app, connect Codex, Claude Code, or another MCP client, and create,
+schedule, inspect, or execute nets. The connected MCP client supplies the
+intelligence. The bundled master stays as the deterministic net/schedule/audit
+runtime, but its server-side LLM is disabled by default. No Docker daemon, Java
+or Node installation, API key, or Ollama process is required.
+
+Desktop Lite is loopback-only and is not the recommended production
+deployment. Use the Docker/server deployment for remote access, clustering,
+monitoring, or production lifecycle controls.
 
 **Download** from [Releases](https://github.com/alexejsailer/agentic-nets/releases)
 and verify against `SHA256SUMS.txt`:
@@ -134,24 +141,26 @@ and verify against `SHA256SUMS.txt`:
   the first open: right-click the app → "Open", or allow it under System
   Settings → Privacy & Security → "Open Anyway".
 - **Debian/Ubuntu**: `sudo apt install ./AgenticNetOS-<version>-linux-<arch>.deb`,
-  then launch the AgenticNetOS menu entry or `/opt/agenticnetos/bin/AgenticNetOS`.
+  then run `/opt/agenticnetos/bin/AgenticNetOS`.
   On a server without a desktop it runs headless (no tray, same services).
 - **Fedora/RHEL**: the matching `.rpm`.
 - **Windows**: planned.
 
 **Build the installer yourself**: clone this repository and run
 `agentic-net-desktop/scripts/build.sh` (macOS/Linux) or
-`agentic-net-desktop\scripts\build-windows.ps1`. Only a JDK 21+ and Node.js 22
-are needed — the closed-source node/master/gui binaries are fetched from the
-release assets (`agentic-net-*-<version>.jar`, `agentic-net-gui-<version>.zip`,
-checksum-verified; covered by the [EULA](PROPRIETARY-EULA.md)), with the Docker
-Hub images as automatic fallback.
+`agentic-net-desktop\scripts\build-windows.ps1`. The primary requirements are a
+JDK 21+ and Node.js 22; see the
+[Desktop Lite guide](agentic-net-desktop/DESKTOP-LITE.md#build-an-installer-from-a-clone)
+for the small platform packaging prerequisites. Closed node/master/GUI binaries
+come from matching checksum-verified release assets, with Docker Hub images
+only as a fallback.
 
-**Then**: the tray menu does the rest — "Open Studio" (login secret via "Copy
-Studio Admin Secret") and "Connect Claude Code", which copies a ready
-`claude mcp add --transport http …` command for the built-in MCP endpoint.
-Data lives in `~/.agenticos/` and survives updates. Settings (LLM provider,
-exposed interfaces, heaps) in `~/.agenticos/desktop/desktop.properties`.
+**Then**: use "Connect Codex (copy config)" or "Connect Claude Code (copy
+command)" in the tray. With the default model-free profile, new AI transitions
+automatically run as external fires: the connected model reasons while master
+still owns token binding, emission, accounting and the event trail. Data lives
+in `~/.agenticos/` and survives updates. Full
+workflow and limitations: [Desktop Lite](agentic-net-desktop/DESKTOP-LITE.md).
 
 **Updating**: quit the app, install the new package over the old one (macOS:
 drag-replace in Applications; Debian/Ubuntu: `sudo apt install ./<new>.deb`),
@@ -328,13 +337,13 @@ fragile memory, and missing long-term verification.
 ## What's public, what's closed, and who can use it
 
 Agentic-Nets ships as a **hybrid stack** — licensed public components in this
-repo plus closed-source Docker Hub images for the core runtime. Read this
-before deploying.
+repo plus closed-source core binaries distributed as Docker Hub images and
+desktop release assets. Read this before deploying.
 
 | Layer | What | License | Who can use it |
 |---|---|---|---|
 | **Public components** (source in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `agentic-net-mcp`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
-| **Closed source** (Docker Hub images only — no source in this repo) | `alexejsailer/agenticnetos-node`, `alexejsailer/agenticnetos-master`, `alexejsailer/agenticnetos-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
+| **Closed source** (Docker Hub images + desktop release assets; no source in this repo) | `agentic-net-node`, `agentic-net-master`, `agentic-net-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
 
 Both licenses include a strong **NO WARRANTY / BETA** disclaimer. Nothing here is certified for regulated environments out of the box — you are responsible for your own risk assessment. If you are unsure whether your intended use counts as commercial production, **ask before deploying**.
 
@@ -706,7 +715,7 @@ permissions, and outputs are explicit.
                          +---+------------+--+
                              |            |
                 +------------v+         +-v---------------+
-                | agentic-net |         | agentic-net     |   Closed source (Docker Hub)
+                | agentic-net |         | agentic-net     |   Closed source (Hub / desktop)
                 | master      |<------->| node            |   orchestration + state engine
                 |  (8082)     |         |  (8080)         |
                 +--+--------+-+         +-----------------+

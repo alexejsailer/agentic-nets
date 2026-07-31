@@ -60,7 +60,7 @@ public final class TrayUi {
     private PopupMenu buildMenu() {
         PopupMenu popup = new PopupMenu();
 
-        MenuItem title = new MenuItem("AgenticNetOS Desktop " + config.version());
+        MenuItem title = new MenuItem("AgenticNetOS Desktop Lite " + config.version());
         title.setEnabled(false);
         popup.add(title);
         popup.addSeparator();
@@ -84,6 +84,10 @@ public final class TrayUi {
         popup.add(action("Connect Claude Code (copy command)", () -> {
             copyToClipboard(claudeMcpAddCommand());
             notifyInfo("Command copied", "Paste into a terminal to add the AgenticNets MCP server.");
+        }));
+        popup.add(action("Connect Codex (copy config)", () -> {
+            copyToClipboard(codexMcpConfig());
+            notifyInfo("Codex config copied", "Paste into ~/.codex/config.toml, then restart Codex.");
         }));
         popup.add(action("Copy MCP URL + Token", () -> {
             copyToClipboard("http://127.0.0.1:" + DesktopConfig.MCP_PORT + "/mcp\nBearer " + config.mcpToken());
@@ -136,7 +140,7 @@ public final class TrayUi {
                     notifyInfo("Installing update", "Services stop, the app replaces itself and relaunches.");
                     SelfUpdater.applyOnMacAndRestart(pkg, bundle, config.updatesDir(), onQuit);
                 } else {
-                    copyToClipboard("sudo apt install " + pkg.toAbsolutePath());
+                    copyToClipboard(SelfUpdater.installCommand(pkg));
                     notifyInfo("Update downloaded and verified",
                         pkg.getFileName() + " — install command copied to clipboard (root required).");
                 }
@@ -149,6 +153,19 @@ public final class TrayUi {
     public String claudeMcpAddCommand() {
         return "claude mcp add --transport http agenticnets http://127.0.0.1:" + DesktopConfig.MCP_PORT
             + "/mcp --header \"Authorization: Bearer " + config.mcpToken() + "\"";
+    }
+
+    /**
+     * Codex CLI supports Streamable HTTP MCP servers with static HTTP headers in
+     * config.toml. A snippet is more durable than an environment variable that
+     * disappears with the shell used to run `codex mcp add`.
+     */
+    String codexMcpConfig() {
+        return """
+            [mcp_servers.agenticnets]
+            url = "http://127.0.0.1:%d/mcp"
+            http_headers = { Authorization = "Bearer %s" }
+            """.formatted(DesktopConfig.MCP_PORT, config.mcpToken());
     }
 
     private void refresh() {

@@ -22,6 +22,7 @@ import java.util.Properties;
  */
 public final class DesktopConfig {
 
+    public static final String PROFILE_NAME = "desktop-lite";
     public static final int GUI_PORT = 4200;
     public static final int NODE_PORT = 8080;
     public static final int MASTER_PORT = 8082;
@@ -40,8 +41,12 @@ public final class DesktopConfig {
         this.dataDir = Path.of(System.getProperty("user.home"), ".agenticos");
         this.desktopDir = dataDir.resolve("desktop");
         try {
+            Files.createDirectories(desktopDir);
+            restrictDirectoryPermissions(desktopDir);
             Files.createDirectories(logsDir());
+            restrictDirectoryPermissions(logsDir());
             Files.createDirectories(gatewayJwtDir());
+            restrictDirectoryPermissions(gatewayJwtDir());
             loadOrCreateSettings();
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to initialize " + desktopDir, e);
@@ -54,8 +59,10 @@ public final class DesktopConfig {
             String template = """
                 # AgenticNetOS Desktop settings. Edit and use the tray menu "Restart Services".
 
-                # LLM provider for the master: ollama (default, local) or claude (needs anthropic.api.key)
-                llm.provider=ollama
+                # Desktop Lite is MCP-first: the connected client supplies the intelligence.
+                # The master remains the deterministic net/schedule runtime but consumes no model.
+                # Optional advanced values: ollama, claude (needs anthropic.api.key).
+                llm.provider=disabled
                 ollama.base.url=http://127.0.0.1:11434
                 ollama.model=deepseek-v4-pro:cloud
                 # Optional per-tier model routing (blank = master defaults)
@@ -72,9 +79,6 @@ public final class DesktopConfig {
                 # Docker-backed tool execution (needs Docker Desktop). Off by default.
                 docker.enabled=false
 
-                # Bind services to all interfaces instead of loopback (LAN access). Off by default.
-                expose.lan=false
-
                 # Child JVM heaps
                 heap.node=768m
                 heap.master=512m
@@ -84,6 +88,7 @@ public final class DesktopConfig {
                 """;
             Files.writeString(file, template);
         }
+        restrictFilePermissions(file);
         try (InputStream in = Files.newInputStream(file)) {
             settings.load(in);
         }
@@ -98,9 +103,9 @@ public final class DesktopConfig {
         return Boolean.parseBoolean(setting(key, "false"));
     }
 
-    /** Loopback unless expose.lan=true. */
+    /** Desktop Lite is intentionally single-user and loopback-only. */
     public String bindAddress() {
-        return settingFlag("expose.lan") ? "0.0.0.0" : "127.0.0.1";
+        return "127.0.0.1";
     }
 
     public Path appDir() { return appDir; }
@@ -142,17 +147,14 @@ public final class DesktopConfig {
         Path file = desktopDir.resolve("mcp-token");
         try {
             if (Files.exists(file)) {
+                restrictFilePermissions(file);
                 return Files.readString(file).trim();
             }
             byte[] bytes = new byte[24];
             new SecureRandom().nextBytes(bytes);
             String token = HexFormat.of().formatHex(bytes);
             Files.writeString(file, token);
-            try {
-                Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
-            } catch (UnsupportedOperationException ignored) {
-                // non-POSIX filesystem
-            }
+            restrictFilePermissions(file);
             return token;
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read/create MCP token at " + file, e);
@@ -165,5 +167,21 @@ public final class DesktopConfig {
 
     public String version() {
         return System.getProperty("agenticos.desktop.version", "dev");
+    }
+
+    private static void restrictDirectoryPermissions(Path directory) {
+        try {
+            Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
+        } catch (UnsupportedOperationException | IOException ignored) {
+            // Windows: user-profile ACLs remain the authority.
+        }
+    }
+
+    private static void restrictFilePermissions(Path file) {
+        try {
+            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+        } catch (UnsupportedOperationException | IOException ignored) {
+            // Windows: user-profile ACLs remain the authority.
+        }
     }
 }

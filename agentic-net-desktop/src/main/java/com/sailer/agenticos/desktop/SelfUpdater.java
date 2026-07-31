@@ -7,6 +7,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
@@ -50,6 +51,17 @@ public final class SelfUpdater {
         }
         boolean deb = Files.exists(Path.of("/usr/bin/dpkg"));
         return "AgenticNetOS-" + version + "-linux-" + (arm ? "arm64" : "amd64") + (deb ? ".deb" : ".rpm");
+    }
+
+    static String installCommand(Path packageFile) {
+        String path = packageFile.toAbsolutePath().toString().replace("'", "'\"'\"'");
+        if (packageFile.getFileName().toString().endsWith(".deb")) {
+            return "sudo apt install '" + path + "'";
+        }
+        if (packageFile.getFileName().toString().endsWith(".rpm")) {
+            return "sudo dnf install '" + path + "'";
+        }
+        return "open '" + path + "'";
     }
 
     /** Downloads the platform artifact for {@code version} and verifies its SHA-256. */
@@ -102,7 +114,10 @@ public final class SelfUpdater {
     private static String sha256(Path file) throws IOException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(Files.readAllBytes(file)));
+            try (DigestInputStream in = new DigestInputStream(Files.newInputStream(file), digest)) {
+                in.transferTo(java.io.OutputStream.nullOutputStream());
+            }
+            return HexFormat.of().formatHex(digest.digest());
         } catch (Exception e) {
             throw new IOException("sha256 failed for " + file, e);
         }
@@ -128,17 +143,36 @@ public final class SelfUpdater {
             #!/bin/bash
             exec >> "$(dirname "$0")/apply-update.log" 2>&1
             PID="$1"; DMG="$2"; APP="$3"; MNT="$4"
+            NEW="$APP.update-new"; OLD="$APP.update-old"
             echo "$(date) waiting for pid $PID"
             for i in $(seq 1 180); do kill -0 "$PID" 2>/dev/null || break; sleep 1; done
             hdiutil detach "$MNT" >/dev/null 2>&1 || true
+            mkdir -p "$MNT"
             # yes | : the release dmg embeds the EULA as an SLA — accept non-interactively
             yes | hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$DMG" || exit 1
             [ -d "$MNT/AgenticNetOS.app" ] || { echo "no app in dmg"; hdiutil detach "$MNT"; exit 1; }
-            rm -rf "$APP"
-            ditto "$MNT/AgenticNetOS.app" "$APP"
+            rm -rf "$NEW" "$OLD"
+            ditto "$MNT/AgenticNetOS.app" "$NEW" || { hdiutil detach "$MNT"; exit 1; }
+            [ -x "$NEW/Contents/MacOS/AgenticNetOS" ] || {
+              echo "new app is incomplete"; rm -rf "$NEW"; hdiutil detach "$MNT"; exit 1;
+            }
             hdiutil detach "$MNT" >/dev/null 2>&1 || true
+            mv "$APP" "$OLD" || exit 1
+            if ! mv "$NEW" "$APP"; then
+              echo "swap failed; restoring previous app"
+              mv "$OLD" "$APP"
+              exit 1
+            fi
             echo "$(date) relaunching $APP"
-            open "$APP"
+            if open "$APP"; then
+              rm -rf "$OLD"
+            else
+              echo "relaunch failed; restoring previous app"
+              rm -rf "$APP"
+              mv "$OLD" "$APP"
+              open "$APP"
+              exit 1
+            fi
             """);
         script.toFile().setExecutable(true);
         new ProcessBuilder("/bin/bash", script.toString(),

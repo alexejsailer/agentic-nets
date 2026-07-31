@@ -11,13 +11,23 @@
 
     <name>AgenticNetOS Desktop Launcher</name>
     <description>Tray launcher + process supervisor for the self-contained desktop distribution
-        (node, master, gateway, vault[file], mcp[http] + static GUI server). Zero runtime
+        (node, master, gateway, vault[file], executor, mcp[http] + static GUI server). Zero runtime
         dependencies — JDK only, so jpackage ships a single small jar next to the service jars.</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <junit.version>5.13.4</junit.version>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <finalName>launcher</finalName>
@@ -33,6 +43,11 @@
                         </manifest>
                     </archive>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.3</version>
             </plugin>
         </plugins>
     </build>

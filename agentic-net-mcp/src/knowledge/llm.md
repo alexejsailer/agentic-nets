@@ -5,10 +5,12 @@ every retry is a BILLED call. Treat this doc as the pre-flight checklist.
 
 ## Before building: llm_health
 
-Call the `llm_health` tool (GET, works in readonly). `status` is `READY`, `MODEL_NOT_FOUND`, or
-`UNREACHABLE` — anything but READY means every llm/agent fire will fail until fixed (a cloud
-model that isn't authenticated on the provider host is the classic case). Nothing else in the
-system will tell you this proactively.
+Call the `llm_health` tool (GET, works in readonly). `READY` means master can
+execute AI lanes. `DISABLED` is the intentional MCP-first mode: deterministic
+lanes remain ready and new llm/agent lanes default to external execution by the
+connected client. `MODEL_NOT_FOUND` or `UNREACHABLE` means master-run
+llm/agent fires fail until fixed (a cloud model that is not authenticated on the
+provider host is the classic case).
 
 ## kind:llm — the gotchas
 

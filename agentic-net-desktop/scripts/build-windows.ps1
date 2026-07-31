@@ -25,6 +25,7 @@ $NetsDir   = Split-Path -Parent $ModuleDir
 $Dist      = Join-Path $ModuleDir "dist"
 $Closed    = Join-Path $ModuleDir "closed-artifacts"
 $NodeVer   = "22.14.0"
+$Maven     = Join-Path $NetsDir "agentic-net-gateway\mvnw.cmd"
 
 if (-not $Version) {
     try { $Version = (git -C $NetsDir describe --tags --abbrev=0).TrimStart("v") } catch { $Version = "0.0.0" }
@@ -37,9 +38,10 @@ function Log($msg) { Write-Host "`n[desktop-win] $msg" -ForegroundColor Cyan }
 if (-not $SkipBuilds) {
     Log "Building open components"
     foreach ($svc in "agentic-net-gateway", "agentic-net-vault", "agentic-net-executor") {
-        Push-Location (Join-Path $NetsDir $svc); .\mvnw.cmd -q clean package -DskipTests; Pop-Location
+        $Pom = Join-Path $NetsDir "$svc\pom.xml"
+        & $Maven -q -f $Pom clean package -DskipTests
     }
-    Push-Location $ModuleDir; .\mvnw.cmd -q clean package; Pop-Location
+    & $Maven -q -f (Join-Path $ModuleDir "pom.xml") clean package
     Push-Location (Join-Path $NetsDir "agentic-net-cli")
     if (-not (Test-Path node_modules)) { npm install }
     if (-not (Test-Path dist)) { npx tsup }

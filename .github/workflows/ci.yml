@@ -19,6 +19,7 @@ jobs:
           - agentic-net-gateway
           - agentic-net-executor
           - agentic-net-vault
+          - agentic-net-desktop
           - sa-blobstore
     steps:
       - uses: actions/checkout@v7

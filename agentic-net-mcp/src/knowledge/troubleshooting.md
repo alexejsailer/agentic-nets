@@ -45,7 +45,8 @@ with stop → fire_once → start of any lane in the model.
 
 ## LLM lane dead
 
-`llm_health` (provider READY?) → `net_stats.recentErrors` (timeouts? quota?) → check for the
+`llm_health` (provider READY, or intentionally DISABLED with this lane external?) →
+`net_stats.recentErrors` (timeouts? quota?) → check for the
 `{text, parseError}` fallback shape in the output place (docs/llm) → verify `action.model`/`tier`
 name a model that exists. Remember: on masters < 2.28 a failed llm fire emits nothing.
 
@@ -54,7 +55,8 @@ name a model that exists. Remember: on masters < 2.28 a failed llm fire emits no
 1. `create_model` (or confirm it exists — `list_models` shows state; CATALOGED ≠ loaded).
 2. First `add_place` succeeds ⇒ workspace skeleton is provisioned (auto on ≥ 2.27).
 3. Command lanes planned? `list_executors` — is anything polling / allowed to poll this model?
-4. LLM lanes planned? `llm_health` says READY.
+4. LLM lanes planned? `llm_health` says READY for master execution, or DISABLED
+   so new lanes default to external MCP-client execution.
 5. Remember `net_overview` without netId is SESSION-scoped: `sessionNetCount: 0` on a fresh
    connection does NOT mean the model is empty — check `modelSessionCount`.
 

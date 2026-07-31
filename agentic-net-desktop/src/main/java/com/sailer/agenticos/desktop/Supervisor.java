@@ -60,11 +60,16 @@ public final class Supervisor {
 
     /** Sequential start with per-service health gate. Throws on the first failure. */
     public void startAll() throws IOException, InterruptedException {
-        for (ServiceSpec spec : specs) {
-            if (stopping.get()) {
-                return;
+        try {
+            for (ServiceSpec spec : specs) {
+                if (stopping.get()) {
+                    return;
+                }
+                startOne(spec);
             }
-            startOne(spec);
+        } catch (IOException | InterruptedException e) {
+            stopAll();
+            throw e;
         }
     }
 
@@ -97,6 +102,10 @@ public final class Supervisor {
             Thread.sleep(1000);
         }
         setStatus(spec.name(), Status.FAILED);
+        process.destroy();
+        if (!process.waitFor(5, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+        }
         throw new IOException(spec.displayName() + " did not become healthy within "
             + spec.startTimeoutSeconds() + "s (" + spec.healthUrl() + ")");
     }

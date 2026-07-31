@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -38,7 +39,8 @@ public final class Main {
 
         guiServer.start(config.bindAddress(), DesktopConfig.GUI_PORT);
         System.out.println("[desktop] Studio on http://localhost:" + DesktopConfig.GUI_PORT
-            + " (app dir " + appDir + ", data dir " + config.dataDir() + ")");
+            + " (profile " + DesktopConfig.PROFILE_NAME + ", app dir " + appDir
+            + ", data dir " + config.dataDir() + ")");
 
         TrayUi tray = new TrayUi(config, supervisor, quit);
         boolean hasTray = tray.install();
@@ -55,7 +57,7 @@ public final class Main {
             try {
                 supervisor.startAll();
                 System.out.println("[desktop] all services healthy");
-                System.out.println("[desktop] connect Claude Code: " + tray.claudeMcpAddCommand());
+                System.out.println("[desktop] MCP endpoint ready on loopback; connect it from the tray menu");
             } catch (Exception e) {
                 System.err.println("[desktop] startup failed: " + e.getMessage());
             }
@@ -99,6 +101,7 @@ public final class Main {
 
         Map<String, String> masterEnv = merge(baseEnv(bind, logs), Map.of(
             "SERVER_PORT", String.valueOf(DesktopConfig.MASTER_PORT),
+            "AGENTICOS_DESKTOP_PROFILE", DesktopConfig.PROFILE_NAME,
             "AGENTIC_NET_NODE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/api",
             "AGENTICOS_VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT,
             "AGENTICOS_REGISTRY_ENABLED", "false",
@@ -170,15 +173,18 @@ public final class Main {
         return specs;
     }
 
-    private static Map<String, String> llmEnv(DesktopConfig config) {
+    static Map<String, String> llmEnv(DesktopConfig config) {
         Map<String, String> env = new LinkedHashMap<>();
-        String provider = config.setting("llm.provider", "ollama");
+        String provider = config.setting("llm.provider", "disabled").toLowerCase(Locale.ROOT);
         String anthropicKey = config.setting("anthropic.api.key", "");
         if ("claude".equals(provider) && anthropicKey.isEmpty()) {
-            System.err.println("[desktop] llm.provider=claude but anthropic.api.key is empty — using ollama");
-            provider = "ollama";
+            System.err.println("[desktop] llm.provider=claude but anthropic.api.key is empty — server-side LLM disabled");
+            provider = "disabled";
         }
         env.put("LLM_PROVIDER", provider);
+        if ("disabled".equals(provider)) {
+            return env;
+        }
         env.put("OLLAMA_BASE_URL", config.setting("ollama.base.url", "http://127.0.0.1:11434"));
         env.put("OLLAMA_MODEL", config.setting("ollama.model", "deepseek-v4-pro:cloud"));
         putIfConfigured(env, config, "ollama.low.model", "OLLAMA_LOW_MODEL");

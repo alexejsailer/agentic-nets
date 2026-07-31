@@ -550,18 +550,12 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'LLM provider health (check BEFORE building llm nets)',
       description:
-        "Is the master's LLM provider ready to serve llm/agent transitions? Returns provider, model, reachable, modelPresent, and status (READY | MODEL_NOT_FOUND | UNREACHABLE). Check this FIRST when building an llm/agent net or when LLM lanes fail silently — a cloud model that isn't logged in, or an unreachable provider, fails every fire (and each backoff retry is a billed call). GET-based: works in readonly mode too.",
+        "Is the master's server-side LLM provider ready to serve llm/agent transitions? Returns status READY, DISABLED (intentional MCP-first mode), MODEL_NOT_FOUND, or UNREACHABLE. DISABLED is not a runtime outage: deterministic lanes remain ready and AI lanes should use MCP external fires. Other non-READY states break master-run AI fires. GET-based: works in readonly mode too.",
       inputSchema: {},
     },
     wrapTool(scope, config.mode, { name: 'llm_health', mutates: false }, async () => {
       const res: any = await ctx.client.masterApi('GET', '/llm/health');
-      const status = String(res?.status ?? 'unknown').toUpperCase();
-      return {
-        ...res,
-        ...(status !== 'READY'
-          ? { warning: `LLM provider is ${status} — llm/agent transitions will fail on every fire until this is fixed (each retry billed).` }
-          : {}),
-      };
+      return evaluateLlmHealth(res).report;
     }),
   );
 
@@ -630,10 +624,12 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // LLM provider — gates llm/agent lanes; every failed fire retries billed.
       let llm: any;
       try {
-        llm = await ctx.client.masterApi('GET', '/llm/health');
-        const status = String(llm?.status ?? '').toUpperCase();
-        if (status !== 'READY') {
-          problems.push(`LLM provider is ${status || 'UNKNOWN'} — every llm/agent fire fails until fixed (each backoff retry is a billed call)`);
+        const evaluated = evaluateLlmHealth(
+          await ctx.client.masterApi('GET', '/llm/health'),
+        );
+        llm = evaluated.report;
+        if (evaluated.problem) {
+          problems.push(evaluated.problem);
         }
       } catch (err: any) {
         llm = { status: 'UNKNOWN', error: String(err?.message ?? err).slice(0, 120) };
@@ -878,4 +874,28 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       ),
     );
   }
+}
+
+export function evaluateLlmHealth(res: any): { report: any; problem?: string } {
+  const status = String(res?.status ?? 'unknown').toUpperCase();
+  if (status === 'DISABLED') {
+    return {
+      report: {
+        ...res,
+        capability: 'external-mcp',
+        note:
+          'Server-side LLM is intentionally disabled. Deterministic lanes remain available; new llm/agent lanes default to external execution through the MCP client.',
+      },
+    };
+  }
+  if (status !== 'READY') {
+    return {
+      report: {
+        ...res,
+        warning: `LLM provider is ${status} — master-run llm/agent transitions will fail until this is fixed (each retry billed).`,
+      },
+      problem: `LLM provider is ${status} — every master-run llm/agent fire fails until fixed (each backoff retry is a billed call)`,
+    };
+  }
+  return { report: res };
 }

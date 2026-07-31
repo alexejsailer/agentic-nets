@@ -10,8 +10,7 @@ import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
 import { validateKindArgs, validateScheduleArgs } from '../src/tools/nets.js';
-import { dedupeTokenPayload } from '../src/tools/observe.js';
-import { clampValues } from '../src/tools/observe.js';
+import { clampValues, dedupeTokenPayload, evaluateLlmHealth } from '../src/tools/observe.js';
 
 function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -60,6 +59,27 @@ describe('tool annotations (trap #2: risk visible before calling)', () => {
     expect(ann('DELETE_NET')?.destructiveHint).toBe(true);
     // TOOLNET_HEALTH can fire a live smoke (active=true) — must NOT read as read-only.
     expect(ann('TOOLNET_HEALTH')?.readOnlyHint).toBe(false);
+  });
+});
+
+describe('MCP-first LLM readiness', () => {
+  it('treats an intentionally disabled server model as an external-MCP capability', () => {
+    const evaluated = evaluateLlmHealth({
+      status: 'DISABLED',
+      provider: 'disabled',
+      externalMcpExecution: true,
+    });
+
+    expect(evaluated.problem).toBeUndefined();
+    expect(evaluated.report.capability).toBe('external-mcp');
+    expect(evaluated.report.note).toMatch(/llm\/agent lanes default to external/i);
+  });
+
+  it('still reports a genuinely broken server provider as a readiness problem', () => {
+    const evaluated = evaluateLlmHealth({ status: 'UNREACHABLE', provider: 'ollama' });
+
+    expect(evaluated.problem).toMatch(/master-run llm\/agent fire fails/i);
+    expect(evaluated.report.warning).toMatch(/master-run llm\/agent transitions will fail/i);
   });
 });
 

@@ -182,8 +182,10 @@ first and report what was stopped.
    report a MISSING_EMIT warning on them; that is expected and benign, not a failure.
 9. Secrets go through set_transition_credentials + \${credentials.KEY} in the inscription — NEVER
    inline in an inscription or into a token: tokens are event-sourced, a pasted secret is permanent.
-10. LLM lanes: check llm_health BEFORE building (a not-READY provider fails every fire, billed);
-    give every llm lane an error emit branch. add_transition emits @response.json so a
+10. LLM lanes: check llm_health BEFORE building. READY supports master fires; DISABLED is an
+    intentional MCP-first mode, so new AI lanes default external and execute through this client.
+    Other non-READY states make master fires fail (and retry billed). Give every llm lane an error
+    emit branch. add_transition emits @response.json so a
     prompt-for-JSON lane's fields interpolate downstream (\${input.data.field}); @response.raw
     stores the reply as an escaped string under 'value' — only for freeform text (docs/llm).
 11. Templates have functions: \${urlencode(...)} for ANY url built from data (raw #/space/&

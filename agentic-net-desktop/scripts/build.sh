@@ -6,11 +6,11 @@
 #   Linux  -> dist/out/AgenticNetOS-<v>-linux-<arch>.deb   (+ .rpm with --rpm)
 #   Windows: use scripts\build-windows.ps1 instead.
 #
-# Requirements: JDK 21+ (jlink + jpackage on PATH), Node.js 22 + npm, and Docker
-# unless this checkout sits inside the maintainer workspace (the closed-source
-# node/master/gui are extracted from the published Docker Hub images and are
-# governed by ../PROPRIETARY-EULA.md). Linux additionally: fakeroot + binutils
-# (deb), rpm (--rpm).
+# Requirements: JDK 21+ (jlink + jpackage on PATH), Node.js 22 + npm, curl and
+# unzip. Closed node/master/gui artifacts come from a matching GitHub release
+# (SHA256-verified and governed by ../PROPRIETARY-EULA.md); Docker is only the
+# fallback if that release does not carry them. Linux additionally needs
+# fakeroot + binutils (deb), and rpm when --rpm is requested.
 #
 # Usage: build.sh [version] [--rpm] [--skip-builds]
 set -euo pipefail
