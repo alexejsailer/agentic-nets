@@ -59,14 +59,18 @@ public final class GuiServer {
 
     private final Path guiDir;
     private final String gatewayOrigin;
+    private final java.util.function.Supplier<String> adminSecret;
+    private final java.util.Map<String, Long> loginNonces = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.security.SecureRandom random = new java.security.SecureRandom();
     private final HttpClient client = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
         .build();
     private HttpServer server;
 
-    public GuiServer(Path guiDir, int gatewayPort) {
+    public GuiServer(Path guiDir, int gatewayPort, java.util.function.Supplier<String> adminSecret) {
         this.guiDir = guiDir;
         this.gatewayOrigin = "http://127.0.0.1:" + gatewayPort;
+        this.adminSecret = adminSecret;
     }
 
     public void start(String bindAddress, int port) throws IOException {
@@ -85,6 +89,10 @@ public final class GuiServer {
     private void handle(HttpExchange exchange) throws IOException {
         try {
             String path = exchange.getRequestURI().getPath();
+            if ("/desktop-login".equals(path)) {
+                handleDesktopLogin(exchange);
+                return;
+            }
             String prefix = path.indexOf('/', 1) > 0 ? path.substring(0, path.indexOf('/', 1)) : path;
             if (PROXY_PREFIXES.contains(prefix)) {
                 proxy(exchange);
@@ -96,6 +104,80 @@ public final class GuiServer {
         } finally {
             exchange.close();
         }
+    }
+
+    /**
+     * One-click Studio login. The tray mints a single-use, 60s nonce and opens
+     * /desktop-login?once=… — this handler exchanges the admin secret for a JWT
+     * SERVER-SIDE (the secret never reaches the browser) and serves a tiny page
+     * that seeds the GUI's own localStorage auth contract, then enters the app.
+     */
+    public String createLoginPath() {
+        byte[] bytes = new byte[16];
+        random.nextBytes(bytes);
+        String nonce = java.util.HexFormat.of().formatHex(bytes);
+        long now = System.currentTimeMillis();
+        loginNonces.values().removeIf(expiry -> expiry < now);
+        loginNonces.put(nonce, now + 60_000);
+        return "/desktop-login?once=" + nonce;
+    }
+
+    private void handleDesktopLogin(HttpExchange exchange) throws IOException {
+        // DNS-rebinding guard: a hostile page can make the browser request an
+        // attacker hostname that resolves to 127.0.0.1 — the Host header betrays it
+        String host = exchange.getRequestHeaders().getFirst("Host");
+        String query = exchange.getRequestURI().getQuery();
+        String nonce = query != null && query.startsWith("once=") ? query.substring(5) : null;
+        boolean localHost = host != null
+            && (host.startsWith("localhost") || host.startsWith("127.0.0.1"));
+        Long expiry = nonce == null ? null : loginNonces.remove(nonce);
+        if (!localHost || expiry == null || expiry < System.currentTimeMillis()) {
+            sendError(exchange, 403, "{\"error\":\"invalid or expired login link — use the tray menu\"}");
+            return;
+        }
+
+        String form = "grant_type=client_credentials&client_id=agenticos-admin&client_secret="
+            + java.net.URLEncoder.encode(adminSecret.get(), StandardCharsets.UTF_8);
+        HttpResponse<String> token;
+        try {
+            token = client.send(HttpRequest.newBuilder(URI.create(gatewayOrigin + "/oauth2/token"))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .timeout(Duration.ofSeconds(10))
+                    .POST(HttpRequest.BodyPublishers.ofString(form)).build(),
+                HttpResponse.BodyHandlers.ofString());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("token exchange interrupted", e);
+        }
+        java.util.regex.Matcher jwt = java.util.regex.Pattern
+            .compile("\"access_token\"\\s*:\\s*\"([^\"]+)\"").matcher(token.body());
+        java.util.regex.Matcher ttl = java.util.regex.Pattern
+            .compile("\"expires_in\"\\s*:\\s*(\\d+)").matcher(token.body());
+        if (token.statusCode() != 200 || !jwt.find() || !ttl.find()) {
+            sendError(exchange, 502, "{\"error\":\"gateway login failed\"}");
+            return;
+        }
+
+        // Seeds the exact localStorage contract of the GUI's AuthService +
+        // auth-boundary (jwt, epoch-ms expiry, and BOTH trusted origins — without
+        // the origins the bearer is silently never attached).
+        String page = """
+            <!doctype html><meta charset="utf-8"><title>AgenticNetOS</title>
+            <body style="font-family:system-ui;padding:2rem">Signing in to Studio…
+            <script>
+              localStorage.setItem('agenticos_jwt', '%s');
+              localStorage.setItem('agenticos_jwt_expiry', String(Date.now() + %s * 1000));
+              localStorage.setItem('agenticos_auth_app_origin', location.origin);
+              localStorage.setItem('agenticos_auth_gateway_origin',
+                'http://' + location.hostname + ':8083');
+              location.replace('/');
+            </script>
+            """.formatted(jwt.group(1), ttl.group(1));
+        byte[] bytes = page.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+        exchange.getResponseHeaders().set("Cache-Control", "no-store");
+        exchange.sendResponseHeaders(200, bytes.length);
+        exchange.getResponseBody().write(bytes);
     }
 
     private void proxy(HttpExchange exchange) throws IOException, InterruptedException {

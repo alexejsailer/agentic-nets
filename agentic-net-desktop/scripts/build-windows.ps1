@@ -57,7 +57,14 @@ if (-not $SkipBuilds) {
     $GotRelease = $false
     try {
         Log "Trying GitHub release assets v$Version"
-        $Sums = (Invoke-WebRequest "$ReleaseBase/v$Version/SHA256SUMS.txt").Content
+        $SumsFile = Join-Path $Closed "SHA256SUMS.txt"
+        Invoke-WebRequest "$ReleaseBase/v$Version/SHA256SUMS.txt" -OutFile $SumsFile
+        Invoke-WebRequest "$ReleaseBase/v$Version/SHA256SUMS.txt.sig" -OutFile "$SumsFile.sig"
+        # verify the detached Ed25519 signature against the pinned key before trusting checksums
+        node -e "const c=require('crypto'),fs=require('fs');const raw=Buffer.from(process.argv[1],'base64');const spki=Buffer.concat([Buffer.from('302a300506032b6570032100','hex'),raw]);const key=c.createPublicKey({key:spki,format:'der',type:'spki'});process.exit(c.verify(null,fs.readFileSync(process.argv[2]),key,Buffer.from(fs.readFileSync(process.argv[3],'utf8').trim(),'base64'))?0:1)" `
+            "wJHaHlpGxdtKjeOGVZN5/hfbI1P9Pvjw2xY/UIW6qHw=" $SumsFile "$SumsFile.sig"
+        if ($LASTEXITCODE -ne 0) { throw "checksum signature invalid" }
+        $Sums = Get-Content $SumsFile -Raw
         foreach ($f in "agentic-net-node-$Version.jar", "agentic-net-master-$Version.jar", "agentic-net-gui-$Version.zip") {
             $dest = Join-Path $Closed $f
             Invoke-WebRequest "$ReleaseBase/v$Version/$f" -OutFile $dest

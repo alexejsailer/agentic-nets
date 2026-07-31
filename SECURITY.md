@@ -48,3 +48,20 @@ Tokens in places can reach LLM-backed agents. Treat token content as untrusted i
 ## Disclosure Policy
 
 Validated issues are disclosed coordinated with a fix release. Reporters are credited in the CHANGELOG unless anonymity is requested.
+
+## Desktop release signing
+
+Desktop release checksums (`SHA256SUMS.txt`) carry a detached Ed25519 signature
+(`SHA256SUMS.txt.sig`). The desktop app's self-updater and the clone-and-build
+scripts verify it against this pinned public key before trusting any artifact,
+so GitHub itself is only transport for updates:
+
+```
+Ed25519 public key (raw, base64):
+wJHaHlpGxdtKjeOGVZN5/hfbI1P9Pvjw2xY/UIW6qHw=
+```
+
+The private key is kept offline by the maintainer and never appears in any
+repository, release, or CI system. A key rotation would be announced here and
+on agentic-nets.com, and shipped in a signed release before the old key stops
+being used.

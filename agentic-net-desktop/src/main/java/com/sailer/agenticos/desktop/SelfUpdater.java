@@ -82,13 +82,23 @@ public final class SelfUpdater {
             throw new IOException("download failed (" + download.statusCode() + "): " + base + name);
         }
 
-        HttpResponse<String> sums = http.send(
+        HttpResponse<byte[]> sums = http.send(
             HttpRequest.newBuilder(URI.create(base + "SHA256SUMS.txt")).timeout(Duration.ofSeconds(30)).GET().build(),
-            HttpResponse.BodyHandlers.ofString());
+            HttpResponse.BodyHandlers.ofByteArray());
         if (sums.statusCode() != 200) {
             throw new IOException("SHA256SUMS.txt missing for v" + version);
         }
-        String expected = sums.body().lines()
+        // The checksums ride the same channel as the artifacts, so alone they only
+        // catch corruption. Trust comes from this detached Ed25519 signature checked
+        // against the key pinned below — GitHub is just transport after this line.
+        HttpResponse<String> sig = http.send(
+            HttpRequest.newBuilder(URI.create(base + "SHA256SUMS.txt.sig")).timeout(Duration.ofSeconds(30)).GET().build(),
+            HttpResponse.BodyHandlers.ofString());
+        if (sig.statusCode() != 200) {
+            throw new IOException("release v" + version + " is unsigned (SHA256SUMS.txt.sig missing) — refusing");
+        }
+        verifyChecksumSignature(sums.body(), sig.body());
+        String expected = new String(sums.body(), java.nio.charset.StandardCharsets.UTF_8).lines()
             .filter(line -> line.endsWith(name))
             .map(line -> line.split("\\s+")[0])
             .findFirst()
@@ -109,6 +119,35 @@ public final class SelfUpdater {
             throws IOException {
         applyOnMacAndRestartForPid(dmg, appBundle, updateDir, ProcessHandle.current().pid());
         quit.run();
+    }
+
+    /**
+     * Raw Ed25519 public key for release checksum signatures. The private key
+     * lives only on the maintainer machine (never in any repo or release); this
+     * pin means a compromised GitHub account cannot feed updates to existing
+     * installs. Also published in SECURITY.md and on agentic-nets.com.
+     */
+    static final String UPDATE_PUBLIC_KEY_B64 = "wJHaHlpGxdtKjeOGVZN5/hfbI1P9Pvjw2xY/UIW6qHw=";
+
+    static void verifyChecksumSignature(byte[] sumsBytes, String sigBase64) throws IOException {
+        try {
+            byte[] raw = java.util.Base64.getDecoder().decode(UPDATE_PUBLIC_KEY_B64);
+            byte[] prefix = HexFormat.of().parseHex("302a300506032b6570032100");
+            byte[] spki = new byte[prefix.length + raw.length];
+            System.arraycopy(prefix, 0, spki, 0, prefix.length);
+            System.arraycopy(raw, 0, spki, prefix.length, raw.length);
+            java.security.PublicKey key = java.security.KeyFactory.getInstance("Ed25519")
+                .generatePublic(new java.security.spec.X509EncodedKeySpec(spki));
+            java.security.Signature verifier = java.security.Signature.getInstance("Ed25519");
+            verifier.initVerify(key);
+            verifier.update(sumsBytes);
+            byte[] sigBytes = java.util.Base64.getDecoder().decode(sigBase64.trim());
+            if (!verifier.verify(sigBytes)) {
+                throw new IOException("SHA256SUMS.txt signature INVALID — refusing the update");
+            }
+        } catch (java.security.GeneralSecurityException | IllegalArgumentException e) {
+            throw new IOException("checksum signature verification failed: " + e.getMessage(), e);
+        }
     }
 
     private static String sha256(Path file) throws IOException {
@@ -155,6 +194,13 @@ public final class SelfUpdater {
             ditto "$MNT/AgenticNetOS.app" "$NEW" || { hdiutil detach "$MNT"; exit 1; }
             [ -x "$NEW/Contents/MacOS/AgenticNetOS" ] || {
               echo "new app is incomplete"; rm -rf "$NEW"; hdiutil detach "$MNT"; exit 1;
+            }
+            # a SIGNED replacement must verify; an unsigned one passes (pre-notarization builds)
+            CS_OUT=$(codesign --verify --deep --strict "$NEW" 2>&1) || {
+              case "$CS_OUT" in
+                *"not signed at all"*) : ;;
+                *) echo "codesign verify failed: $CS_OUT"; rm -rf "$NEW"; hdiutil detach "$MNT"; exit 1 ;;
+              esac
             }
             hdiutil detach "$MNT" >/dev/null 2>&1 || true
             mv "$APP" "$OLD" || exit 1

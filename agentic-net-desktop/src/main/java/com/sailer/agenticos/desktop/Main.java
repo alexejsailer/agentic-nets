@@ -24,7 +24,13 @@ public final class Main {
         Path appDir = resolveAppDir();
         DesktopConfig config = new DesktopConfig(appDir);
         Supervisor supervisor = new Supervisor(buildSpecs(config), config.logsDir());
-        GuiServer guiServer = new GuiServer(config.guiDir(), DesktopConfig.GATEWAY_PORT);
+        GuiServer guiServer = new GuiServer(config.guiDir(), DesktopConfig.GATEWAY_PORT, () -> {
+            try {
+                return config.adminSecret();
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        });
 
         Runnable quit = () -> {
             System.out.println("[desktop] shutting down");
@@ -42,7 +48,7 @@ public final class Main {
             + " (profile " + DesktopConfig.PROFILE_NAME + ", app dir " + appDir
             + ", data dir " + config.dataDir() + ")");
 
-        TrayUi tray = new TrayUi(config, supervisor, quit);
+        TrayUi tray = new TrayUi(config, supervisor, guiServer, quit);
         boolean hasTray = tray.install();
         if (!hasTray) {
             System.out.println("[desktop] no system tray — running headless, Ctrl+C to stop");
@@ -129,6 +135,8 @@ public final class Main {
             merge(baseEnv(bind, logs), Map.of(
                 "SERVER_PORT", String.valueOf(DesktopConfig.GATEWAY_PORT),
                 "GATEWAY_JWT_KEY_DIR", config.gatewayJwtDir().toAbsolutePath().toString(),
+                // single-user loopback: day-long Studio sessions instead of hourly re-login
+                "GATEWAY_TOKEN_TTL", "86400",
                 "MASTER_URL", "http://127.0.0.1:" + DesktopConfig.MASTER_PORT,
                 "NODE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT,
                 "VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT)),

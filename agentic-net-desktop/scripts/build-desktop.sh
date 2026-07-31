@@ -72,8 +72,16 @@ jlink \
   --no-header-files --no-man-pages --compress zip-6
 
 # ---------------------------------------------------------------------------
-# 4. jpackage
+# 4. jpackage (Developer ID signing activates when the identity is configured)
 # ---------------------------------------------------------------------------
+MAC_SIGN_ARGS=()
+if [ -n "${AGENTICOS_MAC_SIGN_IDENTITY:-}" ]; then
+  MAC_SIGN_ARGS=(--mac-sign --mac-signing-key-user-name "$AGENTICOS_MAC_SIGN_IDENTITY")
+  log "Code signing as: $AGENTICOS_MAC_SIGN_IDENTITY"
+else
+  log "AGENTICOS_MAC_SIGN_IDENTITY not set — building UNSIGNED (Gatekeeper will warn users)"
+fi
+
 log "Packaging app image v$VERSION"
 rm -rf "$DIST/out"
 jpackage \
@@ -86,6 +94,7 @@ jpackage \
   --main-jar launcher.jar \
   --main-class com.sailer.agenticos.desktop.Main \
   --java-options "-Dagenticos.desktop.version=$VERSION" \
+  ${MAC_SIGN_ARGS[@]+"${MAC_SIGN_ARGS[@]}"} \
   --dest "$DIST/out"
 
 if $MAKE_DMG; then
@@ -102,11 +111,25 @@ if $MAKE_DMG; then
     --main-jar launcher.jar \
     --main-class com.sailer.agenticos.desktop.Main \
     --java-options "-Dagenticos.desktop.version=$VERSION" \
+    ${MAC_SIGN_ARGS[@]+"${MAC_SIGN_ARGS[@]}"} \
     --dest "$DIST/out"
 
   ARCH="$(uname -m | sed 's/x86_64/x64/')"
   ARTIFACT="AgenticNetOS-$VERSION-macos-$ARCH.dmg"
   mv "$DIST/out/AgenticNetOS-$VERSION.dmg" "$DIST/out/$ARTIFACT"
+
+  # Notarize + staple BEFORE checksumming — stapling modifies the dmg.
+  # One-time setup: xcrun notarytool store-credentials <profile> --apple-id … --team-id …
+  if [ -n "${AGENTICOS_NOTARY_PROFILE:-}" ]; then
+    log "Notarizing $ARTIFACT"
+    xcrun notarytool submit "$DIST/out/$ARTIFACT" \
+      --keychain-profile "$AGENTICOS_NOTARY_PROFILE" --wait
+    xcrun stapler staple "$DIST/out/$ARTIFACT"
+    log "Notarized and stapled"
+  else
+    log "AGENTICOS_NOTARY_PROFILE not set — dmg NOT notarized"
+  fi
+
   (cd "$DIST/out" && shasum -a 256 "$ARTIFACT" > SHA256SUMS.txt)
   log "Release artifact: $DIST/out/$ARTIFACT"
 fi

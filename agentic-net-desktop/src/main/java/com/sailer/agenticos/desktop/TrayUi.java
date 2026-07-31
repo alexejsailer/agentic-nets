@@ -25,15 +25,17 @@ public final class TrayUi {
 
     private final DesktopConfig config;
     private final Supervisor supervisor;
+    private final GuiServer guiServer;
     private final Runnable onQuit;
     private TrayIcon trayIcon;
     private PopupMenu menu;
     private MenuItem updateItem;
     private volatile String pendingUpdate;
 
-    public TrayUi(DesktopConfig config, Supervisor supervisor, Runnable onQuit) {
+    public TrayUi(DesktopConfig config, Supervisor supervisor, GuiServer guiServer, Runnable onQuit) {
         this.config = config;
         this.supervisor = supervisor;
+        this.guiServer = guiServer;
         this.onQuit = onQuit;
     }
 
@@ -73,12 +75,10 @@ public final class TrayUi {
         }
         popup.addSeparator();
 
+        // auto-login: single-use nonce link; the admin secret stays server-side
         popup.add(action("Open Studio", () ->
-            Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT + "/"))));
-        popup.add(action("Copy Studio Admin Secret", () -> {
-            copyToClipboard(config.adminSecret());
-            notifyInfo("Admin secret copied", "Paste it into the Studio login screen.");
-        }));
+            Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
+                + guiServer.createLoginPath()))));
         popup.addSeparator();
 
         popup.add(action("Connect Claude Code (copy command)", () -> {

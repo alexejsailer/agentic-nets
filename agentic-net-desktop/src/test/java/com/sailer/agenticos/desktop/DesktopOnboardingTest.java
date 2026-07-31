@@ -23,6 +23,7 @@ class DesktopOnboardingTest {
             TrayUi tray = new TrayUi(
                 config,
                 new Supervisor(List.of(), config.logsDir()),
+                new GuiServer(config.guiDir(), DesktopConfig.GATEWAY_PORT, () -> "test-secret"),
                 () -> { }
             );
 

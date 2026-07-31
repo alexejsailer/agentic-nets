@@ -44,10 +44,12 @@ full data reset.
 
 ## Tray menu
 
-Status per service, Open Studio, Copy Studio Admin Secret (for the login
-screen), Connect Codex (copies a ready `config.toml` block), Connect Claude
-Code (copies the full `claude mcp add …` command with token), Copy MCP URL +
-Token, Check for Updates, Open Logs Folder, Restart Services, Quit. The icon is
+Status per service, Open Studio (**auto-login**: a single-use 60s link exchanges
+the admin secret for a JWT server-side and seeds the Studio session — the secret
+never reaches the browser or the user), Connect Codex (copies a ready
+`config.toml` block), Connect Claude Code (copies the full `claude mcp add …`
+command with token), Copy MCP URL + Token, Check for Updates, Open Logs Folder,
+Restart Services, Quit. The icon is
 the brand glyph (a Petri place holding two tokens), monochrome to match native
 menu bar symbols — white/black following the macOS appearance, dimmed while
 starting, red corner badge when a service needs attention.
@@ -56,9 +58,13 @@ starting, red corner badge when a service needs attention.
 
 The app is stateless; everything under `~/.agenticos/` survives. The tray checks
 GitHub daily (skipped for `dev` builds, fail-soft offline), downloads the correct
-asset, and verifies it against the release checksum. macOS stages the new app
-and swaps it transactionally after quit, with rollback if relaunch fails. Linux
-copies the correct `apt`/`dnf` command because package installation needs root.
+asset, and verifies it against the release checksums, whose detached **Ed25519
+signature** must validate against the key pinned in the launcher (published in
+[SECURITY.md](../SECURITY.md)) — GitHub is only transport; unsigned or tampered
+releases are refused. macOS stages the new app, verifies its code signature when
+one is present, and swaps it transactionally after quit, with rollback if
+relaunch fails. Linux copies the correct `apt`/`dnf` command because package
+installation needs root.
 
 ## Build from a clone
 
@@ -104,4 +110,7 @@ because jpackage cannot cross-build. Publishing to GitHub Releases:
 - Server-side LLM is deliberately disabled. AI lanes run through MCP external
   fires by default; set `llm.provider=ollama` or `claude` in
   `desktop.properties` only when master-run or unattended AI lanes are wanted.
-- The Studio login needs the admin secret once — tray menu → Copy Studio Admin Secret.
+- Maintainer signing: `AGENTICOS_MAC_SIGN_IDENTITY` (Developer ID) and
+  `AGENTICOS_NOTARY_PROFILE` (notarytool keychain profile) activate macOS code
+  signing + notarization in `build-desktop.sh`; without them builds stay
+  unsigned and Gatekeeper warns on first launch.

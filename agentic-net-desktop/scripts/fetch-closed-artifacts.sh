@@ -22,6 +22,8 @@ WORKSPACE="$(dirname "$NETS_DIR")"
 CLOSED_DIR="${AGENTICOS_CLOSED_DIR:-$MODULE_DIR/closed-artifacts}"
 RELEASE_BASE="${AGENTICOS_RELEASE_BASE:-https://github.com/alexejsailer/agentic-nets/releases/download}"
 TAG="${1:-latest}"
+# Pinned Ed25519 key for release checksum signatures (same key as SelfUpdater / SECURITY.md)
+UPDATE_PUBLIC_KEY_B64="wJHaHlpGxdtKjeOGVZN5/hfbI1P9Pvjw2xY/UIW6qHw="
 
 log() { printf '\033[1;33m[closed-artifacts]\033[0m %s\n' "$*"; }
 mkdir -p "$CLOSED_DIR"
@@ -60,6 +62,20 @@ fetch_from_release() {
   tmp="$(mktemp -d)"
   log "trying release assets v$ver"
   curl -fsSL "$base/SHA256SUMS.txt" -o "$tmp/SHA256SUMS.txt" 2>/dev/null || { rm -rf "$tmp"; return 1; }
+  # checksums alone ride the same channel as the artifacts — require the
+  # detached Ed25519 signature against the pinned key before trusting them
+  curl -fsSL "$base/SHA256SUMS.txt.sig" -o "$tmp/SHA256SUMS.txt.sig" 2>/dev/null \
+    || { echo "release v$ver has no checksum signature — refusing" >&2; rm -rf "$tmp"; return 1; }
+  node -e '
+    const c = require("crypto"), fs = require("fs");
+    const raw = Buffer.from(process.argv[1], "base64");
+    const spki = Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), raw]);
+    const key = c.createPublicKey({ key: spki, format: "der", type: "spki" });
+    const ok = c.verify(null, fs.readFileSync(process.argv[2]), key,
+      Buffer.from(fs.readFileSync(process.argv[3], "utf8").trim(), "base64"));
+    process.exit(ok ? 0 : 1);
+  ' "$UPDATE_PUBLIC_KEY_B64" "$tmp/SHA256SUMS.txt" "$tmp/SHA256SUMS.txt.sig" \
+    || { echo "checksum signature INVALID for v$ver — refusing" >&2; rm -rf "$tmp"; return 1; }
   for f in "agentic-net-node-$ver.jar" "agentic-net-master-$ver.jar" "agentic-net-gui-$ver.zip"; do
     curl -fsSL "$base/$f" -o "$tmp/$f" 2>/dev/null || { rm -rf "$tmp"; return 1; }
     expected=$(awk -v n="$f" '$NF==n{print $1}' "$tmp/SHA256SUMS.txt")
