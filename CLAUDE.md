@@ -213,17 +213,20 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   tests: scope guard, blueprint invariants, protocol registration shapes, template executor)
 - **Transports**: stdio (default; `npx @agenticnets/mcp`, `claude mcp add`) and streamable HTTP
   (`AGENTICOS_MCP_TRANSPORT=http`, bearer-token-protected `POST /mcp` — used by the compose service)
-- **Tools (two fixed layers: curated lowercase + native UPPERCASE; every tool advertises MCP
+- **Tools (curated lowercase plus an optional native UPPERCASE layer; every tool advertises MCP
   `readOnlyHint`/`destructiveHint` annotations derived from the scope guard's `mutates` flag, and
   every response echoes its effective `scope: {model, session}` unless the handler already states
-  it — see `protocol-hardening.md` for the trap classes behind this)**. Native layer = FULL platform parity:
+  it — see `protocol-hardening.md` for the trap classes behind this)**. Native layer = FULL platform parity
+  when `AGENTICOS_NATIVE_TOOLS=all` (the backward-compatible default outside Desktop; Desktop Lite
+  sets `curated`):
   every ToolExecutor tool (the same catalog agent transitions use in-net) auto-registered from the
   CLI's `getAvailableTools(FULL)` + `buildToolSchemas` with real descriptions/schemas — new platform
   tools appear automatically after a catalog sync; excluded only `THINK`/`DONE`/`FAIL` (agent-loop
   primitives); rw-mode only; browsable via the `agenticnets://tool-catalog` resource. Curated layer:
   memory layer `memory_write` / `memory_recall` / `memory_link` / `memory_graph`;
-  net-building `deploy_template`, `create_net`, `add_place`, `add_transition` (kind-aware pre-wired
-  inscriptions: map/llm/http/command/**agent**/link), `set_schedule`, `fire_once`, `start/stop_transition`,
+  net-building `deploy_template`, `create_net`, `add_place`, `add_transition` / `add_transitions`
+  (kind-aware pre-wired inscriptions: map/llm/http/command/**agent**/link), `delete_tokens` (bounded
+  ArcQL query+delete), `set_schedule`, `fire_once` (preserveRunning smoke test), `start/stop_transition`,
   `create_persona`, **`spawn_persona`** (complete self-driving agent-persona net — charter + task inbox +
   started `agent` transition + output; run several in parallel), `scaffold_tool_net`, `invoke_tool_net`,
   **`crystallize_session`** (record a session's summary + steps to memory AND bake the steps into a
@@ -317,6 +320,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 | `AGENTICOS_NODE_HOST` | Host injected into inscription presets/postsets (`{model}@{host}`); in-compose: `agentic-net-node:8080` | `localhost:8080` |
 | `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |
 | `AGENTICOS_MCP_HTTP_HOST` | Bind interface for the HTTP transport (desktop bundles set `127.0.0.1`); `GET /health` answers 200 pre-auth for supervisors | `0.0.0.0` |
+| `AGENTICOS_NATIVE_TOOLS` | `all` registers curated + full native UPPERCASE catalog; `curated` registers the focused lowercase surface only (Desktop Lite default) | `all` |
 
 Compose keys (`deployment/.env`): `AGENTICOS_MCP_MODELS` / `_MODE` / `_SESSION` / `_HTTP_TOKEN`
 (generate: `openssl rand -hex 24`), `AGENTIC_NET_MCP_PORT` (8091). Service is opt-in:
@@ -331,9 +335,10 @@ claude mcp add agenticnets \
   -- npx @agenticnets/mcp
 ```
 
-**Deliberately NOT configurable**: the tool surface itself (two fixed layers — curated lowercase +
-full native catalog; the native list tracks the platform catalog automatically, not an env toggle),
-the `p-mem-*` memory-place conventions (templates upgrade the same places the tools write to), and
+**Deliberately stable**: the curated lowercase surface. The native list tracks the platform catalog
+automatically and is exposed when `AGENTICOS_NATIVE_TOOLS=all`; Desktop Lite selects the curated
+surface to reduce MCP discovery noise. The `p-mem-*` memory-place conventions (templates upgrade
+the same places the tools write to), and
 the engine-gotcha defaults baked into inscriptions (non-empty preset arcql, llm `timeoutMs` 240s,
 catch-all emits). **Scoping honesty**: the allowlist is enforced in-process; the underlying gateway
 credential is NOT model-scoped (no per-model authz exists in the platform yet) — it protects against

@@ -60,7 +60,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
           `transition statuses; net_stats for what is running / erroring / consuming LLM; query_tokens on the input places ` +
           `of anything suspicious (is a token waiting? is its shape what the inscription expects?); event_trail filtered by ` +
           `the transition id for the last fire's story; verify_inscription / dry_run_transition / diagnose_transition on the ` +
-          `stuck transition. Then propose the fix — and if it is safe (stop/fire_once/start, or a set_schedule), apply it and verify.`,
+          `stuck transition. Then propose the fix — and if safe (fire_once with preserveRunning, start_transition, or set_schedule), apply and verify.`,
       ),
   );
 

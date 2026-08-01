@@ -33,7 +33,7 @@ const COMMON_TRANSITION_ARGS = new Set([
   'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'x', 'y',
   // `onEmpty` rides with the schedule params: it only means anything on a scheduled lane, and it
   // applies to every firing kind, so it belongs here rather than in a per-kind set.
-  'scheduleCron', 'intervalMs', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'start', 'model',
+  'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'model',
 ]);
 const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   map: new Set(['template', 'emit', 'routes']),
@@ -70,12 +70,21 @@ export function validateKindArgs(kind: string, args: Record<string, any>): void 
  * prevent, and it would read as "I chose the semantics" when nothing was chosen.
  */
 export function validateScheduleArgs(args: Record<string, any>): void {
+  if (args.scheduleCron && args.intervalMs) {
+    throw new Error('scheduleCron and intervalMs are alternatives; provide only one');
+  }
   if (args.onEmpty !== undefined && !args.scheduleCron && !args.intervalMs) {
     throw new Error(
       "onEmpty only applies to a SCHEDULED lane — it decides what happens on a tick when the input " +
         'place is empty. Add scheduleCron or intervalMs, or drop onEmpty (an unscheduled lane already ' +
         'fires only when its input has a token, and consumes it).',
     );
+  }
+  if (args.timezone !== undefined && !args.scheduleCron) {
+    throw new Error('timezone only applies to scheduleCron; add a cron schedule or drop timezone');
+  }
+  if (args.batchSize !== undefined && args.mode !== 'FOREACH') {
+    throw new Error('batchSize only applies to mode:"FOREACH"');
   }
 }
 
@@ -441,6 +450,44 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+  let addTransitionHandler!: ReturnType<typeof wrapTool>;
+  const batchTransitionSchema = z.object({
+    transitionId: z.string(),
+    kind: z.enum(['map', 'llm', 'http', 'command', 'agent', 'link']),
+    inputPlace: z.string(),
+    outputPlace: z.string(),
+    label: z.string().optional(),
+    relation: z.string().optional(),
+    x: z.number().optional(),
+    y: z.number().optional(),
+    prompt: z.string().optional(),
+    llmModel: z.string().optional(),
+    role: z.string().optional(),
+    tier: z.string().optional(),
+    maxIterations: z.number().optional(),
+    autoEmit: z.boolean().optional(),
+    url: z.string().optional(),
+    method: z.string().optional(),
+    headers: z.record(z.string()).optional(),
+    body: z.any().optional(),
+    auth: z.record(z.any()).optional(),
+    retry: z.record(z.any()).optional(),
+    emit: z.array(z.any()).optional(),
+    errorPlace: z.string().optional(),
+    routes: z.array(z.object({ place: z.string(), when: z.string() })).optional(),
+    template: z.record(z.any()).optional(),
+    executorId: z.string().optional(),
+    scheduleCron: z.string().optional(),
+    intervalMs: z.number().positive().optional(),
+    timezone: z.string().optional(),
+    onEmpty: z.enum(['fire', 'skip']).optional(),
+    timeoutMs: z.number().optional(),
+    capacity: z.number().optional(),
+    mode: z.enum(['SINGLE', 'FOREACH']).optional(),
+    batchSize: z.number().int().min(1).max(100).optional(),
+    start: z.boolean().optional(),
+  });
+
   server.registerTool(
     'add_transition',
     {
@@ -475,7 +522,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         template: z.record(z.any()).optional().describe('map: the output template object'),
         executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
-        intervalMs: z.number().optional().describe('Alternative to cron: fixed interval'),
+        intervalMs: z.number().positive().optional().describe('Alternative to cron: fixed interval'),
+        timezone: z.string().optional().describe('Cron only: IANA zone id, e.g. Europe/Berlin; default = server zone'),
         onEmpty: z
           .enum(['fire', 'skip'])
           .optional()
@@ -484,12 +532,13 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           ),
         timeoutMs: z.number().optional(),
         capacity: z.number().optional().describe('Output place capacity (backpressure)'),
-        mode: z.enum(['SINGLE', 'FOREACH']).optional().describe('Execution mode. SINGLE (default) binds all presets and fires once; FOREACH processes each bound token independently (bounded parallel fan-out) — use for per-token work like enriching every item in a batch'),
+        mode: z.enum(['SINGLE', 'FOREACH']).optional().describe('Execution mode. SINGLE (default) binds all presets and fires once; FOREACH processes each bound token independently with bounded per-fire fan-out — use for per-token work like enriching every item in a batch'),
+        batchSize: z.number().int().min(1).max(100).optional().describe('FOREACH only: bind/process this many tokens per firing (default 1); the lane drains the place across repeated polls'),
         start: z.boolean().optional().describe('Default true (links are never started)'),
         ...modelParam,
       },
     },
-    wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
+    (addTransitionHandler = wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
       validateKindArgs(String(args.kind), args);
       validateScheduleArgs(args);
       const host = ctx.hostFor(model);
@@ -595,10 +644,12 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         executorId: args.executorId,
         scheduleCron: args.scheduleCron,
         intervalMs: args.intervalMs,
+        timezone: args.timezone,
         onEmpty: args.onEmpty,
         timeoutMs: args.timeoutMs,
         capacity: args.capacity,
         mode: args.mode,
+        batchSize: args.batchSize,
         // agent
         netModel: model,
         role: args.role,
@@ -643,6 +694,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         outputPlace: String(args.outputPlace),
         scheduleCron: args.scheduleCron,
         intervalMs: args.intervalMs,
+        timezone: args.timezone,
         onEmpty: args.onEmpty,
         prompt: args.prompt,
         nl: args.prompt,
@@ -655,20 +707,70 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         kind: args.kind,
         started,
         external: args.kind !== 'link' && args.start !== false && !started,
-        ...(scheduled
+        ...(scheduled || args.mode === 'FOREACH'
           ? {
               presetSemantics: {
-                onEmpty: args.onEmpty ?? 'fire',
+                ...(scheduled ? { onEmpty: args.onEmpty ?? 'fire' } : {}),
                 consume: (inscription as any)?.presets?.input?.consume ?? true,
-                note:
-                  (args.onEmpty ?? 'fire') === 'fire'
-                    ? 'scheduled lane ticks even when the input place is empty and never consumes'
-                    : 'scheduled lane only fires when its input place has a token, and consumes it',
+                ...(scheduled
+                  ? {
+                      note:
+                        (args.onEmpty ?? 'fire') === 'fire'
+                          ? 'scheduled lane ticks even when the input place is empty and never consumes'
+                          : 'scheduled lane only fires when its input place has a token, and consumes it',
+                    }
+                  : {}),
+                ...(args.mode === 'FOREACH'
+                  ? {
+                      batchSize: args.batchSize ?? 1,
+                      foreach: `FOREACH processes ${args.batchSize ?? 1} token(s) per firing; the lane drains the place across repeated polls`,
+                    }
+                  : {}),
               },
             }
           : {}),
         ...(warning ? { warning } : {}),
         inscription,
+      };
+    })),
+  );
+
+  server.registerTool(
+    'add_transitions',
+    {
+      title: 'Add several transitions in one call',
+      description:
+        'Batch form of add_transition. Items run sequentially so writes stay deterministic; one failure does not abort later items. Returns an explicit per-item success/error summary.',
+      inputSchema: {
+        netId: z.string(),
+        transitions: z.array(batchTransitionSchema).min(1).max(100),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'add_transitions', mutates: true }, async (model, args) => {
+      const results: any[] = [];
+      for (const item of args.transitions as any[]) {
+        const call: any = await addTransitionHandler({ ...item, netId: args.netId, model });
+        let payload: any = {};
+        try {
+          payload = JSON.parse(call?.content?.[0]?.text ?? '{}');
+        } catch {
+          payload = { error: call?.content?.[0]?.text ?? 'unknown add_transition result' };
+        }
+        results.push(
+          call?.isError
+            ? { id: item.transitionId, ok: false, error: payload.error ?? payload }
+            : { id: item.transitionId, ok: true, result: payload },
+        );
+      }
+      const succeeded = results.filter((r) => r.ok).length;
+      return {
+        netId: args.netId,
+        requested: results.length,
+        succeeded,
+        failed: results.length - succeeded,
+        partialSuccess: succeeded > 0 && succeeded < results.length,
+        results,
       };
     }),
   );
@@ -744,7 +846,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       inputSchema: {
         transitionId: z.string(),
         scheduleCron: z.string().optional().describe('6-field cron'),
-        intervalMs: z.number().optional(),
+        intervalMs: z.number().positive().optional(),
+        timezone: z.string().optional().describe('Cron only: IANA zone id, e.g. Europe/Berlin; default = server zone'),
         onEmpty: z
           .enum(['fire', 'skip'])
           .optional()
@@ -757,6 +860,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     },
     wrapTool(scope, config.mode, { name: 'set_schedule', mutates: true }, async (model, args) => {
       if (!args.scheduleCron && !args.intervalMs) throw new Error('provide scheduleCron or intervalMs');
+      if (args.scheduleCron && args.intervalMs) throw new Error('scheduleCron and intervalMs are alternatives; provide only one');
+      if (args.timezone !== undefined && !args.scheduleCron) throw new Error('timezone only applies to scheduleCron');
       if (args.scheduleCron) validateCron(args.scheduleCron);
       const kids = await ctx.node.getChildren(model, `root/workspace/transitions/${args.transitionId}`);
       const leaf = (kids ?? []).find((c: any) => c.name === 'inscription');
@@ -764,7 +869,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       if (!value) throw new Error(`no inscription found for ${args.transitionId}`);
       const inscription = JSON.parse(value);
       inscription.schedule = args.scheduleCron
-        ? { type: 'cron', cron: args.scheduleCron }
+        ? { type: 'cron', cron: args.scheduleCron, ...(args.timezone ? { timezone: args.timezone } : {}) }
         : { type: 'interval', intervalMs: args.intervalMs };
       // The two ways of arming a schedule used to disagree: add_transition rewrote the input preset to
       // consume:false/optional:true, set_schedule left it consuming and required. Same net, two
@@ -799,7 +904,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
   );
 
   for (const [name, tool, description] of [
-    ['fire_once', 'FIRE_ONCE', 'Fire a map/http/command/pass transition once (manual trigger). 409 while RUNNING — stop it first. NOT for llm/agent lanes: FIRE_ONCE is disabled for action.type=llm|agent — run those server-side by start_transition (master polls the model), or client-side via host_transition / EXECUTE_TRANSITION_SMART.'],
+    ['fire_once', 'FIRE_ONCE', 'Fire a map/http/command/pass transition once (manual trigger). By default preserveRunning:true atomically tests an already-RUNNING lane without stopping it; action side effects still happen. NOT for llm/agent lanes: run those server-side by start_transition, or client-side via host_transition / EXECUTE_TRANSITION_SMART.'],
     ['start_transition', 'START_TRANSITION', 'Start a transition (begins polling its input places).'],
     ['stop_transition', 'STOP_TRANSITION', 'Stop a transition (kill switch for any lane).'],
   ] as const) {
@@ -818,6 +923,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
                   .describe(
                     'Cap on any single inlined response/body value (default 4000; 0 = uncapped). fire_once returns what the lane produced, so firing an http lane at a web page can otherwise dump the whole page into your context — one 81KB page is ~20k tokens. The token itself is stored in full either way; read it with query_tokens.',
                   ),
+                preserveRunning: z
+                  .boolean()
+                  .optional()
+                  .describe('Default true: acquire the scheduler in-flight guard and test a RUNNING lane without changing its lifecycle state. Set false for legacy 409-while-running behavior.'),
               }
             : {}),
           ...modelParam,
@@ -832,7 +941,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           (e.status === 404 || /not found|no such/i.test(String(e.body ?? e.message ?? '')));
         let res;
         try {
-          res = await ctx.executorFor(model).execute(tool, { transitionId: args.transitionId });
+          res = await ctx.executorFor(model).execute(tool, {
+            transitionId: args.transitionId,
+            ...(name === 'fire_once' ? { preserveRunning: args.preserveRunning ?? true } : {}),
+          });
         } catch (err: any) {
           if (notFound(err)) {
             throw new Error(

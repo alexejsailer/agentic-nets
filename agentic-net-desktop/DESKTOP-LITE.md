@@ -110,6 +110,18 @@ command into a terminal. For another Streamable HTTP MCP client, choose
 The default MCP model and session are `default` and `desktop`. The MCP
 allowlist still applies, including to a connected model.
 
+Desktop Lite advertises the curated lowercase MCP tools by default. This keeps the first-session
+surface focused on memory, net construction, scheduling, protocols, and execution instead of also
+showing the large low-level UPPERCASE catalog. Advanced clients can opt back into both layers by
+setting `AGENTICOS_NATIVE_TOOLS=all` when running their own MCP server; non-Desktop installations
+retain `all` as the backward-compatible default.
+
+Use `add_transitions` for a batch of similar lanes, `delete_tokens` for a bounded ArcQL-selected
+cleanup, and `fire_once` to smoke-test a deterministic lane without stopping it (the default
+`preserveRunning:true` leaves its lifecycle unchanged). Cron schedules accept an explicit IANA
+timezone such as `Europe/Berlin`; `scheduler_status` names stopped or invalid schedules and keeps
+armed, fired, and successful timestamps distinct.
+
 Schedules for deterministic, HTTP, and command lanes run without the MCP
 client connected. A scheduled external AI lane can become ready on its own,
 but its reasoning waits safely until an MCP client performs the external fire.
@@ -129,6 +141,10 @@ After a command transition is assigned, Desktop discovery moves the executor
 from STANDBY to READY within about five seconds. This model-local executor state
 does not change Studio's selected model. Check it with MCP `readiness`,
 `list_executors`, or `net_stats.executorCoverage`.
+
+Studio's Protocol view is independently model-scoped too: its dropdown can show one model or merge
+all models without changing the model selected in the editor. It supports free-text search, level
+filtering, grouping by source/day/tag/model, JSON body formatting, tag chips, and raw-token detail.
 
 ## Optional server-side LLM
 

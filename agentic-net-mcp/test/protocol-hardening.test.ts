@@ -129,8 +129,15 @@ describe('clampValues (trap #3: truncate loudly, at structural boundaries)', () 
 
   it('never produces invalid JSON — output always re-serializes', () => {
     const state = { truncated: false };
-    const out = clampValues({ a: '{"nested":"' + 'q'.repeat(999) + '"}' }, 100, state);
+    const original = '{"nested":"' + 'q'.repeat(999) + '"}';
+    const out = clampValues({ a: original }, 100, state);
     expect(() => JSON.parse(JSON.stringify(out))).not.toThrow();
+    expect(out.a).toEqual({
+      __truncated__: {
+        bytes: Buffer.byteLength(original, 'utf8'),
+        preview: original.slice(0, 120),
+      },
+    });
   });
 });
 
@@ -161,6 +168,18 @@ describe('onEmpty is accepted where it applies and bounced where it does not', (
     expect(() => validateScheduleArgs({ ...base, intervalMs: 60_000 })).not.toThrow();
     expect(() => validateScheduleArgs({ ...base, intervalMs: 60_000, onEmpty: 'fire' })).not.toThrow();
     expect(() => validateScheduleArgs({ ...base, scheduleCron: '0 0 8 * * *', onEmpty: 'skip' })).not.toThrow();
+  });
+});
+
+describe('timezone and FOREACH batch argument validation', () => {
+  it('accepts a cron timezone and rejects timezone without cron', () => {
+    expect(() => validateScheduleArgs({ scheduleCron: '0 0 8 * * *', timezone: 'Europe/Berlin' })).not.toThrow();
+    expect(() => validateScheduleArgs({ intervalMs: 1000, timezone: 'Europe/Berlin' })).toThrow(/timezone only applies/);
+  });
+
+  it('accepts batchSize only with FOREACH', () => {
+    expect(() => validateScheduleArgs({ mode: 'FOREACH', batchSize: 5 })).not.toThrow();
+    expect(() => validateScheduleArgs({ mode: 'SINGLE', batchSize: 5 })).toThrow(/FOREACH/);
   });
 });
 

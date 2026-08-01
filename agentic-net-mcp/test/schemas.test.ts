@@ -69,6 +69,8 @@ const CURATED = [
   'create_net',
   'add_place',
   'add_transition',
+  'add_transitions',
+  'delete_tokens',
   'set_schedule',
   'set_transition_credentials',
   'list_transition_credentials',
@@ -139,6 +141,28 @@ describe('advertised tool surface', () => {
     // netId, …) — the relaxation is scoped to placePath only.
     const anyRequired = tools.some((t) => ((t.inputSchema as any).required?.length ?? 0) > 0);
     expect(anyRequired).toBe(true);
+  });
+
+  it('curated mode hides the native catalog without changing the lowercase product surface', async () => {
+    const client = await connectedClient(makeConfig({ nativeTools: 'curated' }));
+    const { tools } = await client.listTools();
+    const names = tools.map((t) => t.name).sort();
+    expect(names).toEqual(CURATED);
+    expect(names).not.toContain('QUERY_TOKENS');
+  });
+
+  it('schedule, FOREACH, batch, and safe-fire schemas advertise the hardened controls', async () => {
+    const client = await connectedClient(makeConfig({ nativeTools: 'curated' }));
+    const { tools } = await client.listTools();
+    const props = (name: string) => (tools.find((t) => t.name === name)!.inputSchema as any).properties;
+    expect(props('add_transition')).toMatchObject({
+      timezone: expect.any(Object),
+      batchSize: expect.any(Object),
+    });
+    expect(props('set_schedule').timezone).toBeTruthy();
+    expect(props('fire_once').preserveRunning).toBeTruthy();
+    expect(props('add_transitions').transitions).toBeTruthy();
+    expect(props('delete_tokens').arcql).toBeTruthy();
   });
 
   it('rw multi-model: every model-scoped tool gains an optional model param', async () => {

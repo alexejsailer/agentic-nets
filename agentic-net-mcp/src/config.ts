@@ -11,6 +11,7 @@ import { createAllowlistStore } from './allowlist-store.js';
 
 export type McpMode = 'rw' | 'readonly';
 export type McpTransport = 'stdio' | 'http';
+export type NativeToolMode = 'all' | 'curated';
 
 export interface McpConfig {
   gatewayUrl: string;
@@ -52,6 +53,8 @@ export interface McpConfig {
   allowlistPath: string;
   /** False when AGENTICOS_PERSIST_ALLOWLIST=false. */
   persistAllowlist: boolean;
+  /** Whether to register the large UPPERCASE native catalog in addition to curated tools. */
+  nativeTools?: NativeToolMode;
 }
 
 export class ConfigError extends Error {}
@@ -104,6 +107,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     throw new ConfigError(`AGENTICOS_LLM_TIER must be low|medium|high, got '${llmTier}'`);
   }
 
+  const nativeTools = (env.AGENTICOS_NATIVE_TOOLS ?? 'all') as NativeToolMode;
+  if (nativeTools !== 'all' && nativeTools !== 'curated') {
+    throw new ConfigError(`AGENTICOS_NATIVE_TOOLS must be all|curated, got '${nativeTools}'`);
+  }
+
   return {
     gatewayUrl: env.AGENTICOS_GATEWAY_URL ?? 'http://localhost:8083',
     models,
@@ -121,5 +129,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     persistedModels,
     allowlistPath: store.path,
     persistAllowlist: store.enabled,
+    nativeTools,
   };
 }

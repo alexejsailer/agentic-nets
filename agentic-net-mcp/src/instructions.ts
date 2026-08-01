@@ -174,7 +174,7 @@ first and report what was stopped.
    is the preset key (default 'input').
 3. link transitions NEVER fire — they are navigable edges only. Never start them.
 4. A capacity-N output place blocks its producer when full (backpressure, not an error).
-5. fire_once returns 409 while a transition is RUNNING — stop_transition first, fire, start again.
+5. fire_once defaults preserveRunning:true: test RUNNING lanes without stop/start; side effects happen.
 6. assign/set_schedule stops a transition; the tools here restart it for you — but remember it if
    you work the REST API directly.
 7. Prefer deterministic kinds (map/http) wherever possible; use llm/agent transitions only where

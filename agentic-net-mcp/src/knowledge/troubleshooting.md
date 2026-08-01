@@ -10,7 +10,9 @@ stuck lane — never guess what a tool can tell you.
    REAL token (`query_tokens` on the input place). The two classic mismatches: ArcQL field vs
    actual token field; template prefix vs preset key (docs/interpolation).
 3. `dry_run_transition` — what WOULD bind and emit, without firing.
-4. `fire_once` returns 409 while RUNNING: stop_transition → fire_once → start_transition.
+4. Smoke-test with `fire_once` (default `preserveRunning:true`): it takes the scheduler guard and
+   leaves a RUNNING lane RUNNING, including on client cancellation. The action's HTTP/shell side
+   effects still happen. Set `preserveRunning:false` only for the legacy 409-while-running behavior.
 5. Downstream place at its capacity? That's backpressure, not a bug (docs/emit).
 
 ## Wedged in `deployed`/`starting` right after build (the deploy→start race)
@@ -40,9 +42,10 @@ Four checks, in order (full detail: docs/commands):
 
 ## Scheduled-but-silent
 
-`scheduler_status` first: lastFiredAt/nextFireAt/eligibility/overdue. The schedule is an AND-gate
-with token binding — full ladder in docs/scheduling. `overdue:true` = post-redeploy freeze; kick
-with stop → fire_once → start of any lane in the model.
+`scheduler_status` first: its headline names stopped/invalid schedules; the lane view separates
+armed/fired/succeeded and shows timezone/next fire. Invalid schedules fail closed. The schedule is
+an AND-gate with token binding — full ladder in docs/scheduling. A STOPPED scheduled lane needs
+`start_transition`; `fire_once(preserveRunning:true)` tests without changing lifecycle.
 
 ## LLM lane dead
 

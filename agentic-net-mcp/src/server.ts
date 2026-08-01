@@ -82,8 +82,12 @@ export function createServer(ctx: AppContext): McpServer {
     registerHostedTools(server, ctx);
     // External fires — the host model itself answers llm/agent transitions via master.
     registerExternalTools(server, ctx);
-    // Full native parity: every ToolExecutor tool, canonical UPPERCASE names.
-    registerCatalogTools(server, ctx);
+    // Full native parity remains the global/backward-compatible default. Desktop Lite chooses the
+    // curated surface so a first-time MCP client can find the product tools without 60+ duplicate
+    // low-level operations; operators can restore the catalog with AGENTICOS_NATIVE_TOOLS=all.
+    if ((ctx.config.nativeTools ?? 'all') === 'all') {
+      registerCatalogTools(server, ctx);
+    }
   }
 
   return server;

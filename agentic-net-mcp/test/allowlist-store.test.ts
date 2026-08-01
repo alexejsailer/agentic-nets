@@ -77,6 +77,12 @@ describe('allowlist store', () => {
 });
 
 describe('config merge', () => {
+  it('defaults native tools to all and accepts the curated Desktop mode', () => {
+    expect(loadConfig(envFor()).nativeTools).toBe('all');
+    expect(loadConfig(envFor({ AGENTICOS_NATIVE_TOOLS: 'curated' })).nativeTools).toBe('curated');
+    expect(() => loadConfig(envFor({ AGENTICOS_NATIVE_TOOLS: 'nope' }))).toThrow(/all\|curated/);
+  });
+
   it('restores persisted models alongside the env allowlist', () => {
     createAllowlistStore(envFor()).add('minted-earlier');
     const cfg = loadConfig(envFor());

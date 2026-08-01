@@ -172,6 +172,8 @@ public final class Main {
         mcpEnv.put("AGENTICOS_MCP_HTTP_PORT", String.valueOf(DesktopConfig.MCP_PORT));
         mcpEnv.put("AGENTICOS_MCP_HTTP_HOST", bind);
         mcpEnv.put("AGENTICOS_MCP_HTTP_TOKEN", config.mcpToken());
+        mcpEnv.put("AGENTICOS_NATIVE_TOOLS",
+            System.getenv().getOrDefault("AGENTICOS_NATIVE_TOOLS", "curated"));
         mcpEnv.put("AGENTICOS_GATEWAY_URL", "http://127.0.0.1:" + DesktopConfig.GATEWAY_PORT);
         mcpEnv.put("AGENTICOS_GATEWAY_SECRET_FILE", config.adminSecretFile().toAbsolutePath().toString());
         mcpEnv.put("AGENTICOS_MODELS", config.setting("mcp.models", "default"));

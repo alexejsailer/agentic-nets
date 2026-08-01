@@ -7,6 +7,10 @@ Emit rules route a fire's result to postsets: `{"to": "<postsetKey>", "from": "<
 
 - `@response` — map result (also: llm full response object).
 - `@response.json` — http/llm parsed JSON body.
+- `@response.text` — http raw response body string for any Content-Type. Use this for CSV, XML,
+  HTML, or plaintext; JSON parsing is not required.
+- `@response.meta` — http transport facts: real status, contentType, contentLength, durationMs, and
+  the effective request snapshot (URL/method/bodyBytes plus headers with secrets masked).
 - `@response.raw` — llm raw text, stored as an escaped string under `value` (freeform text only — a JSON reply arrives double-encoded; prefer `@response.json`, docs/llm).
 - `@result` — command execution result (`batchResults[].results[].output.stdout`).
 - `@input.data` — pass the input token through.

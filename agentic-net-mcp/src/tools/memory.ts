@@ -206,6 +206,59 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+  server.registerTool(
+    'delete_tokens',
+    {
+      title: 'Delete tokens matched by an ArcQL query',
+      description:
+        'Query a place and delete the matched token ids in one bounded call. arcql is mandatory (there is no implicit full-place drain); max defaults to 100 and cannot exceed 100. Returns exact ids and per-id failures.',
+      inputSchema: {
+        place: z.string().describe('Runtime place id (e.g. p-inbox)'),
+        arcql: z.string().min(1).describe('Required ArcQL selector, e.g. FROM $ WHERE $.status=="obsolete"'),
+        max: z.number().int().min(1).max(100).optional().describe('Maximum deletions (default 100, hard cap 100)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'delete_tokens', mutates: true, destructive: true }, async (model, args) => {
+      const arcql = String(args.arcql ?? '').trim();
+      if (!/^FROM\s/i.test(arcql)) {
+        throw new Error('arcql is required and must start with FROM; refusing an unscoped token drain');
+      }
+      const max = Math.min(Number(args.max ?? 100), 100);
+      const placeId = resolveMemoryPlace(args.place);
+      const query = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+        placePath: placePath(placeId),
+        query: arcql,
+        maxValueLength: 0,
+      });
+      if (!query.success) throw new Error(query.error ?? 'QUERY_TOKENS failed');
+      const raw: any = query.data ?? {};
+      const tokens: any[] = (Array.isArray(raw) ? raw : (raw.results ?? raw.tokens ?? [])).slice(0, max);
+      const ids = tokens
+        .map((t: any) => t?._meta?.id ?? t?.id ?? t?.tokenId)
+        .filter((id: any) => id != null)
+        .map(String);
+      const deleted: string[] = [];
+      const failures: Array<{ id: string; error: string }> = [];
+      for (const id of ids) {
+        const result = await ctx.executorFor(model).execute('DELETE_TOKEN', {
+          placePath: placePath(placeId),
+          tokenId: id,
+        });
+        if (result.success) deleted.push(id);
+        else failures.push({ id, error: result.error ?? 'DELETE_TOKEN failed' });
+      }
+      return {
+        place: placeId,
+        matched: tokens.length,
+        deleted: deleted.length,
+        ids: deleted,
+        ...(tokens.length !== ids.length ? { missingIdCount: tokens.length - ids.length } : {}),
+        ...(failures.length ? { failures } : {}),
+      };
+    }),
+  );
+
   // --- Domain memory: the model's OWN durable memory base, in its domain context ---
   // Same idea as memory_write/recall, but targeting the model-shared memory base the master's
   // MEMORY_WRITE and the domain-expert persona use, so a memory written from any of them is

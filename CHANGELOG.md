@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Desktop Lite MCP is focused by default** (`agentic-net-desktop`, `agentic-net-mcp`). The bundled server registers the curated lowercase product surface instead of also exposing the full native uppercase catalog; standalone/server deployments remain backward-compatible with `all`, and advanced Desktop users can opt back in with `AGENTICOS_NATIVE_TOOLS=all`.
+- **Batch authoring and cleanup tools** (`agentic-net-mcp`). `add_transitions` creates similar lanes sequentially with explicit per-item partial-success results, while `delete_tokens` requires an ArcQL query, caps a run at 100 tokens, and reports every matched/deleted id.
+- **Bounded `FOREACH` batches** (`agentic-net-mcp`, `agentic-net-executor`). `add_transition(mode:"FOREACH", batchSize:n)` writes `LIMIT n` plus `take:ALL`, reports the exact per-fire semantics, and the command executor now runs once per bound driver token instead of discarding all but the first.
+- **Scheduler and HTTP guidance for model-free MCP operation** (`agentic-net-mcp`). The connected model is taught fail-closed scheduling, IANA cron timezones, armed-vs-fired telemetry, stopped schedules, safe smoke fires, raw `response.text`/diagnostic `response.meta`, and CSV processing recipes.
+
+### Changed
+- **`fire_once` safely tests running deterministic lanes** (`agentic-net-mcp`). It defaults `preserveRunning:true`, so a connected Claude/Codex session no longer needs the risky stop/fire/start sequence; lifecycle is unchanged, although the action's own side effects still happen.
+- **Scheduler status explains unattended work** (`agentic-net-mcp`). It passes through timezone, local next-fire time, honest fire/outcome timestamps and counters, headlines stopped and invalid schedules, and keeps intentional stops as readiness warnings rather than declaring the whole installation unusable.
+- **Large nested token values truncate structurally** (`agentic-net-mcp`). JSON values that exceed preview limits become a parseable `__truncated__` object with byte count and preview instead of a broken JSON fragment.
+
+### Fixed
+- **One Desktop executor discovers and serves every model** (`agentic-net-executor`, `agentic-net-desktop`). Wildcard model discovery polls continuously, status distinguishes READY/STANDBY/UNAVAILABLE, and MCP describes STANDBY as command-capable capacity rather than a failure—so a model created after startup does not silently lose command transitions.
+- **Per-model protocol journals and MCP duties are discoverable** (`agentic-net-mcp`, `agentic-net-desktop`). Connected sessions are explicitly told to service external LLM/agent fires, choose a fresh model for a substantial domain, use local headless command lanes where appropriate, and write/read structured protocol entries that open from the tray.
+
 ## [2.38.0] - 2026-07-31
 
 ### Changed

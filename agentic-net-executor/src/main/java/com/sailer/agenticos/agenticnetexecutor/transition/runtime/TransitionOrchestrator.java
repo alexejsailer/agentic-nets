@@ -119,7 +119,7 @@ public class TransitionOrchestrator {
                             modelId, transitionId, latestStatus);
                     return;
                 }
-                runSingleWithBoundTokens(latest.get(), boundTokens, credentialsOverride, fireOnce);
+                runWithBoundTokensByMode(latest.get(), boundTokens, credentialsOverride, fireOnce);
             } finally {
                 inFlight.remove(flightKey);
             }
@@ -150,7 +150,52 @@ public class TransitionOrchestrator {
             logger.warn("Rejecting executeOnceSync for non-command transition {}:{}", modelId, transitionId);
             return ActionResult.failure(Map.of(), Map.of("error", "Non-command actions run on master"));
         }
-        return runSingleWithBoundTokens(maybeDefinition.get(), boundTokens, credentialsOverride, true);
+        return runWithBoundTokensByMode(maybeDefinition.get(), boundTokens, credentialsOverride, true);
+    }
+
+    /**
+     * A FOREACH inscription executes the command action once per token selected by the driver
+     * preset. Previously the executor always picked tokens.get(0), so LIMIT n + take ALL still ran
+     * only one command and left n-1 reserved tokens behind.
+     */
+    private ActionResult runWithBoundTokensByMode(TransitionDefinition definition,
+                                                  Map<String, List<Map<String, Object>>> boundTokens,
+                                                  Map<String, Object> credentialsOverride,
+                                                  boolean fireOnce) {
+        List<Map<String, List<Map<String, Object>>>> batches = splitForeachBindings(
+                definition.inscription().isForeach(), boundTokens);
+        ActionResult last = null;
+        ActionResult firstFailure = null;
+        for (Map<String, List<Map<String, Object>>> batch : batches) {
+            last = runSingleWithBoundTokens(definition, batch, credentialsOverride, fireOnce);
+            if (!last.success() && firstFailure == null) {
+                firstFailure = last;
+            }
+        }
+        if (firstFailure != null) return firstFailure;
+        return last != null ? last : ActionResult.failure(Map.of(), Map.of("error", "No FOREACH bindings"));
+    }
+
+    /** Package-visible for the focused batching contract test. */
+    static List<Map<String, List<Map<String, Object>>>> splitForeachBindings(
+            boolean foreach,
+            Map<String, List<Map<String, Object>>> bindings) {
+        if (!foreach || bindings == null || bindings.isEmpty()) {
+            return List.of(bindings != null ? bindings : Map.of());
+        }
+        Map.Entry<String, List<Map<String, Object>>> driver = bindings.entrySet().stream()
+                .max(java.util.Comparator.comparingInt(e -> e.getValue() != null ? e.getValue().size() : 0))
+                .orElse(null);
+        if (driver == null || driver.getValue() == null || driver.getValue().size() <= 1) {
+            return List.of(bindings);
+        }
+        List<Map<String, List<Map<String, Object>>>> batches = new ArrayList<>();
+        for (Map<String, Object> token : driver.getValue()) {
+            Map<String, List<Map<String, Object>>> batch = new java.util.LinkedHashMap<>(bindings);
+            batch.put(driver.getKey(), List.of(token));
+            batches.add(batch);
+        }
+        return batches;
     }
 
     private ActionResult runSingleWithBoundTokens(TransitionDefinition definition,

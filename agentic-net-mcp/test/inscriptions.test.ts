@@ -156,6 +156,23 @@ describe('execution mode (add_transition mode: SINGLE | FOREACH)', () => {
       expect(ins.mode).toBe('FOREACH');
     }
   });
+
+  it('batchSize binds a bounded token set with take ALL', () => {
+    const ins: any = buildInscription('http', {
+      id: 't-http', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      mode: 'FOREACH', batchSize: 5,
+    });
+    expect(ins.presets.input.arcql).toBe('FROM $ LIMIT 5');
+    expect(ins.presets.input.take).toBe('ALL');
+  });
+
+  it('keeps FOREACH default batch size compatible at one token', () => {
+    const ins: any = buildInscription('map', {
+      id: 't-map', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out', mode: 'FOREACH',
+    });
+    expect(ins.presets.input.arcql).toBe('FROM $ LIMIT 1');
+    expect(ins.presets.input.take).toBe('FIRST');
+  });
 });
 
 describe('http auth normalization (credentialKey → master params shape)', () => {

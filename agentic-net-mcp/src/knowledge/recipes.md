@@ -16,6 +16,9 @@ provenance with event_trail when something looks wrong.
 add_place in/out -> add_transition kind:http (url, scheduleCron "0 */10 * * * *") -> results
 accumulate in the out place -> add_transition kind:llm reading the out place to summarize anomalies.
 
+For CSV, set the HTTP emit source to `@response.text`; parse that raw text in a downstream map or
+command lane. `@response.meta` carries status, Content-Type/length, duration, and the masked request.
+
 ## Crystallizing (scaffold once, invoke forever)
 When a capability is worth reusing, scaffold_tool_net with transitionKind=command|http|llm — the
 trigger is pre-wired invoke-green by construction (input shapes: command⇒{command}, http⇒{url},

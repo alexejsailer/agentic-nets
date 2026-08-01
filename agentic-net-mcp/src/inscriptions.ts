@@ -38,6 +38,8 @@ export interface BuildOpts {
   /** 6-field cron or interval ms — either arms a schedule. */
   scheduleCron?: string;
   intervalMs?: number;
+  /** IANA timezone for cron schedules (e.g. Europe/Berlin). Unset = server zone. */
+  timezone?: string;
   /**
    * What a SCHEDULED lane does when its input place is empty at tick time. Ignored without a schedule.
    *
@@ -52,8 +54,10 @@ export interface BuildOpts {
   onEmpty?: 'fire' | 'skip';
   timeoutMs?: number;
   /** Execution mode: SINGLE (bind all presets, fire once) or FOREACH (process each bound token
-   *  independently, bounded parallel fan-out). Default SINGLE. */
+   *  independently with bounded per-fire fan-out). Default SINGLE. */
   mode?: 'SINGLE' | 'FOREACH';
+  /** FOREACH tokens bound per firing. Default 1. */
+  batchSize?: number;
   /** llm */
   prompt?: string;
   llmModel?: string;
@@ -116,10 +120,27 @@ export function validateCron(cron: string): void {
 function schedule(opts: BuildOpts): Record<string, any> {
   if (opts.scheduleCron) {
     validateCron(opts.scheduleCron);
-    return { schedule: { type: 'cron', cron: opts.scheduleCron } };
+    return {
+      schedule: {
+        type: 'cron',
+        cron: opts.scheduleCron,
+        ...(opts.timezone ? { timezone: opts.timezone } : {}),
+      },
+    };
   }
   if (opts.intervalMs) return { schedule: { type: 'interval', intervalMs: opts.intervalMs } };
   return {};
+}
+
+function inputPreset(opts: BuildOpts): PresetSpec {
+  const batch = opts.batchSize ?? 1;
+  if (!Number.isInteger(batch) || batch < 1) {
+    throw new Error('batchSize must be a positive integer');
+  }
+  const foreach = opts.mode === 'FOREACH' && batch > 1
+    ? { arcql: `FROM $ LIMIT ${batch}`, take: 'ALL' as const }
+    : {};
+  return preset(opts.inputPlace, opts.host, { ...schedulePresetOverride(opts), ...foreach });
 }
 
 /**
@@ -228,7 +249,7 @@ export function buildMapInscription(opts: BuildOpts) {
     kind: 'map',
     label: opts.label ?? opts.id,
     ...schedule(opts),
-    presets: { input: preset(opts.inputPlace, opts.host, schedulePresetOverride(opts)) },
+    presets: { input: inputPreset(opts) },
     postsets: { ...postset(opts), ...(routed?.postsets ?? {}) },
     action: { type: 'map', template: opts.template ?? { value: '${input.data}' } },
     emit: opts.emit ?? routed?.emit ?? [{ to: 'out', from: '@response' }],
@@ -266,11 +287,7 @@ export function buildLlmInscription(opts: BuildOpts) {
     label: opts.label ?? opts.id,
     ...schedule(opts),
     presets: {
-      input: preset(
-        opts.inputPlace,
-        opts.host,
-        schedulePresetOverride(opts),
-      ),
+      input: inputPreset(opts),
     },
     postsets,
     action: {
@@ -357,11 +374,7 @@ export function buildHttpInscription(opts: BuildOpts) {
     label: opts.label ?? opts.id,
     ...schedule(opts),
     presets: {
-      input: preset(
-        opts.inputPlace,
-        opts.host,
-        schedulePresetOverride(opts),
-      ),
+      input: inputPreset(opts),
     },
     postsets,
     action,
@@ -382,7 +395,7 @@ export function buildCommandInscription(opts: BuildOpts) {
     label: opts.label ?? opts.id,
     ...schedule(opts),
     presets: {
-      input: preset(opts.inputPlace, opts.host, schedulePresetOverride(opts)),
+      input: inputPreset(opts),
     },
     postsets: { log: { placeId: opts.outputPlace, host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) } },
     action: {
@@ -422,7 +435,7 @@ export function buildAgentInscription(opts: BuildOpts) {
     role: opts.role ?? 'rw--',
     ...schedule(opts),
     presets: {
-      input: preset(opts.inputPlace, opts.host, schedulePresetOverride(opts)),
+      input: inputPreset(opts),
     },
     postsets: postset(opts),
     action: {

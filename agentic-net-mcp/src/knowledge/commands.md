@@ -113,3 +113,7 @@ shows STANDBY until its first command lane is assigned, then becomes READY autom
 
 Probe availability first (`command -v claude || command -v codex`). Stdin redirect
 is mandatory; generous timeoutMs. Windows needs Git Bash on PATH for command lanes.
+
+For repeated construction/deletion, `add_transitions` builds many lanes sequentially and reports
+partial success per id; `delete_tokens(place, arcql, max)` safely performs query+delete in one
+bounded call and refuses a missing ArcQL selector.

@@ -50,9 +50,9 @@ chat transcript.
    (`rwxhludcts`), named capability profiles, tool allowlists, resource scopes,
    Vault-backed credentials, a fleet-wide LLM freeze, and an automatic spend
    breaker bound what an agent can do.
-5. **One MCP server exposes the platform.** In the default read-write
-   configuration, `@agenticnets/mcp` exposes 164 tools: 54 curated workflows
-   plus 110 native tools from the same catalog used by in-net agents.
+5. **One MCP server exposes the platform.** `@agenticnets/mcp` provides a focused
+   curated workflow surface plus an optional native catalog used by in-net agents.
+   Desktop Lite defaults to curated; server installs retain both for compatibility.
 
 <img src="https://alexejsailer.com/wp-content/uploads/2026/07/two-weeks-byom-featured.png" alt="Agentic-Nets net mixing an external MCP analyst with a master-run LLM editor" width="100%" />
 

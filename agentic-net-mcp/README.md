@@ -120,6 +120,7 @@ Deploys are idempotent: re-running skips existing elements and never duplicates 
 | `AGENTICOS_ALLOW_MODEL_CREATE` | register `create_model` and let it mint new models at runtime (rw only). `false` = strictly-frozen allowlist | `true` (rw) |
 | `AGENTICOS_STATE_DIR` | directory containing the durable model grant file (`allowlist.json`) | `~/.agenticnets` |
 | `AGENTICOS_PERSIST_ALLOWLIST` | remember newly created models across MCP sessions; pre-existing models still require `persistAllowlist:true` | `true` |
+| `AGENTICOS_NATIVE_TOOLS` | `all` = curated lowercase + native UPPERCASE catalog; `curated` = focused product tools only (Desktop Lite default) | `all` |
 | `AGENTICOS_DOCKER_TOOLS` | `false` withholds the container/registry tools (`DOCKER_*`, `REGISTRY_*`) from the native catalog — container spawning as a deliberate grant, mirroring the master's D flag | `true` |
 
 ## Claude Code hooks: memory with zero discipline

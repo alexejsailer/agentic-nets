@@ -128,6 +128,20 @@ export function clampValues(value: any, max: number, state: { truncated: boolean
   if (typeof value === 'string') {
     if (value.length <= max) return value;
     state.truncated = true;
+    // A JSON-bearing string must stay structurally honest. Returning a clipped fragment makes it
+    // look usable while guaranteeing that the next parser fails. Only inspect strings that are
+    // already being truncated; ordinary read-path strings keep their exact type and value.
+    try {
+      JSON.parse(value);
+      return {
+        __truncated__: {
+          bytes: Buffer.byteLength(value, 'utf8'),
+          preview: value.slice(0, 120),
+        },
+      };
+    } catch {
+      // Plain string: keep the established loud inline marker.
+    }
     return value.slice(0, max) + `...[truncated, ${value.length} chars total]`;
   }
   if (Array.isArray(value)) return value.map((v) => clampValues(v, max, state));
@@ -229,7 +243,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         } else {
           // Apply the documented per-value cap on this path too (the ArcQL path
           // already defaults to 500 server-side). Loud + structural: whole values
-          // get an inline marker and the response carries truncated:true — pass
+          // get an inline marker (or a __truncated__ object for JSON strings) and the response carries truncated:true — pass
           // maxValueLength:0 for uncapped values.
           const max = Number(args.maxValueLength ?? 500);
           results = clampValues(tokens, max, state);
@@ -239,7 +253,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           resultCount: tokens.length,
           results,
           ...(state.truncated
-            ? { truncated: true, note: `long values shortened (inline "...[truncated" markers) — re-query with maxValueLength:0 for full values` }
+            ? { truncated: true, note: 'long values shortened (JSON strings use structured __truncated__ markers; plain strings use inline markers) — re-query with maxValueLength:0 for full values' }
             : {}),
         };
       }
@@ -591,6 +605,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     },
     wrapTool(scope, config.mode, { name: 'readiness', mutates: false }, async (model) => {
       const problems: string[] = [];
+      const warnings: string[] = [];
       const gateway: any = { url: config.gatewayUrl, reachable: false, authenticated: false };
       const node: any = { reachable: false };
       let models: any[] = [];
@@ -640,6 +655,34 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         modelReport.workspaceProvisioned = Array.isArray(kids) && kids.some((c: any) => c.name === 'places');
         if (modelReport.workspaceProvisioned === false) {
           modelReport.note = 'no root/workspace/places yet — provisioned automatically on the first place write (not a blocker)';
+        }
+      }
+
+      // Scheduled-lane state is advisory here: an operator may intentionally stop a lane, so it
+      // must not make the whole installation unready. Older masters have no execution-status
+      // endpoint/fields; treat that as unknown and preserve compatibility.
+      if (entry) {
+        try {
+          const status: any = await ctx.client.masterApi('GET', `/models/${model}/execution/status`);
+          const scheduledLanes: any[] = (status?.transitions ?? []).filter((t: any) => t?.schedule);
+          const stopped = scheduledLanes.filter(
+            (t: any) => String(t.status ?? '').toUpperCase() !== 'RUNNING',
+          );
+          if (stopped.length) {
+            warnings.push(
+              `${stopped.length} scheduled lane(s) are stopped and will not fire: ` +
+                stopped.map((t: any) => t.transitionId).join(', '),
+            );
+          }
+          const invalid = scheduledLanes.filter((t: any) => t.schedule?.valid === false);
+          if (invalid.length) {
+            warnings.push(
+              `${invalid.length} scheduled lane(s) have invalid schedules and fail closed: ` +
+                invalid.map((t: any) => t.transitionId).join(', '),
+            );
+          }
+        } catch {
+          // Old-master compatibility: absence is not a readiness failure.
         }
       }
 
@@ -738,6 +781,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           commandLanes: cov.available,
         },
         ...(problems.length ? { problems } : {}),
+        ...(warnings.length ? { warnings } : {}),
       };
     }),
   );
@@ -763,7 +807,10 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       };
       let rows = list.map((t: any) => {
         const sched = t.schedule ?? null;
+        const armedMs = sched?.armedAtMillis ?? null;
         const lastMs = sched?.lastFiredAtMillis ?? null;
+        const successMs = sched?.lastSuccessAtMillis ?? null;
+        const errorMs = sched?.lastErrorAtMillis ?? null;
         const nextMs = sched?.nextFireAtMillis ?? null;
         const running = String(t.status ?? '').toUpperCase() === 'RUNNING';
         const overdue = running && typeof nextMs === 'number' && nextMs < now - 60_000;
@@ -781,16 +828,37 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
               }
             : {}),
           schedule: sched,
+          armedAt: typeof armedMs === 'number' ? new Date(armedMs).toISOString() : null,
           lastFiredAt: typeof lastMs === 'number' ? new Date(lastMs).toISOString() : null,
           ...(typeof lastMs === 'number' ? { lastFiredAgo: fmtAgo(lastMs) } : { neverFired: true }),
+          lastSuccessAt: typeof successMs === 'number' ? new Date(successMs).toISOString() : null,
+          lastErrorAt: typeof errorMs === 'number' ? new Date(errorMs).toISOString() : null,
+          ...(typeof sched?.fireCount === 'number' ? { fireCount: sched.fireCount } : {}),
+          ...(typeof sched?.successCount === 'number' ? { successCount: sched.successCount } : {}),
+          ...(sched?.lastError != null ? { lastError: sched.lastError } : {}),
+          ...(sched?.timezone != null ? { timezone: sched.timezone } : {}),
+          ...(sched?.nextFireAtLocal != null ? { nextFireAtLocal: sched.nextFireAtLocal } : {}),
+          ...(typeof sched?.valid === 'boolean' ? { valid: sched.valid } : {}),
+          ...(sched?.invalidReason != null ? { invalidReason: sched.invalidReason } : {}),
           nextFireAt: typeof nextMs === 'number' ? new Date(nextMs).toISOString() : null,
           ...(overdue
-            ? { overdue: true, hint: 'nextFireAt is in the past while RUNNING — the scheduler has not re-armed this lane (typical after a master redeploy). A stop → fire_once → start of any transition in the model re-registers its schedules.' }
+            ? { overdue: true, hint: 'nextFireAt is in the past while RUNNING — the scheduler has not re-armed this lane (typical after a master redeploy). Restart this transition to re-register its schedule.' }
             : {}),
         };
       });
       if (args.scheduledOnly !== false) rows = rows.filter((r) => r.schedule);
       const overdueCount = rows.filter((r: any) => r.overdue).length;
+      const allScheduled = list.filter((t: any) => t?.schedule);
+      const stoppedScheduled = allScheduled
+        .filter((t: any) => String(t.status ?? '').toUpperCase() !== 'RUNNING')
+        .map((t: any) => ({ transitionId: t.transitionId, schedule: t.schedule }));
+      const invalidSchedules = allScheduled
+        .filter((t: any) => t.schedule?.valid === false)
+        .map((t: any) => ({
+          transitionId: t.transitionId,
+          invalidReason: t.schedule?.invalidReason,
+          schedule: t.schedule,
+        }));
       // Count withheld lanes across ALL transitions, not just the scheduled subset — a withheld
       // unscheduled command lane must not vanish from this headline because of the default filter.
       const withheldCount = list.filter((t: any) => t.credentialsWithheld).length;
@@ -798,6 +866,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         model,
         observedAt: res?.observedAt,
         count: rows.length,
+        headline: {
+          stoppedScheduled,
+          invalidSchedules,
+        },
+        fieldGuide: {
+          lifecycle: 'a scheduled lane that is STOPPED never fires; start_transition re-arms it',
+          telemetry: 'armedAt means registered with the scheduler; lastFiredAt null means literally never dispatched; lastSuccessAt advances only after a successful outcome',
+          invalid: 'INVALID_SCHEDULE lanes fail closed and never fire; fix the schedule, then set_schedule/start_transition',
+        },
         ...(overdueCount ? { overdueCount } : {}),
         ...(withheldCount ? { credentialsWithheldCount: withheldCount } : {}),
         transitions: rows,

@@ -170,14 +170,22 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
           onEmptyDefault: 'fire',
           onEmptyNote:
             'a scheduled lane defaults to ticking even on an empty input place and never consuming; pass ' +
-            'onEmpty:"skip" to AND-gate the schedule with token availability',
+              'onEmpty:"skip" to AND-gate the schedule with token availability',
+          timezone: 'cron accepts an IANA timezone; unset = server zone; scheduler_status echoes the effective zone',
+          invalid: 'malformed schedules fail closed with eligibility INVALID_SCHEDULE and never fire',
         },
         transitions: {
           kinds: ['map', 'llm', 'http', 'command', 'agent', 'link'],
           modes: ['SINGLE', 'FOREACH'],
+          foreachBatch: 'batchSize (default 1, max 100) binds LIMIT n + take ALL; each token executes independently',
           statuses: ['undeployed', 'DEPLOYED', 'starting', 'RUNNING', 'STOPPED', 'ERROR', 'external'],
           health: ['HEALTHY', 'WARNING', 'BLOCKED', 'ERROR'],
-          fireOnceRestriction: 'disabled for action.type=llm|agent — use start_transition or host_transition',
+          fireOnceRestriction: 'disabled for action.type=llm|agent — use start_transition or host_transition; deterministic lanes default preserveRunning:true for lifecycle-safe smoke tests',
+          batchTools: ['add_transitions', 'delete_tokens'],
+          httpEmitSources: {
+            text: '@response.text = raw CSV/XML/plaintext/body',
+            meta: '@response.meta = real status/content type/length/duration + masked effective request',
+          },
         },
         session: {
           modelAllowlist: ctx.scope.allowed,
