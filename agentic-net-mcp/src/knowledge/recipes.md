@@ -94,3 +94,15 @@ scheduled list). "Switch it off" => pause_model; verify with net_stats.paused==t
 ## When something is broken
 The playbooks live in docs/troubleshooting: stuck lane, command "queued but no output",
 scheduled-but-silent, dead LLM lane, and the new-model checklist.
+
+## New domain? Mint a model, don't pile into `default`
+
+The model is the isolation boundary (places, schedules, memory, budget, pause).
+Use create_model per substantial domain — mixing domains makes pause_model,
+usage_report and cleanup all-or-nothing.
+
+## Narrate long-running work: the protocol journal
+
+protocol_write appends to p-protocol; nets journal themselves via an emit to it.
+Studio renders the feed as the Protocol view (tray → Open Protocol). Write on
+deploy / schedule armed / batch done / failure; protocol_tail reads it back.

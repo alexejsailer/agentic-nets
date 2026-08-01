@@ -94,3 +94,14 @@ Rules: ALWAYS redirect stdin (`< /dev/null` — it blocks forever otherwise); le
 
 Executor stdout larger than ~128KB is offloaded to the blobstore; the result then carries a blob
 URN — fetch it with READ_BLOB_TEXT instead of expecting inline stdout.
+
+## Desktop Lite: headless CLI agents run on THIS machine
+
+The desktop executor runs on the user's own computer, so installed CLI agents are
+transition workers:
+
+    claude -p '<task>' --allowedTools 'Read,Grep,Glob' --no-session-persistence < /dev/null
+    codex exec --skip-git-repo-check '<task>' < /dev/null
+
+Probe availability first (`command -v claude || command -v codex`). Stdin redirect
+is mandatory; generous timeoutMs. Windows needs Git Bash on PATH for command lanes.

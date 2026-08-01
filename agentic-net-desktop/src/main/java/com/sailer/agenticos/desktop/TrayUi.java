@@ -89,6 +89,9 @@ public final class TrayUi {
         popup.add(action("Open Studio", () ->
             Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
                 + guiServer.createLoginPath()))));
+        popup.add(action("Open Protocol", () ->
+            Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
+                + guiServer.createLoginPath() + "&to=%2F%23%2Fprotocol"))));
         popup.add(action("LLM Settings", () ->
             Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
                 + guiServer.createLoginPath() + "&to=%2F%23%2Fsettings"))));

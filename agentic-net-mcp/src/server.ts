@@ -16,6 +16,7 @@ import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
+import { registerProtocolReaders, registerProtocolTools } from './tools/protocol.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
 
@@ -66,10 +67,12 @@ export function createServer(ctx: AppContext): McpServer {
     // register the module and rely on wrapTool to reject the mutators is NOT
     // enough here — we want them absent. So: register only the readers.
     registerMemoryReaders(server, ctx);
+    registerProtocolReaders(server, ctx);
     // External-fire discovery is GET-based — readonly observers can see the lane.
     registerExternalReaders(server, ctx);
   } else {
     registerMemoryTools(server, ctx);
+    registerProtocolTools(server, ctx);
     registerNetTools(server, ctx);
     // Invoke the platform agents (builder/operator/persona/...) — same agent loop as the GUI.
     registerAgentTools(server, ctx);

@@ -33,7 +33,8 @@ are gone. ${models}
 ## When to use what
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
-  related context with memory_graph; connect places with memory_link.
+  related context with memory_graph; connect places with memory_link. protocol_write journals
+  milestones to p-protocol — Studio's Protocol view shows it (docs/recipes).
 - Persist into the MODEL's OWN memory base (shared with the domain-expert persona and the
   Genesis/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
   model's domain net (p-{model}-domain-{knowledge|journal|insights}). Use this when the memory
@@ -69,7 +70,8 @@ are gone. ${models}
 list_models shows every model node knows, each with an "allowed" flag (which ones THIS connection may
 target). create_model (rw, when enabled) mints a brand-new model — optionally deploying a starter
 template into it in the same call — and it joins this session's allowlist immediately, so any tool
-can target it with the model param. Master auto-discovers active models within ~10s and begins
+can target it with the model param. Prefer a fresh model per domain over piling into 'default' —
+the model is the pause/budget/cleanup boundary. Master auto-discovers active models within ~10s and begins
 polling their transitions. Sessions: CREATE_SESSION. Nets: create_net. Everything AgenticOS can do
 is reachable here — nothing requires the raw REST API.
 
@@ -183,7 +185,8 @@ first and report what was stopped.
 9. Secrets go through set_transition_credentials + \${credentials.KEY} in the inscription — NEVER
    inline in an inscription or into a token: tokens are event-sourced, a pasted secret is permanent.
 10. LLM lanes: check llm_health BEFORE building. READY supports master fires; DISABLED is an
-    intentional MCP-first mode, so new AI lanes default external and execute through this client.
+    intentional MCP-first mode: new AI lanes default external and serving them is YOUR job
+    (list_external_fires → prepare → complete — docs/llm).
     Other non-READY states make master fires fail (and retry billed). Give every llm lane an error
     emit branch. add_transition emits @response.json so a
     prompt-for-JSON lane's fields interpolate downstream (\${input.data.field}); @response.raw

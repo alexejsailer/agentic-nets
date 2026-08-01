@@ -51,3 +51,11 @@ root-level role silently downgrades to rw--.
 An llm lane on a schedule burns tokens forever — always tell the user what you armed, check
 `net_stats.llm.byTransition` for per-lane consumption, and prefer map/http for anything
 deterministic (docs/concepts: deterministic first).
+
+## provider=disabled means YOU are the model
+
+Desktop Lite ships no server LLM on purpose: new AI lanes default to external
+execution and serving them is YOUR job — list_external_fires → prepare → complete.
+A lane that "never fires" here is usually an external fire nobody served. For
+unattended AI lanes: host_transition, or the user enables a provider in Studio →
+Settings → Desktop LLM.

@@ -58,6 +58,8 @@ const CURATED = [
   // memory
   'memory_write',
   'memory_recall',
+  'protocol_write',
+  'protocol_tail',
   'memory_link',
   'memory_graph',
   'domain_memory_write',
@@ -183,7 +185,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
+      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
     );
   });
 

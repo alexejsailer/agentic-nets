@@ -78,7 +78,10 @@ describe('leak gate — nothing credential/infra-shaped ships', () => {
 
 describe('sizing discipline — the teaching layer stays cheap', () => {
   const PER_DOC_CAP = 8192;
-  const PACK_CAP = 65536;
+  // Raised 64K → 70K for the Desktop-Lite guidance wave (external-fire duty,
+  // local headless CLI agents, model-per-domain, the protocol journal). Per-doc
+  // 8KB discipline is unchanged — this is budget growth, not budget removal.
+  const PACK_CAP = 71680;
   const INSTRUCTIONS_CAP = 15360;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {

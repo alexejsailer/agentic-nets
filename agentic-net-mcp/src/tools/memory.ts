@@ -75,7 +75,7 @@ export function previewOf(token: any): string {
   return JSON.stringify(data).slice(0, 300);
 }
 
-async function ensurePlace(ctx: AppContext, model: string, placeId: string): Promise<void> {
+export async function ensurePlace(ctx: AppContext, model: string, placeId: string): Promise<void> {
   // Hot-path short-circuit: a place confirmed earlier this session needs no
   // re-check (the cache only ever avoids redundant work — see markPlaceKnown).
   if (ctx.placeKnown(model, placeId)) return;
