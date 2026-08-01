@@ -31,7 +31,8 @@ deeper problem. (`add_transition` sequences assign+start for you and rarely hits
 
 Four checks, in order (full detail: docs/commands):
 1. **Executor coverage** — `net_stats.executorCoverage` / `list_executors.coverageForModel`:
-   `covered:false` = nothing polls this model; nothing will ever run.
+   `READY` runs now; `STANDBY` is eligible and should auto-activate after assignment (about 5s on
+   Desktop Lite); only `UNAVAILABLE` means nothing can serve this model.
 2. Routing — `action.executorId` / `assignedAgent` names an executor that exists.
 3. Action purity — the command action has NO `${...}`, no `command`/`cwd` fields.
 4. The consumed token is a COMPLETE CommandToken (kind/id/executor/command/args.command with
@@ -54,7 +55,7 @@ name a model that exists. Remember: on masters < 2.28 a failed llm fire emits no
 
 1. `create_model` (or confirm it exists — `list_models` shows state; CATALOGED ≠ loaded).
 2. First `add_place` succeeds ⇒ workspace skeleton is provisioned (auto on ≥ 2.27).
-3. Command lanes planned? `list_executors` — is anything polling / allowed to poll this model?
+3. Command lanes planned? `list_executors` — is state READY or STANDBY? Either can serve it.
 4. LLM lanes planned? `llm_health` says READY for master execution, or DISABLED
    so new lanes default to external MCP-client execution.
 5. Remember `net_overview` without netId is SESSION-scoped: `sessionNetCount: 0` on a fresh

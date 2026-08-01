@@ -27,7 +27,7 @@ AgenticNetOS.app
 | node | 8080 | data in `~/.agenticos/models` (same as native dev) |
 | master | 8082 | deterministic net/schedule runtime; server LLM, docker tools, registry and blob seeding off by default |
 | gateway | 8083 | single seed master; JWT keys in `~/.agenticos/desktop/gateway/jwt` |
-| executor | 8084 | direct-mode polling (no auth on loopback), id `agentic-net-executor-default` |
+| executor | 8084 | direct-mode, eligible for every model; polls models on demand after command assignment |
 | mcp | 8091 | streamable HTTP, bearer token auto-generated |
 | Studio server | 4200 | in-process: static GUI + reverse proxy of `/oauth2 /api /node-api /vault-api` to :8083 (same contract as the nginx image; port 4200 keeps the GUI in relative-URL mode) |
 
@@ -114,8 +114,9 @@ because jpackage cannot cross-build. Publishing to GitHub Releases:
   desktop session (packages carry no xdg postinst hooks, so headless installs
   stay clean); launch once from `/opt/agenticnetos/bin/AgenticNetOS` after install.
 - No blobstore child yet: blob URN rendering and knowledge-blob reads degrade. Command
-  transitions run on the built-in executor (`agentic-net-executor-default`); lanes pinned to a
-  second executor id stall until phase 2 adds multi-executor support.
+  transitions run on the built-in executor (`agentic-net-executor-default`). It is wildcard-
+  eligible and activates each model on demand within about 5s; lanes pinned to a second executor
+  id stall until phase 2 adds multi-executor support.
 - Server-side LLM is deliberately disabled. AI lanes run through MCP external
   fires by default; set `llm.provider=ollama` or `claude` in
   `desktop.properties` only when master-run or unattended AI lanes are wanted.

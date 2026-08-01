@@ -115,6 +115,21 @@ client connected. A scheduled external AI lane can become ready on its own,
 but its reasoning waits safely until an MCP client performs the external fire.
 Configure a server provider only when AI reasoning itself must run unattended.
 
+### Command executor state across models
+
+The bundled executor is eligible for every model (`EXECUTOR_MODELS=*`), including
+models created later through MCP. To stay light, it does not continuously poll
+models with no command assignments. MCP reports this lifecycle explicitly:
+
+- `STANDBY` — eligible and command-capable; no assignment in this model yet.
+- `READY` — polling this model because at least one command lane is assigned.
+- `UNAVAILABLE` — no online executor is eligible; this is the only blocking state.
+
+After a command transition is assigned, Desktop discovery moves the executor
+from STANDBY to READY within about five seconds. This model-local executor state
+does not change Studio's selected model. Check it with MCP `readiness`,
+`list_executors`, or `net_stats.executorCoverage`.
+
 ## Optional server-side LLM
 
 The default in a new installation is:
@@ -193,7 +208,8 @@ version, commits, and staged artifact hashes still match.
 
 Desktop Lite deliberately omits blobstore, OpenBao, OCI tool registry,
 Prometheus/Grafana/Tempo, clustering, and remote executor topology. Command
-lanes use the one bundled executor ID, `agentic-net-executor-default`. Blob URN
+lanes use the one bundled executor ID, `agentic-net-executor-default`, which is
+eligible for all local models and activates per model on demand. Blob URN
 rendering and knowledge-blob reads therefore degrade, and lanes pinned to
 another executor wait for that executor.
 

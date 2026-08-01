@@ -10,12 +10,13 @@ import { fetchTokens } from './memory.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
 
 /**
- * Executor coverage: is any ONLINE executor actually POLLING this model? The master advertises a
- * model to an executor's discovery only while node reports it ACTIVE, so an executor that is
- * *allowed* to serve the model (allowedModels `["*"]` or the model itself) yet is not currently
- * polling it will silently never run the model's command lanes — the classic "queued: true, no
- * output" stall. Each registry entry's `models` = models the executor has actually polled; that,
- * not `allowedModels`, is what decides whether command transitions fire.
+ * Executor availability has two healthy phases. READY means an ONLINE executor is already polling
+ * the model. STANDBY means one is eligible but has no assignment there yet: discovery is
+ * intentionally assignment-driven, so the executor starts polling after the first command lane is
+ * assigned. Only UNAVAILABLE means a command lane has no executor that can serve it.
+ *
+ * `covered` and `allowedButIdle` remain as compatibility fields for older clients; new callers
+ * should use `state` / `available` / `eligible`.
  */
 async function fetchExecutors(ctx: AppContext, activeOnly = true): Promise<any[]> {
   try {
@@ -28,13 +29,25 @@ async function fetchExecutors(ctx: AppContext, activeOnly = true): Promise<any[]
 
 export function coverageFromExecutors(executors: any[], model: string) {
   const has = (arr: any, v: string) => Array.isArray(arr) && arr.includes(v);
-  const online: string[] = executors.map((e) => e?.executorId).filter(Boolean);
-  const polling: string[] = executors.filter((e) => has(e?.models, model)).map((e) => e.executorId);
-  const allowedButIdle: string[] = executors
-    .filter((e) => !has(e?.models, model))
-    .filter((e) => has(e?.allowedModels, '*') || has(e?.allowedModels, model))
+  const onlineExecutors = executors.filter((e) => String(e?.status ?? 'ONLINE').toUpperCase() !== 'STALE');
+  const online: string[] = onlineExecutors.map((e) => e?.executorId).filter(Boolean);
+  const polling: string[] = onlineExecutors.filter((e) => has(e?.models, model)).map((e) => e.executorId);
+  const eligible: string[] = onlineExecutors
+    .filter((e) => {
+      if (has(e?.models, model)) return true;
+      // Empty/missing allowedModels is the legacy unrestricted registration shape.
+      return !Array.isArray(e?.allowedModels) || e.allowedModels.length === 0
+        || has(e.allowedModels, '*') || has(e.allowedModels, model);
+    })
     .map((e) => e.executorId);
-  return { online, polling, allowedButIdle, covered: polling.length > 0 };
+  const allowedButIdle: string[] = onlineExecutors
+    .filter((e) => !has(e?.models, model))
+    .filter((e) => eligible.includes(e.executorId))
+    .map((e) => e.executorId);
+  const covered = polling.length > 0;
+  const available = eligible.length > 0;
+  const state = covered ? 'READY' : available ? 'STANDBY' : 'UNAVAILABLE';
+  return { state, available, online, eligible, polling, allowedButIdle, covered };
 }
 
 /**
@@ -43,21 +56,23 @@ export function coverageFromExecutors(executors: any[], model: string) {
  * (list_executors / diagnosing a command transition). Returns undefined when coverage is fine.
  */
 export function coverageWarning(
-  cov: { online: string[]; polling: string[]; allowedButIdle: string[]; covered: boolean },
+  cov: ReturnType<typeof coverageFromExecutors>,
   model: string,
   commandCount?: number,
 ): string | undefined {
   if (cov.covered) return undefined;
   if (commandCount != null && commandCount === 0) return undefined;
   const demand = commandCount != null ? `${commandCount} command transition(s)` : 'command transitions';
+  if (cov.available) {
+    // With no known demand this is normal standby, not a warning. Once a command lane exists it
+    // should move to READY after the next assignment-discovery cycle.
+    if (commandCount == null) return undefined;
+    return `Executor activation is pending for model '${model}' — ${demand} exist and eligible executor(s) [${cov.eligible.join(', ')}] are STANDBY, not polling yet. Discovery is automatic (about 5s in Desktop Lite; 30s by default elsewhere). If it remains STANDBY beyond one cycle, re-check the transition's executorId/assignedAgent and model ACTIVE state.`;
+  }
   if (cov.online.length === 0) {
     return `No command executor is ONLINE — ${demand} on '${model}' cannot fire.`;
   }
-  let msg = `No executor is polling model '${model}' (${cov.online.length} online, serving other models) — ${demand} will queue and never fire.`;
-  if (cov.allowedButIdle.length) {
-    msg += ` Executor(s) [${cov.allowedButIdle.join(', ')}] are allowed to serve '${model}' but are not polling it — the master has not advertised this model to them (typically right after a master restart, until it is re-fetched as ACTIVE or receives a lifecycle call).`;
-  }
-  return msg;
+  return `No ONLINE executor is eligible for model '${model}' (${cov.online.length} online but excluded by allowedModels) — ${demand} cannot fire.`;
 }
 
 /**
@@ -281,7 +296,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Model statistics — LLM usage, running transitions, tool-nets',
       description:
-        'Aggregated operational stats for a model, computed with NO log-file or source access. Reports: which transitions are RUNNING vs STOPPED/ERROR (+ a paused flag when nothing runs); which transitions carry a SCHEDULE (cron/interval — i.e. what will fire overnight on its own); LLM consumption (llm + agent transition fires — calls, errors, avg duration, per transition) derived from the event line; overall activity by kind; the most recent error events; the tool-net library; and executorCoverage — whether an ONLINE executor is actually polling this model, because command transitions can look RUNNING with a full queue yet never fire when nothing is polling. This is how you answer "what is consuming LLM / what is running / what will run while I sleep / what just broke / why are my command lanes stuck".',
+        'Aggregated operational stats for a model, computed with NO log-file or source access. Reports RUNNING vs STOPPED/ERROR transitions; schedules; measured llm/agent consumption; activity and recent errors; tool-net usage; and executorCoverage with READY (polling), STANDBY (eligible, activates after command assignment), or UNAVAILABLE. This answers "what consumes LLM / what is running or scheduled / what broke / can command lanes run?".',
       inputSchema: {
         window: z.number().optional().describe('How many recent events to aggregate for LLM/activity stats (default 500)'),
         ...modelParam,
@@ -367,13 +382,16 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         .filter((r) => r.model === model)
         .map((r) => ({ transitionId: r.transitionId, intervalMs: r.intervalMs, ...r.stats }));
 
-      // --- executor coverage: will this model's command lanes actually run? ---
+      // --- executor availability + activation: can this model's command lanes run? ---
       const commandTransitions = insList.filter((t) => t?.inscription?.action?.type === 'command').length;
       const cov = coverageFromExecutors(execList ?? [], model);
       const covWarning = coverageWarning(cov, model, commandTransitions);
       const executorCoverage = {
         commandTransitions,
+        state: cov.state,
+        available: cov.available,
         online: cov.online,
+        eligible: cov.eligible,
         polling: cov.polling,
         covered: cov.covered,
         ...(cov.allowedButIdle.length ? { allowedButIdle: cov.allowedButIdle } : {}),
@@ -409,7 +427,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'List transitions with kind + schedule + live status',
       description:
-        'Every transition in the model in ONE call, each with its kind, schedule (cron/interval, or none), live status (RUNNING/STOPPED/ERROR), action type, and input/output places. This is the model-audit read — "what is this model supposed to be doing, and is it actually running?" — far cheaper than GET_TRANSITION per id (and unlike native LIST_ALL_INSCRIPTIONS, which returns bare ids without includeContent:true). Filter with kind or scheduledOnly. Pair with scheduler_status for lastFiredAt/nextFireAt and net_stats.executorCoverage for whether command lanes can even fire.',
+        'Every transition in the model in ONE call, each with kind, schedule, live status, action type, and input/output places. This is the model audit — far cheaper than GET_TRANSITION per id. Filter with kind or scheduledOnly. Pair with scheduler_status for timing/eligibility and net_stats.executorCoverage for command executor READY/STANDBY/UNAVAILABLE state.',
       inputSchema: {
         kind: z.string().optional().describe('Filter to one kind: map / llm / http / command / agent / link'),
         scheduledOnly: z.boolean().optional().describe('Only transitions that carry a schedule'),
@@ -515,7 +533,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'List command executors + coverage for this model',
       description:
-        "The command executors currently registered (ONLINE/STALE, allowedModels, and `models` = the models each is actually polling right now), PLUS coverageForModel: whether any ONLINE executor is polling the target model. Two uses: (1) BUILD-time — command transitions pick their executor via action.executorId, so when more than one executor is ONLINE and the user did not specify one, ask which to target ('*' = any executor, first reservation wins; omitted = agentic-net-executor-default). (2) DEBUG-time — a command transition that fires with no output almost always means no executor is polling its model; coverageForModel.covered=false is the smoking gun (allowedButIdle lists executors permitted to serve it but not currently polling, e.g. after a master restart).",
+        "The command executors currently registered, PLUS coverageForModel with three explicit states: READY = polling this model now; STANDBY = eligible and command-capable, waiting for its first assignment; UNAVAILABLE = no eligible ONLINE executor. Desktop Lite's bundled executor is eligible for every model and normally appears STANDBY until a command transition is assigned, then auto-activates. Command transitions pick an executor via action.executorId; if several are ONLINE and the user did not specify one, ask which to target ('*' = any, first reservation wins; omitted = agentic-net-executor-default).",
       inputSchema: {
         activeOnly: z.boolean().optional().describe('Only executors seen within the liveness TTL (default true)'),
         ...modelParam,
@@ -530,6 +548,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         executors,
         coverageForModel: {
           model,
+          state: cov.state,
+          available: cov.available,
+          eligible: cov.eligible,
           polling: cov.polling,
           covered: cov.covered,
           ...(cov.allowedButIdle.length ? { allowedButIdle: cov.allowedButIdle } : {}),
@@ -538,8 +559,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         fieldGuide: {
           status: 'ONLINE = seen within the liveness TTL (working); STALE = not seen recently',
           connected: 'true only for WebSocket executors; an HTTP-polling executor is connected:false yet fully ONLINE and serving',
-          models: 'models this executor is ACTUALLY polling right now — this, not allowedModels, decides whether a command lane fires',
-          allowedModels: 'models it is PERMITTED to serve (["*"] = any); a superset of `models`. Allowed-but-not-polling shows up as allowedButIdle above',
+          models: 'models this executor is polling now; assignment-driven discovery adds a model after its first command lane is assigned',
+          allowedModels: 'models it is eligible to serve (["*"] = every model); eligible-but-not-polling is normal STANDBY, not failure',
+          covered: 'legacy active-polling flag; use available/state when deciding whether command lanes can be built',
         },
       };
     }),
@@ -564,7 +586,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Readiness — the whole dependency chain, one read-only call',
       description:
-        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway (reachable + credential accepted), node (reachable, model exists, state, workspace containers), credential vault/legacy fallback (gates credential-using lanes), LLM provider (gates llm/agent lanes), and executors (polling coverage — gates command lanes). Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE you build anything. `ready:true` means no problems found; otherwise `problems` lists each blocking issue with its fix. GET-based — readonly-safe. Run this first on a new connection, a new model, or whenever anything fails four tools deep.",
+        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway, node/model, credential vault, LLM provider, and command executors. Executor state is READY (polling), STANDBY (eligible; auto-activates after the first command assignment), or UNAVAILABLE. Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE building. `ready:true` means no blocking problem found. GET-based and readonly-safe.",
       inputSchema: { ...modelParam },
     },
     wrapTool(scope, config.mode, { name: 'readiness', mutates: false }, async (model) => {
@@ -679,11 +701,18 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const executors = await fetchExecutors(ctx);
       const cov = coverageFromExecutors(executors, model);
       const covReport = {
+        state: cov.state,
+        available: cov.available,
         online: cov.online,
+        eligible: cov.eligible,
         polling: cov.polling,
         covered: cov.covered,
         ...(cov.allowedButIdle.length ? { allowedButIdle: cov.allowedButIdle } : {}),
-        ...(cov.covered ? {} : { note: 'only blocks COMMAND lanes — map/llm/http/agent run on master with no executor' }),
+        ...(cov.state === 'STANDBY'
+          ? { note: 'command-capable: assignment-driven discovery starts polling automatically after the first command lane is assigned' }
+          : cov.state === 'UNAVAILABLE'
+            ? { note: 'blocks COMMAND lanes only — map/llm/http/agent do not need an executor' }
+            : {}),
       };
 
       return {
@@ -706,7 +735,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
               String(vault?.status ?? '').toUpperCase(),
             ),
           llmLanes: String(llm?.status ?? '').toUpperCase() === 'READY',
-          commandLanes: cov.covered,
+          commandLanes: cov.available,
         },
         ...(problems.length ? { problems } : {}),
       };
@@ -816,15 +845,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   if (config.mode === 'readonly') return;
 
   // diagnose_transition is registered on its own because for COMMAND transitions it augments the
-  // master diagnosis with executor coverage — the one failure the master itself cannot see (it does
-  // not know whether any executor is polling this model). That is the top silent cause of
-  // "fires but nothing happens".
+  // master diagnosis with executor availability/activation — the one failure the master itself
+  // cannot see. STANDBY is eligible and should become READY after assignment discovery;
+  // UNAVAILABLE is a hard routing blocker.
   server.registerTool(
     'diagnose_transition',
     {
       title: 'Diagnose a transition',
       description:
-        'Master-side diagnosis of why a transition is not firing (binding, preset arcql, token shape, live status), PLUS for COMMAND transitions an executorCoverage check — no executor polling this model means the command queues and never fires. No logs needed.',
+        'Master-side diagnosis of why a transition is not firing (binding, preset ArcQL, token shape, live status), PLUS COMMAND executor state: READY, STANDBY pending automatic discovery, or UNAVAILABLE. No logs needed.',
       inputSchema: { transitionId: z.string(), ...modelParam },
     },
     wrapTool(scope, config.mode, { name: 'diagnose_transition', mutates: false }, async (model, args) => {
@@ -841,6 +870,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const cov = coverageFromExecutors(await fetchExecutors(ctx), model);
       const warning = coverageWarning(cov, model, 1);
       const executorCoverage = {
+        state: cov.state,
+        available: cov.available,
+        eligible: cov.eligible,
         polling: cov.polling,
         covered: cov.covered,
         ...(cov.allowedButIdle.length ? { allowedButIdle: cov.allowedButIdle } : {}),

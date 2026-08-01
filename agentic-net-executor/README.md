@@ -54,7 +54,7 @@ cd agentic-net-executor
 Override master + executor identity:
 
 ```bash
-MASTER_HOST=localhost EXECUTOR_ID=exec-1 EXECUTOR_MODEL_ID=default ./mvnw spring-boot:run
+EXECUTOR_UPSTREAM_URL=http://localhost:8082 EXECUTOR_ID=exec-1 EXECUTOR_MODELS=default ./mvnw spring-boot:run
 ```
 
 ## Health & Metrics
@@ -68,11 +68,23 @@ curl http://localhost:8084/actuator/prometheus
 ## Configuration
 
 Relevant properties (see `src/main/resources/application.properties`):
-- `master.base.url`
-- `executor.id`
-- `executor.model.id`
+- `executor.upstream.url` / `EXECUTOR_UPSTREAM_URL`
+- `executor.id` / `EXECUTOR_ID`
+- `executor.models` / `EXECUTOR_MODELS` (`*` means eligible for every model)
+- `executor.discovery.interval-ms` / `EXECUTOR_DISCOVERY_INTERVAL_MS` (default 30000)
 - `executor.communication.mode` (POLLING, WEBSOCKET, HYBRID)
 - `executor.command.*` (timeouts, filesystem safety)
+
+### Multi-model activation
+
+Eligibility and polling are deliberately different. `EXECUTOR_MODELS=*` makes
+the executor available to every active model, but it only polls models where
+master has assigned it a command transition. This assignment-driven discovery
+keeps an idle Desktop Lite installation light. Observability should report an
+eligible executor as `STANDBY`, not unavailable; after the first command
+assignment it becomes `READY` on the next discovery cycle. Desktop Lite sets a
+5-second discovery interval, while server deployments keep the 30-second
+default.
 
 ### Encryption key for transition credentials
 

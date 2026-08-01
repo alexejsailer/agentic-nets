@@ -218,10 +218,14 @@ public class MasterPollingService {
     // -------------------------------------------------------------------------
 
     /**
-     * Discover assigned transitions from master every 30 seconds.
-     * Updates the set of model IDs this executor should poll for.
+     * Discover assigned transitions from master. Discovery is assignment-driven: wildcard
+     * eligibility does not make the executor poll every empty model forever; the first command
+     * assignment adds that model to the polling set. Desktop Lite shortens the configurable
+     * interval so a newly-created lane activates quickly while the production default stays 30s.
      */
-    @Scheduled(fixedDelay = 30_000, initialDelay = 2_000)
+    @Scheduled(
+            fixedDelayString = "${executor.discovery.interval-ms:30000}",
+            initialDelayString = "${executor.discovery.initial-delay-ms:2000}")
     public void discoverAssignments() {
         webClient.get()
                 .uri(uriBuilder -> uriBuilder

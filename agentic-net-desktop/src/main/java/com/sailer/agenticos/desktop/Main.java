@@ -158,11 +158,7 @@ public final class Main {
             60));
 
         // direct-mode executor (same trust domain on loopback; blank client id disables auth)
-        Map<String, String> executorEnv = merge(baseEnv(bind, logs), Map.of(
-            "SERVER_PORT", String.valueOf(DesktopConfig.EXECUTOR_PORT),
-            "EXECUTOR_UPSTREAM_URL", "http://127.0.0.1:" + DesktopConfig.MASTER_PORT,
-            "EXECUTOR_AUTH_CLIENT_ID", "",
-            "EXECUTOR_ID", "agentic-net-executor-default"));
+        Map<String, String> executorEnv = merge(baseEnv(bind, logs), executorEnv());
         specs.add(new ServiceSpec(
             "executor", "Executor (commands)",
             javaCommand(config, "executor", "agentic-net-executor.jar"),
@@ -216,6 +212,17 @@ public final class Main {
             env.put("ANTHROPIC_API_KEY", anthropicKey);
         }
         return env;
+    }
+
+    /** Desktop's one local executor is eligible for every model and activates new assignments fast. */
+    static Map<String, String> executorEnv() {
+        return Map.of(
+            "SERVER_PORT", String.valueOf(DesktopConfig.EXECUTOR_PORT),
+            "EXECUTOR_UPSTREAM_URL", "http://127.0.0.1:" + DesktopConfig.MASTER_PORT,
+            "EXECUTOR_AUTH_CLIENT_ID", "",
+            "EXECUTOR_ID", "agentic-net-executor-default",
+            "EXECUTOR_MODELS", "*",
+            "EXECUTOR_DISCOVERY_INTERVAL_MS", "5000");
     }
 
     private static void putIfConfigured(Map<String, String> env, DesktopConfig config,

@@ -59,7 +59,7 @@ are gone. ${models}
   keep working here. capability:"execute" (rwxhl---t) may run commands / invoke tool-nets; default
   "reason" (rw--) is safe. tier:"high" uses the thinking model.
 - Monitor & debug WITHOUT logs or source: net_stats (LLM consumption, RUNNING vs stopped/error,
-  what is SCHEDULED, executorCoverage — can command lanes even fire? — tool-net usage, recent
+  what is SCHEDULED, executorCoverage READY/STANDBY/UNAVAILABLE, tool-net usage, recent
   errors) -> list_transitions (the model audit: every transition's kind + schedule + status +
   places in ONE call) -> scheduler_status (lastFiredAt / nextFireAt / why-not-eligible per lane)
   -> event_trail (provenance; page older history with before) -> query_tokens on suspect places
@@ -154,8 +154,8 @@ command transitions execute shell on the distributed executor — including FULL
 instances. The safe pattern:
   claude -p '<task prompt>' --allowedTools 'Read,Grep,Glob' --no-session-persistence < /dev/null
 ALWAYS redirect stdin (it hangs forever otherwise); least-privilege --allowedTools; generous
-timeoutMs. Multiple executors: list_executors shows them + coverageForModel (is anything even
-polling this model? — the "queued, no output" diagnosis); pick one via add_transition's executorId
+timeoutMs. Multiple executors: list_executors shows them + coverageForModel (READY or STANDBY can
+serve it); pick one via add_transition's executorId
 ('*' = any; if several are ONLINE and the user didn't say, ASK). Full reference: docs/commands.
 
 ## Model control — the user owns the switch

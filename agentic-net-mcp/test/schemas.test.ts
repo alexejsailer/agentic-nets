@@ -195,6 +195,15 @@ describe('advertised tool surface', () => {
     expect(client.getInstructions()).toMatch(/ArcQL/);
   });
 
+  it('teaches every new MCP session that STANDBY executors can serve command lanes', async () => {
+    const client = await connectedClient(makeConfig());
+    expect(client.getInstructions()).toMatch(/READY or STANDBY can\s+serve it/i);
+
+    const { tools } = await client.listTools();
+    expect(tools.find((t) => t.name === 'readiness')?.description).toMatch(/STANDBY.*eligible/i);
+    expect(tools.find((t) => t.name === 'list_executors')?.description).toMatch(/STANDBY.*command-capable/i);
+  });
+
   it('resources include the knowledge base and catalogs', async () => {
     const client = await connectedClient(makeConfig());
     const { resources } = await client.listResources();

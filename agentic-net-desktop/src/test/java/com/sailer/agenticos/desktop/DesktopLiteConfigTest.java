@@ -68,4 +68,13 @@ class DesktopLiteConfigTest {
             System.setProperty("user.home", previousHome);
         }
     }
+
+    @Test
+    void bundledExecutorCanActivateCommandLanesInEveryModelQuickly() {
+        Map<String, String> env = Main.executorEnv();
+
+        assertEquals("agentic-net-executor-default", env.get("EXECUTOR_ID"));
+        assertEquals("*", env.get("EXECUTOR_MODELS"));
+        assertEquals("5000", env.get("EXECUTOR_DISCOVERY_INTERVAL_MS"));
+    }
 }

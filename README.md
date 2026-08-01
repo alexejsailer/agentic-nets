@@ -159,7 +159,9 @@ only as a fallback.
 command)" in the tray. With the default model-free profile, new AI transitions
 automatically run as external fires: the connected model reasons while master
 still owns token binding, emission, accounting and the event trail. Data lives
-in `~/.agenticos/` and survives updates. Full
+in `~/.agenticos/` and survives updates. The bundled command executor is eligible
+for every model and activates that model on demand after its first command lane,
+so newly created domains need no executor configuration. Full
 workflow and limitations: [Desktop Lite](agentic-net-desktop/DESKTOP-LITE.md).
 
 **Updating**: quit the app, install the new package over the old one (macOS:

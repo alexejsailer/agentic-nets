@@ -73,14 +73,21 @@ Resolution order: `action.executorId` → the persisted `assignedAgent` → the 
 reservation wins. With several executors ONLINE and no user preference, ASK which to target
 (list_executors shows them).
 
-## The "queued, no output" stall — check coverage FIRST
+## Executor state: STANDBY is healthy
 
-A command transition can be RUNNING with a full input queue and never fire: nothing is POLLING its
-model. Executors only poll models the master advertises to them, and `allowedModels` (permission)
-is not `models` (actually polling). Diagnosis in one call: `net_stats.executorCoverage` or
-`list_executors.coverageForModel` — `covered:false` with `allowedButIdle:[...]` is the smoking
-gun. Classic trigger: a master restart (self-heals within ~a minute on masters ≥ 2.27; on older
-masters any lifecycle call — e.g. stop/start of one transition — re-registers the model).
+Executor discovery is assignment-driven: an executor does not poll every empty model forever. Use
+`net_stats.executorCoverage` or `list_executors.coverageForModel` and read `state`:
+
+- `READY`: an ONLINE executor is polling this model now.
+- `STANDBY`: an ONLINE executor is eligible (`allowedModels` contains the model or `"*"`) but has
+  no discovered command assignment yet. It is command-capable; create/assign the lane and it
+  activates automatically (about 5s on Desktop Lite, 30s by default elsewhere).
+- `UNAVAILABLE`: no ONLINE executor is eligible. This is the build/routing blocker.
+
+`covered` only means "actively polling now" and remains for compatibility; do not interpret
+`covered:false` as unavailable when `available:true`. If an assigned command transition remains
+STANDBY beyond one discovery cycle, check its `action.executorId` / `assignedAgent`, confirm the
+model is ACTIVE, then inspect executor logs.
 
 ## Spawning CLI agents (e.g. Claude Code) from a command lane
 
@@ -98,7 +105,8 @@ URN — fetch it with READ_BLOB_TEXT instead of expecting inline stdout.
 ## Desktop Lite: headless CLI agents run on THIS machine
 
 The desktop executor runs on the user's own computer, so installed CLI agents are
-transition workers:
+transition workers. It is explicitly eligible for every model; a newly created model normally
+shows STANDBY until its first command lane is assigned, then becomes READY automatically:
 
     claude -p '<task>' --allowedTools 'Read,Grep,Glob' --no-session-persistence < /dev/null
     codex exec --skip-git-repo-check '<task>' < /dev/null
