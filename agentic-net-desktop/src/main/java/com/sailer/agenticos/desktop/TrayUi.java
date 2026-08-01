@@ -49,6 +49,16 @@ public final class TrayUi {
             menu = buildMenu();
             trayIcon = new TrayIcon(trayImage(false, true), "AgenticNetOS", menu);
             trayIcon.setImageAutoSize(true);
+            // Double-click (Windows/Linux) goes straight to Studio, signed in —
+            // the common case, and what people expect from a tray app.
+            trayIcon.addActionListener(e -> {
+                try {
+                    Desktop.getDesktop().browse(URI.create("http://localhost:"
+                        + DesktopConfig.GUI_PORT + guiServer.createLoginPath()));
+                } catch (Exception ex) {
+                    notifyError("Could not open Studio", String.valueOf(ex.getMessage()));
+                }
+            });
             SystemTray.getSystemTray().add(trayIcon);
             supervisor.onStatusChange((name, status) -> refresh());
             refresh();

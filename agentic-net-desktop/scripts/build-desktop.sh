@@ -64,6 +64,21 @@ assemble_app_dir "$DIST/app" "$NODE_PLATFORM" "$DIST/cache"
 # ---------------------------------------------------------------------------
 # 3. jlink runtime (shared by launcher + all Java services)
 # ---------------------------------------------------------------------------
+log "Generating brand icons"
+ICONS="$DIST/icons"
+java -cp "$MODULE_DIR/target/launcher.jar" com.sailer.agenticos.desktop.IconGenerator "$ICONS"
+# iconutil wants an .iconset directory with Apple's exact naming
+ICONSET="$DIST/AgenticNetOS.iconset"
+rm -rf "$ICONSET"; mkdir -p "$ICONSET"
+for sz in 16 32 128 256; do
+  cp "$ICONS/icon_${sz}x${sz}.png" "$ICONSET/icon_${sz}x${sz}.png"
+  double=$((sz * 2))
+  [ -f "$ICONS/icon_${double}x${double}.png" ] \
+    && cp "$ICONS/icon_${double}x${double}.png" "$ICONSET/icon_${sz}x${sz}@2x.png"
+done
+iconutil -c icns "$ICONSET" -o "$DIST/AgenticNetOS.icns"
+MAC_ICON=(--icon "$DIST/AgenticNetOS.icns")
+
 log "Building jlink runtime"
 rm -rf "$DIST/runtime"
 jlink \
@@ -94,6 +109,7 @@ jpackage \
   --main-jar launcher.jar \
   --main-class com.sailer.agenticos.desktop.Main \
   --java-options "-Dagenticos.desktop.version=$VERSION" \
+  "${MAC_ICON[@]}" \
   ${MAC_SIGN_ARGS[@]+"${MAC_SIGN_ARGS[@]}"} \
   --dest "$DIST/out"
 
@@ -111,6 +127,7 @@ if $MAKE_DMG; then
     --main-jar launcher.jar \
     --main-class com.sailer.agenticos.desktop.Main \
     --java-options "-Dagenticos.desktop.version=$VERSION" \
+    "${MAC_ICON[@]}" \
     ${MAC_SIGN_ARGS[@]+"${MAC_SIGN_ARGS[@]}"} \
     --dest "$DIST/out"
 

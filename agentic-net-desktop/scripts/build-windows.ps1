@@ -148,6 +148,12 @@ Copy-Item (Join-Path $Dist "cache\node-win\node-v$NodeVer-win-x64\node.exe") "$A
 # ---------------------------------------------------------------------------
 # 3. jlink + jpackage
 # ---------------------------------------------------------------------------
+Log "Generating brand icons"
+$Icons = Join-Path $Dist "icons"
+Invoke-Checked "icon generator" {
+    java -cp (Join-Path $ModuleDir "target\launcher.jar") com.sailer.agenticos.desktop.IconGenerator $Icons
+}
+
 Log "Building jlink runtime"
 $Runtime = Join-Path $Dist "runtime"
 if (Test-Path $Runtime) { Remove-Item -Recurse -Force $Runtime }
@@ -163,6 +169,7 @@ if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
     $Type = "app-image"
 }
 jpackage --type $Type --name "AgenticNetOS" --app-version $Version --vendor "Alexej Sailer" `
+    --icon (Join-Path $Icons "AgenticNetOS.ico") --resource-dir $Icons --verbose `
     --input $App --runtime-image $Runtime `
     --main-jar launcher.jar --main-class com.sailer.agenticos.desktop.Main `
     --java-options "-Dagenticos.desktop.version=$Version" `
