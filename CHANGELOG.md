@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Large nested token values truncate structurally** (`agentic-net-mcp`). JSON values that exceed preview limits become a parseable `__truncated__` object with byte count and preview instead of a broken JSON fragment.
 
 ### Fixed
+- **`preserveRunning` actually reaches the master** (`agentic-net-cli`). `MasterApi.fireOnce` and the agent FIRE_ONCE tool now forward the flag (and advertise it in the native tool schema); previously the MCP's default lifecycle-safe smoke test silently degraded to the legacy 409-while-running because the CLI dropped the parameter.
 - **One Desktop executor discovers and serves every model** (`agentic-net-executor`, `agentic-net-desktop`). Wildcard model discovery polls continuously, status distinguishes READY/STANDBY/UNAVAILABLE, and MCP describes STANDBY as command-capable capacity rather than a failure—so a model created after startup does not silently lose command transitions.
 - **Per-model protocol journals and MCP duties are discoverable** (`agentic-net-mcp`, `agentic-net-desktop`). Connected sessions are explicitly told to service external LLM/agent fires, choose a fresh model for a substantial domain, use local headless command lanes where appropriate, and write/read structured protocol entries that open from the tray.
 

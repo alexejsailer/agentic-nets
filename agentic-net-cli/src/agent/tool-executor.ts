@@ -2601,7 +2601,9 @@ export class ToolExecutor {
     const preflight = await this.preflightTransitionOrFail(params.transitionId as string);
     if (!preflight.success) return preflight;
 
-    const result = await this.masterApi.fireOnce(transitionId, this.modelId);
+    const preserveRunning = typeof params.preserveRunning === 'boolean' ? params.preserveRunning : undefined;
+    const result = await this.masterApi.fireOnce(transitionId, this.modelId,
+      preserveRunning !== undefined ? { preserveRunning } : undefined);
     return { success: true, data: { ...result, preflight: preflight.data } };
   }
 

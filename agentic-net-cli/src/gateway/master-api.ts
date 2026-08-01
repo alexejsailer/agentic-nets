@@ -82,8 +82,13 @@ export class MasterApi {
     return this.client.masterApi('POST', `/transitions/${id}/stop`, { modelId });
   }
 
-  async fireOnce(id: string, modelId: string): Promise<any> {
-    return this.client.masterApi('POST', `/transitions/${id}/fireOnce`, { modelId });
+  async fireOnce(id: string, modelId: string, options?: { preserveRunning?: boolean }): Promise<any> {
+    // preserveRunning: atomically test a RUNNING lane under the master's in-flight guard
+    // instead of the legacy 409. Omitted = master default (legacy behavior).
+    return this.client.masterApi('POST', `/transitions/${id}/fireOnce`, {
+      modelId,
+      ...(options?.preserveRunning !== undefined ? { preserveRunning: options.preserveRunning } : {}),
+    });
   }
 
   /** Deregister a RUNTIME transition entirely (inscription, status, assignment, metrics). */

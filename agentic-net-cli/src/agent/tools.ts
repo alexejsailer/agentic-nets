@@ -921,11 +921,12 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   FIRE_ONCE: {
-    description: 'Fire a transition once on master synchronously and return results. Use only for deterministic transitions (pass/map/http/command), not agent/llm transitions.',
+    description: 'Fire a transition once on master synchronously and return results. Use only for deterministic transitions (pass/map/http/command), not agent/llm transitions. preserveRunning:true tests a RUNNING lane atomically under the scheduler in-flight guard instead of the legacy 409-while-running.',
     schema: {
       type: 'object',
       properties: {
         transitionId: { type: 'string', description: 'Transition ID to fire' },
+        preserveRunning: { type: 'boolean', description: 'Test a RUNNING lane without stopping it (atomic; lifecycle state untouched). Omit for legacy 409-while-running.' },
       },
       required: ['transitionId'],
     },
