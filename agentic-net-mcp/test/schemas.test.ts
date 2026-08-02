@@ -242,7 +242,15 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig());
     const { prompts } = await client.listPrompts();
     expect(prompts.map((p) => p.name).sort()).toEqual(
-      ['capture-session', 'debug-net', 'monitor-personas', 'setup-working-memory', 'spawn-worker', 'work-dev-team-backlog'].sort(),
+      [
+        'capture-session',
+        'debug-net',
+        'monitor-personas',
+        'setup-working-memory',
+        'spawn-worker',
+        'work-dev-team-backlog',
+        'work-external-fires',
+      ].sort(),
     );
   });
 

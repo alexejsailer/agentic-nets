@@ -21,14 +21,21 @@ are gone. ${models}
 
 ## Read these two FIRST — they change what you build, not just how you call it
 - **\`agenticnets://docs/index\`** — 17 operational docs (emit · scheduling · llm · cost · tokens ·
-  troubleshooting · recipes · …). Grep them with search_knowledge. Field report from a client that
-  found them only halfway through its second session: reading docs/emit and docs/recipes CHANGED
-  ITS ARCHITECTURE (deterministic chaining instead of agent orchestration) and corrected two of
-  its own conclusions. Read the index before designing a pipeline, not after it misbehaves.
-- **\`agenticnets://limits\`** — every hard cap, default and enum. These are NOT in the tool
-  schemas. The 8192-char HTTP body clip in particular decides whether a fetch-and-parse pipeline
-  can work at all; a client that met it by accident shipped a confidently wrong verdict built on
-  a truncated page.
+  troubleshooting · recipes · …). Grep them with search_knowledge. A client that read docs/emit and
+  docs/recipes only in its second session CHANGED ITS ARCHITECTURE afterwards (deterministic
+  chaining over agent orchestration) and corrected two of its own conclusions. Read the index
+  before designing a pipeline, not after it misbehaves.
+- **\`agenticnets://limits\`** — every hard cap, default and enum, none of them in the tool schemas.
+  The 8192-char HTTP body clip decides whether a fetch-and-parse pipeline can work at all; a client
+  that met it by accident shipped a confident verdict built on a truncated page.
+
+## First thing in a session — is work waiting for YOU?
+Run \`readiness\` early. \`llm.status: DISABLED\` means no server-side model, so **this session is the
+runtime for every llm/agent lane** and they never run while you are away. \`externalFires.waiting\`
+counts lanes holding bound tokens now. If > 0, say so in one line and OFFER to work them
+(prepare_external_fire → answer → complete_external_fire, per lane); nothing else drains that
+backlog. Add: "they run only while I am connected — for unattended AI configure a provider
+(Desktop Lite: tray → LLM Settings) and I will hand them back to master."
 
 ## When to use what
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
@@ -44,20 +51,20 @@ are gone. ${models}
   | blank). dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
   fire_once t-team-claim, do the work, fire_once t-team-submit / t-team-complete. watcher is the
   zero-LLM overnight sentinel: cron-probes a URL and POSTs a webhook alert when it is not 200
-  (params: url, webhook, cron, label) — deploy it when the user wants "tell me when it breaks".
+  (params: url, webhook, cron, label) — for "tell me when it breaks".
 - Build automation: add_place + add_transition (kinds: map=deterministic transform, llm=one AI
   call, http=API call, command=shell via executor, agent=autonomous multi-step persona,
-  link=pure structure edge). Transitions you schedule (scheduleCron/intervalMs) keep running
-  server-side after you disconnect.
+  link=pure structure edge). Scheduled DETERMINISTIC lanes keep running server-side after you
+  disconnect; scheduled llm/agent lanes do so only with a server provider (see Scheduling).
 - Crystallize a session: crystallize_session records what was discussed AND the concrete steps
   (API calls / commands) into memory, and bakes those steps into a replayable command tool-net.
   For a single reusable capability, scaffold_tool_net once, then invoke_tool_net forever —
-  deterministic replay at zero LLM cost. Prefer these to re-reasoning a known workflow.
+  deterministic replay at zero LLM cost.
 - Spawn autonomous workers: spawn_persona stands up a COMPLETE self-driving persona net (charter +
-  task inbox + a started agent transition + output). Feed it via memory_write place:"p-<name>-task"
-  and it works each task on its own, server-side. Spawn several — they run in PARALLEL while you
-  keep working here. capability:"execute" (rwxhl---t) may run commands / invoke tool-nets; default
-  "reason" (rw--) is safe. tier:"high" uses the thinking model.
+  task inbox + a started agent transition + output). Feed it via memory_write place:"p-<name>-task";
+  spawn several and they work in PARALLEL. capability:"execute" (rwxhl---t) may run commands /
+  invoke tool-nets; default "reason" (rw--) is safe. tier:"high" uses the thinking model. A persona
+  IS an agent lane: with llm_health DISABLED it advances only while you are connected to serve it.
 - Monitor & debug WITHOUT logs or source: net_stats (LLM consumption, RUNNING vs stopped/error,
   what is SCHEDULED, executorCoverage READY/STANDBY/UNAVAILABLE, tool-net usage, recent
   errors) -> list_transitions (the model audit: every transition's kind + schedule + status +
@@ -72,8 +79,7 @@ target). create_model (rw, when enabled) mints a brand-new model — optionally 
 template into it in the same call — and it joins this session's allowlist immediately, so any tool
 can target it with the model param. Prefer a fresh model per domain over piling into 'default' —
 the model is the pause/budget/cleanup boundary. Master auto-discovers active models within ~10s and begins
-polling their transitions. Sessions: CREATE_SESSION. Nets: create_net. Everything AgenticOS can do
-is reachable here — nothing requires the raw REST API.
+polling their transitions. Sessions: CREATE_SESSION. Nets: create_net.
 
 ## Cleaning up — no orphaned registrations
 DELETE_NET removes a net's structure; pass deleteTransitions:true to ALSO deregister its runtime
@@ -88,56 +94,47 @@ catalog or a peer's (remote param); hub_show inspects one artifact before commit
 installs (model artifacts create a NEW model that joins your allowlist). Federate with
 hub_add_remote — peers serve anonymous reads only with their public-catalog flag on. Details live
 in the tool descriptions.
-Ready-made agents: hub_search {kind:"agent"} finds installable persona-team templates (health
-coach, dev crew, ...). hub_install lands one STOPPED in its own agent-<name> session and returns a
-configure-then-start checklist — fill the required config places (CREATE_TOKEN), then arm with the
-native START_AGENT_SESSION; STOP_AGENT_SESSION disarms. LIST_AGENT_SESSIONS shows what is installed
-and whether it is running/configured. Talk to an armed agent through its manifest entry inbox place.
-Context nets: hub_search {kind:"context"} finds installable context templates. hub_show exposes their
-named stores, scope, hierarchy, attachments, data policy, and maintenance startPlan. hub_install puts
-one in its own context-<name> session. Structural kind=link transitions express semantic/hierarchical
-relationships and never fire; START_CONTEXT and STOP_CONTEXT control only maintenance transitions.
-Wire a declared attachment (e.g. a parent context) with ATTACH_CONTEXT {sessionId, attachment,
-targetPlaceId} — it creates the typed link; links carry an optional "relation" (contains,
-derives-from, promotes-to, ...) readable via GET_LINKED_PLACES and memory_graph.
-Agent manifests can declare required or optional contexts, and START_AGENT_SESSION reports readiness.
+Ready-made agents: hub_search {kind:"agent"} finds persona-team templates. hub_install lands one
+STOPPED in its own agent-<name> session with a configure-then-start checklist — fill the required
+config places (CREATE_TOKEN), arm with START_AGENT_SESSION (STOP_AGENT_SESSION disarms,
+LIST_AGENT_SESSIONS shows state). Talk to an armed agent through its manifest entry inbox place.
+Context nets: hub_search {kind:"context"}; hub_show exposes stores, scope, hierarchy, attachments
+and maintenance startPlan; hub_install puts one in its own context-<name> session. Its kind=link
+transitions are structure and never fire; START_CONTEXT/STOP_CONTEXT control only maintenance.
+ATTACH_CONTEXT {sessionId, attachment, targetPlaceId} wires a declared attachment as a typed link
+(optional "relation": contains, derives-from, …) readable via GET_LINKED_PLACES and memory_graph.
+Agent manifests may declare required/optional contexts; START_AGENT_SESSION reports readiness.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine
 gotchas absorbed — prefer them for the flows they cover. The UPPERCASE tools are the FULL native
 platform catalog (the exact same tools agent transitions use in-net), exposed 1:1: structure
 surgery (SET_INSCRIPTION, ADAPT_INSCRIPTIONS, CREATE/DELETE_PLACE|ARC|NET|TOKEN), deep diagnosis
-(NET_DOCTOR, VERIFY_NET, GET_NET_STRUCTURE, VERIFY_RUNTIME_BINDINGS), cleanup (DELETE_NET removes
-debris nets), packages (PACKAGE_SEARCH/PUBLISH/INSTALL), Docker/registry ops, EXPORT_PNML backup,
-raw HTTP_CALL, and more — see the agenticnets://tool-catalog resource for the complete list.
+(NET_DOCTOR, VERIFY_NET, VERIFY_RUNTIME_BINDINGS), cleanup, packages, Docker/registry ops,
+EXPORT_PNML backup, raw HTTP_CALL and more — agenticnets://tool-catalog lists every one.
 Anything the platform can do, you can do here; nothing requires dropping to raw REST.
 
 ## Hosting transitions HERE (client-side LLM — no server-side model needed)
-host_transition executes an llm/agent transition IN THIS PROCESS instead of on master, using the
-LLM this side already has (default: the local claude binary). Build the lane with add_transition
-{kind:"llm"|"agent", start:false} — start:false means master never runs it — then host_transition
-{transitionId, mode:"watch"} to keep working arriving tokens, or mode:"once" for a single
-execution. Stats live in net_stats.hosted; stop with unhost_transition. Honest rule: hosted lanes
-run only while this session is connected — tokens wait safely in the input place meanwhile. Put
-lanes that must run 24/7 unattended on master (llm kind with a server-side model) instead.
+host_transition executes an llm/agent transition IN THIS PROCESS instead of on master, using the LLM
+this side already has (default: the local claude binary). Build the lane with add_transition
+{kind:"llm"|"agent", start:false} (master never runs it), then host_transition {transitionId,
+mode:"watch"} to work arriving tokens, or mode:"once". Stats in net_stats.hosted; stop with
+unhost_transition. Same honest rule as external fires: hosted lanes run only while this session is
+connected, tokens wait safely meanwhile. Lanes that must run 24/7 belong on master with a provider.
 
 ## External fires — YOU are the LLM (no provider config at all)
-The third execution mode: set_external {transitionId, external:true} (bulk: transitionIds / netId /
-sessionId / all:true) marks an llm/agent transition status "external" — master's schedulers skip it
-and tokens wait in its input places until a client fires it. Model/session/net choices persist and
-apply to newly deployed transitions carrying matching metadata; a transition choice overrides them.
-Then: list_external_fires shows which
-have work; prepare_external_fire {transitionId} returns the EXACT interpolated prompt (llm) or nl
-instruction (agent) plus leased bound tokens + fireId. For agents it also returns the exact
-allowedTools/resourceScopes; use only those tools (master authorizes every call). You reason AS THE
-HOST MODEL; complete_external_fire
-{transitionId, fireId, response | emissions | summary} hands the answer to master, which runs the
-same emit-rule pipeline as a master fire, consumes the shown tokens, and books usage as
-provider external:mcp-<session> (never against the master LLM breaker). success:false or
-abandon_external_fire preserves the inputs. Mixed nets are normal — some llm/agent transitions on
-master, others external, in one net. Difference vs host_transition: external fires use the HOST
-MODEL itself (zero provider setup, master keeps emit semantics); host_transition runs a separately
-configured provider unattended in this process. start_transition returns a lane to master.
+The third execution mode. set_external {transitionId, external:true} (bulk: transitionIds / netId /
+sessionId / all:true) marks an llm/agent transition "external": master's schedulers skip it and
+tokens wait in its input places until a client fires it. Net/session/model choices persist for
+newly deployed matching transitions; a per-transition choice overrides them.
+Loop: list_external_fires (what has work) → prepare_external_fire {transitionId} (returns the exact
+interpolated prompt or nl, leased bound tokens, fireId, and for agents the allowedTools/
+resourceScopes you must stay inside) → you reason AS THE HOST MODEL → complete_external_fire
+{transitionId, fireId, response | emissions | summary}. Master then runs the SAME emit pipeline as
+its own fire, consumes the shown tokens, and books usage as external:mcp-<session>. success:false
+or abandon_external_fire preserves the inputs. Mixed nets are normal. Versus host_transition: this
+needs zero provider setup; host_transition runs a configured provider in this process.
+start_transition returns a lane to master.
 
 ## Scheduling — nets that run while everyone sleeps
 Any non-link transition accepts a schedule: scheduleCron (6-field cron: sec min hour day month
@@ -148,6 +145,12 @@ when you schedule something — they should know their net will act (and possibl
 own. net_stats.scheduled lists everything armed; when scheduled lanes look silent, scheduler_status
 gives lastFiredAt / nextFireAt / why-not-eligible per lane (a schedule is an AND-gate with token
 binding — docs/scheduling explains the trap).
+**The one exception:** the schedulers SKIP \`external\` lanes, so a cron on one is armed but
+dispatched by nobody — and with llm_health DISABLED every llm/agent lane is external. Deterministic
+lanes are unaffected. So check llm_health BEFORE promising that a scheduled llm/agent lane runs
+overnight; if DISABLED, say it runs only while a client is connected and give the two options (serve
+it now, or configure a provider so master owns the schedule). scheduler_status flags these
+willNotFireUnattended / headline.externalScheduled.
 
 ## Spawning Claude Code (or any CLI agent) from a net
 command transitions execute shell on the distributed executor — including FULL Claude Code
@@ -159,7 +162,7 @@ serve it); pick one via add_transition's executorId
 ('*' = any; if several are ONLINE and the user didn't say, ASK). Full reference: docs/commands.
 
 ## Model control — the user owns the switch
-You must be able to answer "what is this model consuming and how do I stop it":
+Always be able to answer "what is this consuming and how do I stop it":
 - net_stats = the meter: LLM calls/errors/avgMs per transition, what is RUNNING, what is scheduled,
   recent errors, plus a paused flag.
 - pause_model = the kill switch: stops EVERY running transition (no fires, no LLM spend, no
@@ -184,10 +187,9 @@ first and report what was stopped.
    report a MISSING_EMIT warning on them; that is expected and benign, not a failure.
 9. Secrets go through set_transition_credentials + \${credentials.KEY} in the inscription — NEVER
    inline in an inscription or into a token: tokens are event-sourced, a pasted secret is permanent.
-10. LLM lanes: check llm_health BEFORE building. READY supports master fires; DISABLED is an
-    intentional MCP-first mode: new AI lanes default external and serving them is YOUR job
-    (list_external_fires → prepare → complete — docs/llm).
-    Other non-READY states make master fires fail (and retry billed). Give every llm lane an error
+10. LLM lanes: check llm_health BEFORE building. DISABLED is the intentional MCP-first mode (see
+    the session-start and Scheduling notes above); other non-READY states make master fires fail
+    and every retry is billed. Give every llm lane an error
     emit branch. add_transition emits @response.json so a
     prompt-for-JSON lane's fields interpolate downstream (\${input.data.field}); @response.raw
     stores the reply as an escaped string under 'value' — only for freeform text (docs/llm).

@@ -740,6 +740,51 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         }
       }
 
+      // External fires — the lanes THIS session is the runtime for. Without a server-side
+      // provider these never fire on their own, not even with a schedule armed, so a backlog
+      // here is invisible everywhere else: the lane looks healthy, the tokens just sit.
+      // Surfacing it in readiness is what makes "connect a client" the moment work resumes.
+      let externalFires: any;
+      const llmDisabled = String(llm?.status ?? '').toUpperCase() === 'DISABLED';
+      if (entry) {
+        try {
+          const res: any = await ctx.client.masterApi('GET', '/transitions/external/ready', undefined, {
+            modelId: model,
+          });
+          const rows: any[] = res?.transitions ?? [];
+          const waiting = rows.filter((t: any) => t.ready);
+          externalFires = {
+            external: rows.length,
+            waiting: waiting.length,
+            ...(waiting.length
+              ? { transitions: waiting.map((t: any) => ({ transitionId: t.transitionId, kind: t.kind })) }
+              : {}),
+            note:
+              'These llm/agent lanes are fired by a connected client (this session), never by master — '
+              + 'a schedule on them does NOT run unattended.',
+          };
+          if (waiting.length) {
+            warnings.push(
+              `${waiting.length} llm/agent lane(s) have work waiting for THIS session `
+                + `(${waiting.map((t: any) => t.transitionId).slice(0, 5).join(', ')}`
+                + `${waiting.length > 5 ? ', …' : ''}) — they do not fire while no client is connected. `
+                + 'Offer to work them now: prepare_external_fire {transitionId} → answer as the host model → complete_external_fire.',
+            );
+          }
+        } catch {
+          // Old-master compatibility: no endpoint means no external-fire feature to report.
+        }
+      }
+      if (llmDisabled) {
+        llm = {
+          ...llm,
+          youAreTheRuntime:
+            'No server-side model is configured (the intended Desktop Lite default). llm/agent lanes '
+            + 'run only while an MCP client is connected to serve them, so they cannot be scheduled '
+            + 'unattended. Configure a provider (tray → LLM Settings) only if they must run with nobody connected.',
+        };
+      }
+
       // Executors — gate command lanes only.
       const executors = await fetchExecutors(ctx);
       const cov = coverageFromExecutors(executors, model);
@@ -767,6 +812,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         llm,
         vault,
         executors: covReport,
+        ...(externalFires ? { externalFires } : {}),
         capabilities: {
           build:
             gateway.authenticated === true &&
@@ -814,11 +860,24 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         const nextMs = sched?.nextFireAtMillis ?? null;
         const running = String(t.status ?? '').toUpperCase() === 'RUNNING';
         const overdue = running && typeof nextMs === 'number' && nextMs < now - 60_000;
+        // A schedule on an `external` lane is a trap: master's schedulers skip external
+        // transitions entirely, so the cron is armed and displayed but nothing ever ticks
+        // it. Only a connected client firing it makes it run.
+        const external = String(t.status ?? '').toLowerCase() === 'external';
         return {
           transitionId: t.transitionId,
           kind: t.kind,
           status: t.status,
           ready: t.ready,
+          ...(external && sched
+            ? {
+                willNotFireUnattended: true,
+                hint:
+                  'This lane is `external`: master never fires it, so its schedule does NOT run while '
+                  + 'no client is connected. A connected session must run it (prepare_external_fire → '
+                  + 'complete_external_fire), or give master a provider and start_transition to hand it back.',
+              }
+            : {}),
           ...(t.eligibility ? { eligibility: t.eligibility } : {}),
           ...(t.credentialsWithheld
             ? {
@@ -862,6 +921,11 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // Count withheld lanes across ALL transitions, not just the scheduled subset — a withheld
       // unscheduled command lane must not vanish from this headline because of the default filter.
       const withheldCount = list.filter((t: any) => t.credentialsWithheld).length;
+      // Scheduled AND external: armed on paper, dispatched by nobody. Called out separately
+      // from stoppedScheduled because the status reads as an active state, not a stopped one.
+      const externalScheduled = allScheduled
+        .filter((t: any) => String(t.status ?? '').toLowerCase() === 'external')
+        .map((t: any) => ({ transitionId: t.transitionId, kind: t.kind, schedule: t.schedule }));
       return {
         model,
         observedAt: res?.observedAt,
@@ -869,12 +933,24 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         headline: {
           stoppedScheduled,
           invalidSchedules,
+          ...(externalScheduled.length ? { externalScheduled } : {}),
         },
         fieldGuide: {
           lifecycle: 'a scheduled lane that is STOPPED never fires; start_transition re-arms it',
           telemetry: 'armedAt means registered with the scheduler; lastFiredAt null means literally never dispatched; lastSuccessAt advances only after a successful outcome',
           invalid: 'INVALID_SCHEDULE lanes fail closed and never fire; fix the schedule, then set_schedule/start_transition',
+          external: 'an `external` lane is fired by a connected client, never by master — its schedule does NOT run unattended',
         },
+        ...(externalScheduled.length
+          ? {
+              externalScheduledCount: externalScheduled.length,
+              externalScheduledHint:
+                `${externalScheduled.length} scheduled lane(s) are external and will NOT fire on their own. `
+                + 'Tell the user plainly: this work only happens while a client is connected. '
+                + 'Run them now with prepare_external_fire, or configure a server-side LLM provider '
+                + 'and start_transition to let master keep the schedule.',
+            }
+          : {}),
         ...(overdueCount ? { overdueCount } : {}),
         ...(withheldCount ? { credentialsWithheldCount: withheldCount } : {}),
         transitions: rows,

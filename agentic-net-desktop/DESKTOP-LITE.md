@@ -133,6 +133,30 @@ client connected. A scheduled external AI lane can become ready on its own,
 but its reasoning waits safely until an MCP client performs the external fire.
 Configure a server provider only when AI reasoning itself must run unattended.
 
+### AI lanes cannot be scheduled unattended in the default profile
+
+With `llm.provider=disabled`, llm and agent transitions are `external`: the
+connected MCP client is their runtime. Master's schedulers skip external
+transitions, so a cron on one is accepted and displayed as armed but is
+dispatched by nobody. The lane runs when a client connects and serves it, and
+its input tokens wait safely in the meantime. Deterministic, HTTP, and command
+lanes are unaffected. Personas are agent lanes and follow the same rule.
+
+The protocol surfaces this rather than leaving it to be discovered:
+
+- `readiness` reports `llm.youAreTheRuntime` and an `externalFires` block
+  counting the lanes that hold bound tokens and are waiting for a client, plus a
+  warning naming them. A backlog is work pending, not a failed installation, so
+  it does not make the installation unready.
+- `scheduler_status` marks each such lane `willNotFireUnattended` and lists them
+  under `headline.externalScheduled`.
+- The server instructions tell the connected client to check the backlog early in
+  a session, report the count, and offer to work it. The `work-external-fires`
+  prompt is the same recipe on demand.
+
+To hand these lanes to master instead, configure a provider (tray → **LLM
+Settings**) and `start_transition` them.
+
 ### Command executor state across models
 
 The bundled executor is eligible for every model (`EXECUTOR_MODELS=*`), including

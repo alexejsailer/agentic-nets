@@ -85,6 +85,26 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'work-external-fires',
+    {
+      title: 'Run the AI lanes waiting for me',
+      description:
+        'Serve the llm/agent transitions that only run while a client is connected (no server-side LLM configured)',
+      argsSchema: {},
+    },
+    () =>
+      userMessage(
+        `Work the Agentic-Nets AI lanes that are waiting for this session. Call list_external_fires: ` +
+          `these llm/agent transitions are fired by a connected client, never by master, so nothing has run them ` +
+          `while I was away. For EACH one with ready:true, call prepare_external_fire {transitionId}, reason as the ` +
+          `host model over the returned prompt (llm) or nl instruction and allowedTools (agent), and hand the answer ` +
+          `back with complete_external_fire — success:false or abandon_external_fire if you cannot do it, so the inputs ` +
+          `are preserved. Then summarize what you processed and what is left. Finally, if any of these lanes carry a ` +
+          `schedule, tell me they will not fire unattended and what my two options are.`,
+      ),
+  );
+
+  server.registerPrompt(
     'monitor-personas',
     {
       title: 'Monitor running personas & nets',

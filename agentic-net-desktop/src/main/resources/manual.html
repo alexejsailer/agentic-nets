@@ -308,7 +308,9 @@ sounds: without it, twice a year your morning job quietly moves by an hour.</p>
 </div>
 
 <p>Deterministic schedules keep running with no client attached and at no cost. Monday morning you
-just ask what landed.</p>
+just ask what landed. If a step in the net needs judgment rather than a rule, that step is an AI
+lane and section 6 applies to it: worth knowing before you rely on a 07:00 summary being written at
+07:00.</p>
 
 <h3><span class="num">4.4</span> A persona that works while you do something else</h3>
 
@@ -323,11 +325,10 @@ through a question while you get on with something else. Give two personas the s
 compare where they disagree; the disagreement is usually the interesting part.</p>
 
 <div class="note warn">
-  <strong>Worth knowing up front.</strong> Personas think, so they need a model. Desktop Lite has no
-  server side LLM by default, so a persona's reasoning is carried out by your connected client and
-  advances while a client is attached. Tasks queue safely when nothing is connected, and nothing is
-  lost. If you want personas running genuinely unattended, point <code>llm.provider</code> at Ollama
-  or Anthropic in <strong>LLM Settings</strong>.
+  <strong>Worth knowing up front.</strong> A persona is an agent lane, so it thinks, so it needs a
+  model. With no LLM configured your connected client does that thinking, which means a persona
+  advances while you are there and its tasks queue safely when you are not. Giving it a cron does
+  not change that. Section 6 explains the rule and the two ways to change it.
 </div>
 
 <h3><span class="num">4.5</span> A watcher that costs nothing</h3>
@@ -374,6 +375,7 @@ recognise them in the answer.</p>
     <tr><td>Build a scheduled net</td><td>"Build a net that does X every day at 08:00 Europe/Berlin, and tell me what you armed."</td></tr>
     <tr><td>See what exists</td><td>"Give me a net overview and list my transitions with their schedules."</td></tr>
     <tr><td>Hire a worker</td><td>"Spawn a reviewer persona and give it this design to argue against."</td></tr>
+    <tr><td>Run what waited for me</td><td>"Are any AI lanes waiting for you? Run them and summarize."</td></tr>
     <tr><td>It has gone quiet</td><td>"Run scheduler_status and tell me which lanes are overdue or invalid."</td></tr>
     <tr><td>Check the spend</td><td>"Run usage_report. Which transition burns the most?"</td></tr>
     <tr><td>Stop everything now</td><td>"Pause the model."</td></tr>
@@ -390,22 +392,61 @@ recognise them in the answer.</p>
 
 <h2 id="unattended">6. What runs while you are away</h2>
 
+<p>This is the single most important thing to understand about Desktop Lite, and the one that
+surprises people. It follows directly from there being no server-side LLM by default.</p>
+
+<div class="note warn">
+  <strong>With no LLM configured, your MCP client is the only thing that can run
+  <code>llm</code> and <code>agent</code> transitions.</strong> Those lanes therefore cannot run on a
+  schedule while you are away. You can put a cron on one, and it will be accepted and displayed as
+  armed, but nobody dispatches it. It runs when a client connects and serves it.
+  Deterministic lanes are completely unaffected.
+</div>
+
 <div class="table-wrap">
 <table>
   <thead><tr><th>Lane</th><th>Client connected</th><th>Client disconnected</th></tr></thead>
   <tbody>
-    <tr><td>Scheduled <code>map</code>, <code>pass</code>, <code>http</code>, <code>command</code></td><td>Runs</td><td>Runs</td></tr>
-    <tr><td><code>llm</code> / <code>agent</code>, default Lite profile</td><td>Runs, your client does the thinking</td><td>Becomes ready and waits</td></tr>
-    <tr><td><code>llm</code> / <code>agent</code> with a configured provider</td><td>Runs</td><td>Runs</td></tr>
+    <tr><td>Scheduled <code>map</code>, <code>pass</code>, <code>http</code>, <code>command</code></td><td>Runs</td><td>Runs, on schedule</td></tr>
+    <tr><td><code>llm</code> / <code>agent</code>, default Lite profile</td><td>Runs, your client does the thinking</td><td><strong>Waits</strong>, schedule or not</td></tr>
+    <tr><td><code>llm</code> / <code>agent</code> with a provider configured</td><td>Runs</td><td>Runs, on schedule</td></tr>
   </tbody>
 </table>
 </div>
 
-<p>Nothing is lost while you are disconnected. Tokens sit in their places until something picks them
-up, which is the whole reason work is stored as tokens rather than held in a conversation.</p>
+<p><strong>Nothing is lost by being offline.</strong> The tokens sit in their input places and the
+work is simply pending. That is the whole reason work is stored as tokens rather than held in a
+conversation: an interrupted pipeline is paused, not failed.</p>
 
-<p>The one hard requirement: the machine has to be awake and the app running. Desktop Lite is a local
-runtime, not a cloud service. Turn on <strong>Start at Login</strong> if you want it always there.</p>
+<h3><span class="num">6.1</span> Your assistant should tell you about the backlog</h3>
+
+<p>You do not have to remember any of this. When a client connects, the MCP server tells it that
+this session is the runtime for those lanes and how many are waiting, so a well-behaved client
+reports something like <em>"3 AI lanes have work waiting for me, shall I run them?"</em> and works
+through them on your say-so.</p>
+
+<p>If your client stays quiet about it, ask directly. Either of these does the job:</p>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Check readiness. Are any AI lanes waiting for you? If so, run them.</p>
+  <p>Or invoke the prompt your client exposes as <strong>work-external-fires</strong>.</p>
+</div>
+
+<h3><span class="num">6.2</span> If you want them to run unattended</h3>
+
+<p>Configure a model in <strong>LLM Settings</strong> (tray, or Studio's settings): a local Ollama,
+or an Anthropic key. Master then owns those lanes and their schedules run like any other, with
+nobody connected.</p>
+
+<p>That is the real trade. Leave it disabled and your assistant does the thinking, which costs you
+nothing extra and keeps everything local, but AI lanes only advance while you are there. Configure a
+provider and they run overnight, billed to that provider. Deterministic and command lanes need
+neither choice; they always run.</p>
+
+<p>One hard requirement either way: the machine has to be awake with the app running. Desktop Lite
+is a local runtime, not a cloud service. Turn on <strong>Start at Login</strong> if you want it
+always there.</p>
 
 <h2 id="tray">7. The tray menu</h2>
 
@@ -460,6 +501,7 @@ filtering and grouping by source, day, tag or model.</p>
   <thead><tr><th style="width:40%">Symptom</th><th>Ask your client for</th></tr></thead>
   <tbody>
     <tr><td>Nothing works at all</td><td><code>readiness</code>, which names the unhappy layer</td></tr>
+    <tr><td>An AI lane never ran overnight</td><td>Expected without a configured provider, not a fault: see section 6. <code>scheduler_status</code> marks these lanes <code>willNotFireUnattended</code></td></tr>
     <tr><td>A scheduled net went silent</td><td><code>scheduler_status</code>: it reports stopped and invalid schedules, and keeps armed, fired and succeeded times apart</td></tr>
     <tr><td>A command lane is queued with no output</td><td><code>list_executors</code>, or executor coverage in <code>net_stats</code></td></tr>
     <tr><td>One transition misbehaves</td><td><code>diagnose_transition</code></td></tr>

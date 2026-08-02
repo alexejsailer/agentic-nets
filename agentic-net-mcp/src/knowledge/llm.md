@@ -58,4 +58,14 @@ Desktop Lite ships no server LLM on purpose: new AI lanes default to external
 execution and serving them is YOUR job — list_external_fires → prepare → complete.
 A lane that "never fires" here is usually an external fire nobody served. For
 unattended AI lanes: host_transition, or the user enables a provider in Studio →
-Settings → Desktop LLM.
+Settings → Desktop LLM (also reachable from the tray).
+
+Two consequences to state out loud rather than let the user discover:
+
+1. **These lanes cannot be scheduled unattended.** Master's schedulers skip
+   `external` transitions, so a cron on one is armed but dispatched by nobody
+   (docs/scheduling). Deterministic lanes are unaffected.
+2. **Check the backlog when you connect.** `readiness.externalFires.waiting`
+   counts lanes holding bound tokens with nobody to run them. Report the number,
+   offer to work it, and use the `work-external-fires` prompt as the recipe. That
+   offer is the only thing standing between the user and a queue that never drains.
