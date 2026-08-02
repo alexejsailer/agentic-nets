@@ -96,6 +96,68 @@ export class MasterApi {
     return this.client.masterApi('DELETE', `/runtime/transitions/${id}`, undefined, { modelId });
   }
 
+  // ---- External fires: this process supplies the model, master keeps everything else ----
+  //
+  // Distinct from executeTransitionLocally (EXECUTE_TRANSITION), which runs the lane here and
+  // measures postset deltas. On this path master still binds and leases the tokens, applies the
+  // inscription's emit rules, consumes exactly what it showed us, and books usage — so an
+  // externally served lane behaves identically to a master-run one. That is what makes a
+  // provider-less master a configuration difference rather than a behavioural one.
+
+  /**
+   * llm/agent lanes a client could fire. `includeAll` widens the list from "marked external"
+   * to every AI lane whatever its status, each with a servable verdict — the view you need when
+   * master has no provider, since it cannot run any of them.
+   */
+  async listAiLanes(
+    modelId: string,
+    options?: { includeAll?: boolean; includeStopped?: boolean },
+  ): Promise<any> {
+    return this.client.masterApi('GET', '/transitions/external/ready', undefined, {
+      modelId,
+      ...(options?.includeStopped ? { includeStopped: 'true' } : {}),
+      ...(options?.includeAll ? { includeAll: 'true' } : {}),
+    });
+  }
+
+  /** Mark a lane client-only (or hand it back). The ONLY thing that sets `external`. */
+  async setExternal(id: string, modelId: string, external = true): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${id}/external`, { modelId, external });
+  }
+
+  /**
+   * Bind + lease the presets and get back the exact prompt a master fire would have used.
+   * `ready:false` (no fireId) means nothing to do; it is not an error.
+   */
+  async prepareExternalFire(id: string, modelId: string): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${id}/external/prepare`, { modelId });
+  }
+
+  /** Hand the answer back; master emits, consumes the leased tokens and records the fire. */
+  async completeExternalFire(
+    id: string,
+    modelId: string,
+    fireId: string,
+    payload: {
+      response?: string;
+      emissions?: Array<Record<string, any>>;
+      summary?: string;
+      success?: boolean;
+      error?: string;
+      worker?: string;
+      model?: string;
+    },
+  ): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${id}/external/complete`, {
+      modelId, fireId, ...payload,
+    });
+  }
+
+  /** Release the lease without emitting. Inputs are preserved for a later attempt. */
+  async abandonExternalFire(id: string, modelId: string, fireId: string): Promise<any> {
+    return this.client.masterApi('POST', `/transitions/${id}/external/abandon`, { modelId, fireId });
+  }
+
   // ---- Transition credentials (vault-backed; see /transitions/{id}/credentials on master) ----
   /** Store credentials for a transition. Vault-backed when the master has AGENTICOS_VAULT_URL. */
   async setTransitionCredentials(id: string, modelId: string, credentials: Record<string, string>): Promise<any> {
