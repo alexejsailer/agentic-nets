@@ -31,8 +31,9 @@ are gone. ${models}
 
 ## First thing in a session — is work waiting for YOU?
 Run \`readiness\` early. \`llm.status: DISABLED\` means no server-side model, so **this session is the
-runtime for every llm/agent lane** and they never run while you are away. \`externalFires.waiting\`
-counts lanes holding bound tokens now. If > 0, say so in one line and OFFER to work them
+runtime for every llm/agent lane**, whatever its status — \`external\` is only ever set by hand.
+\`externalFires.waiting\`/\`.stranded\` count what needs you (full roster:
+list_external_fires {includeAll:true}). If > 0, say so in one line and OFFER to work them
 (prepare_external_fire → answer → complete_external_fire, per lane); nothing else drains that
 backlog. Add: "they run only while I am connected — for unattended AI configure a provider
 (Desktop Lite: tray → LLM Settings) and I will hand them back to master."
@@ -125,16 +126,15 @@ connected, tokens wait safely meanwhile. Lanes that must run 24/7 belong on mast
 ## External fires — YOU are the LLM (no provider config at all)
 The third execution mode. set_external {transitionId, external:true} (bulk: transitionIds / netId /
 sessionId / all:true) marks an llm/agent transition "external": master's schedulers skip it and
-tokens wait in its input places until a client fires it. Net/session/model choices persist for
-newly deployed matching transitions; a per-transition choice overrides them.
+tokens wait in its input places until a client fires it. A net/session/model choice also covers
+lanes deployed there later; a per-transition choice overrides it.
 Loop: list_external_fires (what has work) → prepare_external_fire {transitionId} (returns the exact
 interpolated prompt or nl, leased bound tokens, fireId, and for agents the allowedTools/
 resourceScopes you must stay inside) → you reason AS THE HOST MODEL → complete_external_fire
 {transitionId, fireId, response | emissions | summary}. Master then runs the SAME emit pipeline as
 its own fire, consumes the shown tokens, and books usage as external:mcp-<session>. success:false
-or abandon_external_fire preserves the inputs. Mixed nets are normal. Versus host_transition: this
-needs zero provider setup; host_transition runs a configured provider in this process.
-start_transition returns a lane to master.
+or abandon_external_fire preserves the inputs. Versus host_transition: this needs zero provider
+setup; host_transition runs a configured provider in this process.
 
 ## Scheduling — nets that run while everyone sleeps
 Any non-link transition accepts a schedule: scheduleCron (6-field cron: sec min hour day month
@@ -145,9 +145,9 @@ when you schedule something — they should know their net will act (and possibl
 own. net_stats.scheduled lists everything armed; when scheduled lanes look silent, scheduler_status
 gives lastFiredAt / nextFireAt / why-not-eligible per lane (a schedule is an AND-gate with token
 binding — docs/scheduling explains the trap).
-**The one exception:** the schedulers SKIP \`external\` lanes, so a cron on one is armed but
-dispatched by nobody — and with llm_health DISABLED every llm/agent lane is external. Deterministic
-lanes are unaffected. So check llm_health BEFORE promising that a scheduled llm/agent lane runs
+**The one exception:** the schedulers SKIP \`external\` lanes, and with llm_health DISABLED master
+skips EVERY llm/agent lane, so a cron on one is armed but dispatched by nobody. Deterministic lanes
+are unaffected. So check llm_health BEFORE promising that a scheduled llm/agent lane runs
 overnight; if DISABLED, say it runs only while a client is connected and give the two options (serve
 it now, or configure a provider so master owns the schedule). scheduler_status flags these
 willNotFireUnattended / headline.externalScheduled.

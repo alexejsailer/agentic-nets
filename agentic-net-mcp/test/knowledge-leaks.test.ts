@@ -79,9 +79,12 @@ describe('leak gate — nothing credential/infra-shaped ships', () => {
 describe('sizing discipline — the teaching layer stays cheap', () => {
   const PER_DOC_CAP = 8192;
   // Raised 64K → 70K for the Desktop-Lite guidance wave (external-fire duty,
-  // local headless CLI agents, model-per-domain, the protocol journal). Per-doc
-  // 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 71680;
+  // local headless CLI agents, model-per-domain, the protocol journal). Then
+  // 70K → 72K for the servable AI-lane roster: `external` became explicit-only, so
+  // the docs had to stop describing a provider-less master as auto-marking lanes and
+  // start describing the servable verdict clients now steer by. Per-doc 8KB
+  // discipline is unchanged — this is budget growth, not budget removal.
+  const PACK_CAP = 73728;
   const INSTRUCTIONS_CAP = 15360;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {

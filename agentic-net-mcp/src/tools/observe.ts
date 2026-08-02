@@ -663,7 +663,10 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // endpoint/fields; treat that as unknown and preserve compatibility.
       if (entry) {
         try {
-          const status: any = await ctx.client.masterApi('GET', `/models/${model}/execution/status`);
+          const status: any = await ctx.client.masterApi(
+            'GET', `/models/${model}/execution/status`, undefined,
+            { modelId: model }, // gateway routes on the query param, never the path segment
+          );
           const scheduledLanes: any[] = (status?.transitions ?? []).filter((t: any) => t?.schedule);
           const stopped = scheduledLanes.filter(
             (t: any) => String(t.status ?? '').toUpperCase() !== 'RUNNING',
@@ -750,12 +753,26 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         try {
           const res: any = await ctx.client.masterApi('GET', '/transitions/external/ready', undefined, {
             modelId: model,
+            // The full roster is a per-lane binding sweep, so only pay for it when master
+            // genuinely cannot run AI lanes — that is exactly when the wider view matters.
+            ...(llmDisabled ? { includeAll: 'true' } : {}),
           });
           const rows: any[] = res?.transitions ?? [];
           const waiting = rows.filter((t: any) => t.ready);
+          // Lanes master cannot run at all. Distinct from `waiting`: a stranded lane may be
+          // running and look perfectly healthy on every other surface while going nowhere.
+          const stranded = rows.filter((t: any) => t.servableReason === 'MASTER_HAS_NO_PROVIDER');
           externalFires = {
             external: rows.length,
             waiting: waiting.length,
+            ...(stranded.length
+              ? {
+                  stranded: stranded.length,
+                  strandedTransitions: stranded.map((t: any) => ({
+                    transitionId: t.transitionId, kind: t.kind, status: t.status,
+                  })),
+                }
+              : {}),
             ...(waiting.length
               ? { transitions: waiting.map((t: any) => ({ transitionId: t.transitionId, kind: t.kind })) }
               : {}),
@@ -769,6 +786,13 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
                 + `(${waiting.map((t: any) => t.transitionId).slice(0, 5).join(', ')}`
                 + `${waiting.length > 5 ? ', …' : ''}) — they do not fire while no client is connected. `
                 + 'Offer to work them now: prepare_external_fire {transitionId} → answer as the host model → complete_external_fire.',
+            );
+          } else if (stranded.length) {
+            warnings.push(
+              `${stranded.length} llm/agent lane(s) exist that master cannot run (no provider): `
+                + `${stranded.map((t: any) => t.transitionId).slice(0, 5).join(', ')}`
+                + `${stranded.length > 5 ? ', …' : ''}. They are idle now, but nothing will ever run them `
+                + 'except a connected client. list_external_fires {includeAll:true} shows the full picture.',
             );
           }
         } catch {
@@ -844,8 +868,16 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'scheduler_status', mutates: false }, async (model, args) => {
-      const res: any = await ctx.client.masterApi('GET', `/models/${model}/execution/status`);
+      const res: any = await ctx.client.masterApi('GET', `/models/${model}/execution/status`, undefined, {
+        modelId: model, // also as a query param: the gateway reads modelId from query/body, never the path
+      });
       const list: any[] = res?.transitions ?? [];
+      // Provider state decides whether a scheduled llm/agent lane can EVER fire on its own.
+      // One extra GET; without it a nightly llm lane under a disabled provider reads as healthy.
+      const providerDisabled = await ctx.client
+        .masterApi('GET', '/llm/health')
+        .then((h: any) => String(h?.status ?? '').toUpperCase() === 'DISABLED')
+        .catch(() => false);
       const now = Date.now();
       const fmtAgo = (ms: number) => {
         const s = Math.max(0, Math.round((now - ms) / 1000));
@@ -859,23 +891,34 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         const errorMs = sched?.lastErrorAtMillis ?? null;
         const nextMs = sched?.nextFireAtMillis ?? null;
         const running = String(t.status ?? '').toUpperCase() === 'RUNNING';
-        const overdue = running && typeof nextMs === 'number' && nextMs < now - 60_000;
-        // A schedule on an `external` lane is a trap: master's schedulers skip external
-        // transitions entirely, so the cron is armed and displayed but nothing ever ticks
-        // it. Only a connected client firing it makes it run.
+        // Two ways a schedule can be armed and yet dispatched by nobody. Either the lane is
+        // `external` (master's schedulers skip it by design), or it is an AI lane and master has
+        // no provider to run it with. Both display as a healthy armed cron otherwise.
         const external = String(t.status ?? '').toLowerCase() === 'external';
+        const aiLane = t.kind === 'llm' || t.kind === 'agent';
+        const strandedAiLane = providerDisabled && aiLane && !external;
+        const unattended = (external || strandedAiLane) && Boolean(sched);
+        // "Overdue" means the scheduler should have fired and did not, which is advice to restart
+        // the lane. That is wrong for a lane nothing was ever going to dispatch, so suppress it.
+        const overdue = running && !unattended && typeof nextMs === 'number' && nextMs < now - 60_000;
         return {
           transitionId: t.transitionId,
           kind: t.kind,
           status: t.status,
           ready: t.ready,
-          ...(external && sched
+          ...(unattended
             ? {
                 willNotFireUnattended: true,
-                hint:
-                  'This lane is `external`: master never fires it, so its schedule does NOT run while '
-                  + 'no client is connected. A connected session must run it (prepare_external_fire → '
-                  + 'complete_external_fire), or give master a provider and start_transition to hand it back.',
+                // deliberately NOT `hint`: the overdue branch below owns that key, and one
+                // diagnosis silently overwriting the other is how the real cause gets lost
+                unattendedHint: external
+                  ? 'This lane is `external`: master never fires it, so its schedule does NOT run while '
+                    + 'no client is connected. A connected session must run it (prepare_external_fire → '
+                    + 'complete_external_fire), or give master a provider and start_transition to hand it back.'
+                  : `This is a ${t.kind} lane and master has no LLM provider, so its schedule cannot fire `
+                    + 'server-side however it is armed. A connected session must run it '
+                    + '(list_external_fires {includeAll:true} → prepare_external_fire → complete_external_fire), '
+                    + 'or configure a provider so master can own the schedule.',
               }
             : {}),
           ...(t.eligibility ? { eligibility: t.eligibility } : {}),
@@ -921,11 +964,22 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // Count withheld lanes across ALL transitions, not just the scheduled subset — a withheld
       // unscheduled command lane must not vanish from this headline because of the default filter.
       const withheldCount = list.filter((t: any) => t.credentialsWithheld).length;
-      // Scheduled AND external: armed on paper, dispatched by nobody. Called out separately
-      // from stoppedScheduled because the status reads as an active state, not a stopped one.
+      // Scheduled but dispatched by nobody: armed on paper only. Called out separately from
+      // stoppedScheduled because these statuses read as active states, not stopped ones.
       const externalScheduled = allScheduled
-        .filter((t: any) => String(t.status ?? '').toLowerCase() === 'external')
-        .map((t: any) => ({ transitionId: t.transitionId, kind: t.kind, schedule: t.schedule }));
+        .filter((t: any) => {
+          const external = String(t.status ?? '').toLowerCase() === 'external';
+          const aiLane = t.kind === 'llm' || t.kind === 'agent';
+          return external || (providerDisabled && aiLane);
+        })
+        .map((t: any) => ({
+          transitionId: t.transitionId,
+          kind: t.kind,
+          schedule: t.schedule,
+          reason: String(t.status ?? '').toLowerCase() === 'external'
+            ? 'MARKED_EXTERNAL'
+            : 'MASTER_HAS_NO_PROVIDER',
+        }));
       return {
         model,
         observedAt: res?.observedAt,

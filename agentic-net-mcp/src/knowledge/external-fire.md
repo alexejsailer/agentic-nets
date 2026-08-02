@@ -9,7 +9,9 @@ Mixed master/external nets are supported. Unlike `host_transition`, this needs n
 1. `set_external {transitionId, external:true}`. Bulk scopes: `transitionIds`, `netId`,
    `sessionId`, `all:true`. Model/session/net policies persist and apply to new transitions with
    matching metadata; transition choices override them. `external:false` returns to stopped.
-2. `list_external_fires` finds work. `includeStopped:true` includes stopped llm/agent lanes.
+2. `list_external_fires` finds work. `includeStopped:true` adds stopped lanes;
+   **`includeAll:true` lists every llm/agent lane whatever its status** — the view you need when
+   master has no provider, since it cannot run any of them.
 3. `prepare_external_fire {transitionId}` returns a 30-minute leased `fireId`, bound tokens,
    and `prompt`/`systemPrompt` (llm) or `nl` plus capability policy (agent).
 4. Reason, then call
@@ -17,10 +19,20 @@ Mixed master/external nets are supported. Unlike `host_transition`, this needs n
    Master emits/consumes and books `provider: external:mcp-<session>`.
 5. `{success:false,error}` or `abandon_external_fire` preserves inputs.
 
+## Servable
+
+Rows carry `servable` + `servableReason`. Yes: `MARKED_EXTERNAL`, `MASTER_HAS_NO_PROVIDER`
+(stranded), `LANE_IDLE`. No: `MASTER_OWNS_IT`, `NO_TOKENS_BOUND`, `POSTSET_AT_CAPACITY`,
+`FIRE_IN_FLIGHT`, `NOT_DEPLOYED`. Advice, not a gate.
+
+`external` is only ever set by hand. A provider-less master marks nothing — it skips its AI lanes,
+which keep a normal status and wait for you.
+
 ## Guarantees
 
 - Leases prevent two clients preparing the same tokens; owner-CAS release cannot unlock a newer lease.
-- Completion validates first and is idempotent: retries never emit twice. Running lanes are refused.
+- Completion validates first and is idempotent: retries never emit twice. A running lane may be
+  taken over (master stands down while the fire is in flight); only `starting` is refused.
 - Master authorizes every agent tool against returned `allowedTools` and `resourceScopes`.
 - Master LLM freeze/breaker accounting excludes external fires.
 - Events share one correlation: `external-prepared` → `external-completed`.

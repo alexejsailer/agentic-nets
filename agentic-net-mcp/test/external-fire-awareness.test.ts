@@ -34,6 +34,12 @@ const statusResponse = {
       transitionId: 't-probe', kind: 'http', status: 'RUNNING', ready: true,
       schedule: { type: 'interval', intervalMs: 60_000, valid: true },
     },
+    // Not marked external, plainly RUNNING, cron armed — and with no provider it will never
+    // fire. Reads as perfectly healthy on every other surface.
+    {
+      transitionId: 't-nightly-review', kind: 'agent', status: 'RUNNING', ready: true,
+      schedule: { type: 'cron', cron: '0 0 4 * * *', valid: true, nextFireAtMillis: 1_754_100_000_000 },
+    },
   ],
 };
 
@@ -108,15 +114,33 @@ describe('external-fire awareness', () => {
 
     const digest = body.transitions.find((t: any) => t.transitionId === 't-nightly-digest');
     expect(digest.willNotFireUnattended).toBe(true);
-    expect(digest.hint).toMatch(/never fires it/);
+    expect(digest.unattendedHint).toMatch(/never fires it/);
 
-    expect(body.headline.externalScheduled.map((t: any) => t.transitionId)).toEqual(['t-nightly-digest']);
-    expect(body.externalScheduledCount).toBe(1);
+    expect(body.headline.externalScheduled.map((t: any) => t.transitionId))
+      .toEqual(['t-nightly-digest', 't-nightly-review']);
+    expect(body.externalScheduledCount).toBe(2);
     expect(body.externalScheduledHint).toMatch(/only happens while a client is connected/);
 
     // the deterministic lane keeps its schedule and must NOT be flagged
     const probe = body.transitions.find((t: any) => t.transitionId === 't-probe');
     expect(probe.willNotFireUnattended).toBeUndefined();
+  });
+
+  it('flags a RUNNING AI lane too when master has no provider to run it with', async () => {
+    const body = await call(await connect(), 'scheduler_status');
+
+    const review = body.transitions.find((t: any) => t.transitionId === 't-nightly-review');
+    expect(review.status).toBe('RUNNING');
+    expect(review.willNotFireUnattended).toBe(true);
+    expect(review.unattendedHint).toMatch(/master has no LLM provider/);
+    // overdue advice ('restart it') would be wrong here: nothing was going to fire it
+    expect(review.overdue).toBeUndefined();
+
+    // the two reasons a schedule goes nowhere stay distinguishable
+    expect(body.headline.externalScheduled).toEqual([
+      expect.objectContaining({ transitionId: 't-nightly-digest', reason: 'MARKED_EXTERNAL' }),
+      expect.objectContaining({ transitionId: 't-nightly-review', reason: 'MASTER_HAS_NO_PROVIDER' }),
+    ]);
   });
 
   it('degrades silently against a master without the external-fire endpoint', async () => {

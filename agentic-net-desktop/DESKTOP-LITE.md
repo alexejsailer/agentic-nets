@@ -56,9 +56,10 @@ Codex / Claude / another MCP client
 - Create schedules, pause/resume models, and inspect scheduler or fire status.
 - Use transition-scoped credentials through the encrypted local vault.
 - Let the connected MCP model perform `llm` or `agent` transitions with
-  `prepare_external_fire` and `complete_external_fire`. In model-free mode
-  newly deployed AI lanes become external automatically; `set_external` is
-  still available for an explicit override or bulk policy.
+  `prepare_external_fire` and `complete_external_fire`. With no provider, master
+  simply skips its AI lanes, so they keep a normal lifecycle and wait for a client;
+  `set_external` marks a lane as client-only on purpose, and is the ONLY thing that
+  ever sets that status.
 - Use Studio as the visual/manual editor for the same state. Studio's built-in
   AI assistants need an optional server provider; the MCP client is the
   assistant in the default profile.
@@ -135,27 +136,37 @@ Configure a server provider only when AI reasoning itself must run unattended.
 
 ### AI lanes cannot be scheduled unattended in the default profile
 
-With `llm.provider=disabled`, llm and agent transitions are `external`: the
-connected MCP client is their runtime. Master's schedulers skip external
-transitions, so a cron on one is accepted and displayed as armed but is
-dispatched by nobody. The lane runs when a client connects and serves it, and
-its input tokens wait safely in the meantime. Deterministic, HTTP, and command
-lanes are unaffected. Personas are agent lanes and follow the same rule.
+With `llm.provider=disabled`, master has nothing to execute an llm or agent
+transition with, so it **skips** those lanes rather than firing them into a
+guaranteed failure. They keep a completely normal lifecycle — `deployed`, or even
+`running` — and simply wait for a connected MCP client to serve them. A cron on
+one is accepted and displayed as armed but is dispatched by nobody. Deterministic,
+HTTP, and command lanes are unaffected. Personas are agent lanes and follow the
+same rule.
 
-The protocol surfaces this rather than leaving it to be discovered:
+`external` is a separate, deliberate thing: it means *this lane is client-only,
+because I said so*. Only `set_external` sets it. A missing provider never implies
+it, so the marker keeps one meaning and a lane you started stays discoverable.
 
-- `readiness` reports `llm.youAreTheRuntime` and an `externalFires` block
-  counting the lanes that hold bound tokens and are waiting for a client, plus a
-  warning naming them. A backlog is work pending, not a failed installation, so
-  it does not make the installation unready.
-- `scheduler_status` marks each such lane `willNotFireUnattended` and lists them
-  under `headline.externalScheduled`.
+The protocol surfaces all of this rather than leaving it to be discovered:
+
+- `readiness` reports `llm.youAreTheRuntime` and an `externalFires` block with
+  `waiting` (lanes holding bound tokens) and `stranded` (lanes master cannot run at
+  all), plus a warning naming them. A backlog is work pending, not a failed
+  installation, so it does not make the installation unready.
+- `list_external_fires {includeAll:true}` lists every llm/agent lane with a
+  `servable` verdict and reason. The default view shows only hand-marked lanes, so
+  the tool returns a hint pointing at the wider view whenever the provider is off.
+- `scheduler_status` marks each such lane `willNotFireUnattended` with an
+  `unattendedHint`, and lists them under `headline.externalScheduled` with a
+  `reason` separating "marked external" from "master has no provider".
 - The server instructions tell the connected client to check the backlog early in
   a session, report the count, and offer to work it. The `work-external-fires`
   prompt is the same recipe on demand.
 
 To hand these lanes to master instead, configure a provider (tray → **LLM
-Settings**) and `start_transition` them.
+Settings**). A client may also take over a running lane for a single fire; master
+stands down while that fire is in flight.
 
 ### Command executor state across models
 

@@ -403,6 +403,11 @@ surprises people. It follows directly from there being no server-side LLM by def
   Deterministic lanes are completely unaffected.
 </div>
 
+<p>Nothing about the lane changes because of this. It still deploys, still starts, still shows as
+running if you started it. There is simply no model on this machine for the server to run it with,
+so the server leaves it alone rather than failing it over and over. Your assistant picks it up
+instead.</p>
+
 <div class="table-wrap">
 <table>
   <thead><tr><th>Lane</th><th>Client connected</th><th>Client disconnected</th></tr></thead>
@@ -423,7 +428,8 @@ conversation: an interrupted pipeline is paused, not failed.</p>
 <p>You do not have to remember any of this. When a client connects, the MCP server tells it that
 this session is the runtime for those lanes and how many are waiting, so a well-behaved client
 reports something like <em>"3 AI lanes have work waiting for me, shall I run them?"</em> and works
-through them on your say-so.</p>
+through them on your say-so. It sees every AI lane you have, not just ones you flagged, so a lane
+you forgot about still gets found.</p>
 
 <p>If your client stays quiet about it, ask directly. Either of these does the job:</p>
 

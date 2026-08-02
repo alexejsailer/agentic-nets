@@ -54,18 +54,23 @@ deterministic (docs/concepts: deterministic first).
 
 ## provider=disabled means YOU are the model
 
-Desktop Lite ships no server LLM on purpose: new AI lanes default to external
-execution and serving them is YOUR job — list_external_fires → prepare → complete.
-A lane that "never fires" here is usually an external fire nobody served. For
-unattended AI lanes: host_transition, or the user enables a provider in Studio →
-Settings → Desktop LLM (also reachable from the tray).
+Desktop Lite ships no server LLM on purpose. Master then SKIPS every llm/agent lane
+rather than failing it, so lanes keep a normal status (`deployed`, even `running`)
+and simply wait — serving them is YOUR job: list_external_fires → prepare → complete.
+A lane that "never fires" here is usually one nobody served. For unattended AI
+lanes: host_transition, or the user enables a provider in Studio → Settings →
+Desktop LLM (also reachable from the tray).
 
-Two consequences to state out loud rather than let the user discover:
+`external` is never implied by a missing provider — it means someone called
+`set_external`, nothing else. So do NOT look for `external` to find your work: with
+no provider EVERY llm/agent lane is yours, whatever its status. Use
+`list_external_fires {includeAll:true}`; the default view omits exactly the stranded ones.
 
-1. **These lanes cannot be scheduled unattended.** Master's schedulers skip
-   `external` transitions, so a cron on one is armed but dispatched by nobody
-   (docs/scheduling). Deterministic lanes are unaffected.
-2. **Check the backlog when you connect.** `readiness.externalFires.waiting`
-   counts lanes holding bound tokens with nobody to run them. Report the number,
-   offer to work it, and use the `work-external-fires` prompt as the recipe. That
-   offer is the only thing standing between the user and a queue that never drains.
+Two things to say out loud rather than let the user discover:
+
+1. **They cannot be scheduled unattended.** Master skips them, so a cron is armed but
+   dispatched by nobody (docs/scheduling). Deterministic lanes are unaffected.
+2. **Check the backlog when you connect.** `readiness.externalFires.waiting` counts
+   lanes holding bound tokens; `.stranded` counts lanes master cannot run at all.
+   Report both and offer to work them (`work-external-fires` is the recipe). That offer
+   is the only thing between the user and a queue that never drains.

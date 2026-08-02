@@ -248,13 +248,23 @@ export function registerExternalReaders(server: McpServer, ctx: AppContext): voi
   server.registerTool(
     'list_external_fires',
     {
-      title: 'External fires waiting for YOU',
+      title: 'AI lanes YOU can fire',
       description:
-        'Which llm/agent transitions are marked `external` (fired by clients like this session, not by master) and which of them have tokens waiting (ready:true). ' +
-        'includeStopped:true also lists stopped llm/agent transitions — external is a recommendation; a stopped one can be fired on request too. ' +
+        'Which llm/agent transitions this session can execute, with a `servable` verdict per lane. ' +
+        'By default lists the ones marked `external` (plus stopped ones with includeStopped:true). ' +
+        '**includeAll:true lists EVERY llm/agent lane of the model whatever its status** — use it when ' +
+        'master has no LLM provider, because then it cannot run any of them and a lane nobody marked by ' +
+        'hand is still yours to serve. servableReason: MARKED_EXTERNAL (you own it) · MASTER_HAS_NO_PROVIDER ' +
+        '(stranded — master cannot run it) · LANE_IDLE (idle, free to serve) · MASTER_OWNS_IT (a provider ' +
+        'exists and master fires it) · NO_TOKENS_BOUND · POSTSET_AT_CAPACITY · FIRE_IN_FLIGHT · NOT_DEPLOYED. ' +
+        'The verdict is advice, not a gate: you may still fire a non-servable lane on explicit request. ' +
         'Workflow: list → prepare_external_fire → reason as the host model → complete_external_fire.',
       inputSchema: {
         includeStopped: z.boolean().optional().describe('Also list stopped llm/agent transitions (default false)'),
+        includeAll: z
+          .boolean()
+          .optional()
+          .describe('List every llm/agent lane whatever its status, each with a servable verdict (default false)'),
         ...modelParam,
       },
     },
@@ -262,13 +272,35 @@ export function registerExternalReaders(server: McpServer, ctx: AppContext): voi
       const res = await ctx.client.masterApi('GET', '/transitions/external/ready', undefined, {
         modelId: model,
         ...(args.includeStopped ? { includeStopped: 'true' } : {}),
+        ...(args.includeAll ? { includeAll: 'true' } : {}),
       });
-      const ready = (res?.transitions ?? []).filter((t: any) => t.ready);
+      const rows: any[] = res?.transitions ?? [];
+      const ready = rows.filter((t) => t.ready);
+      // Lanes master cannot run at all: the ones that quietly go nowhere until a client shows up.
+      const stranded = rows.filter((t) => t.servableReason === 'MASTER_HAS_NO_PROVIDER');
+      const servable = rows.filter((t) => t.servable === true);
       return {
         ...res,
-        ...(ready.length
-          ? { next: `${ready.length} transition(s) have work — prepare_external_fire {transitionId} to start a fire` }
+        ...(stranded.length ? { stranded: stranded.map((t) => t.transitionId) } : {}),
+        ...(stranded.length
+          ? {
+              next:
+                `${stranded.length} lane(s) are stranded — master has no LLM provider, so only this session can run them: ` +
+                `${stranded.map((t) => t.transitionId).join(', ')}. prepare_external_fire {transitionId} to start.`,
+            }
+          : ready.length
+            ? { next: `${ready.length} transition(s) have work — prepare_external_fire {transitionId} to start a fire` }
+            : {}),
+        // Discovery bridge: without this a client never learns the wider view exists, because the
+        // default list is exactly the one that hides the stranded lanes.
+        ...(!args.includeAll && res?.provider?.canFireAiLanes === false
+          ? {
+              hint:
+                'master has no LLM provider — call again with includeAll:true to see every llm/agent lane you '
+                + 'could run, not just the ones marked external',
+            }
           : {}),
+        ...(servable.length ? { servableCount: servable.length } : {}),
       };
     }),
   );
@@ -296,22 +328,13 @@ async function resolveTargets(ctx: AppContext, model: string, args: Record<strin
     return [...new Set(ids)];
   }
   if (args.all) {
-    // Every llm/agent runtime transition of the model (kind pre-filtered here so the
-    // per-transition toggle mostly succeeds; master re-validates anyway).
+    // includeAll IS "every llm/agent lane of the model", resolved server-side by the same
+    // predicate master uses. This used to sweep /runtime/transitions and re-derive the kind
+    // here, which meant two calls and a second, drifting copy of "is this an AI lane".
     const res: any = await ctx.client
-      .masterApi('GET', '/transitions/external/ready', undefined, { modelId: model, includeStopped: 'true' })
+      .masterApi('GET', '/transitions/external/ready', undefined, { modelId: model, includeAll: 'true' })
       .catch(() => null);
     const listed: string[] = (res?.transitions ?? []).map((t: any) => String(t.transitionId));
-    // external/ready only sees external+stopped — also sweep the full runtime list for
-    // running/deployed llm/agent transitions so all:true really means all.
-    const txRes: any = await ctx.client
-      .masterApi('GET', '/runtime/transitions', undefined, { modelId: model })
-      .catch(() => null);
-    const txList: any[] = Array.isArray(txRes) ? txRes : (txRes?.transitions ?? txRes?.results ?? []);
-    for (const t of txList) {
-      const kind = t?.inscription?.action?.type ?? t?.inscription?.kind ?? t?.kind;
-      if (kind === 'llm' || kind === 'agent') listed.push(String(t.transitionId ?? t.id ?? t.name));
-    }
     return [...new Set(listed)].filter((id) => id && id !== '?' && id !== 'undefined');
   }
   return [];
