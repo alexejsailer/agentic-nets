@@ -10,6 +10,12 @@ deployment. Use the Docker/server deployment when you need remote access,
 multiple executors, clustered services, monitoring, hardened secret
 infrastructure, or production lifecycle controls.
 
+> **New users start with the in-app manual, not this page.** The tray item
+> **Manual (Start Here)** opens a newcomer guide (what to connect, what to build
+> first, what runs while you are away) served by the launcher itself at
+> `http://localhost:4200/manual`. Source: `src/main/resources/manual.html`.
+> This page stays the operator/reference document for the same edition.
+
 ## The intended workflow
 
 1. Install the package from the GitHub release.

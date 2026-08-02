@@ -86,11 +86,20 @@ public final class GuiServer {
         }
     }
 
+    /** Actually bound port, so a test can start on an ephemeral one. */
+    int boundPort() {
+        return server == null ? -1 : server.getAddress().getPort();
+    }
+
     private void handle(HttpExchange exchange) throws IOException {
         try {
             String path = exchange.getRequestURI().getPath();
             if ("/desktop-login".equals(path)) {
                 handleDesktopLogin(exchange);
+                return;
+            }
+            if ("/manual".equals(path)) {
+                handleManual(exchange);
                 return;
             }
             if (path.startsWith("/desktop-api/")) {
@@ -317,6 +326,37 @@ public final class GuiServer {
         exchange.getResponseHeaders().set("Cache-Control", "no-store");
         exchange.sendResponseHeaders(200, bytes.length);
         exchange.getResponseBody().write(bytes);
+    }
+
+    /**
+     * The newcomer manual, bundled in the launcher jar rather than in the GUI
+     * bundle: it documents THIS app, so it must version with it and stay
+     * readable while the services are still booting (or failing to).
+     */
+    private void handleManual(HttpExchange exchange) throws IOException {
+        byte[] page = manualPage();
+        if (page == null) {
+            sendError(exchange, 404, "{\"error\":\"manual not bundled\"}");
+            return;
+        }
+        exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+        exchange.sendResponseHeaders(200, page.length);
+        if (!"HEAD".equals(exchange.getRequestMethod())) {
+            exchange.getResponseBody().write(page);
+        }
+    }
+
+    /** Returns the rendered manual, or null when the resource is missing. */
+    byte[] manualPage() throws IOException {
+        try (InputStream in = GuiServer.class.getResourceAsStream("/manual.html")) {
+            if (in == null) {
+                return null;
+            }
+            String version = desktopConfig == null ? "" : desktopConfig.version();
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8)
+                .replace("__VERSION__", version)
+                .getBytes(StandardCharsets.UTF_8);
+        }
     }
 
     private void proxy(HttpExchange exchange) throws IOException, InterruptedException {

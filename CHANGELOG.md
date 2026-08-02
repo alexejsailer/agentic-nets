@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Newcomer manual in the tray** (`agentic-net-desktop`). A new **Manual (Start Here)** item, grouped with the MCP connect actions, opens a self-contained guide written for people who have never seen a Petri net: what Desktop Lite is (memory, clock and hands for an MCP client that already thinks), how to connect Claude Code or Codex and verify with `readiness`, the five-term vocabulary, seven things worth building (durable memory, composable linked context, scheduled nets replacing repeated sessions, autonomous personas, zero-LLM watchers, local command lanes, crystallization), copy-paste starter prompts, an honest table of what does and does not run while no client is connected, cost/safety boundaries, and a symptom-to-tool troubleshooting table. The launcher serves it from its own jar at `http://localhost:4200/manual`, so it versions with the app, needs no login nonce, and stays readable while the services are still starting or failing to start. `DESKTOP-LITE.md` remains the operator reference.
+
 ## [2.39.0] - 2026-08-02
 
 Hardening wave driven by a field report from an MCP client that built a real

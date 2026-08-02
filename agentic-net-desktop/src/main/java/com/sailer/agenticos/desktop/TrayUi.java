@@ -109,6 +109,10 @@ public final class TrayUi {
             copyToClipboard("http://127.0.0.1:" + DesktopConfig.MCP_PORT + "/mcp\nBearer " + config.mcpToken());
             notifyInfo("MCP endpoint copied", "URL on line 1, Authorization value on line 2.");
         }));
+        // Sits with the connect actions on purpose: this is where a first-time user
+        // lands, and the manual answers the question they have next ("now what?").
+        popup.add(action("Manual (Start Here)", () ->
+            Desktop.getDesktop().browse(URI.create(manualUrl()))));
         popup.addSeparator();
 
         CheckboxMenuItem startAtLogin = new CheckboxMenuItem("Start at Login",
@@ -179,6 +183,14 @@ public final class TrayUi {
                 notifyError("Update failed", String.valueOf(e.getMessage()));
             }
         });
+    }
+
+    /**
+     * No login nonce: the manual is documentation, not app state, so it stays
+     * readable while the gateway is still starting or has failed to start.
+     */
+    String manualUrl() {
+        return "http://localhost:" + DesktopConfig.GUI_PORT + "/manual";
     }
 
     public String claudeMcpAddCommand() {

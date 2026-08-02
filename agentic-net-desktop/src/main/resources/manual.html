@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Manual - AgenticNetOS Desktop Lite</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Newcomer manual for AgenticNetOS Desktop Lite: what it is, how to connect an MCP client, and what to build first." />
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0f172a; --bg-alt: #0b1120; --fg: #e5e7eb; --muted: #9ca3af;
+  --accent: #38bdf8; --accent-soft: rgba(56, 189, 248, 0.12);
+  --border: #1f2937; --code-bg: #020617; --code-border: #1e293b;
+  --sidebar: #020617; --card: rgba(15, 23, 42, 0.9);
+  --callout-border: rgba(56, 189, 248, 0.3);
+  --success: #10b981; --warning: #f59e0b;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f8fafc; --bg-alt: #f1f5f9; --fg: #0f172a; --muted: #475569;
+    --accent: #2563eb; --accent-soft: rgba(37, 99, 235, 0.14);
+    --border: #e2e8f0; --code-bg: #f1f5f9; --code-border: #e2e8f0;
+    --sidebar: #ffffff; --card: #ffffff;
+    --callout-border: rgba(37, 99, 235, 0.3);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  line-height: 1.65; font-size: 16px;
+  display: grid; grid-template-columns: 280px minmax(0, 1fr);
+}
+a { color: var(--accent); }
+
+/* ---- sidebar ---- */
+.sidebar {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: var(--sidebar); border-right: 1px solid var(--border);
+  padding: 28px 20px 40px;
+}
+.brand { font-size: 15px; font-weight: 700; letter-spacing: .01em; }
+.brand span { color: var(--accent); }
+.brand-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.toc-title {
+  margin: 26px 0 10px; font-size: 11px; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted);
+}
+.sidebar ol { list-style: none; margin: 0; padding: 0; counter-reset: toc; }
+.sidebar ol li { counter-increment: toc; }
+.sidebar ol a {
+  display: block; padding: 6px 10px; border-radius: 7px;
+  text-decoration: none; color: var(--fg); font-size: 13.5px;
+  border-left: 2px solid transparent;
+}
+.sidebar ol a::before { content: counter(toc) ". "; color: var(--muted); }
+.sidebar ol a:hover { background: var(--accent-soft); }
+.sidebar ol a.active {
+  background: var(--accent-soft); border-left-color: var(--accent); color: var(--accent);
+}
+
+/* ---- content ---- */
+main { padding: 56px 48px 120px; max-width: 900px; }
+h1 { font-size: 34px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.02em; }
+.eyebrow {
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent); font-weight: 600; margin-bottom: 10px;
+}
+.lede { font-size: 18px; color: var(--muted); margin: 0 0 8px; }
+h2 {
+  font-size: 24px; margin: 56px 0 14px; padding-top: 14px;
+  border-top: 1px solid var(--border); letter-spacing: -.01em;
+}
+h3 { font-size: 18px; margin: 32px 0 8px; }
+h3 .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+p { margin: 0 0 14px; }
+ul, ol.steps { margin: 0 0 16px; padding-left: 22px; }
+li { margin-bottom: 6px; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .875em; background: var(--code-bg); border: 1px solid var(--code-border);
+  border-radius: 5px; padding: 1px 5px;
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--code-border);
+  border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 0 0 16px;
+}
+pre code { background: none; border: none; padding: 0; font-size: 13.5px; line-height: 1.55; }
+.table-wrap { overflow-x: auto; margin: 0 0 18px; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600; }
+tbody tr:last-child td { border-bottom: none; }
+.say {
+  background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 0 0 16px;
+}
+.say .label {
+  font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); display: block; margin-bottom: 4px;
+}
+.say p { margin: 0; font-style: italic; }
+.say p + p { margin-top: 8px; }
+.note {
+  background: var(--card); border: 1px solid var(--callout-border);
+  border-radius: 10px; padding: 14px 18px; margin: 0 0 18px;
+}
+.note strong:first-child { color: var(--accent); }
+.note.warn { border-color: rgba(245, 158, 11, .45); }
+.note.warn strong:first-child { color: var(--warning); }
+.pill {
+  display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg-alt); color: var(--muted);
+}
+.pill.ok { color: var(--success); border-color: rgba(16, 185, 129, .4); }
+.pill.wait { color: var(--warning); border-color: rgba(245, 158, 11, .4); }
+footer {
+  margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 13.5px;
+}
+
+@media (max-width: 900px) {
+  body { display: block; }
+  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .sidebar ol { columns: 2; column-gap: 16px; }
+  main { padding: 32px 22px 80px; }
+  h1 { font-size: 27px; }
+}
+@media print {
+  body { display: block; }
+  .sidebar { display: none; }
+  main { max-width: none; padding: 0; }
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand"><span>Agentic</span>NetOS</div>
+  <div class="brand-sub">Desktop Lite Manual &middot; __VERSION__</div>
+
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#what">What this is</a></li>
+    <li><a href="#start">Start here</a></li>
+    <li><a href="#ideas">Five ideas</a></li>
+    <li><a href="#use-cases">What to build</a></li>
+    <li><a href="#prompts">Say this</a></li>
+    <li><a href="#unattended">While you are away</a></li>
+    <li><a href="#tray">The tray menu</a></li>
+    <li><a href="#studio">Studio</a></li>
+    <li><a href="#cost">Cost and safety</a></li>
+    <li><a href="#stuck">When it looks stuck</a></li>
+    <li><a href="#data">Where things live</a></li>
+    <li><a href="#beyond">Beyond Lite</a></li>
+  </ol>
+</aside>
+
+<main>
+
+<div class="eyebrow">Manual</div>
+<h1>AgenticNetOS Desktop Lite</h1>
+<p class="lede">Persistent memory, a clock, and a pair of hands for the AI assistant you already use.</p>
+
+<h2 id="what">1. What this is</h2>
+
+<p>You already have something that can think: Claude Code, Codex, Cursor, or another MCP client.
+What it does not have is a memory that outlives the session, a clock that fires while you sleep,
+and somewhere to put work so it can be picked up again tomorrow.</p>
+
+<p>Desktop Lite is that missing half. It installs as one desktop app, runs entirely on your own
+machine, and offers itself to your MCP client as a set of tools. Your client stays the brain.
+Desktop Lite is the memory, the hands, and the clock.</p>
+
+<p>There is no API key to enter and no cloud service involved. By default nothing here calls an
+LLM on its own: the reasoning happens in the client you already pay for.</p>
+
+<div class="note">
+  <strong>New to Petri nets?</strong> You do not need them to start. Ask your client for what you
+  want in plain language and it will build the net. Section 3 explains the vocabulary when you
+  are curious about what it built.
+</div>
+
+<h2 id="start">2. Start here (about five minutes)</h2>
+
+<ol class="steps">
+  <li>Install the package and launch AgenticNetOS. The tray icon appears and the local services
+      start. The icon goes solid once everything is healthy.</li>
+  <li>In the tray, choose <strong>Connect Claude Code (copy command)</strong> and paste the
+      command into a terminal. For Codex, choose <strong>Connect Codex (copy config)</strong> and
+      merge the block into <code>~/.codex/config.toml</code>. Any other Streamable HTTP client:
+      <strong>Copy MCP URL + Token</strong>.</li>
+  <li>Start a <strong>new</strong> client session. MCP servers are attached at startup, so an
+      already-running session will not see it.</li>
+  <li>Ask for a status check.</li>
+</ol>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Run readiness and tell me what I can do.</p>
+</div>
+
+<p><code>readiness</code> walks the whole chain in one call: authentication, data engine, model,
+LLM provider, executor coverage. It answers with a verdict per layer plus a list of problems. If
+it comes back clean you are ready. If not, it names the layer that is unhappy instead of making
+you guess.</p>
+
+<p>Now the first genuinely useful thing:</p>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Deploy the working-memory template, then store this decision: we prefer TypeScript over
+     Python for internal scripts, because the team already reviews TypeScript.</p>
+</div>
+
+<p>Tomorrow, in a brand new session that knows nothing about today, say
+<em>"recall what we decided about scripting languages"</em>. That round trip is the whole product
+in miniature.</p>
+
+<h2 id="ideas">3. Five ideas, sixty seconds</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th style="width:120px">Idea</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Place</strong></td><td>A named container holding JSON documents. Think of a folder that is persistent, queryable and keeps its history.</td></tr>
+    <tr><td><strong>Token</strong></td><td>One JSON document inside a place: a note, a task, an API response, a result.</td></tr>
+    <tr><td><strong>Transition</strong></td><td>Something that acts. It reads tokens from places, does work, and writes tokens to other places.</td></tr>
+    <tr><td><strong>Net</strong></td><td>Places and transitions wired together. A workflow you can look at, inspect and change.</td></tr>
+    <tr><td><strong>Model</strong></td><td>A workspace that holds nets. A fresh install has one called <code>default</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>There are seven kinds of transition, but only three distinctions matter on day one:</p>
+
+<ul>
+  <li><strong>Deterministic</strong> (<code>pass</code>, <code>map</code>, <code>http</code>,
+      <code>command</code>): run locally, no AI involved, no cost. These are the backbone.</li>
+  <li><strong>Thinking</strong> (<code>llm</code>, <code>agent</code>): need a language model. In
+      Desktop Lite your connected client supplies it.</li>
+  <li><strong>Link</strong>: pure structure. It connects places into a graph and never fires.</li>
+</ul>
+
+<p>The useful instinct to build early: put deterministic transitions everywhere you can, and spend
+thinking only where judgment is genuinely required. That is what keeps this cheap.</p>
+
+<h2 id="use-cases">4. What to build</h2>
+
+<h3><span class="num">4.1</span> A memory that survives the session</h3>
+
+<p>This is the one to start with. Every new client session begins from zero, so you re-explain the
+project, the conventions, the decisions and the pitfalls that bit you last month. Desktop Lite
+ends that.</p>
+
+<p>Write with <code>memory_write</code> (into <em>inbox</em>, <em>notes</em>, <em>decisions</em> or
+<em>knowledge</em>), read with <code>memory_recall</code>. The <code>working-memory</code> template
+sets up those places along with a distiller that keeps raw capture tidy.</p>
+
+<p>It is shared, not per-client: what Claude Code wrote this morning, Codex reads this afternoon.</p>
+
+<h3><span class="num">4.2</span> Context you can compose, not just recall</h3>
+
+<p>Plain recall is flat, and real work is not. A project has conventions, which relate to pitfalls,
+which came out of a particular incident, which is why a certain rule exists. Dumping all of that
+into one blob is how you burn a context window and still miss the relevant part.</p>
+
+<p>Nets model the structure directly. Give each context its own place or its own small net. Connect
+the ones that genuinely relate with <code>memory_link</code>, or with <code>link</code> transitions
+when the connection should be part of the net itself. Then <code>memory_graph</code> lets your
+assistant walk the neighborhood instead of swallowing everything.</p>
+
+<p>The payoff is that context becomes navigable. Ask about billing and you get the billing glossary,
+plus the API conventions it links to, plus the two failure modes recorded against it. Not the
+other forty documents.</p>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Create a context net for our billing domain, write these facts into it, and link it to the
+     API conventions place.</p>
+  <p>Later: what do you know about billing? Follow the links before you answer.</p>
+</div>
+
+<p>A few habits that make this work well:</p>
+<ul>
+  <li>One net per context domain, so each stays independently editable and shareable.</li>
+  <li>Link only real relationships. A graph where everything connects to everything says nothing.</li>
+  <li>Use <code>domain_memory_write</code> when a fact belongs to the domain itself and every agent
+      touching it should see it, rather than to your current session.</li>
+</ul>
+
+<h3><span class="num">4.3</span> Turn a session you keep repeating into a net</h3>
+
+<p>If you do the same thing every Monday, that is not really a session. It is a workflow that has
+not been written down yet. Collect the week's repository activity and summarize it. Check the
+dependency advisories. Rank yesterday's errors. Pull a report and file the numbers somewhere.</p>
+
+<p>Each of those becomes a net with a schedule. <code>set_schedule</code> accepts a six field cron
+expression and an explicit timezone such as <code>Europe/Berlin</code>, which matters more than it
+sounds: without it, twice a year your morning job quietly moves by an hour.</p>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Build a net that fetches that URL every weekday at 07:00 Europe/Berlin, pulls out the headline
+     items, and stores them in a place I can read later. Then tell me what you armed.</p>
+</div>
+
+<p>Deterministic schedules keep running with no client attached and at no cost. Monday morning you
+just ask what landed.</p>
+
+<h3><span class="num">4.4</span> A persona that works while you do something else</h3>
+
+<p><code>spawn_persona</code> stands up a complete self-driving worker in one call: a charter, a task
+inbox, an agent transition watching that inbox, and an output place. Presets cover the common
+archetypes (developer, reviewer, researcher, operator, assistant). Spawn several and they work in
+parallel.</p>
+
+<p>The best uses are the ones where you want a different opinion rather than a second pair of hands.
+A reviewer that argues against your design before you commit to it. A researcher that keeps digging
+through a question while you get on with something else. Give two personas the same question and
+compare where they disagree; the disagreement is usually the interesting part.</p>
+
+<div class="note warn">
+  <strong>Worth knowing up front.</strong> Personas think, so they need a model. Desktop Lite has no
+  server side LLM by default, so a persona's reasoning is carried out by your connected client and
+  advances while a client is attached. Tasks queue safely when nothing is connected, and nothing is
+  lost. If you want personas running genuinely unattended, point <code>llm.provider</code> at Ollama
+  or Anthropic in <strong>LLM Settings</strong>.
+</div>
+
+<h3><span class="num">4.5</span> A watcher that costs nothing</h3>
+
+<p>The <code>watcher</code> template is a sentinel with no AI in it at all: probe a URL on a cron,
+call a webhook when the answer is not 200. It runs on schedule whether or not anything is
+connected, and it never bills anybody.</p>
+
+<p>It is also the clearest illustration of the point in section 3. Watching something does not
+require intelligence. Deciding what to do about it might.</p>
+
+<h3><span class="num">4.6</span> The hands: local commands on a schedule</h3>
+
+<p>Command transitions run shell commands on your own machine through the bundled executor. Backups,
+syncs, a build, log tidying, the script you always mean to run and never do.</p>
+
+<p>One thing that confuses newcomers: the executor reports a state per model. <span class="pill ok">READY</span>
+means it is polling because a command lane exists. <span class="pill wait">STANDBY</span> means it is
+available but no command lane has been assigned yet, which is completely normal on a fresh install.
+Only <span class="pill">UNAVAILABLE</span> is a real problem. Ask for <code>list_executors</code> if
+you want to see it.</p>
+
+<h3><span class="num">4.7</span> Make the repeated thing cheaper over time</h3>
+
+<p><code>crystallize_session</code> records what a session actually did, both into memory and as a
+replayable tool net. It supports the pattern this platform is built around: the first run needs full
+reasoning, and once the shape is known you replace the thinking with deterministic transitions.</p>
+
+<p>Done consistently, your cost curve bends downward as your automation grows, which is the opposite
+of what usually happens.</p>
+
+<h2 id="prompts">5. Say this to get started</h2>
+
+<p>Everything here is plain language to your MCP client. The tool names are only listed so you can
+recognise them in the answer.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th style="width:34%">Goal</th><th>Say this</th></tr></thead>
+  <tbody>
+    <tr><td>Check the install</td><td>"Run readiness and summarize what works and what does not."</td></tr>
+    <tr><td>Start a second brain</td><td>"Deploy the working-memory template and store these facts about my project."</td></tr>
+    <tr><td>Get it back later</td><td>"Recall everything you know about &lt;topic&gt;."</td></tr>
+    <tr><td>Build a scheduled net</td><td>"Build a net that does X every day at 08:00 Europe/Berlin, and tell me what you armed."</td></tr>
+    <tr><td>See what exists</td><td>"Give me a net overview and list my transitions with their schedules."</td></tr>
+    <tr><td>Hire a worker</td><td>"Spawn a reviewer persona and give it this design to argue against."</td></tr>
+    <tr><td>It has gone quiet</td><td>"Run scheduler_status and tell me which lanes are overdue or invalid."</td></tr>
+    <tr><td>Check the spend</td><td>"Run usage_report. Which transition burns the most?"</td></tr>
+    <tr><td>Stop everything now</td><td>"Pause the model."</td></tr>
+    <tr><td>Learn the platform</td><td>"Search your knowledge docs for scheduling and summarize the rules."</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <strong>The MCP server carries its own documentation.</strong> Seventeen curated guides ship
+  inside it, offline. Asking your client to <code>search_knowledge</code> before it designs
+  something usually produces a better net than asking it to improvise.
+</div>
+
+<h2 id="unattended">6. What runs while you are away</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Lane</th><th>Client connected</th><th>Client disconnected</th></tr></thead>
+  <tbody>
+    <tr><td>Scheduled <code>map</code>, <code>pass</code>, <code>http</code>, <code>command</code></td><td>Runs</td><td>Runs</td></tr>
+    <tr><td><code>llm</code> / <code>agent</code>, default Lite profile</td><td>Runs, your client does the thinking</td><td>Becomes ready and waits</td></tr>
+    <tr><td><code>llm</code> / <code>agent</code> with a configured provider</td><td>Runs</td><td>Runs</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Nothing is lost while you are disconnected. Tokens sit in their places until something picks them
+up, which is the whole reason work is stored as tokens rather than held in a conversation.</p>
+
+<p>The one hard requirement: the machine has to be awake and the app running. Desktop Lite is a local
+runtime, not a cloud service. Turn on <strong>Start at Login</strong> if you want it always there.</p>
+
+<h2 id="tray">7. The tray menu</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th style="width:34%">Item</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td>Service list</td><td>Live state per service. All ticked means healthy.</td></tr>
+    <tr><td>Open Studio</td><td>The visual editor, signed in automatically. Double clicking the tray icon does the same.</td></tr>
+    <tr><td>Open Protocol</td><td>The activity log: what fired, when, and with what result.</td></tr>
+    <tr><td>LLM Settings</td><td>Optional server side provider. Leave it disabled unless you need unattended thinking.</td></tr>
+    <tr><td>Connect Claude Code / Codex</td><td>Copies a ready to paste command or config block, carrying this installation's own token.</td></tr>
+    <tr><td>Copy MCP URL + Token</td><td>For any other Streamable HTTP MCP client. URL on line one, authorization value on line two.</td></tr>
+    <tr><td>Manual</td><td>This page.</td></tr>
+    <tr><td>Start at Login</td><td>Keeps the runtime available so schedules actually fire.</td></tr>
+    <tr><td>Check for Updates</td><td>Verified download from the GitHub release. Your data is never touched by an update.</td></tr>
+    <tr><td>Open Logs Folder</td><td>One log file per service, for when you want the raw detail.</td></tr>
+    <tr><td>Restart Services</td><td>The honest first move after changing settings.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="studio">8. Studio, the visual side</h2>
+
+<p>Studio is optional. You can run everything through your MCP client and never open it. But seeing
+your first net drawn as a graph is usually the moment the model clicks, so it is worth a look early.</p>
+
+<p>Inside you can inspect places and their tokens, follow the arcs, and watch fires arrive in the
+Protocol view. Protocol has its own model selector, independent of the editor, so you can inspect
+one model or merge all of them without disturbing what you are editing. It supports search, level
+filtering and grouping by source, day, tag or model.</p>
+
+<h2 id="cost">9. Cost and safety</h2>
+
+<ul>
+  <li><strong>No surprise bills from Desktop Lite.</strong> It ships with no server side LLM. Your
+      client's usage is billed by your client, the way it already was.</li>
+  <li><strong>Local only.</strong> Every listener binds to <code>127.0.0.1</code>. There is
+      deliberately no switch to expose it to the network; that belongs to the server deployment.</li>
+  <li><strong>The MCP endpoint needs its token</strong>, generated per installation, which is why you
+      copy it from the tray rather than from any documentation.</li>
+  <li><strong>There is a kill switch.</strong> "Pause the model" stops every running transition, and
+      resuming restores exactly the set that was paused.</li>
+  <li><strong>Secrets stay out of your nets.</strong> Transition credentials live in an encrypted
+      local vault, scoped per transition, never in the net definition you might export or share.</li>
+</ul>
+
+<h2 id="stuck">10. When it looks stuck</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th style="width:40%">Symptom</th><th>Ask your client for</th></tr></thead>
+  <tbody>
+    <tr><td>Nothing works at all</td><td><code>readiness</code>, which names the unhappy layer</td></tr>
+    <tr><td>A scheduled net went silent</td><td><code>scheduler_status</code>: it reports stopped and invalid schedules, and keeps armed, fired and succeeded times apart</td></tr>
+    <tr><td>A command lane is queued with no output</td><td><code>list_executors</code>, or executor coverage in <code>net_stats</code></td></tr>
+    <tr><td>One transition misbehaves</td><td><code>diagnose_transition</code></td></tr>
+    <tr><td>Spending more than expected</td><td><code>usage_report</code>, ranked per transition</td></tr>
+    <tr><td>Where did that token go</td><td><code>event_trail</code>, or the Protocol view in Studio</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note">
+  <strong>A schedule that cannot be understood does not run.</strong> If a cron expression or
+  timezone is malformed the lane fires never rather than every poll, and
+  <code>scheduler_status</code> tells you why. Silence there is a reason to look, not a reason to
+  wait.
+</div>
+
+<h2 id="data">11. Where your things live</h2>
+
+<p>Everything you create is under <code>~/.agenticos/</code> and survives application updates.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th style="width:44%">Path</th><th>Contents</th></tr></thead>
+  <tbody>
+    <tr><td><code>~/.agenticos/models/</code></td><td>Your nets, places and tokens: the actual work</td></tr>
+    <tr><td><code>~/.agenticos/vault/</code></td><td>Encrypted transition credentials</td></tr>
+    <tr><td><code>~/.agenticos/desktop/desktop.properties</code></td><td>Advanced settings, including the LLM provider</td></tr>
+    <tr><td><code>~/.agenticos/desktop/mcp-token</code></td><td>This installation's MCP bearer token</td></tr>
+    <tr><td><code>~/.agenticos/desktop/logs/</code></td><td>One log per service</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="beyond">12. When to move beyond Lite</h2>
+
+<p>Desktop Lite is deliberately one machine, one user, one executor, loopback only. It is a creator
+and operator environment rather than a production deployment.</p>
+
+<p>Move to the Docker deployment when you need remote access, several executors, clustering, the
+monitoring stack, or production lifecycle controls. Your work travels with you: publish a net with
+<code>hub_publish</code> and install it on the server with <code>hub_install</code>.</p>
+
+<footer>
+  <p>Reference documentation for this edition ships alongside the app as <code>DESKTOP-LITE.md</code>.
+  The platform documentation is in Studio under Docs, and the MCP server answers
+  <code>search_knowledge</code> offline.</p>
+  <p>AgenticNetOS __VERSION__ &middot;
+  <a href="https://github.com/alexejsailer/agentic-nets">github.com/alexejsailer/agentic-nets</a></p>
+</footer>
+
+</main>
+
+<script>
+// Highlight the section currently on screen. No dependencies, degrades to a plain TOC.
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.sidebar a[href^="#"]'));
+  var sections = links
+    .map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); })
+    .filter(Boolean);
+  if (!sections.length || !window.IntersectionObserver) return;
+
+  var visible = new Set();
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) visible.add(entry.target.id);
+      else visible.delete(entry.target.id);
+    });
+    // topmost visible section wins, so scrolling up highlights correctly too
+    var current = sections.filter(function (s) { return visible.has(s.id); })[0];
+    if (!current) return;
+    links.forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current.id);
+    });
+  }, { rootMargin: '0px 0px -70% 0px' });
+
+  sections.forEach(function (s) { observer.observe(s); });
+})();
+</script>
+
+</body>
+</html>

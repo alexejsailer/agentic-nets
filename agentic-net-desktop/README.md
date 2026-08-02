@@ -8,6 +8,12 @@ Desktop Lite is not the recommended production deployment. See
 [the Desktop Lite guide](DESKTOP-LITE.md) for the intended workflow, exact
 capabilities, security boundary, installation, updates, and limitations.
 
+Two documents, two audiences: `DESKTOP-LITE.md` is the operator reference, and
+`src/main/resources/manual.html` is the **newcomer manual** the tray opens as
+**Manual (Start Here)**. The launcher serves it from its own jar at
+`http://localhost:4200/manual`, so it versions with the app and stays readable
+while the services are still starting.
+
 ```
 AgenticNetOS.app
 ├── runtime/            jlink'd Java (shared by launcher + all Java services)
@@ -50,7 +56,9 @@ never reaches the browser or the user), LLM Settings (opens the Studio
 Desktop LLM card — provider, tier models and API key, saved via the launcher
 with a ~10s master restart), Connect Codex (copies a ready
 `config.toml` block), Connect Claude Code (copies the full `claude mcp add …`
-command with token), Copy MCP URL + Token, Start at Login (XDG autostart on
+command with token), Copy MCP URL + Token, Manual (Start Here) (the newcomer
+guide, served from the launcher jar at `/manual` with no login nonce so it opens
+before the gateway is up), Start at Login (XDG autostart on
 Linux, a LaunchAgent on macOS), Check for Updates, Open Logs Folder,
 Restart Services, Quit. The icon is
 the brand glyph (a Petri place holding two tokens), monochrome to match native
