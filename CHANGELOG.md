@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.39.0] - 2026-08-02
+
+Hardening wave driven by a field report from an MCP client that built a real
+scheduled data pipeline: everything below removes a way the platform could
+mislead or endanger unattended work.
+
 ### Added
 - **Desktop Lite MCP is focused by default** (`agentic-net-desktop`, `agentic-net-mcp`). The bundled server registers the curated lowercase product surface instead of also exposing the full native uppercase catalog; standalone/server deployments remain backward-compatible with `all`, and advanced Desktop users can opt back in with `AGENTICOS_NATIVE_TOOLS=all`.
 - **Batch authoring and cleanup tools** (`agentic-net-mcp`). `add_transitions` creates similar lanes sequentially with explicit per-item partial-success results, while `delete_tokens` requires an ArcQL query, caps a run at 100 tokens, and reports every matched/deleted id.
