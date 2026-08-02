@@ -168,6 +168,23 @@ To hand these lanes to master instead, configure a provider (tray → **LLM
 Settings**). A client may also take over a running lane for a single fire; master
 stands down while that fire is in flight.
 
+An **explicit** fire (Studio's fire button, `fire_once`, a test harness) is
+answered rather than skipped: it returns a `providerDisabled` refusal naming both
+options, and preserves the input tokens. Master also hands back the preset locks
+on such a refusal, so the external client is not blocked by a lease it can never
+resolve.
+
+`prepare_external_fire` returns everything a client needs to serve the lane
+without guessing: the interpolated prompt (or resolved agent instruction), the
+leased tokens, a `contract` block stating which field carries the answer, whether
+it must be JSON because an emit rule parses it, the emission shape for agent
+lanes, the failure and idempotency rules, and the transition's own `inscription`
+so the emit rules that will route the answer can be read directly.
+
+Besides an MCP client, the `agenticos` CLI can serve these lanes with its own
+provider (`transition lanes --all`, `transition serve`). The CLI is not part of
+this bundle and installs separately.
+
 ### Command executor state across models
 
 The bundled executor is eligible for every model (`EXECUTOR_MODELS=*`), including

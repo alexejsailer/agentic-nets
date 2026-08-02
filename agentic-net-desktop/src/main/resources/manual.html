@@ -423,6 +423,11 @@ instead.</p>
 work is simply pending. That is the whole reason work is stored as tokens rather than held in a
 conversation: an interrupted pipeline is paused, not failed.</p>
 
+<p>You do not have to mark or configure anything for this. Build a net the normal way and the AI
+lanes in it simply wait for something that can think. If you press <strong>fire</strong> on one by
+hand, you get a plain refusal saying there is no model configured, and your input token stays
+exactly where it was.</p>
+
 <h3><span class="num">6.1</span> Your assistant should tell you about the backlog</h3>
 
 <p>You do not have to remember any of this. When a client connects, the MCP server tells it that
@@ -444,6 +449,15 @@ you forgot about still gets found.</p>
 <p>Configure a model in <strong>LLM Settings</strong> (tray, or Studio's settings): a local Ollama,
 or an Anthropic key. Master then owns those lanes and their schedules run like any other, with
 nobody connected.</p>
+
+<div class="note">
+  <strong>A middle option, if you are comfortable at a terminal.</strong> The
+  <code>agenticos</code> CLI can serve these lanes too, using its own model:
+  <code>agenticos transition lanes --all</code> to see them and
+  <code>agenticos transition serve</code> to run them. Useful for a scheduled script that drains
+  the backlog without opening a chat client. It is a separate install (it does not ship inside this
+  app), so treat it as an extra rather than the normal path.
+</div>
 
 <p>That is the real trade. Leave it disabled and your assistant does the thinking, which costs you
 nothing extra and keeps everything local, but AI lanes only advance while you are there. Configure a
@@ -508,6 +522,7 @@ filtering and grouping by source, day, tag or model.</p>
   <tbody>
     <tr><td>Nothing works at all</td><td><code>readiness</code>, which names the unhappy layer</td></tr>
     <tr><td>An AI lane never ran overnight</td><td>Expected without a configured provider, not a fault: see section 6. <code>scheduler_status</code> marks these lanes <code>willNotFireUnattended</code></td></tr>
+    <tr><td>Firing an AI lane by hand refused</td><td>Same cause, and deliberate: with no model configured the server says so instead of failing repeatedly. Your input token is untouched, so serving it later works</td></tr>
     <tr><td>A scheduled net went silent</td><td><code>scheduler_status</code>: it reports stopped and invalid schedules, and keeps armed, fired and succeeded times apart</td></tr>
     <tr><td>A command lane is queued with no output</td><td><code>list_executors</code>, or executor coverage in <code>net_stats</code></td></tr>
     <tr><td>One transition misbehaves</td><td><code>diagnose_transition</code></td></tr>
