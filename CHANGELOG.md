@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.40.0] - 2026-08-02
+
 ### Changed
 - **`external` can only be set explicitly** (`agentic-net-master`, `agentic-net-mcp`, `agentic-net-desktop`). A provider-less master used to auto-mark every newly deployed llm/agent lane `external`, overloading a marker that is supposed to mean "I chose MCP-only execution" with "master happened to lack a provider that day" — and because starting a lane writes an explicit opt-out, one `start_transition` then made it invisible to the only thing that could run it. Now nothing but `set_external` produces that status. A provider-less master instead **skips** its llm/agent lanes: they keep a normal lifecycle (`deployed`, or `running`) and wait, rather than firing into a guaranteed `LlmDisabledException` and flapping `error ⇄ running` on `RestartBackoff` — which, for any lane carrying the `when:"error"` emit branch we tell every client to add, was quietly consuming real input tokens into error tokens on every retry. Lanes already carrying `status=external` keep it; `set_external {all:true, external:false}` returns them.
 
