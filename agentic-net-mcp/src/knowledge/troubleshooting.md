@@ -59,8 +59,8 @@ name a model that exists. Remember: on masters < 2.28 a failed llm fire emits no
 1. `create_model` (or confirm it exists — `list_models` shows state; CATALOGED ≠ loaded).
 2. First `add_place` succeeds ⇒ workspace skeleton is provisioned (auto on ≥ 2.27).
 3. Command lanes planned? `list_executors` — is state READY or STANDBY? Either can serve it.
-4. LLM lanes planned? `llm_health` says READY for master execution, or DISABLED
-   so new lanes default to external MCP-client execution.
+4. LLM lanes planned? `llm_health` says READY for master execution, or DISABLED —
+   master then skips every AI lane and YOU run them (includeAll:true to list them).
 5. Remember `net_overview` without netId is SESSION-scoped: `sessionNetCount: 0` on a fresh
    connection does NOT mean the model is empty — check `modelSessionCount`.
 

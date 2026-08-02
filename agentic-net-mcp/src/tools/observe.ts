@@ -1123,7 +1123,10 @@ export function evaluateLlmHealth(res: any): { report: any; problem?: string } {
         ...res,
         capability: 'external-mcp',
         note:
-          'Server-side LLM is intentionally disabled. Deterministic lanes remain available; new llm/agent lanes default to external execution through the MCP client.',
+          'Server-side LLM is intentionally disabled. Deterministic lanes remain available; master '
+          + 'SKIPS every llm/agent lane (they keep a normal status and wait), so serving them through '
+          + 'this MCP client is the only way they run. `external` is set only by set_external — do not '
+          + 'look for it to find your work: list_external_fires {includeAll:true} shows every AI lane.',
       },
     };
   }

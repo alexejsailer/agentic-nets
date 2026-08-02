@@ -7,7 +7,7 @@ every retry is a BILLED call. Treat this doc as the pre-flight checklist.
 
 Call the `llm_health` tool (GET, works in readonly). `READY` means master can
 execute AI lanes. `DISABLED` is the intentional MCP-first mode: deterministic
-lanes remain ready and new llm/agent lanes default to external execution by the
+lanes remain ready and master skips every llm/agent lane, leaving them for the
 connected client. `MODEL_NOT_FOUND` or `UNREACHABLE` means master-run
 llm/agent fires fail until fixed (a cloud model that is not authenticated on the
 provider host is the classic case).

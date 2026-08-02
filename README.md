@@ -156,9 +156,10 @@ come from matching checksum-verified release assets, with Docker Hub images
 only as a fallback.
 
 **Then**: use "Connect Codex (copy config)" or "Connect Claude Code (copy
-command)" in the tray. With the default model-free profile, new AI transitions
-automatically run as external fires: the connected model reasons while master
-still owns token binding, emission, accounting and the event trail. Data lives
+command)" in the tray. With no server-side LLM configured, master skips its AI
+transitions rather than failing them, and the connected model runs them instead:
+it reasons while master still owns token binding, emission, accounting and the
+event trail. Data lives
 in `~/.agenticos/` and survives updates. The bundled command executor is eligible
 for every model and activates that model on demand after its first command lane,
 so newly created domains need no executor configuration. Full

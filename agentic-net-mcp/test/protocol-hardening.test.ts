@@ -72,7 +72,9 @@ describe('MCP-first LLM readiness', () => {
 
     expect(evaluated.problem).toBeUndefined();
     expect(evaluated.report.capability).toBe('external-mcp');
-    expect(evaluated.report.note).toMatch(/llm\/agent lanes default to external/i);
+    // the note must not imply lanes get marked `external` — nothing but set_external does that
+    expect(evaluated.report.note).toMatch(/SKIPS every llm\/agent lane/i);
+    expect(evaluated.report.note).toMatch(/includeAll/);
   });
 
   it('still reports a genuinely broken server provider as a readiness problem', () => {
