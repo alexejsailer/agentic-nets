@@ -23,6 +23,8 @@ permissions:
 jobs:
   msi:
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -57,3 +59,160 @@ jobs:
           $v = "${{ steps.ver.outputs.version }}"
           gh release upload "v$v" --clobber `
             "agentic-net-desktop\dist\out\AgenticNetOS-$v-windows-x64.msi"
+
+      - name: Keep the msi for the upgrade test
+        uses: actions/upload-artifact@v4
+        with:
+          name: msi
+          path: agentic-net-desktop/dist/out/AgenticNetOS-*-windows-x64.msi
+          retention-days: 1
+
+  # Nothing in the suites ever ran msiexec, so an upgrade could only be tested by
+  # shipping it. 2.40.0 shipped an updater that rolled back to NO installation.
+  # This installs the previous release, runs the app from it, upgrades in place,
+  # and proves the user's data survived.
+  #
+  # Scope: the msi upgrade path and bundle integrity. The tray updater's
+  # stop-sweep-then-install ordering is unit-tested instead — CI cannot drive a
+  # tray menu. A blocked-upgrade-keeps-the-old-version assertion belongs here too,
+  # but needs the WiX late-RemoveExistingProducts change first.
+  upgrade:
+    needs: msi
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: msi
+          path: new
+
+      - name: Resolve the previous published release
+        id: prev
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ needs.msi.outputs.version }}"
+          if (-not $v) { $v = "${{ github.event.release.tag_name }}".TrimStart("v") }
+          # newest published release that is not the one under test AND has an msi
+          $prev = gh release list --repo ${{ github.repository }} --limit 20 --json tagName,isDraft `
+            | ConvertFrom-Json `
+            | Where-Object { -not $_.isDraft -and $_.tagName -ne "v$v" } `
+            | Select-Object -First 1
+          if (-not $prev) { "skip=true" >> $env:GITHUB_OUTPUT; exit 0 }
+          "tag=$($prev.tagName)" >> $env:GITHUB_OUTPUT
+          "version=$($prev.tagName.TrimStart('v'))" >> $env:GITHUB_OUTPUT
+          "skip=false" >> $env:GITHUB_OUTPUT
+
+      - name: Download the previous msi
+        if: steps.prev.outputs.skip != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
+        id: dl
+        run: |
+          New-Item -ItemType Directory -Force old | Out-Null
+          gh release download "${{ steps.prev.outputs.tag }}" --repo ${{ github.repository }} `
+            --pattern "*windows-x64.msi" --dir old
+
+      - name: Install the previous release
+        if: steps.prev.outputs.skip != 'true' && steps.dl.outcome == 'success'
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem old\*.msi | Select-Object -First 1).FullName
+          Write-Host "installing $msi"
+          $p = Start-Process msiexec -ArgumentList "/i","`"$msi`"","/qn","/norestart","/l*v","old-install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content old-install.log -Tail 40; throw "previous install failed: $($p.ExitCode)" }
+          $dir = "$env:LOCALAPPDATA\AgenticNetOS"
+          if (-not (Test-Path "$dir\AgenticNetOS.exe")) { throw "launcher missing at $dir" }
+
+      - name: Run it, then seed data that must survive the upgrade
+        if: steps.prev.outputs.skip != 'true' && steps.dl.outcome == 'success'
+        shell: pwsh
+        run: |
+          $dir = "$env:LOCALAPPDATA\AgenticNetOS"
+          Start-Process "$dir\AgenticNetOS.exe"
+          # The bundle is only proven intact if it actually serves: Studio on 4200
+          # means the jlink runtime, the service jars and the static GUI are all present.
+          $ok = $false
+          foreach ($i in 1..90) {
+            Start-Sleep -Seconds 2
+            try { if ((Invoke-WebRequest "http://127.0.0.1:4200/manual" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { $ok = $true; break } } catch {}
+          }
+          if (-not $ok) { throw "installed app never served Studio on 4200 — bundle is broken" }
+          Write-Host "app is serving; seeding a data marker"
+          $data = "$env:USERPROFILE\.agenticos"
+          New-Item -ItemType Directory -Force "$data\models" | Out-Null
+          "upgrade-canary-${{ steps.prev.outputs.version }}" | Set-Content "$data\models\upgrade-canary.txt"
+
+      - name: Stop the app the way a user would
+        if: steps.prev.outputs.skip != 'true' && steps.dl.outcome == 'success'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "SilentlyContinue"   # .Path throws on protected processes
+          # /T kills the child services with it — the clean-shutdown case. (Without /T
+          # they orphan, which is the bug the updater's sweep now handles; that path is
+          # unit-tested because it needs the updater, not msiexec.)
+          taskkill /IM AgenticNetOS.exe /T /F 2>$null | Out-Null
+          foreach ($i in 1..30) {
+            Start-Sleep -Seconds 1
+            $left = Get-Process -ErrorAction SilentlyContinue |
+              Where-Object { $_.Path -and $_.Path.StartsWith("$env:LOCALAPPDATA\AgenticNetOS") }
+            if (-not $left) { break }
+          }
+          $left = Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path.StartsWith("$env:LOCALAPPDATA\AgenticNetOS") }
+          if ($left) { throw "processes still running from the install dir: $($left.Id -join ', ')" }
+
+      - name: Upgrade in place to the new build
+        if: steps.prev.outputs.skip != 'true' && steps.dl.outcome == 'success'
+        shell: pwsh
+        run: |
+          $msi = (Get-ChildItem new\*.msi | Select-Object -First 1).FullName
+          Write-Host "upgrading with $msi"
+          $p = Start-Process msiexec -ArgumentList "/i","`"$msi`"","/qn","/norestart","/l*v","upgrade.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content upgrade.log -Tail 60; throw "UPGRADE FAILED: $($p.ExitCode)" }
+
+      - name: Assert the upgrade landed and the data survived
+        if: steps.prev.outputs.skip != 'true' && steps.dl.outcome == 'success'
+        shell: pwsh
+        run: |
+          $v = "${{ needs.msi.outputs.version }}"
+          if (-not $v) { $v = "${{ github.event.release.tag_name }}".TrimStart("v") }
+          $dir = "$env:LOCALAPPDATA\AgenticNetOS"
+          if (-not (Test-Path "$dir\AgenticNetOS.exe")) { throw "no installation left after the upgrade" }
+
+          # exactly one AgenticNetOS registered, at the new version — a stale second
+          # entry would mean the upgrade code changed and users get two installs
+          $entries = @(Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
+            ForEach-Object { Get-ItemProperty $_.PSPath } |
+            Where-Object { $_.DisplayName -eq "AgenticNetOS" })
+          if ($entries.Count -ne 1) { throw "expected 1 registered install, found $($entries.Count)" }
+          if ($entries[0].DisplayVersion -ne $v) { throw "installed $($entries[0].DisplayVersion), expected $v" }
+
+          # the whole point: an upgrade must never touch user data
+          $canary = "$env:USERPROFILE\.agenticos\models\upgrade-canary.txt"
+          if (-not (Test-Path $canary)) { throw "USER DATA LOST: $canary is gone after the upgrade" }
+          Write-Host "canary intact: $(Get-Content $canary)"
+
+          # ...and the upgraded install must actually RUN. 2.40.0's failure mode was a
+          # rollback to nothing; a half-applied upgrade that leaves unrunnable files
+          # would satisfy every check above.
+          Start-Process "$dir\AgenticNetOS.exe"
+          $ok = $false
+          foreach ($i in 1..90) {
+            Start-Sleep -Seconds 2
+            try { if ((Invoke-WebRequest "http://127.0.0.1:4200/manual" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { $ok = $true; break } } catch {}
+          }
+          if (-not $ok) { throw "upgraded app does not serve Studio — the upgrade left a broken install" }
+          Write-Host "upgraded ${{ steps.prev.outputs.version }} -> $v, data preserved, app serving"
+
+      - name: Upgrade log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upgrade-logs
+          path: |
+            upgrade.log
+            old-install.log
+          retention-days: 7
