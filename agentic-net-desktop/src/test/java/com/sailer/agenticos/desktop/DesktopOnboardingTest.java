@@ -110,16 +110,41 @@ class DesktopOnboardingTest {
      * on a handle one of them still held — then rolled back to nothing installed.
      */
     @Test
-    void windowsUpdateStopsServicesBeforeSpawningTheInstaller() throws Exception {
+    void windowsUpdateStopsSweepsThenSpawnsTheInstaller() throws Exception {
         List<String> order = new java.util.ArrayList<>();
 
         SelfUpdater.launchWindowsInstallerAndQuit(
             Path.of("/tmp/AgenticNetOS.msi"),
             () -> order.add("stop"),
             () -> order.add("quit"),
-            msi -> order.add("spawn"));
+            msi -> order.add("spawn"),
+            () -> { order.add("sweep"); return List.of(); });
 
-        assertEquals(List.of("stop", "spawn", "quit"), order);
+        assertEquals(List.of("stop", "sweep", "spawn", "quit"), order);
+    }
+
+    /**
+     * Fail CLOSED on a survivor. Handing msiexec a locked file does not fail the update —
+     * it rolls back a half-done upgrade whose old version is already removed, leaving no
+     * installation at all. An aborted update with instructions beats that every time.
+     */
+    @Test
+    void windowsUpdateRefusesToStartTheInstallerWhileAProcessSurvives() {
+        List<String> order = new java.util.ArrayList<>();
+
+        java.io.IOException refused = org.junit.jupiter.api.Assertions.assertThrows(
+            java.io.IOException.class,
+            () -> SelfUpdater.launchWindowsInstallerAndQuit(
+                Path.of("/tmp/AgenticNetOS.msi"),
+                () -> order.add("stop"),
+                () -> order.add("quit"),
+                msi -> order.add("spawn"),
+                () -> List.of(ProcessHandle.current()))); // stands in for an unkillable orphan
+
+        assertTrue(refused.getMessage().contains("update aborted"));
+        assertTrue(refused.getMessage().contains("Task Manager"));
+        // neither the installer nor the quit may run — the app stays up and reports the error
+        assertEquals(List.of("stop"), order);
     }
 
     @Test

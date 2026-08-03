@@ -255,7 +255,17 @@ the installer's files-in-use scan runs — the background node/java children hav
 no windows and cannot be closed by Restart Manager, so any other ordering ends
 in "error writing to file" and a rollback that removes the old install
 (observed on 2.40.0; recovery: end the leftover processes or reboot, re-run the
-msi). Updates never replace `~/.agenticos/`, failed ones included.
+msi).
+
+The stop is not limited to what the current launcher remembers. Both update
+paths then sweep BY EVIDENCE: every process whose executable resolves under the
+install root — orphans of a force-killed previous instance, a second launcher —
+is killed and awaited until provably dead (ports and, on Windows, file handles
+release only at process death). If anything survives the sweep, the update
+**aborts with the offending pids** instead of handing the installer a fight it
+loses by rollback. On macOS the sweep runs before the update applier is spawned,
+because the applier is itself a java process from the install runtime. Updates
+never replace `~/.agenticos/`, failed ones included.
 
 ## Build an installer from a clone
 

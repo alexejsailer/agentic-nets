@@ -11,6 +11,7 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -89,22 +90,57 @@ public final class SelfUpdater {
      * to file", and cancelling rolls back a half-done upgrade with the OLD version
      * already removed, leaving nothing installed at all (field report, 2.40.0).</p>
      */
-    static void launchWindowsInstallerAndQuit(Path msi, Runnable stopServices, Runnable quit)
+    static void launchWindowsInstallerAndQuit(Path msi, Path installRoot,
+                                              Runnable stopServices, Runnable quit)
             throws IOException {
-        launchWindowsInstallerAndQuit(msi, stopServices, quit, SelfUpdater::spawnWindowsInstaller);
+        launchWindowsInstallerAndQuit(msi, stopServices, quit, SelfUpdater::spawnWindowsInstaller,
+            () -> InstallProcesses.killAllUnder(installRoot,
+                Duration.ofSeconds(15), Duration.ofSeconds(10)));
     }
 
-    /** Spawner injected so the stop→spawn→quit ordering is testable off-Windows. */
+    /** Spawner and sweeper injected so the stop→sweep→spawn→quit ordering is testable off-Windows. */
     static void launchWindowsInstallerAndQuit(Path msi, Runnable stopServices, Runnable quit,
-                                              InstallerSpawner spawner) throws IOException {
+                                              InstallerSpawner spawner, OrphanSweeper sweeper)
+            throws IOException {
         stopServices.run();
+        // The supervisor stops what THIS launcher started; the sweep kills BY EVIDENCE
+        // whatever else runs from the install dir — orphans of a force-killed previous
+        // instance, a second launcher — and waits until every kill has landed.
+        requireAllDead(sweeper.sweep());
         spawner.spawn(msi);
         quit.run();
+    }
+
+    /**
+     * Fail CLOSED. Handing msiexec a fight over a locked file does not fail the update,
+     * it rolls back a half-done upgrade whose old version is already removed — an aborted
+     * update with instructions beats no installation at all.
+     */
+    static void requireAllDead(List<ProcessHandle> survivors) throws IOException {
+        if (!survivors.isEmpty()) {
+            throw new IOException("update aborted: " + survivors.size()
+                + " process(es) from the install directory would not exit (pid "
+                + survivors.stream().map(p -> String.valueOf(p.pid()))
+                    .collect(java.util.stream.Collectors.joining(", pid "))
+                + ") — end them in Task Manager or reboot, then update again");
+        }
+    }
+
+    /** Stop known children, then sweep the install dir; used by the macOS path too. */
+    static void stopAndSweep(Runnable stopServices, Path installRoot) throws IOException {
+        stopServices.run();
+        requireAllDead(InstallProcesses.killAllUnder(installRoot,
+            Duration.ofSeconds(15), Duration.ofSeconds(10)));
     }
 
     @FunctionalInterface
     interface InstallerSpawner {
         void spawn(Path msi) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface OrphanSweeper {
+        List<ProcessHandle> sweep();
     }
 
     private static void spawnWindowsInstaller(Path msi) throws IOException {

@@ -145,6 +145,27 @@ public final class DesktopConfig {
     public Path mcpDir() { return appDir.resolve("mcp"); }
     public Path updatesDir() { return desktopDir.resolve("update"); }
 
+    /**
+     * The directory every process of this installation runs from — bundled runtime,
+     * bundled node, the launcher itself. The update sweep kills by "executable is under
+     * this root", so it must cover all three on every platform's jpackage layout.
+     */
+    public Path installRoot() {
+        Path bundle = appBundle();
+        if (bundle != null) {
+            return bundle;                       // macOS: the whole .app
+        }
+        Path parent = appDir.getParent();
+        if (parent == null) {
+            return appDir;
+        }
+        Path name = parent.getFileName();
+        if (name != null && name.toString().equals("lib") && parent.getParent() != null) {
+            return parent.getParent();           // Linux: <root>/lib/app → <root>
+        }
+        return parent;                           // Windows: <root>/app → <root>
+    }
+
     /** The installed .app bundle to swap on self-update (macOS only), else null. */
     public Path appBundle() {
         Path contents = appDir.getParent();
