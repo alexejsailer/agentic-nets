@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.40.1] - 2026-08-03
+
 Windows update repair. **If you are on 2.40.0 or earlier, this release's update still runs through the old updater** — if it stops with "cannot close AgenticNetOS" or "error writing to file", end the leftover `AgenticNetOS`/`node.exe`/`java.exe` processes (or reboot) and run the installer from the releases page. Your data in `~/.agenticos` is never touched by the installer, including by a failed one. From this version on, the updater handles that case itself.
 
 ### Added
