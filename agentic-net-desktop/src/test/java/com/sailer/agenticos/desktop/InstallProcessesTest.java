@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,6 +37,14 @@ class InstallProcessesTest {
         assertFalse(InstallProcesses.belongsTo(root, sep + "usr" + sep + "bin" + sep + "java"));
         // the root itself is a directory, not a process image
         assertFalse(InstallProcesses.belongsTo(root, root));
+
+        if (File.separatorChar == '\\') {
+            // Windows only: the method must normalize the root itself rather than trust the
+            // caller. A raw-cased root that matched nothing would make the sweep report
+            // itself clean while our processes still held the files being overwritten.
+            assertTrue(InstallProcesses.belongsTo(root.toUpperCase(Locale.ROOT),
+                root + sep + "runtime" + sep + "bin" + sep + "java"));
+        }
     }
 
     /**

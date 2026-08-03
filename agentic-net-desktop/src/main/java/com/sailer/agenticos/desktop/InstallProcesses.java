@@ -135,8 +135,15 @@ final class InstallProcesses {
      * Prefix match on the SEPARATOR boundary — without it, an install at {@code C:\A} would
      * also claim processes from {@code C:\ABC}. Case-insensitive on Windows, whose
      * filesystems are.
+     *
+     * <p>Normalizes BOTH sides rather than trusting the caller to have done it. Lowercasing
+     * only the candidate makes a raw-cased root silently match nothing on Windows — and a
+     * sweep that finds nothing reports itself clean, so the update would proceed with our
+     * own processes still holding the files it is about to overwrite. That is the failure
+     * this class exists to prevent, so the method fails closed on its own.
      */
-    static boolean belongsTo(String normalizedRoot, String commandPath) {
+    static boolean belongsTo(String root, String commandPath) {
+        String normalizedRoot = normalized(root);
         String boundary = normalizedRoot.endsWith(File.separator)
             ? normalizedRoot
             : normalizedRoot + File.separator;
