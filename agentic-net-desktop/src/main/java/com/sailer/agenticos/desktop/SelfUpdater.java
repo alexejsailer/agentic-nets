@@ -76,12 +76,55 @@ public final class SelfUpdater {
     }
 
     /**
-     * Windows: start the verified msi (UAC/consent is the user's step) and quit
-     * so the installer never fights the running app over locked files.
+     * Windows: stop every child service FIRST, then hand the msi to a detached
+     * cmd script that waits ~2s — long enough for THIS process to exit — before
+     * invoking msiexec, and only then quit.
+     *
+     * <p>The ordering is the whole fix. The previous version started msiexec and
+     * THEN began the multi-second shutdown, so the installer's files-in-use scan
+     * always found the app running. Restart Manager cannot close the background
+     * node/java children (no windows, not RM-registered), and force-closing the
+     * tray process skips the JVM shutdown hook and ORPHANS them — an orphaned MCP
+     * node.exe holds handles under app\mcp\, the install dies on "error writing
+     * to file", and cancelling rolls back a half-done upgrade with the OLD version
+     * already removed, leaving nothing installed at all (field report, 2.40.0).</p>
      */
-    static void launchWindowsInstallerAndQuit(Path msi, Runnable quit) throws IOException {
-        new ProcessBuilder("msiexec", "/i", msi.toAbsolutePath().toString()).start();
+    static void launchWindowsInstallerAndQuit(Path msi, Runnable stopServices, Runnable quit)
+            throws IOException {
+        launchWindowsInstallerAndQuit(msi, stopServices, quit, SelfUpdater::spawnWindowsInstaller);
+    }
+
+    /** Spawner injected so the stop→spawn→quit ordering is testable off-Windows. */
+    static void launchWindowsInstallerAndQuit(Path msi, Runnable stopServices, Runnable quit,
+                                              InstallerSpawner spawner) throws IOException {
+        stopServices.run();
+        spawner.spawn(msi);
         quit.run();
+    }
+
+    @FunctionalInterface
+    interface InstallerSpawner {
+        void spawn(Path msi) throws IOException;
+    }
+
+    private static void spawnWindowsInstaller(Path msi) throws IOException {
+        // A script file, not an inline `cmd /c "a & b"` string: ProcessBuilder's Windows
+        // argument quoting around an embedded quoted path inside a compound command is
+        // exactly the kind of thing that works on one machine and not another.
+        Path script = Files.createTempFile("agenticos-update-", ".cmd");
+        Files.writeString(script, windowsInstallScript(msi));
+        new ProcessBuilder("cmd", "/c", script.toAbsolutePath().toString()).start();
+    }
+
+    /**
+     * The ping is a ~2s delay for the launcher itself: its exe lives in the install
+     * dir too, and it exits AFTER spawning this script. Without the delay msiexec's
+     * files-in-use scan can still catch the dying launcher process.
+     */
+    static String windowsInstallScript(Path msi) {
+        return "@echo off\r\n"
+            + "ping -n 3 127.0.0.1 >nul\r\n"
+            + "msiexec /i \"" + msi.toAbsolutePath() + "\"\r\n";
     }
 
     /** Downloads the platform artifact for {@code version} and verifies its SHA-256. */

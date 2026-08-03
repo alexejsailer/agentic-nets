@@ -103,6 +103,39 @@ class DesktopOnboardingTest {
             SelfUpdater.installCommand(msi));
     }
 
+    /**
+     * The Windows update bug WAS an ordering bug: msiexec started first and raced the
+     * multi-second shutdown, so its files-in-use scan always found the app running,
+     * Restart Manager orphaned the windowless node/java children, and the install died
+     * on a handle one of them still held — then rolled back to nothing installed.
+     */
+    @Test
+    void windowsUpdateStopsServicesBeforeSpawningTheInstaller() throws Exception {
+        List<String> order = new java.util.ArrayList<>();
+
+        SelfUpdater.launchWindowsInstallerAndQuit(
+            Path.of("/tmp/AgenticNetOS.msi"),
+            () -> order.add("stop"),
+            () -> order.add("quit"),
+            msi -> order.add("spawn"));
+
+        assertEquals(List.of("stop", "spawn", "quit"), order);
+    }
+
+    @Test
+    void windowsInstallScriptDelaysBeforeMsiexecAndQuotesThePath() {
+        // a path WITH A SPACE, built platform-neutrally — a hardcoded C:\ literal is not
+        // absolute on the POSIX JVM this test runs on, so toAbsolutePath() would mangle it
+        Path msiPath = Path.of("update dir", "update.msi");
+        String script = SelfUpdater.windowsInstallScript(msiPath);
+
+        int delay = script.indexOf("ping -n 3");
+        int msi = script.indexOf("msiexec /i");
+        // the delay exists for the launcher's own exe and must come FIRST
+        assertTrue(delay >= 0 && msi > delay);
+        assertTrue(script.contains("msiexec /i \"" + msiPath.toAbsolutePath() + "\""));
+    }
+
     @Test
     void artifactNameFollowsTheOperatingSystem() {
         String previousOs = System.getProperty("os.name");

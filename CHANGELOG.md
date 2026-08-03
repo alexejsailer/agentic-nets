@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Windows tray update could destroy the installation** (`agentic-net-desktop` — `SelfUpdater`, `Supervisor`, `TrayUi`). The updater started msiexec FIRST and then began the multi-second service shutdown, so the installer's files-in-use scan always caught the app running. Windows Restart Manager cannot close the background node/java children (no windows, not registered), and force-closing the tray process skipped the JVM shutdown hook and orphaned them — an orphaned MCP `node.exe` then held handles under `app\mcp\`, the install failed with "error writing to file", and cancelling rolled back a half-done upgrade whose old version was already removed, leaving no installation at all. The update now stops every child and waits for the kills to land (including after `destroyForcibly`, since handles release only at actual process death), then launches msiexec through a detached script with a ~2s delay so the launcher itself has exited before the scan runs. User data under `~/.agenticos/` was never at risk — the msi only manages the app directory. Recovery on affected versions: end the leftover `AgenticNetOS`/`node.exe`/`java.exe` processes (or reboot) and re-run the installer.
+
 ## [2.40.0] - 2026-08-02
 
 ### Changed

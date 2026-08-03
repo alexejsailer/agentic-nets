@@ -172,8 +172,9 @@ public final class TrayUi {
                     notifyInfo("Installing update", "Services stop, the app replaces itself and relaunches.");
                     SelfUpdater.applyOnMacAndRestart(pkg, bundle, config.updatesDir(), onQuit);
                 } else if (SelfUpdater.isWindows()) {
-                    notifyInfo("Installing update", "The installer starts now; the app quits. Relaunch when it finishes.");
-                    SelfUpdater.launchWindowsInstallerAndQuit(pkg, onQuit);
+                    notifyInfo("Installing update",
+                        "Services stop first, then the installer starts; relaunch when it finishes.");
+                    SelfUpdater.launchWindowsInstallerAndQuit(pkg, supervisor::stopAll, onQuit);
                 } else {
                     copyToClipboard(SelfUpdater.installCommand(pkg));
                     notifyInfo("Update downloaded and verified",

@@ -248,8 +248,14 @@ verify it with the release's `SHA256SUMS.txt`.
 The tray checks GitHub releases once per day. Downloads are verified against
 the release checksum. macOS uses a transactional app swap with rollback if the
 new app cannot relaunch; Linux copies the appropriate package-manager command
-to the clipboard because installation needs root. Updates do not replace
-`~/.agenticos/`.
+to the clipboard because installation needs root. Windows stops every child
+service and waits for them to actually exit BEFORE launching the msi, then hands
+it to a detached script with a short delay so the launcher itself is gone when
+the installer's files-in-use scan runs — the background node/java children have
+no windows and cannot be closed by Restart Manager, so any other ordering ends
+in "error writing to file" and a rollback that removes the old install
+(observed on 2.40.0; recovery: end the leftover processes or reboot, re-run the
+msi). Updates never replace `~/.agenticos/`, failed ones included.
 
 ## Build an installer from a clone
 

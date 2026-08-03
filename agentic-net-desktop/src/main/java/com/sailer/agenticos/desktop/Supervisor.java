@@ -200,6 +200,10 @@ public final class Supervisor {
             try {
                 if (!process.waitFor(10, TimeUnit.SECONDS)) {
                     process.destroyForcibly();
+                    // Wait for the kill to LAND: TerminateProcess is asynchronous and file
+                    // handles are released only at actual death. The Windows updater relies
+                    // on stopAll returning with no child still holding the install dir.
+                    process.waitFor(5, TimeUnit.SECONDS);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
