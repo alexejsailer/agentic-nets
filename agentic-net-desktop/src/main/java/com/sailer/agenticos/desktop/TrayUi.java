@@ -172,13 +172,13 @@ public final class TrayUi {
                     notifyInfo("Installing update", "Services stop, the app replaces itself and relaunches.");
                     // Sweep BEFORE the applier is spawned: the applier is itself a java
                     // process from the install runtime, and the sweep must not kill it.
-                    SelfUpdater.stopAndSweep(supervisor::stopAll, config.installRoot());
+                    SelfUpdater.stopAndSweep(supervisor::stopAll, config.installRoot(), config.runRoot());
                     SelfUpdater.applyOnMacAndRestart(pkg, bundle, config.updatesDir(), onQuit);
                 } else if (SelfUpdater.isWindows()) {
                     notifyInfo("Installing update",
                         "Services stop first, then the installer starts; relaunch when it finishes.");
                     SelfUpdater.launchWindowsInstallerAndQuit(
-                        pkg, config.installRoot(), supervisor::stopAll, onQuit);
+                        pkg, config.installRoot(), config.runRoot(), supervisor::stopAll, onQuit);
                 } else {
                     copyToClipboard(SelfUpdater.installCommand(pkg));
                     notifyInfo("Update downloaded and verified",

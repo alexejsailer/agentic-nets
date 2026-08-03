@@ -257,14 +257,21 @@ in "error writing to file" and a rollback that removes the old install
 (observed on 2.40.0; recovery: end the leftover processes or reboot, re-run the
 msi).
 
-The stop is not limited to what the current launcher remembers. Both update
-paths then sweep BY EVIDENCE: every process whose executable resolves under the
-install root — orphans of a force-killed previous instance, a second launcher —
-is killed and awaited until provably dead (ports and, on Windows, file handles
-release only at process death). If anything survives the sweep, the update
-**aborts with the offending pids** instead of handing the installer a fight it
-loses by rollback. On macOS the sweep runs before the update applier is spawned,
-because the applier is itself a java process from the install runtime. Updates
+The stop is not limited to what the current launcher remembers. Every spawned
+child is recorded as `~/.agenticos/desktop/run/<service>/pid` holding
+`<pid> <startEpochMillis>`; an entry only counts when the live process's start
+instant matches the record, because pids are numbers the OS reuses. Both update
+paths then combine that registry with a scan BY EVIDENCE — processes whose
+executable resolves under the install root AND carries one of the shipped image
+names (`java`, `node`, `AgenticNetOS`) — so orphans of a force-killed previous
+instance and second launcher instances are found either way. Everything
+identified is killed and awaited until provably dead (ports and, on Windows,
+file handles release only at process death). A process under the root that is
+NOT positively identifiable — wrong image name, unreadable command — is never
+killed: it surfaces as a survivor and the update **aborts naming it**, instead
+of handing the installer a fight it loses by rollback. On macOS the sweep runs
+before the update applier is spawned, because the applier is itself a java
+process from the install runtime. Updates
 never replace `~/.agenticos/`, failed ones included.
 
 ## Build an installer from a clone

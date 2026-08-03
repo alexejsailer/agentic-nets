@@ -47,20 +47,73 @@ final class InstallProcesses {
     }
 
     /**
-     * Kill everything under {@code installRoot} (and the descendants of each hit — an
-     * executor's live command-lane children must not linger headless), then WAIT until the
-     * kills have landed: file handles and ports are released only at actual process death,
-     * and the whole point of the sweep is that the caller may rely on that afterwards.
-     *
-     * @return the survivors — empty means the install directory is provably quiet
+     * The only executables this installation ships. A kill requires BOTH factors: the
+     * path under the install root (findUnder) AND one of these image names. Anything
+     * else found under the root — however it got there — is never killed; it is
+     * reported as a survivor so the update aborts and names it instead.
      */
-    static List<ProcessHandle> killAllUnder(Path installRoot, Duration graceful, Duration afterForce) {
-        List<ProcessHandle> found = findUnder(installRoot);
-        Set<ProcessHandle> targets = new LinkedHashSet<>(found);
-        for (ProcessHandle p : found) {
-            p.descendants().forEach(targets::add);
+    private static final Set<String> KNOWN_IMAGE_NAMES = Set.of(
+        "java", "java.exe",             // bundled runtime running the services
+        "node", "node.exe",             // bundled node running the MCP server
+        "AgenticNetOS", "AgenticNetOS.exe"); // the launcher itself
+
+    static boolean isKnownImage(String commandPath) {
+        Path name = Path.of(commandPath).getFileName();
+        if (name == null) {
+            return false;
         }
-        return killAndWait(targets, graceful, afterForce);
+        String image = name.toString();
+        return File.separatorChar == '\\'
+            ? KNOWN_IMAGE_NAMES.stream().anyMatch(k -> k.equalsIgnoreCase(image))
+            : KNOWN_IMAGE_NAMES.contains(image);
+    }
+
+    /**
+     * Kill what is POSITIVELY OURS under {@code installRoot} — path and image name both —
+     * then WAIT until the kills have landed: file handles and ports are released only at
+     * actual process death, and the whole point of the sweep is that the caller may rely
+     * on that afterwards. Every pid is logged with its executable before anything is sent
+     * a signal. Deliberately NO descendant expansion: a descendant is tree membership,
+     * not identity, and killing by anything less than positive identity is how an updater
+     * kills somebody's unrelated process.
+     *
+     * @return the survivors — both refused kills and failed ones; empty means the install
+     *         directory is provably quiet
+     */
+    static List<ProcessHandle> killAllUnder(Path installRoot, Path runRoot,
+                                            Duration graceful, Duration afterForce) {
+        // Registry first: pid + start-instant entries written at spawn are the strongest
+        // identity we have, and a crashed launcher's orphans STILL have theirs — the
+        // previous instance wrote them and never got to clean up. The path scan is the
+        // fallback for registrations lost with a deleted run directory.
+        List<ProcessHandle> registered = PidRegistry.collectLive(runRoot);
+        Set<Long> verified = registered.stream().map(ProcessHandle::pid)
+            .collect(Collectors.toSet());
+        Set<ProcessHandle> found = new LinkedHashSet<>(registered);
+        found.addAll(findUnder(installRoot));
+        return sweep(List.copyOf(found), verified, graceful, afterForce);
+    }
+
+    /** Package-private so the partition-and-refuse behavior is testable on explicit handles. */
+    static List<ProcessHandle> sweep(List<ProcessHandle> found, Set<Long> verifiedPids,
+                                     Duration graceful, Duration afterForce) {
+        Set<ProcessHandle> targets = new LinkedHashSet<>();
+        List<ProcessHandle> refused = new java.util.ArrayList<>();
+        for (ProcessHandle p : found) {
+            String cmd = p.info().command().orElse("");
+            if (verifiedPids.contains(p.pid()) || isKnownImage(cmd)) {
+                System.out.println("[desktop] update sweep: killing pid " + p.pid()
+                    + " (" + (cmd.isEmpty() ? "registered at spawn" : cmd) + ")");
+                targets.add(p);
+            } else {
+                System.err.println("[desktop] update sweep: REFUSING pid " + p.pid()
+                    + " (" + (cmd.isEmpty() ? "unknown image" : cmd) + ") — not one of ours by name");
+                refused.add(p);
+            }
+        }
+        List<ProcessHandle> survivors = new java.util.ArrayList<>(killAndWait(targets, graceful, afterForce));
+        survivors.addAll(refused);
+        return survivors;
     }
 
     /**

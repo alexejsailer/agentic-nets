@@ -86,6 +86,9 @@ public final class Supervisor {
 
         Process process = pb.start();
         processes.put(spec.name(), process);
+        // pid + start instant next to the user's data: the update sweep's strongest
+        // identification, and the one that still works for orphans of a crashed launcher
+        PidRegistry.record(spec.workingDir(), process.toHandle());
         watchExit(spec, process);
 
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(spec.startTimeoutSeconds());
@@ -208,6 +211,9 @@ public final class Supervisor {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 process.destroyForcibly();
+            }
+            if (!process.isAlive()) {
+                PidRegistry.clear(spec.workingDir()); // clean stops leave no stale record
             }
             setStatus(spec.name(), Status.STOPPED);
         }

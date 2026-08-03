@@ -138,6 +138,8 @@ public final class DesktopConfig {
     public Path desktopDir() { return desktopDir; }
     public Path logsDir() { return desktopDir.resolve("logs"); }
     public Path runDir(String service) { return desktopDir.resolve("run").resolve(service); }
+    /** Parent of every service run dir — where the pid registry lives. */
+    public Path runRoot() { return desktopDir.resolve("run"); }
     public Path gatewayJwtDir() { return desktopDir.resolve("gateway").resolve("jwt"); }
     public Path adminSecretFile() { return gatewayJwtDir().resolve("admin-secret"); }
     public Path servicesDir() { return appDir.resolve("services"); }

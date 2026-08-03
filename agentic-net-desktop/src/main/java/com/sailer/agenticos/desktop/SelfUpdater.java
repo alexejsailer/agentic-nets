@@ -90,11 +90,11 @@ public final class SelfUpdater {
      * to file", and cancelling rolls back a half-done upgrade with the OLD version
      * already removed, leaving nothing installed at all (field report, 2.40.0).</p>
      */
-    static void launchWindowsInstallerAndQuit(Path msi, Path installRoot,
+    static void launchWindowsInstallerAndQuit(Path msi, Path installRoot, Path runRoot,
                                               Runnable stopServices, Runnable quit)
             throws IOException {
         launchWindowsInstallerAndQuit(msi, stopServices, quit, SelfUpdater::spawnWindowsInstaller,
-            () -> InstallProcesses.killAllUnder(installRoot,
+            () -> InstallProcesses.killAllUnder(installRoot, runRoot,
                 Duration.ofSeconds(15), Duration.ofSeconds(10)));
     }
 
@@ -118,18 +118,20 @@ public final class SelfUpdater {
      */
     static void requireAllDead(List<ProcessHandle> survivors) throws IOException {
         if (!survivors.isEmpty()) {
+            String named = survivors.stream()
+                .map(p -> "pid " + p.pid() + " (" + p.info().command().orElse("unknown image") + ")")
+                .collect(java.util.stream.Collectors.joining(", "));
             throw new IOException("update aborted: " + survivors.size()
-                + " process(es) from the install directory would not exit (pid "
-                + survivors.stream().map(p -> String.valueOf(p.pid()))
-                    .collect(java.util.stream.Collectors.joining(", pid "))
-                + ") — end them in Task Manager or reboot, then update again");
+                + " process(es) in the install directory would not exit or were not positively "
+                + "identifiable as ours — " + named
+                + " — end them in Task Manager or reboot, then update again");
         }
     }
 
     /** Stop known children, then sweep the install dir; used by the macOS path too. */
-    static void stopAndSweep(Runnable stopServices, Path installRoot) throws IOException {
+    static void stopAndSweep(Runnable stopServices, Path installRoot, Path runRoot) throws IOException {
         stopServices.run();
-        requireAllDead(InstallProcesses.killAllUnder(installRoot,
+        requireAllDead(InstallProcesses.killAllUnder(installRoot, runRoot,
             Duration.ofSeconds(15), Duration.ofSeconds(10)));
     }
 

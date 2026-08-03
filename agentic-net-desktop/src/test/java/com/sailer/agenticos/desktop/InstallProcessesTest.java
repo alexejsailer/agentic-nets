@@ -99,6 +99,41 @@ class InstallProcessesTest {
         }
     }
 
+    @Test
+    void onlyTheShippedImageNamesCountAsOurs() {
+        String sep = File.separator;
+        assertTrue(InstallProcesses.isKnownImage(sep + "root" + sep + "runtime" + sep + "bin" + sep + "java"));
+        assertTrue(InstallProcesses.isKnownImage(sep + "root" + sep + "node-runtime" + sep + "bin" + sep + "node"));
+        assertTrue(InstallProcesses.isKnownImage(sep + "root" + sep + "MacOS" + sep + "AgenticNetOS"));
+        assertTrue(InstallProcesses.isKnownImage("C:\\r\\AgenticNetOS.exe".replace('\\', File.separatorChar)));
+
+        assertFalse(InstallProcesses.isKnownImage(sep + "root" + sep + "bin" + sep + "sleep"));
+        assertFalse(InstallProcesses.isKnownImage(sep + "root" + sep + "bin" + sep + "javac"));
+        assertFalse(InstallProcesses.isKnownImage(""));
+    }
+
+    /**
+     * A REAL live process with the wrong image name must be refused, stay alive, and come
+     * back as a survivor — which makes the update abort and name it, rather than the
+     * sweep killing anything it cannot positively identify as ours.
+     */
+    @Test
+    void sweepRefusesToKillAProcessItCannotIdentifyAsOurs() throws IOException {
+        Assumptions.assumeFalse(File.separatorChar == '\\', "POSIX fixture");
+        Process bystander = new ProcessBuilder("/bin/sleep", "300").start();
+        try {
+            List<ProcessHandle> survivors = InstallProcesses.sweep(
+                List.of(bystander.toHandle()), java.util.Set.of(), Duration.ofSeconds(2), Duration.ofSeconds(2));
+
+            assertTrue(bystander.isAlive(), "an unidentified process must NOT be killed");
+            assertEquals(List.of(bystander.pid()),
+                survivors.stream().map(ProcessHandle::pid).toList(),
+                "the refusal must surface as a survivor so the update aborts and names it");
+        } finally {
+            bystander.destroyForcibly();
+        }
+    }
+
     /** The current JVM must never sweep itself, whatever root it is asked about. */
     @Test
     void neverReportsItself() {
