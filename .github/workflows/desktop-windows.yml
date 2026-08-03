@@ -180,31 +180,54 @@ jobs:
           $v = "${{ needs.msi.outputs.version }}"
           if (-not $v) { $v = "${{ github.event.release.tag_name }}".TrimStart("v") }
           $dir = "$env:LOCALAPPDATA\AgenticNetOS"
-          if (-not (Test-Path "$dir\AgenticNetOS.exe")) { throw "no installation left after the upgrade" }
 
-          # exactly one AgenticNetOS registered, at the new version — a stale second
-          # entry would mean the upgrade code changed and users get two installs
-          $entries = @(Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
-            ForEach-Object { Get-ItemProperty $_.PSPath } |
+          # Collect every failure instead of dying on the first, so one run reports the
+          # whole picture — an upgrade can be wrong in several ways at once, and finding
+          # them one CI round-trip at a time is what makes this test expensive to own.
+          $problems = @()
+
+          if (-not (Test-Path "$dir\AgenticNetOS.exe")) { $problems += "no installation left after the upgrade" }
+
+          # Exactly one AgenticNetOS registered, at the new version — a stale second entry
+          # would mean the upgrade code changed and users get two installs. Search every
+          # hive: --win-per-user-install is supposed to land in HKCU, but msiexec running
+          # elevated (as it does on CI runners) can register per-machine instead, and
+          # assuming HKCU is what made this assertion fail on its first real run.
+          $roots = @(
+            "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall",
+            "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+          ) | Where-Object { Test-Path $_ }
+          $entries = @($roots |
+            ForEach-Object { Get-ChildItem $_ -ErrorAction SilentlyContinue } |
+            ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
             Where-Object { $_.DisplayName -eq "AgenticNetOS" })
-          if ($entries.Count -ne 1) { throw "expected 1 registered install, found $($entries.Count)" }
-          if ($entries[0].DisplayVersion -ne $v) { throw "installed $($entries[0].DisplayVersion), expected $v" }
+          Write-Host "ARP entries found: $($entries.Count) (searched: $($roots -join ', '))"
+          if ($entries.Count -ne 1) {
+            $problems += "expected 1 registered install, found $($entries.Count)"
+          } elseif ($entries[0].DisplayVersion -ne $v) {
+            $problems += "registered version is $($entries[0].DisplayVersion), expected $v"
+          }
 
           # the whole point: an upgrade must never touch user data
           $canary = "$env:USERPROFILE\.agenticos\models\upgrade-canary.txt"
-          if (-not (Test-Path $canary)) { throw "USER DATA LOST: $canary is gone after the upgrade" }
-          Write-Host "canary intact: $(Get-Content $canary)"
+          if (-not (Test-Path $canary)) { $problems += "USER DATA LOST: $canary is gone after the upgrade" }
+          else { Write-Host "canary intact: $(Get-Content $canary)" }
 
           # ...and the upgraded install must actually RUN. 2.40.0's failure mode was a
           # rollback to nothing; a half-applied upgrade that leaves unrunnable files
           # would satisfy every check above.
-          Start-Process "$dir\AgenticNetOS.exe"
-          $ok = $false
-          foreach ($i in 1..90) {
-            Start-Sleep -Seconds 2
-            try { if ((Invoke-WebRequest "http://127.0.0.1:4200/manual" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { $ok = $true; break } } catch {}
+          if (Test-Path "$dir\AgenticNetOS.exe") {
+            Start-Process "$dir\AgenticNetOS.exe"
+            $ok = $false
+            foreach ($i in 1..90) {
+              Start-Sleep -Seconds 2
+              try { if ((Invoke-WebRequest "http://127.0.0.1:4200/manual" -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200) { $ok = $true; break } } catch {}
+            }
+            if (-not $ok) { $problems += "upgraded app does not serve Studio — the upgrade left a broken install" }
           }
-          if (-not $ok) { throw "upgraded app does not serve Studio — the upgrade left a broken install" }
+
+          if ($problems) { throw ($problems -join " | ") }
           Write-Host "upgraded ${{ steps.prev.outputs.version }} -> $v, data preserved, app serving"
 
       - name: Upgrade log on failure
