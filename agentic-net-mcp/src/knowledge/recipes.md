@@ -55,13 +55,12 @@ fire unattended. A schedule is an AND-gate with token binding — see docs/sched
 A command transition can launch a full Claude Code instance on the executor host — a net that
 delegates entire coding tasks to a fresh agent:
   add_transition {kind:"command", ...} consuming command-shaped tokens whose args.command is
-  claude -p 'Fix the failing test in /repo/x' --allowedTools 'Read,Grep,Glob,Edit,Bash' --no-session-persistence < /dev/null
-Rules: ALWAYS < /dev/null (stdin blocks forever otherwise); confine --allowedTools to least
-privilege; timeoutMs in minutes; the executor host needs the claude CLI. This is how a persona can
-"hire" a coding agent overnight — the net stays deterministic, the spawned agent does the fuzzy work.
-With several executors registered, check list_executors and pass executorId on add_transition to
-pick the host that runs it ('*' = any executor; if more than one is ONLINE and the user didn't
-specify, ask which to target). Full command-lane reference: docs/commands.
+  printf '%s' 'Fix the failing test in /repo/x' | claude -p --model sonnet --allowedTools 'Read,Grep,Glob,Edit,Bash' --no-session-persistence
+Pipe the prompt via stdin (a quoted -p argument can lose its quotes through the executor chain —
+claude then runs promptless); least-privilege --allowedTools; timeoutMs in minutes; executorId
+picks the host (list_executors; '*' = any — several ONLINE and unspecified: ask). This is how a
+persona "hires" a coding agent overnight — the net stays deterministic, the spawned agent does the
+fuzzy work. Full pattern + Windows setup: docs/real-agents; token schema: docs/commands.
 
 ## Orchestration: prefer deterministic chaining over an agent poll-loop
 

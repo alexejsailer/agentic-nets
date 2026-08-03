@@ -28,6 +28,11 @@ inscription by hand, read `inscriptions`.
   double-check that makes `approved` mean something, invoking scripts by toolId.
 - **llm** — llm_health pre-flight; tier & error-branch behavior (and old-master caveats); the
   @response.json parse fallback; agent two-tier config; cost discipline.
+- **external-fire** — YOU are the LLM: the list/prepare/complete loop, leases, servable verdicts,
+  what provider-less mode means for every llm/agent lane.
+- **real-agents** — personas as scheduled nets; the FOUR reasoning paths (server lane, headless
+  Claude Code via command lane, external fire, host_transition) and when each; the stdin-pipe
+  spawn; workingDir as context switch; the Windows /bin/sh bridge.
 - **scheduling** — 6-field cron; the schedule×tokens AND-gate; the silent-scheduler diagnosis
   ladder; the autonomy contract.
 - **cost** — the token meter: usage_report ranks per-transition burn; the analyze-rank-retune-watch

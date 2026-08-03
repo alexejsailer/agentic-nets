@@ -7,7 +7,7 @@
  * Authoring rules (enforced by test/knowledge-leaks.test.ts):
  * - CURATED content only — never verbatim CLAUDE.md/private-doc copies; no credentials, IPs,
  *   personal paths, CI internals, or internal hostnames (the leak gate scans every byte shipped).
- * - Per-doc hard cap 8 KB (target 2-5 KB), whole pack 64 KB. A topic that outgrows the cap splits.
+ * - Per-doc hard cap 8 KB (target 2-5 KB), whole pack 80 KB. A topic that outgrows the cap splits.
  * - Every doc starts with a single `# Title` line; sections use `##` (the search index splits on
  *   them); topic keys are lowercase.
  */
@@ -23,6 +23,7 @@ import nethubMd from './nethub.md';
 import inscriptionsMd from './inscriptions.md';
 import interpolationMd from './interpolation.md';
 import llmMd from './llm.md';
+import realAgentsMd from './real-agents.md';
 import recipesMd from './recipes.md';
 import schedulingMd from './scheduling.md';
 import securityMd from './security.md';
@@ -47,6 +48,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   'tool-catalog': { title: 'The Tool Catalog: four flags, two scopes', text: toolCatalogMd },
   llm: { title: 'LLM transitions: the riskiest kind', text: llmMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
+  'real-agents': { title: 'Real agents: personas scheduled on Petri nets', text: realAgentsMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },
   cost: { title: 'Watching the meter: token cost', text: costMd },
   nethub: { title: 'NetHub: export, import, self-contained packages', text: nethubMd },

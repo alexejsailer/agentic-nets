@@ -82,9 +82,12 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // local headless CLI agents, model-per-domain, the protocol journal). Then
   // 70K → 72K for the servable AI-lane roster: `external` became explicit-only, so
   // the docs had to stop describing a provider-less master as auto-marking lanes and
-  // start describing the servable verdict clients now steer by. Per-doc 8KB
-  // discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 73728;
+  // start describing the servable verdict clients now steer by. Then 72K → 78K for
+  // docs/real-agents — a Windows field deployment proved the flagship pattern
+  // (scheduled persona nets reasoning via headless Claude Code) and its traps
+  // (the stdin-pipe rule, the /bin/sh bridge) were learnable only the hard way.
+  // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
+  const PACK_CAP = 79872;
   const INSTRUCTIONS_CAP = 15360;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {
@@ -103,5 +106,12 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
 
   it(`instructions fit ${INSTRUCTIONS_CAP}B`, () => {
     expect(Buffer.byteLength(buildInstructions(FAKE_CONFIG), 'utf8')).toBeLessThanOrEqual(INSTRUCTIONS_CAP);
+  });
+
+  // The multi-model preamble is longer — this build was silently over cap while the
+  // single-model assertion stayed green. Pin both.
+  it(`instructions fit ${INSTRUCTIONS_CAP}B in the multi-model build too`, () => {
+    const multi = { ...FAKE_CONFIG, models: ['m1', 'm2'] };
+    expect(Buffer.byteLength(buildInstructions(multi), 'utf8')).toBeLessThanOrEqual(INSTRUCTIONS_CAP);
   });
 });

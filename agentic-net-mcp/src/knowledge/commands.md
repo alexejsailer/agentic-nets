@@ -92,10 +92,14 @@ model is ACTIVE, then inspect executor logs.
 ## Spawning CLI agents (e.g. Claude Code) from a command lane
 
 ```
-claude -p 'Fix the failing test in /repo/x' --allowedTools 'Read,Grep,Glob,Edit,Bash' --no-session-persistence < /dev/null
+printf '%s' 'Fix the failing test in /repo/x' | claude -p --model sonnet --allowedTools 'Read,Grep,Glob,Edit,Bash' --no-session-persistence
 ```
-Rules: ALWAYS redirect stdin (`< /dev/null` — it blocks forever otherwise); least-privilege
-`--allowedTools`; generous `timeoutMs` (minutes); the executor host must have the CLI installed.
+Pipe the prompt via stdin: a quoted `-p '<prompt>'` argument can lose its quotes through the
+executor→shell chain (proven on Windows — claude then runs PROMPTLESS and improvises), and the
+pipe also supplies stdin, which otherwise MUST be redirected (`< /dev/null`) or the CLI blocks
+forever. Least-privilege `--allowedTools`; generous `timeoutMs` (minutes); the executor host must
+have the CLI installed. The full pattern — scheduled persona nets whose reasoning step is
+headless Claude, Windows `/bin/sh` setup — is docs/real-agents.
 
 ## Executor output size
 
@@ -108,11 +112,12 @@ The desktop executor runs on the user's own computer, so installed CLI agents ar
 transition workers. It is explicitly eligible for every model; a newly created model normally
 shows STANDBY until its first command lane is assigned, then becomes READY automatically:
 
-    claude -p '<task>' --allowedTools 'Read,Grep,Glob' --no-session-persistence < /dev/null
+    printf '%s' '<task>' | claude -p --allowedTools 'Read,Grep,Glob' --no-session-persistence
     codex exec --skip-git-repo-check '<task>' < /dev/null
 
-Probe availability first (`command -v claude || command -v codex`). Stdin redirect
-is mandatory; generous timeoutMs. Windows needs Git Bash on PATH for command lanes.
+Probe availability first (`command -v claude || command -v codex`). Pipe the prompt when the CLI
+reads it from stdin (quoting-proof); otherwise redirect stdin (`< /dev/null`). Generous timeoutMs.
+Windows: the executor needs `/bin/sh` to resolve — the one-time `C:\bin` bridge in docs/real-agents.
 
 For repeated construction/deletion, `add_transitions` builds many lanes sequentially and reports
 partial success per id; `delete_tokens(place, arcql, max)` safely performs query+delete in one

@@ -20,11 +20,11 @@ this session, is queryable, and can be PROCESSED AUTONOMOUSLY by scheduled trans
 are gone. ${models}
 
 ## Read these two FIRST — they change what you build, not just how you call it
-- **\`agenticnets://docs/index\`** — 17 operational docs (emit · scheduling · llm · cost · tokens ·
-  troubleshooting · recipes · …). Grep them with search_knowledge. A client that read docs/emit and
-  docs/recipes only in its second session CHANGED ITS ARCHITECTURE afterwards (deterministic
-  chaining over agent orchestration) and corrected two of its own conclusions. Read the index
-  before designing a pipeline, not after it misbehaves.
+- **\`agenticnets://docs/index\`** — 19 operational docs (emit · scheduling · llm · real-agents ·
+  cost · troubleshooting · recipes · …). Grep via search_knowledge. A client that read
+  docs/emit and docs/recipes only in its second session CHANGED ITS ARCHITECTURE afterwards
+  (deterministic chaining over agent orchestration). Read the index before designing a pipeline,
+  not after it misbehaves.
 - **\`agenticnets://limits\`** — every hard cap, default and enum, none of them in the tool schemas.
   The 8192-char HTTP body clip decides whether a fetch-and-parse pipeline can work at all; a client
   that met it by accident shipped a confident verdict built on a truncated page.
@@ -52,7 +52,7 @@ backlog. Add: "they run only while I am connected — for unattended AI configur
   | blank). dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
   fire_once t-team-claim, do the work, fire_once t-team-submit / t-team-complete. watcher is the
   zero-LLM overnight sentinel: cron-probes a URL and POSTs a webhook alert when it is not 200
-  (params: url, webhook, cron, label) — for "tell me when it breaks".
+  (url, webhook, cron, label) — for "tell me when it breaks".
 - Build automation: add_place + add_transition (kinds: map=deterministic transform, llm=one AI
   call, http=API call, command=shell via executor, agent=autonomous multi-step persona,
   link=pure structure edge). Scheduled DETERMINISTIC lanes keep running server-side after you
@@ -79,8 +79,8 @@ list_models shows every model node knows, each with an "allowed" flag (which one
 target). create_model (rw, when enabled) mints a brand-new model — optionally deploying a starter
 template into it in the same call — and it joins this session's allowlist immediately, so any tool
 can target it with the model param. Prefer a fresh model per domain over piling into 'default' —
-the model is the pause/budget/cleanup boundary. Master auto-discovers active models within ~10s and begins
-polling their transitions. Sessions: CREATE_SESSION. Nets: create_net.
+the model is the pause/budget/cleanup boundary. Master auto-discovers active models within ~10s.
+Sessions: CREATE_SESSION. Nets: create_net.
 
 ## Cleaning up — no orphaned registrations
 DELETE_NET removes a net's structure; pass deleteTransitions:true to ALSO deregister its runtime
@@ -93,8 +93,7 @@ hub_publish {kind, name, version, tokens} turns a net / session / model into a v
 artifact (credentials always scrubbed; tokens = none | config | all). hub_search browses the local
 catalog or a peer's (remote param); hub_show inspects one artifact before committing; hub_install
 installs (model artifacts create a NEW model that joins your allowlist). Federate with
-hub_add_remote — peers serve anonymous reads only with their public-catalog flag on. Details live
-in the tool descriptions.
+hub_add_remote — peers serve anonymous reads only with their public-catalog flag on.
 Ready-made agents: hub_search {kind:"agent"} finds persona-team templates. hub_install lands one
 STOPPED in its own agent-<name> session with a configure-then-start checklist — fill the required
 config places (CREATE_TOKEN), arm with START_AGENT_SESSION (STOP_AGENT_SESSION disarms,
@@ -133,8 +132,8 @@ interpolated prompt or nl, leased bound tokens, fireId, and for agents the allow
 resourceScopes you must stay inside) → you reason AS THE HOST MODEL → complete_external_fire
 {transitionId, fireId, response | emissions | summary}. Master then runs the SAME emit pipeline as
 its own fire, consumes the shown tokens, and books usage as external:mcp-<session>. success:false
-or abandon_external_fire preserves the inputs. Versus host_transition: this needs zero provider
-setup; host_transition runs a configured provider in this process.
+or abandon_external_fire preserves the inputs. (All four AI execution paths compared:
+docs/real-agents.)
 
 ## Scheduling — nets that run while everyone sleeps
 Any non-link transition accepts a schedule: scheduleCron (6-field cron: sec min hour day month
@@ -154,12 +153,13 @@ willNotFireUnattended / headline.externalScheduled.
 
 ## Spawning Claude Code (or any CLI agent) from a net
 command transitions execute shell on the distributed executor — including FULL Claude Code
-instances. The safe pattern:
-  claude -p '<task prompt>' --allowedTools 'Read,Grep,Glob' --no-session-persistence < /dev/null
-ALWAYS redirect stdin (it hangs forever otherwise); least-privilege --allowedTools; generous
-timeoutMs. Multiple executors: list_executors shows them + coverageForModel (READY or STANDBY can
-serve it); pick one via add_transition's executorId
-('*' = any; if several are ONLINE and the user didn't say, ASK). Full reference: docs/commands.
+instances. Pipe the prompt via STDIN, never a quoted -p argument (the executor→shell chain can
+eat nested quotes — claude then runs promptless and improvises):
+  printf '%s' '<task>' | claude -p --model sonnet --allowedTools 'Read,Grep' --no-session-persistence
+Least-privilege --allowedTools; timeoutMs in minutes. Executors: list_executors — READY or STANDBY can
+serve it; several and user silent: ASK (executorId; '*' = any). Scheduled persona nets reasoning
+via headless Claude — unattended even with llm_health DISABLED — plus Windows setup:
+docs/real-agents.
 
 ## Model control — the user owns the switch
 Always be able to answer "what is this consuming and how do I stop it":
@@ -199,8 +199,8 @@ first and report what was stopped.
 ## The knowledge base — search it, don't guess
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
 returns agenticnets://docs/{topic} URIs: index · concepts · architecture · inscriptions · arcql ·
-interpolation · emit · commands · tool-catalog · llm · scheduling · cost · tokens ·
-troubleshooting · recipes · nethub · security.
+interpolation · emit · commands · tool-catalog · llm · external-fire · real-agents · scheduling ·
+cost · tokens · troubleshooting · recipes · nethub · security.
 Before hand-writing an inscription read docs/inscriptions; when something is broken read
 docs/troubleshooting; when unsure, search first — the traps in these docs were all found the hard way.`;
 }

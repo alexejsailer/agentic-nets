@@ -57,9 +57,11 @@ deterministic (docs/concepts: deterministic first).
 Desktop Lite ships no server LLM on purpose. Master then SKIPS every llm/agent lane
 rather than failing it, so lanes keep a normal status (`deployed`, even `running`)
 and simply wait — serving them is YOUR job: list_external_fires → prepare → complete.
-A lane that "never fires" here is usually one nobody served. For unattended AI
-lanes: host_transition, or the user enables a provider in Studio → Settings →
-Desktop LLM (also reachable from the tray).
+A lane that "never fires" here is usually one nobody served. For UNATTENDED reasoning
+with no provider, a command lane spawning headless Claude Code on the executor host is
+the working pattern (docs/real-agents); host_transition covers lanes while this session
+stays connected; or the user enables a provider in Studio → Settings → Desktop LLM
+(also reachable from the tray).
 
 `external` is never implied by a missing provider — it means someone called
 `set_external`, nothing else. So do NOT look for `external` to find your work: with
