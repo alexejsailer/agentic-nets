@@ -120,7 +120,7 @@ cat data/gateway/jwt/admin-secret
 open http://localhost:4200
 ```
 
-## Desktop Lite (macOS + Linux) — no Docker or server LLM
+## Desktop Lite (macOS + Windows + Linux) — no Docker or server LLM
 
 This is the fastest local creator/operator setup: install one package, start the
 tray app, connect Codex, Claude Code, or another MCP client, and create,
@@ -144,7 +144,11 @@ and verify against `SHA256SUMS.txt`:
   then run `/opt/agenticnetos/bin/AgenticNetOS`.
   On a server without a desktop it runs headless (no tray, same services).
 - **Fedora/RHEL**: the matching `.rpm`.
-- **Windows**: planned.
+- **Windows**: run `AgenticNetOS-<version>-windows-x64.msi`. Current builds are
+  unsigned, so SmartScreen may warn on first run ("More info" then "Run anyway").
+  Upgrades install over the old version in place; the msiexec-level upgrade path
+  (previous release installed, data preserved, app serving afterwards) is tested
+  in CI before every release.
 
 **Build the installer yourself**: clone this repository and run
 `agentic-net-desktop/scripts/build.sh` (macOS/Linux) or

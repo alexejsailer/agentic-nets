@@ -28,6 +28,8 @@ Everything here comes from one field report: a Claude Code client on a Windows D
 ### Changed
 - **Knowledge-pack budget and its guard** (`agentic-net-mcp`). The pack cap moves 72 KB → 78 KB for the new doc; the 8 KB per-doc discipline is unchanged. The instructions size test now pins the **multi-model** build as well as the single-model one — the multi-model preamble is longer, and that build was already 23 bytes over the cap with every test green.
 
+## [2.40.1] - 2026-08-03
+
 Windows update repair. **If you are on 2.40.0 or earlier, this release's update still runs through the old updater** — if it stops with "cannot close AgenticNetOS" or "error writing to file", end the leftover `AgenticNetOS`/`node.exe`/`java.exe` processes (or reboot) and run the installer from the releases page. Your data in `~/.agenticos` is never touched by the installer, including by a failed one. From this version on, the updater handles that case itself.
 
 ### Added

@@ -241,9 +241,12 @@ verify it with the release's `SHA256SUMS.txt`.
   right-click **Open** or approval in Privacy & Security.
 - Debian/Ubuntu: `sudo apt install ./AgenticNetOS-<version>-linux-<arch>.deb`.
 - Fedora/RHEL: `sudo dnf install ./AgenticNetOS-<version>-linux-<arch>.rpm`.
-- Windows: run `scripts\build-windows.ps1` on Windows for an MSI when WiX is
-  installed, or an app-image otherwise. Published Windows packages still need
-  a Windows release builder.
+- Windows: run `AgenticNetOS-<version>-windows-x64.msi`. Current builds are
+  unsigned, so SmartScreen may warn on first run. Upgrades install over the
+  existing version in place; the msiexec-level upgrade path (previous published
+  release installed, data preserved, app serving afterwards) is tested in CI
+  before every release. `scripts\build-windows.ps1` still builds the MSI from a
+  clone when WiX is installed, or an app-image otherwise.
 
 The tray checks GitHub releases once per day. Downloads are verified against
 the release checksum. macOS uses a transactional app swap with rollback if the
