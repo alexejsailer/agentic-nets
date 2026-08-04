@@ -12,7 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.40.1] - 2026-08-03
+## [2.41.0] - 2026-08-04
+
+Everything here comes from one field report: a Claude Code client on a Windows Desktop Lite install built a scheduled persona net whose reasoning step spawns headless Claude Code, and documented every place our own teaching misled it. Two patterns we shipped as canonical turned out to be wrong.
+
+### Added
+- **`docs/real-agents` — building real agents on nets** (`agentic-net-mcp`). The new knowledge doc answers what a client needs before it starts rather than after it has guessed: a persona is a net (charter place, task inbox, reasoning lane, output place), and its reasoning step has **four** possible executors — a server llm/agent lane, a command lane spawning a headless CLI agent, an external fire, or `host_transition` — with a table of which are unattended and what each requires. The consequence worth knowing up front: when master has no LLM provider, a command lane spawning headless Claude Code is the only fully unattended reasoning path, so a provider-less install can still fetch, compute **and** reason with nobody connected. Also covers `workingDir` as the context switch (a spawned agent auto-loads that project's memory — capability and hazard), multi-agent systems as nets sharing places, and the cost/secret boundaries. Reachable as `agenticnets://docs/real-agents` and through `search_knowledge`.
+
+### Fixed
+- **The documented way to spawn a CLI agent was the quoting trap** (`agentic-net-mcp` — server instructions, `docs/commands`, `docs/recipes`). We taught `claude -p '<prompt>' … < /dev/null`. Through the chain of command token → executor process spawn → shell, those nested quotes can be consumed: the CLI then starts with **no prompt at all**, waits ~3s for stdin, and answers at its own discretion — with the `workingDir` project's memory loaded, so the output looks plausible rather than obviously broken. Every occurrence now teaches `printf '%s' '<prompt>' | claude -p --model sonnet …`, which removes nested quoting entirely and supplies stdin, so the redirect that the old form needed is no longer a separate thing to remember.
+- **Windows command-lane setup was documented wrongly** (`agentic-net-mcp` — `docs/commands`, `docs/real-agents`). "Windows needs Git Bash on PATH" does not describe what happens: the executor spawns `/bin/sh`, which Windows resolves against the current drive root, i.e. `C:\bin\sh.exe`. The docs now give the actual one-time bridge (copy Git's `usr\bin\sh.exe` **and** `msys-2.0.dll` into `C:\bin\`, create an empty `C:\tmp\`), name the trap that Git's other `sh.exe` is a 47 KB launcher which cannot work relocated, and state the shell's real constraints — no MSYS mount table (`/c/...` paths are meaningless), no GNU userland, so use Windows paths with forward slashes and an absolute `args.workingDir`.
+- **`docs/llm` implied a session-bound feature was the unattended answer** (`agentic-net-mcp`). Its provider-disabled section offered `host_transition` for "unattended AI lanes", but hosted lanes run only while the MCP session is connected. It now points at the command-lane path for genuinely unattended reasoning and keeps `host_transition` in its true role.
+- **The server instructions omitted `external-fire` from the topic list** (`agentic-net-mcp`). The doc shipped and was searchable, but the one place that enumerates the pack for a new client never named it — a gap in exactly the area a provider-less install depends on.
+
+### Changed
+- **Knowledge-pack budget and its guard** (`agentic-net-mcp`). The pack cap moves 72 KB → 78 KB for the new doc; the 8 KB per-doc discipline is unchanged. The instructions size test now pins the **multi-model** build as well as the single-model one — the multi-model preamble is longer, and that build was already 23 bytes over the cap with every test green.
 
 Windows update repair. **If you are on 2.40.0 or earlier, this release's update still runs through the old updater** — if it stops with "cannot close AgenticNetOS" or "error writing to file", end the leftover `AgenticNetOS`/`node.exe`/`java.exe` processes (or reboot) and run the installer from the releases page. Your data in `~/.agenticos` is never touched by the installer, including by a failed one. From this version on, the updater handles that case itself.
 
