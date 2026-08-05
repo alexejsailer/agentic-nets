@@ -93,7 +93,8 @@ public final class SelfUpdater {
     static void launchWindowsInstallerAndQuit(Path msi, Path installRoot, Path runRoot,
                                               Runnable stopServices, Runnable quit)
             throws IOException {
-        launchWindowsInstallerAndQuit(msi, stopServices, quit, SelfUpdater::spawnWindowsInstaller,
+        launchWindowsInstallerAndQuit(msi, stopServices, quit,
+            m -> spawnWindowsInstaller(m, installRoot),
             () -> InstallProcesses.killAllUnder(installRoot, runRoot,
                 Duration.ofSeconds(15), Duration.ofSeconds(10)));
     }
@@ -145,12 +146,12 @@ public final class SelfUpdater {
         List<ProcessHandle> sweep();
     }
 
-    private static void spawnWindowsInstaller(Path msi) throws IOException {
+    private static void spawnWindowsInstaller(Path msi, Path installRoot) throws IOException {
         // A script file, not an inline `cmd /c "a & b"` string: ProcessBuilder's Windows
         // argument quoting around an embedded quoted path inside a compound command is
         // exactly the kind of thing that works on one machine and not another.
         Path script = Files.createTempFile("agenticos-update-", ".cmd");
-        Files.writeString(script, windowsInstallScript(msi));
+        Files.writeString(script, windowsInstallScript(msi, installRoot));
         new ProcessBuilder("cmd", "/c", script.toAbsolutePath().toString()).start();
     }
 
@@ -158,11 +159,27 @@ public final class SelfUpdater {
      * The ping is a ~2s delay for the launcher itself: its exe lives in the install
      * dir too, and it exits AFTER spawning this script. Without the delay msiexec's
      * files-in-use scan can still catch the dying launcher process.
+     *
+     * <p>{@code /passive} shows a progress bar and needs no clicks — the bare {@code /i}
+     * this used to run opened an INTERACTIVE wizard from a process that had just quit,
+     * which routinely appeared behind other windows: the user watched the app shut down
+     * and then saw nothing at all (field report, 2.42.0 era). {@code /l*v} logs beside
+     * the msi. On success (0, or 3010 = success-wants-reboot) the app is RELAUNCHED —
+     * the old script simply ended, so even a perfect update looked like a silent death.
+     * On failure the log opens in Notepad: a visible artifact instead of silence.</p>
      */
-    static String windowsInstallScript(Path msi) {
+    static String windowsInstallScript(Path msi, Path installRoot) {
+        Path log = msi.toAbsolutePath().resolveSibling("install.log");
+        Path exe = installRoot.toAbsolutePath().resolve("AgenticNetOS.exe");
         return "@echo off\r\n"
             + "ping -n 3 127.0.0.1 >nul\r\n"
-            + "msiexec /i \"" + msi.toAbsolutePath() + "\"\r\n";
+            + "msiexec /i \"" + msi.toAbsolutePath() + "\" /passive /norestart /l*v \"" + log + "\"\r\n"
+            + "if %errorlevel%==0 goto relaunch\r\n"
+            + "if %errorlevel%==3010 goto relaunch\r\n"
+            + "start \"\" notepad \"" + log + "\"\r\n"
+            + "exit /b 1\r\n"
+            + ":relaunch\r\n"
+            + "start \"\" \"" + exe + "\"\r\n";
     }
 
     /** Downloads the platform artifact for {@code version} and verifies its SHA-256. */

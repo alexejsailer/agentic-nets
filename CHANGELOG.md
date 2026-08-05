@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Windows update no longer ends in silence** (`agentic-net-desktop` — `SelfUpdater`). The tray update spawned a bare interactive `msiexec /i` from a process that had just quit: the wizard routinely opened *behind* other windows, so the user watched AgenticNetOS shut down and then saw nothing at all — and even when the install ran to completion, the script simply ended, relaunching nothing (field report from a 2.40.1 install). The installer now runs `/passive` (progress bar, no clicks) with a verbose log beside the downloaded msi, **relaunches the app on success** (including exit 3010, success-wants-reboot), and on failure opens the log in Notepad — a visible artifact instead of silence. The tray manual's troubleshooting table explains the older-version behavior and its recovery.
+
 ## [2.42.0] - 2026-08-05
 
 The persona-first release: for judgment-heavy goals every surface now proposes a named specialist or team before exposing workflow machinery, and a persona can keep its full bounded agent loop while reasoning through a local headless Claude Code or Codex session — unattended, with no server LLM provider. Proven end to end before shipping: a bash-mode developer persona on a provider-less master answered a task with nobody connected, input consumed exactly once.

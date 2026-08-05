@@ -156,13 +156,37 @@ class DesktopOnboardingTest {
         // a path WITH A SPACE, built platform-neutrally — a hardcoded C:\ literal is not
         // absolute on the POSIX JVM this test runs on, so toAbsolutePath() would mangle it
         Path msiPath = Path.of("update dir", "update.msi");
-        String script = SelfUpdater.windowsInstallScript(msiPath);
+        Path installRoot = Path.of("install root");
+        String script = SelfUpdater.windowsInstallScript(msiPath, installRoot);
 
         int delay = script.indexOf("ping -n 3");
         int msi = script.indexOf("msiexec /i");
         // the delay exists for the launcher's own exe and must come FIRST
         assertTrue(delay >= 0 && msi > delay);
         assertTrue(script.contains("msiexec /i \"" + msiPath.toAbsolutePath() + "\""));
+    }
+
+    /**
+     * The bare interactive `msiexec /i` this script used to run opened a wizard BEHIND other
+     * windows from a process that had just quit — the user watched the app shut down and then
+     * saw nothing (field report). The script must therefore need no clicks, log verbosely,
+     * relaunch the app on success (including 3010 = success-wants-reboot), and on failure
+     * open the log — a visible artifact instead of silence.
+     */
+    @Test
+    void windowsInstallScriptIsPassiveLoggedAndRelaunches() {
+        Path msiPath = Path.of("update dir", "update.msi");
+        Path installRoot = Path.of("install root");
+        String script = SelfUpdater.windowsInstallScript(msiPath, installRoot);
+
+        assertTrue(script.contains("/passive"), "no clicks: a hidden wizard stalls the update forever");
+        assertTrue(script.contains("/norestart"));
+        assertTrue(script.contains("/l*v"), "failures must leave a log");
+        assertTrue(script.contains("if %errorlevel%==3010 goto relaunch"), "3010 is a success");
+        assertTrue(script.contains("start \"\" notepad"), "failure must be VISIBLE");
+        assertTrue(script.contains("AgenticNetOS.exe"), "success must relaunch the app");
+        // relaunch strictly after the msiexec call
+        assertTrue(script.indexOf("AgenticNetOS.exe") > script.indexOf("msiexec /i"));
     }
 
     @Test
