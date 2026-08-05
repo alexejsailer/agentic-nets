@@ -6,24 +6,26 @@ linked places / context nets), every reasoning step is one bounded, auditable fi
 land in output places other nets can consume. `spawn_persona` builds this shape in one call; this
 doc is for composing it deliberately — and for choosing HOW the reasoning step executes.
 
-## The four ways a reasoning step can execute
+## The five ways a reasoning step can execute
 
 | Path | Runs on | Unattended? | Needs |
 |---|---|---|---|
-| llm/agent lane | master | yes | server LLM provider (llm_health READY) |
-| command lane → headless Claude Code | executor host | yes | claude CLI installed on that host |
+| llm/agent lane | master | yes | healthy server LLM provider (llm_health READY/ONLINE) |
+| agent lane with llmMode:bash | master | yes | Claude Code or Codex installed beside master |
+| command lane → headless CLI | executor host | yes | Claude Code or Codex installed on that host |
 | external fire (prepare→complete) | YOU, the connected client | no | nothing extra |
 | host_transition | the MCP process | while connected | a provider on the MCP side |
 
-Choosing: provider READY → llm/agent lanes (master owns the schedule, retries, error emits, cost
-metering). Provider DISABLED (the Desktop Lite default) → a command lane spawning headless Claude
-Code is the ONLY fully-unattended reasoning path; external fires cover the attended rest. With
-that one pattern a provider-less deployment still fetches (http lanes), computes (command lanes),
-AND reasons — with nobody connected.
+Choosing: provider healthy (READY/ONLINE) → llm/agent lanes (master owns the schedule, retries, error emits, cost
+metering). Provider DISABLED (the Desktop Lite default) → prefer a CLI-backed agent lane for a
+persona because it preserves the bounded agent loop, capabilities, tools, context, and auto-emit.
+Use a command lane for a one-shot stdin→stdout headless job; external fires cover the attended rest.
+With these patterns a provider-less deployment still fetches, computes, and reasons unattended.
 
-## Headless Claude Code: pipe the prompt via stdin
+## Headless Claude Code or Codex: pipe the prompt via stdin
 
     printf '%s' '<prompt>' | claude -p --model sonnet --allowedTools 'Read,Grep' --no-session-persistence
+    printf '%s' '<prompt>' | codex exec --ephemeral --sandbox read-only -
 
 NEVER pass the prompt as a quoted `-p "<prompt>"` argument: between token → executor spawn →
 shell, nested quotes can be consumed (proven on Windows) — claude then starts with NO prompt,
@@ -32,7 +34,9 @@ and supplies stdin, so nothing hangs. Long or dynamic prompts: have a script pri
 `python build_prompt.py | claude -p --model sonnet`. Chain deterministically the same way:
 `... | claude -p --model sonnet | python send_report.py`.
 
-Flags for unattended spawns: explicit `--model` per call (sonnet/opus); `--allowedTools` at least
+For an agent lane, set `action.llmMode:"bash"` and `action.binary:"claude"|"codex"`; master builds
+the safe stdin invocation and keeps the complete agent session around it. For a command lane, the
+examples above are the command. Flags for unattended spawns: explicit model when needed; least-
 privilege — omit tools entirely for text-only tasks; `--no-session-persistence`; `args.timeoutMs`
 in MINUTES, not seconds (a cold CLI start plus one API round trip is easily 10-30s).
 
@@ -65,8 +69,9 @@ poll-loop (docs/recipes).
 - Secrets NEVER inline in tokens or `args` (places are event-sourced — a pasted secret is
   permanent): `set_transition_credentials` → `$KEY` env var (docs/commands), or a gitignored file
   that a script reads.
-- Every spawned call bills the executor host's Claude account. An hourly Opus cron adds up:
-  schedule sparingly, pick the cheapest adequate model, watch `usage_report`.
+- Every CLI call bills the installed Claude Code/Codex account. An hourly premium-model cron adds
+  up: schedule sparingly and pick the cheapest adequate model. `usage_report` estimates bash-mode
+  agent usage, but command-launched model calls are invisible to it; journal those separately.
 - Your own MCP host may block the first token write that triggers command execution — such
   classifiers guard exactly this action class and cannot see conversational consent. The fix is a
   narrowly-scoped allowlist rule in the host's settings (one tool, one project), never disabling

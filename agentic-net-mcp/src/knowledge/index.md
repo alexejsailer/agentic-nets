@@ -11,6 +11,9 @@ inscription by hand, read `inscriptions`.
 
 ## Topics
 
+- **personas** — START HERE for product design: named specialists, execution-backend choice,
+  developer/health-coach/domain-expert examples, safe teams, context playbooks, and the
+  journal→curator→review→crystallization learning loop.
 - **concepts** — places/tokens/the seven transition kinds; deterministic-first; where things live.
 - **architecture** — the two layers (PNML drawing vs runtime machine); the "inscriptions bind
   RUNTIME places" rule; host format; lifecycle; why a fresh session looks empty.
@@ -29,9 +32,9 @@ inscription by hand, read `inscriptions`.
 - **llm** — llm_health pre-flight; tier & error-branch behavior (and old-master caveats); the
   @response.json parse fallback; agent two-tier config; cost discipline.
 - **external-fire** — YOU are the LLM: the list/prepare/complete loop, leases, servable verdicts,
-  what provider-less mode means for every llm/agent lane.
-- **real-agents** — personas as scheduled nets; the FOUR reasoning paths (server lane, headless
-  Claude Code via command lane, external fire, host_transition) and when each; the stdin-pipe
+  what provider-less mode means for provider-backed llm/agent lanes and CLI-agent exceptions.
+- **real-agents** — personas as scheduled nets; the FIVE reasoning paths (server lane, CLI-backed
+  agent lane, headless CLI via command lane, external fire, host_transition) and when each; the stdin-pipe
   spawn; workingDir as context switch; the Windows /bin/sh bridge.
 - **scheduling** — 6-field cron; the schedule×tokens AND-gate; the silent-scheduler diagnosis
   ladder; the autonomy contract.

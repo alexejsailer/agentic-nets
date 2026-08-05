@@ -61,6 +61,10 @@ class DesktopOnboardingTest {
             assertTrue(html.contains("id=\"start\""));
             assertTrue(html.contains("id=\"use-cases\""));
             assertTrue(html.contains("readiness"));
+            assertTrue(html.contains("Design and create a developer persona"));
+            assertTrue(html.contains("Create a health coach"));
+            assertTrue(html.contains("llmMode:\"bash\""));
+            assertTrue(html.contains("context-curator"));
 
             TrayUi tray = new TrayUi(
                 config, new Supervisor(List.of(), config.logsDir()), guiServer, () -> { });

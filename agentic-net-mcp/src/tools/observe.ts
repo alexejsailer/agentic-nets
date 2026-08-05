@@ -758,7 +758,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
             ...(llmDisabled ? { includeAll: 'true' } : {}),
           });
           const rows: any[] = res?.transitions ?? [];
-          const waiting = rows.filter((t: any) => t.ready);
+          const waiting = rows.filter((t: any) => t.ready && t.servable !== false);
           // Lanes master cannot run at all. Distinct from `waiting`: a stranded lane may be
           // running and look perfectly healthy on every other surface while going nowhere.
           const stranded = rows.filter((t: any) => t.servableReason === 'MASTER_HAS_NO_PROVIDER');
@@ -777,8 +777,8 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
               ? { transitions: waiting.map((t: any) => ({ transitionId: t.transitionId, kind: t.kind })) }
               : {}),
             note:
-              'These llm/agent lanes are fired by a connected client (this session), never by master — '
-              + 'a schedule on them does NOT run unattended.',
+              'Each of these provider-backed llm/agent lanes does NOT run unattended and needs a connected client. Agent lanes whose '
+              + 'executionBackend is headless-cli:claude/codex remain master-owned and can run unattended.',
           };
           if (waiting.length) {
             warnings.push(
@@ -800,12 +800,20 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         }
       }
       if (llmDisabled) {
+        const reachableClis = Object.entries((llm as any)?.headlessCliBinaries ?? {})
+          .filter(([, ok]) => ok)
+          .map(([name]) => name);
         llm = {
           ...llm,
           youAreTheRuntime:
-            'No server-side model is configured (the intended Desktop Lite default). llm/agent lanes '
-            + 'run only while an MCP client is connected to serve them, so they cannot be scheduled '
-            + 'unattended. Configure a provider (tray → LLM Settings) only if they must run with nobody connected.',
+            'No server-side model is configured (the intended Desktop Lite default). API-backed llm/agent '
+            + 'lanes run only while an MCP client is connected and cannot be scheduled unattended. '
+            + (reachableClis.length
+              ? `A persona can still run unattended as an agent lane with llmMode:"bash" and binary:"${reachableClis.join('"|"')}" `
+                + '(probed reachable by master), or as a one-shot command lane that pipes a prompt to a headless CLI. '
+              : 'Master reaches NO headless CLI (claude/codex) either, so nothing reasons unattended until one is '
+                + 'installed where Desktop/master runs or a provider is configured. ')
+            + 'Configure a provider only when master should make API model calls.',
         };
       }
 
@@ -847,7 +855,11 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
             ['UP', 'OK', 'READY', 'HEALTHY', 'DISABLED'].includes(
               String(vault?.status ?? '').toUpperCase(),
             ),
-          llmLanes: String(llm?.status ?? '').toUpperCase() === 'READY',
+          llmLanes: isLlmHealthReady(llm?.status),
+          // Probed by master (llm_health.headlessCliBinaries), not assumed: a tray-launched
+          // master may not reach a CLI that works in every terminal. Absent on old masters
+          // (which cannot run bash-mode agents at all) → false, which is also the truth.
+          headlessCliAgents: Object.values(llm?.headlessCliBinaries ?? {}).some(Boolean),
           commandLanes: cov.available,
         },
         ...(problems.length ? { problems } : {}),
@@ -874,10 +886,14 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const list: any[] = res?.transitions ?? [];
       // Provider state decides whether a scheduled llm/agent lane can EVER fire on its own.
       // One extra GET; without it a nightly llm lane under a disabled provider reads as healthy.
-      const providerDisabled = await ctx.client
-        .masterApi('GET', '/llm/health')
-        .then((h: any) => String(h?.status ?? '').toUpperCase() === 'DISABLED')
-        .catch(() => false);
+      const llmHealth: any = await ctx.client.masterApi('GET', '/llm/health').catch(() => null);
+      const providerDisabled = String(llmHealth?.status ?? '').toUpperCase() === 'DISABLED';
+      // A bash-backed lane whose CLI master cannot reach is just as silent as a stranded one.
+      const cliLaneStranded = (t: any) => {
+        const backend = String(t.executionBackend ?? '');
+        return backend.startsWith('headless-cli:')
+          && llmHealth?.headlessCliBinaries?.[backend.slice('headless-cli:'.length)] === false;
+      };
       const now = Date.now();
       const fmtAgo = (ms: number) => {
         const s = Math.max(0, Math.round((now - ms) / 1000));
@@ -896,7 +912,11 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         // no provider to run it with. Both display as a healthy armed cron otherwise.
         const external = String(t.status ?? '').toLowerCase() === 'external';
         const aiLane = t.kind === 'llm' || t.kind === 'agent';
-        const strandedAiLane = providerDisabled && aiLane && !external;
+        // Masters that expose requiresServerLlmProvider=false have identified a CLI-backed
+        // agent. Older masters omit it, so undefined deliberately keeps the conservative rule.
+        const providerBackedAiLane = aiLane && t.requiresServerLlmProvider !== false;
+        const strandedAiLane = (providerDisabled && providerBackedAiLane && !external)
+          || cliLaneStranded(t);
         const unattended = (external || strandedAiLane) && Boolean(sched);
         // "Overdue" means the scheduler should have fired and did not, which is advice to restart
         // the lane. That is wrong for a lane nothing was ever going to dispatch, so suppress it.
@@ -970,7 +990,8 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         .filter((t: any) => {
           const external = String(t.status ?? '').toLowerCase() === 'external';
           const aiLane = t.kind === 'llm' || t.kind === 'agent';
-          return external || (providerDisabled && aiLane);
+          const providerBackedAiLane = aiLane && t.requiresServerLlmProvider !== false;
+          return external || (providerDisabled && providerBackedAiLane) || cliLaneStranded(t);
         })
         .map((t: any) => ({
           transitionId: t.transitionId,
@@ -1115,22 +1136,28 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   }
 }
 
+/** Provider implementations use READY (Ollama/CLI) or ONLINE (Claude/OpenAI) for healthy. */
+export function isLlmHealthReady(status: any): boolean {
+  return ['READY', 'ONLINE'].includes(String(status ?? '').toUpperCase());
+}
+
 export function evaluateLlmHealth(res: any): { report: any; problem?: string } {
   const status = String(res?.status ?? 'unknown').toUpperCase();
   if (status === 'DISABLED') {
     return {
       report: {
         ...res,
-        capability: 'external-mcp',
+        capability: 'external-mcp-or-headless-cli',
         note:
           'Server-side LLM is intentionally disabled. Deterministic lanes remain available; master '
-          + 'SKIPS every llm/agent lane (they keep a normal status and wait), so serving them through '
-          + 'this MCP client is the only way they run. `external` is set only by set_external — do not '
-          + 'look for it to find your work: list_external_fires {includeAll:true} shows every AI lane.',
+          + 'SKIPS provider-backed llm/agent lanes (they keep a normal status and wait), so serve those '
+          + 'through this MCP client. CLI-backed agent lanes (llmMode:"bash", Claude Code/Codex) are the '
+          + 'exception: master can run and schedule them unattended. `external` is set only by set_external; '
+          + 'list_external_fires {includeAll:true} shows the provider-backed backlog.',
       },
     };
   }
-  if (status !== 'READY') {
+  if (!isLlmHealthReady(status)) {
     return {
       report: {
         ...res,

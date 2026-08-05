@@ -90,6 +90,10 @@ export interface BuildOpts {
   tier?: string;
   maxIterations?: number;
   autoEmit?: boolean;
+  /** agent reasoning backend: api = master's configured provider; bash = headless CLI session. */
+  llmMode?: 'api' | 'bash';
+  /** agent bash backend (default claude when llmMode=bash). */
+  binary?: 'claude' | 'codex';
 }
 
 /**
@@ -449,6 +453,8 @@ export function buildAgentInscription(opts: BuildOpts) {
         opts.prompt ??
         'Process the bound input token and produce a concise, self-contained result token. Input: ${input.data}',
       ...(opts.tier ? { tier: opts.tier } : {}),
+      ...(opts.llmMode ? { llmMode: opts.llmMode } : {}),
+      ...(opts.binary ? { binary: opts.binary } : {}),
       timeoutMs: opts.timeoutMs ?? 240000,
     },
     mode: opts.mode ?? 'SINGLE',

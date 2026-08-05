@@ -27,7 +27,7 @@ export function createProgram(): Command {
 
   program
     .name('agenticos')
-    .description('AgenticNetOS CLI — Intelligent Petri net modeling from the command line')
+    .description('AgenticNetOS CLI — create and operate persona agents, teams, and their Petri nets')
     // Use -V only for the CLI version so subcommand `--version <v>` flags (e.g.
     // `package create --version 1.0.0`) aren't shadowed by Commander's builtin.
     .version('0.1.0', '-V, --cli-version', 'Print the CLI version')

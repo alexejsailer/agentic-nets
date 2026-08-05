@@ -65,6 +65,28 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'design-persona-team',
+    {
+      title: 'Design a persona or specialist team',
+      description: 'Turn a goal into named specialists, context playbooks, safe hand-offs, and an honest execution backend',
+      argsSchema: {
+        goal: z.string().describe('The outcome the persona or team should own'),
+        team: z.string().optional().describe('Optional requested roles or team constraints'),
+      },
+    },
+    ({ goal, team }) =>
+      userMessage(
+        `Design a persona-first Agentic-Net for this outcome: "${goal}"${team ? `. Team context: "${team}"` : ''}. ` +
+          `First read agenticnets://docs/personas and call readiness/llm_health. Explain the proposed named specialist(s), ` +
+          `each charter, inbox/output, domain context, boundaries, and hand-offs in plain language. Choose the reasoning ` +
+          `backend honestly: server provider when health is READY/ONLINE; CLI-backed agent (Claude Code or Codex) for unattended Desktop ` +
+          `Lite when available; connected-client otherwise. Keep routing/review deterministic, use typed link transitions ` +
+          `for context/playbook relationships, add a journal/feedback loop, and describe what could later crystallize into ` +
+          `a tool-net. After showing that compact design, build it unless an important safety/domain choice needs my answer.`,
+      ),
+  );
+
+  server.registerPrompt(
     'spawn-worker',
     {
       title: 'Spawn an autonomous worker persona',
@@ -77,10 +99,11 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     ({ role, name }) =>
       userMessage(
         `Spawn an autonomous worker persona on Agentic-Nets for this responsibility: "${role}". ` +
-          `Call spawn_persona (name ${name ? `"${name}"` : 'a short id you choose'}, role as above; pick capability ` +
+          `Call readiness first. If this is Claude Code/Codex connected to Desktop on the same machine, propose its matching explicit CLI execution so the persona can run unattended; otherwise use execution:"auto". Then call spawn_persona (name ${name ? `"${name}"` : 'a short id you choose'}, role as above; pick capability ` +
           `"reason" unless it clearly needs to run commands, then "execute"; tier "high" if it needs strong reasoning). ` +
           `Then give it a first concrete task with memory_write place:"p-<name>-task", wait a few seconds, and show me its ` +
-          `output with query_tokens on p-<name>-output. Explain that it now runs server-side in parallel and I can add more tasks anytime.`,
+          `output with query_tokens on p-<name>-output. Report the selected executionBackend and say clearly whether it ` +
+          `runs unattended or only while a client is connected.`,
       ),
   );
 
@@ -95,7 +118,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     () =>
       userMessage(
         `Work the Agentic-Nets AI lanes that are waiting for this session. Call list_external_fires: ` +
-          `these llm/agent transitions are fired by a connected client, never by master, so nothing has run them ` +
+          `these provider-backed llm/agent transitions are fired by a connected client; CLI-backed persona agents remain master-owned. Nothing has run the listed external work ` +
           `while I was away. For EACH one with ready:true, call prepare_external_fire {transitionId}, reason as the ` +
           `host model over the returned prompt (llm) or nl instruction and allowedTools (agent), and hand the answer ` +
           `back with complete_external_fire — success:false or abandon_external_fire if you cannot do it, so the inputs ` +

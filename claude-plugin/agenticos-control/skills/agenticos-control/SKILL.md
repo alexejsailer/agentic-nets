@@ -1,7 +1,6 @@
 ---
 name: agenticos-control
-description: This skill should be used when the user asks to inspect, operate, diagnose, or author Agentic-Nets on an AgenticOS / AgenticNetOS stack. Triggers include listing nets/sessions/transitions, reading or editing places and tokens, calling the designtime or runtime REST APIs, firing or diagnosing a transition, doing token surgery, driving the Universal Assistant / Persona / Forge personas, running a tool-net, or exporting a net diagram. Works CLI-first (the `agenticos` binary) with a curl fallback in direct or gateway (OAuth2) mode.
-version: 0.1.0
+description: This skill should be used when the user asks to design persona agents or specialist teams, attach context playbooks, inspect, operate, diagnose, or author Agentic-Nets on an AgenticOS / AgenticNetOS stack. Triggers include creating a developer/coach/domain agent, listing nets/sessions/transitions, reading or editing places and tokens, calling designtime/runtime APIs, firing or diagnosing a transition, doing token surgery, driving Universal Assistant / Persona / Forge, running a tool-net, or exporting a net diagram. Works CLI-first (the `agenticos` binary) with a curl fallback in direct or gateway (OAuth2) mode.
 ---
 
 # Controlling AgenticOS / AgenticNetOS
@@ -13,6 +12,16 @@ transitions come in seven kinds (pass, map, http, llm, agent, command, link). Tw
   `/api/designtime` API. Does NOT hold execution config.
 - **Inscription (run-time)** = how a transition executes: ArcQL binding, action, emit rules. Stored per
   transition. Authored via `POST /api/transitions/assign` (see the footgun below).
+
+## Prefer persona-first designs
+
+Translate judgment-heavy goals into a named specialist or small team before exposing workflow
+mechanics. Define each charter, inbox/outbox, context, boundaries, and review hand-off; keep routing
+deterministic. Select the brain explicitly: server provider for ordinary agent/llm lanes; an agent
+with `llmMode:"bash"` + `binary:"claude"|"codex"` for an unattended CLI-backed persona when no
+server provider exists; a command lane for one-shot headless work; connected execution otherwise.
+Say whether it runs while disconnected. Use context nets plus non-firing typed link transitions as
+reusable domain playbooks. Read `references/personas.md` when creating or installing a persona/team.
 
 Everything is event-sourced in the **node** (:8080); the **master** (:8082) orchestrates and exposes the
 control APIs; the **gateway** (:8083) fronts both with OAuth2 for remote access.
@@ -66,7 +75,7 @@ these same scripts.
 
 - `references/rest-api.md` — master + node endpoint families (method, path, minimal shapes).
 - `references/capability-model.md` — the `rwxhludct` flags and the agent-tool groups.
-- `references/personas.md` — the built-in personas and which endpoint drives each.
+- `references/personas.md` — persona/team design, execution backends, contexts, learning loop, and built-in personas.
 - `references/arcql.md` — ArcQL grammar + gotchas.
 - `references/transition-templates.md` — the 7 transition kinds + inscription templates + the assign contract.
 - `references/auth.md` — direct vs gateway, the full env-var table, secret hygiene.

@@ -86,9 +86,11 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // docs/real-agents — a Windows field deployment proved the flagship pattern
   // (scheduled persona nets reasoning via headless Claude Code) and its traps
   // (the stdin-pipe rule, the /bin/sh bridge) were learnable only the hard way.
+  // 78K → 88K for the persona-first guide: persona/team/context/self-learning design must be
+  // available to every MCP client offline instead of living only in the newcomer tray manual.
   // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 79872;
-  const INSTRUCTIONS_CAP = 15360;
+  const PACK_CAP = 90112;
+  const INSTRUCTIONS_CAP = 17408;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {
     it(`doc '${topic}' fits the ${PER_DOC_CAP}B cap and is well-formed`, () => {

@@ -9,8 +9,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
-import { validateKindArgs, validateScheduleArgs } from '../src/tools/nets.js';
-import { clampValues, dedupeTokenPayload, evaluateLlmHealth } from '../src/tools/observe.js';
+import { validateAgentBackendArgs, validateKindArgs, validateScheduleArgs } from '../src/tools/nets.js';
+import { clampValues, dedupeTokenPayload, evaluateLlmHealth, isLlmHealthReady } from '../src/tools/observe.js';
 
 function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -63,6 +63,13 @@ describe('tool annotations (trap #2: risk visible before calling)', () => {
 });
 
 describe('MCP-first LLM readiness', () => {
+  it('recognizes both health vocabularies used by server providers', () => {
+    expect(isLlmHealthReady('READY')).toBe(true);
+    expect(isLlmHealthReady('ONLINE')).toBe(true);
+    expect(isLlmHealthReady('OFFLINE')).toBe(false);
+    expect(evaluateLlmHealth({ status: 'ONLINE', provider: 'claude' }).problem).toBeUndefined();
+  });
+
   it('treats an intentionally disabled server model as an external-MCP capability', () => {
     const evaluated = evaluateLlmHealth({
       status: 'DISABLED',
@@ -71,9 +78,10 @@ describe('MCP-first LLM readiness', () => {
     });
 
     expect(evaluated.problem).toBeUndefined();
-    expect(evaluated.report.capability).toBe('external-mcp');
+    expect(evaluated.report.capability).toBe('external-mcp-or-headless-cli');
     // the note must not imply lanes get marked `external` — nothing but set_external does that
-    expect(evaluated.report.note).toMatch(/SKIPS every llm\/agent lane/i);
+    expect(evaluated.report.note).toMatch(/SKIPS provider-backed llm\/agent lanes/i);
+    expect(evaluated.report.note).toMatch(/CLI-backed agent lanes.*exception/i);
     expect(evaluated.report.note).toMatch(/includeAll/);
   });
 
@@ -90,6 +98,8 @@ describe('validateKindArgs (trap #4: misconceptions bounce, never vanish)', () =
     expect(() => validateKindArgs('http', { netId: 'n', transitionId: 't', kind: 'http', inputPlace: 'a', outputPlace: 'b', url: 'https://x', headers: { A: 'b' }, errorPlace: 'p-err' })).not.toThrow();
     expect(() => validateKindArgs('llm', { kind: 'llm', prompt: 'p', tier: 'low', llmModel: 'm' })).not.toThrow();
     expect(() => validateKindArgs('agent', { kind: 'agent', role: 'rwxhl---t', tier: 'high', maxIterations: 5 })).not.toThrow();
+    expect(() => validateKindArgs('agent', { kind: 'agent', llmMode: 'bash', binary: 'codex' })).not.toThrow();
+    expect(() => validateAgentBackendArgs('agent', { binary: 'codex' })).toThrow(/llmMode/);
   });
 
   it('bounces params that the kind would silently ignore, naming where they belong', () => {

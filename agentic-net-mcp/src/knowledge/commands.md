@@ -98,8 +98,10 @@ Pipe the prompt via stdin: a quoted `-p '<prompt>'` argument can lose its quotes
 executor→shell chain (proven on Windows — claude then runs PROMPTLESS and improvises), and the
 pipe also supplies stdin, which otherwise MUST be redirected (`< /dev/null`) or the CLI blocks
 forever. Least-privilege `--allowedTools`; generous `timeoutMs` (minutes); the executor host must
-have the CLI installed. The full pattern — scheduled persona nets whose reasoning step is
-headless Claude, Windows `/bin/sh` setup — is docs/real-agents.
+have the CLI installed. For Codex use
+`printf '%s' '<task>' | codex exec --ephemeral --sandbox read-only -`. The full pattern —
+scheduled persona nets whose reasoning step is a headless CLI, Windows `/bin/sh` setup — is
+docs/real-agents.
 
 ## Executor output size
 
@@ -113,10 +115,11 @@ transition workers. It is explicitly eligible for every model; a newly created m
 shows STANDBY until its first command lane is assigned, then becomes READY automatically:
 
     printf '%s' '<task>' | claude -p --allowedTools 'Read,Grep,Glob' --no-session-persistence
-    codex exec --skip-git-repo-check '<task>' < /dev/null
+    printf '%s' '<task>' | codex exec --skip-git-repo-check --ephemeral --sandbox read-only -
 
-Probe availability first (`command -v claude || command -v codex`). Pipe the prompt when the CLI
-reads it from stdin (quoting-proof); otherwise redirect stdin (`< /dev/null`). Generous timeoutMs.
+Probe availability first (`command -v claude || command -v codex`). Pipe the prompt through stdin
+(quoting-proof); never embed dynamic task text in the command. Use `--skip-git-repo-check` only
+when the selected working directory is intentionally not a Git repository. Generous timeoutMs.
 Windows: the executor needs `/bin/sh` to resolve — the one-time `C:\bin` bridge in docs/real-agents.
 
 For repeated construction/deletion, `add_transitions` builds many lanes sequentially and reports

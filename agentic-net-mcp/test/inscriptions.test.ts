@@ -38,6 +38,15 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
     expect(ins.action.tier).toBeUndefined();
   });
 
+  it('can preserve the agent loop while reasoning through a headless Codex session', () => {
+    const ins: any = buildAgentInscription({
+      id: 't-codex', host: 'm@h', inputPlace: 'p-task', outputPlace: 'p-result',
+      llmMode: 'bash', binary: 'codex',
+    });
+    expect(ins.action.llmMode).toBe('bash');
+    expect(ins.action.binary).toBe('codex');
+  });
+
   it('a scheduled agent watches (non-consuming, optional preset) instead of draining its inbox', () => {
     const ins: any = buildAgentInscription({ id: 't-z', host: 'm@h', inputPlace: 'p-a', outputPlace: 'p-b', intervalMs: 60000 });
     expect(ins.schedule).toEqual({ type: 'interval', intervalMs: 60000 });

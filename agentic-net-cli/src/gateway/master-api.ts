@@ -107,7 +107,8 @@ export class MasterApi {
   /**
    * llm/agent lanes a client could fire. `includeAll` widens the list from "marked external"
    * to every AI lane whatever its status, each with a servable verdict — the view you need when
-   * master has no provider, since it cannot run any of them.
+   * master has no provider. CLI-backed agents remain master-owned; provider-backed lanes are the
+   * ones a connected client may need to serve.
    */
   async listAiLanes(
     modelId: string,

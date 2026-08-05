@@ -122,12 +122,14 @@ open http://localhost:4200
 
 ## Desktop Lite (macOS + Windows + Linux) — no Docker or server LLM
 
-This is the fastest local creator/operator setup: install one package, start the
-tray app, connect Codex, Claude Code, or another MCP client, and create,
-schedule, inspect, or execute nets. The connected MCP client supplies the
-intelligence. The bundled master stays as the deterministic net/schedule/audit
-runtime, but its server-side LLM is disabled by default. No Docker daemon, Java
-or Node installation, API key, or Ollama process is required.
+This is the fastest local persona/team creator: install one package, connect
+Codex, Claude Code, or another MCP client, and ask for a developer, health coach,
+domain expert, reviewer, or complete specialist team. Agentic-Nets gives those
+personas durable context, task/result places, deterministic tools, schedules,
+review hand-offs, and an audit trail. The bundled server LLM is disabled by
+default; interactive reasoning comes from the connected client. A persona can
+also run unattended through an installed Claude Code/Codex CLI. No Docker
+daemon, Java or Node installation, API key, or Ollama process is required.
 
 Desktop Lite is loopback-only and is not the recommended production
 deployment. Use the Docker/server deployment for remote access, clustering,
@@ -160,10 +162,12 @@ come from matching checksum-verified release assets, with Docker Hub images
 only as a fallback.
 
 **Then**: use "Connect Codex (copy config)" or "Connect Claude Code (copy
-command)" in the tray. With no server-side LLM configured, master skips its AI
-transitions rather than failing them, and the connected model runs them instead:
-it reasons while master still owns token binding, emission, accounting and the
-event trail. Data lives
+command)" in the tray and ask the client to read `agenticnets://docs/personas`.
+With no server provider, master skips provider-backed AI lanes rather than
+failing them, and the connected model can serve them. For unattended personas,
+use an agent transition with `llmMode:"bash"` and `binary:"claude"|"codex"`;
+for one-shot headless work use a command lane with the prompt on stdin. Master
+still owns token binding, emission, accounting, and the event trail. Data lives
 in `~/.agenticos/` and survives updates. The bundled command executor is eligible
 for every model and activates that model on demand after its first command lane,
 so newly created domains need no executor configuration. Full

@@ -23,6 +23,7 @@ import nethubMd from './nethub.md';
 import inscriptionsMd from './inscriptions.md';
 import interpolationMd from './interpolation.md';
 import llmMd from './llm.md';
+import personasMd from './personas.md';
 import realAgentsMd from './real-agents.md';
 import recipesMd from './recipes.md';
 import schedulingMd from './scheduling.md';
@@ -47,6 +48,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   commands: { title: 'Command lanes: token schema + executors', text: commandsMd },
   'tool-catalog': { title: 'The Tool Catalog: four flags, two scopes', text: toolCatalogMd },
   llm: { title: 'LLM transitions: the riskiest kind', text: llmMd },
+  personas: { title: 'Persona-first agents, teams, contexts, and learning', text: personasMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
   'real-agents': { title: 'Real agents: personas scheduled on Petri nets', text: realAgentsMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },

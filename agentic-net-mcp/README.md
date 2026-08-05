@@ -1,9 +1,10 @@
-# @agenticnets/mcp — working memory, Agent Hub, and external execution
+# @agenticnets/mcp — persona agents, specialist teams, and living context
 
 An [MCP](https://modelcontextprotocol.io) server that connects any MCP client (Claude Code, Claude
 Desktop, Cursor, agent frameworks) to an [AgenticNetOS](https://github.com/alexejsailer/agentic-nets)
-stack — turning Agentic-Nets into your agent's **persistent, structured working memory** and a
-**net-building workbench**.
+stack — turning Agentic-Nets into a **persona-first agent platform**. Create a developer, health
+coach, domain expert, reviewer, or team; give it persistent context, safe tools, schedules,
+observable hand-offs, and an audit trail.
 
 Why this beats a passive memory store:
 
@@ -29,12 +30,15 @@ claude mcp add agenticnets \
   -- npx @agenticnets/mcp
 ```
 
-Then, in Claude Code:
+Then, in Claude Code or Codex:
 
-> *"Set up my working memory"* → deploys the template
-> *"Remember: we picked tsup for all TS packages because the CLI exports raw sources"* → `memory_write`
-> *"What did we decide about bundling?"* → `memory_recall` returns the **distilled** note — cleaned up
-> server-side by the always-on distiller transition while you kept working.
+> *"Read agenticnets://docs/personas. Design a developer persona for this project with a charter,
+> durable context, journal, and reviewer hand-off. Check readiness, propose the execution backend,
+> and tell me whether it runs while disconnected before you build it."*
+
+With a server provider the persona uses an ordinary agent lane. Without one, explicitly choose a
+Claude Code/Codex CLI-backed agent for unattended work, or use connected-client execution. The net
+keeps the work and context either way.
 
 ## Tools (164 = 54 curated + 110 native)
 
@@ -62,9 +66,10 @@ Two layers, one server:
 
 Important capabilities the extra tools unlock:
 
-- **`spawn_persona`** stands up a *complete self-driving worker net* (charter + task inbox + a started
-  `agent` transition + output). Feed it `memory_write place:"p-<name>-task"` and it works each task
-  autonomously, server-side — spawn several and they run **in parallel** while you keep working.
+- **`spawn_persona`** stands up a complete specialist net (charter + task inbox + bounded `agent`
+  transition + output). `execution` selects server-provider, headless Claude Code/Codex, or
+  connected-client reasoning and reports whether it is unattended. Join several through shared
+  places for a team.
 - **`crystallize_session`** records what a session did (summary + the concrete API-calls/commands) into
   memory *and* bakes the steps into a replayable command tool-net — "capture what we did so next time
   you just run it and ping for the result".
@@ -86,8 +91,9 @@ Important capabilities the extra tools unlock:
   only the tools and resources master granted to it.
 
 Plus **resources** (`agenticnets://models`, `agenticnets://templates`, `agenticnets://tool-nets`,
-`agenticnets://docs/{concepts,arcql,recipes,security}`) and **prompts** (`setup-working-memory`,
-`work-dev-team-backlog`, `capture-session`, `debug-net`, `spawn-worker`, `monitor-personas`).
+`agenticnets://docs/{personas,concepts,arcql,recipes,security}`) and **prompts**
+(`design-persona-team`, `spawn-worker`, `setup-working-memory`, `work-dev-team-backlog`,
+`capture-session`, `debug-net`, `monitor-personas`).
 The server also ships rich `instructions` at initialize, so your client knows how to use
 Agentic-Nets well without reading any docs.
 

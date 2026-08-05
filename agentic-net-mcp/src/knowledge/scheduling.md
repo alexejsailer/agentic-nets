@@ -28,23 +28,26 @@ BOTH the schedule is due AND its presets bind. Consequences:
 - Shortening an interval takes effect on the next evaluation; a lengthened interval never fires
   early.
 
-## AI lanes cannot be scheduled unattended without a provider
+## Provider-backed AI lanes cannot be scheduled unattended without a provider
 
 Two lanes are armed but dispatched by nobody:
 
 - **`external`** — master's schedulers skip these by design. Only a connected client fires them.
-- **any llm/agent lane when `llm_health` is `DISABLED`** — master has nothing to run it with, so it
-  skips the lane rather than failing it. The lane keeps a normal status (`deployed` or even
-  `running`) and its cron looks perfectly healthy.
+- **a provider-backed llm/agent lane when `llm_health` is `DISABLED`** — master has nothing to run
+  it with, so it skips the lane rather than failing it. The lane keeps a normal status (`deployed`
+  or even `running`) and its cron looks perfectly healthy.
+
+Exception: an `agent` lane with `action.llmMode:"bash"` uses a local Claude Code/Codex process.
+Master owns and schedules it even when the server provider is disabled. A command lane that invokes
+a headless CLI on an executor is also unaffected.
 
 The second is the Desktop Lite default and the one that surprises people, because the status reads
 as an active state. Deterministic lanes (map/pass/http/command) are unaffected and keep their
 schedules with nothing connected.
 
-- Before arming a schedule on an llm/agent lane, check `llm_health`. If DISABLED, do not tell the
-  user it will run overnight. Say it runs when a client is connected, and give the two options:
-  serve it now yourself, or have them configure a provider (Desktop Lite: tray → LLM Settings) so
-  master can own the schedule.
+- Before arming a schedule on an llm/agent lane, check `llm_health` and the lane's backend. If
+  DISABLED and it is provider-backed, do not tell the user it will run overnight. Offer a CLI-backed
+  persona/command, a connected-client fire, or server provider configuration.
 - `scheduler_status` marks these `willNotFireUnattended:true` with an `unattendedHint`, and lists
   them under `headline.externalScheduled` with a `reason` distinguishing the two cases.
 - `readiness.externalFires.waiting` counts lanes with tokens bound and waiting; `.stranded` counts

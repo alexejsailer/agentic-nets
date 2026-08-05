@@ -1,6 +1,9 @@
 # agentic-net-cli
 
-Command-line agent for AgenticNets. Drives the same tool surface the in-net agent transitions use (QUERY_TOKENS, CREATE_TOKEN, DEPLOY_TRANSITION, INVOKE_TOOL_NET, …), so anything an in-net agent can do, you can do from a shell.
+Command-line front door for persona agents and Agentic-Nets. Create a developer, health coach,
+domain expert, or complete specialist team; attach durable context; then let its Petri net provide
+memory, hand-offs, schedules, audit history, and deterministic automation. The CLI drives the same
+tool surface in-net agents use (QUERY_TOKENS, CREATE_TOKEN, DEPLOY_TRANSITION, INVOKE_TOOL_NET, …).
 
 ## Install & build
 
@@ -37,15 +40,21 @@ Routed mode uses `thinking_model` from `~/.agenticos/config.yaml` to pick the re
 ## Quickstart
 
 ```bash
-# One-shot agent turn (gateway mode, default provider)
-agenticos agent "list the sessions in this workspace"
+# Ask the builder to propose a persona-first solution, then create it
+agenticos agent "Create a developer persona for this project with a charter, task inbox, durable context, reviewer hand-off, and a backend that works without a server LLM."
 
-# Direct mode against local master/node
-agenticos agent --direct --provider ollama "show me the running transitions"
+# Use Codex or Claude Code as the connected model provider
+agenticos agent --provider codex "Design a health-coach persona with safe boundaries and a journal"
+agenticos agent --provider claude-code "Install or compose a small developer/reviewer team"
 
 # Inspect a specific transition
 agenticos transition show t-orchestrator
 ```
+
+Execution choices matter: with a server provider, ordinary `agent`/`llm` transitions run on master.
+Without one, an agent inscription can use `llmMode:"bash"` plus `binary:"claude"|"codex"` and keep
+its bounded agent loop unattended; a command transition is ideal for one-shot headless stdin→stdout
+jobs. Local CLI execution remains an attended option. Always make the chosen backend visible.
 
 ## Config
 

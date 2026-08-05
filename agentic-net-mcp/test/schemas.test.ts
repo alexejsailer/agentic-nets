@@ -158,7 +158,10 @@ describe('advertised tool surface', () => {
     expect(props('add_transition')).toMatchObject({
       timezone: expect.any(Object),
       batchSize: expect.any(Object),
+      llmMode: expect.any(Object),
+      binary: expect.any(Object),
     });
+    expect(props('spawn_persona').execution).toBeTruthy();
     expect(props('set_schedule').timezone).toBeTruthy();
     expect(props('fire_once').preserveRunning).toBeTruthy();
     expect(props('add_transitions').transitions).toBeTruthy();
@@ -215,7 +218,7 @@ describe('advertised tool surface', () => {
 
   it('server delivers teaching instructions at initialize', async () => {
     const client = await connectedClient(makeConfig());
-    expect(client.getInstructions()).toMatch(/working memory that runs/i);
+    expect(client.getInstructions()).toMatch(/persona agents with memory that runs/i);
     expect(client.getInstructions()).toMatch(/ArcQL/);
   });
 
@@ -244,6 +247,7 @@ describe('advertised tool surface', () => {
     expect(prompts.map((p) => p.name).sort()).toEqual(
       [
         'capture-session',
+        'design-persona-team',
         'debug-net',
         'monitor-personas',
         'setup-working-memory',

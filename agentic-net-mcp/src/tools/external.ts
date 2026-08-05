@@ -253,9 +253,12 @@ export function registerExternalReaders(server: McpServer, ctx: AppContext): voi
         'Which llm/agent transitions this session can execute, with a `servable` verdict per lane. ' +
         'By default lists the ones marked `external` (plus stopped ones with includeStopped:true). ' +
         '**includeAll:true lists EVERY llm/agent lane of the model whatever its status** — use it when ' +
-        'master has no LLM provider, because then it cannot run any of them and a lane nobody marked by ' +
-        'hand is still yours to serve. servableReason: MARKED_EXTERNAL (you own it) · MASTER_HAS_NO_PROVIDER ' +
-        '(stranded — master cannot run it) · LANE_IDLE (idle, free to serve) · MASTER_OWNS_IT (a provider ' +
+        'master has no LLM provider, because provider-backed lanes nobody marked by hand are still yours ' +
+        'to serve. Headless CLI agent lanes remain master-owned and report executionBackend + ' +
+        'requiresServerLlmProvider:false. servableReason: MARKED_EXTERNAL (you own it) · MASTER_HAS_NO_PROVIDER ' +
+        '(stranded — master cannot run it) · CLI_BINARY_MISSING (stranded — a bash-backed lane whose ' +
+        'claude/codex is unreachable by master; install it or serve the lane yourself) · LANE_IDLE ' +
+        '(idle, free to serve) · MASTER_OWNS_IT (a provider ' +
         'exists and master fires it) · NO_TOKENS_BOUND · POSTSET_AT_CAPACITY · FIRE_IN_FLIGHT · NOT_DEPLOYED. ' +
         'The verdict is advice, not a gate: you may still fire a non-servable lane on explicit request. ' +
         'Workflow: list → prepare_external_fire → reason as the host model → complete_external_fire.',
@@ -296,8 +299,8 @@ export function registerExternalReaders(server: McpServer, ctx: AppContext): voi
         ...(!args.includeAll && res?.provider?.canFireAiLanes === false
           ? {
               hint:
-                'master has no LLM provider — call again with includeAll:true to see every llm/agent lane you '
-                + 'could run, not just the ones marked external',
+                'master has no LLM provider — call again with includeAll:true to see every provider-backed '
+                + 'llm/agent lane you could run; CLI-backed personas remain master-owned',
             }
           : {}),
         ...(servable.length ? { servableCount: servable.length } : {}),

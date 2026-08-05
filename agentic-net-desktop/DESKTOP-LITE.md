@@ -1,9 +1,10 @@
 # AgenticNetOS Desktop Lite
 
-Desktop Lite is the quickest way to put Agentic-Nets on one computer:
-install one package, start the tray app, connect an MCP client, and build or
-operate nets. It needs no Docker daemon, Java installation, Node installation,
-server-side LLM, or API key.
+Desktop Lite is the quickest way to create persona agents and specialist teams
+on one computer: install one package, connect an MCP client, name the outcome
+owner, and let Agentic-Nets provide its memory, context, tools, schedules,
+hand-offs, and audit trail. It needs no Docker daemon, Java installation, Node
+installation, server-side LLM, or API key.
 
 It is a local creator/operator environment, not the recommended production
 deployment. Use the Docker/server deployment when you need remote access,
@@ -24,14 +25,16 @@ infrastructure, or production lifecycle controls.
    command)** in the tray.
 4. Add the copied configuration to the MCP client and start a new client
    session.
-5. Ask the connected model to create nets, inspect state, schedule work, run
-   deterministic transitions, or execute AI lanes externally.
+5. Ask the connected model to create a developer, coach, domain expert, or team.
+   It should read `agenticnets://docs/personas`, check `readiness`, propose an
+   execution backend, and state whether the persona runs while disconnected.
 
-The connected MCP client supplies the intelligence. The bundled master remains
-because it is the deterministic control plane: it binds and consumes tokens,
-applies inscriptions, schedules transitions, records events, enforces
-execution policy, and completes externally executed AI fires. It does not call
-an LLM in the default profile.
+The connected MCP client supplies interactive intelligence. The bundled master
+is the durable control plane: it binds and consumes tokens, applies inscriptions,
+schedules transitions, records events, enforces execution policy, and completes
+externally executed AI fires. It does not call a server LLM in the default
+profile, but a CLI-backed agent transition may ask an installed Claude
+Code/Codex process to perform its reasoning step.
 
 ```text
 Codex / Claude / another MCP client
@@ -53,11 +56,16 @@ Codex / Claude / another MCP client
 - Read and write places, tokens, working memory, and context.
 - Run `pass`, `map`, `http`, and local `command` transitions; use `link` edges
   for non-firing structure.
+- Run full bounded persona agents through a locally installed Claude Code/Codex
+  session by setting `action.llmMode=bash` and `action.binary=claude|codex`.
+  These lanes are master-owned and can be scheduled without a server provider.
+- Use command lanes for one-shot headless CLI jobs; pipe the prompt through stdin
+  (`claude -p` or `codex exec -`) rather than nesting dynamic shell quotes.
 - Create schedules, pause/resume models, and inspect scheduler or fire status.
 - Use transition-scoped credentials through the encrypted local vault.
 - Let the connected MCP model perform `llm` or `agent` transitions with
   `prepare_external_fire` and `complete_external_fire`. With no provider, master
-  simply skips its AI lanes, so they keep a normal lifecycle and wait for a client;
+  skips provider-backed AI lanes, so they keep a normal lifecycle and wait for a client;
   `set_external` marks a lane as client-only on purpose, and is the ONLY thing that
   ever sets that status.
 - Use Studio as the visual/manual editor for the same state. Studio's built-in
@@ -129,20 +137,20 @@ cleanup, and `fire_once` to smoke-test a deterministic lane without stopping it 
 timezone such as `Europe/Berlin`; `scheduler_status` names stopped or invalid schedules and keeps
 armed, fired, and successful timestamps distinct.
 
-Schedules for deterministic, HTTP, and command lanes run without the MCP
-client connected. A scheduled external AI lane can become ready on its own,
-but its reasoning waits safely until an MCP client performs the external fire.
-Configure a server provider only when AI reasoning itself must run unattended.
+Schedules for deterministic, HTTP, command, and CLI-backed agent lanes run
+without the MCP client connected. A scheduled external/provider-backed AI lane
+can become ready on its own, but its reasoning waits safely until an MCP client
+performs the external fire. Configure a server provider only when ordinary API
+agent/llm lanes must run unattended.
 
-### AI lanes cannot be scheduled unattended in the default profile
+### AI execution in the default profile
 
-With `llm.provider=disabled`, master has nothing to execute an llm or agent
-transition with, so it **skips** those lanes rather than firing them into a
-guaranteed failure. They keep a completely normal lifecycle — `deployed`, or even
-`running` — and simply wait for a connected MCP client to serve them. A cron on
-one is accepted and displayed as armed but is dispatched by nobody. Deterministic,
-HTTP, and command lanes are unaffected. Personas are agent lanes and follow the
-same rule.
+With `llm.provider=disabled`, master **skips provider-backed** llm/agent lanes
+rather than firing them into guaranteed failure. They keep a normal lifecycle
+and wait for a connected client. A cron on one is armed but dispatched by
+nobody. Two unattended exceptions are intentional: an agent with
+`action.llmMode=bash` uses a local Claude Code/Codex process while preserving the
+bounded agent loop, and a command lane may spawn a one-shot headless CLI job.
 
 `external` is a separate, deliberate thing: it means *this lane is client-only,
 because I said so*. Only `set_external` sets it. A missing provider never implies
@@ -157,16 +165,19 @@ The protocol surfaces all of this rather than leaving it to be discovered:
 - `list_external_fires {includeAll:true}` lists every llm/agent lane with a
   `servable` verdict and reason. The default view shows only hand-marked lanes, so
   the tool returns a hint pointing at the wider view whenever the provider is off.
-- `scheduler_status` marks each such lane `willNotFireUnattended` with an
+- `scheduler_status` marks each provider-backed stranded lane `willNotFireUnattended` with an
   `unattendedHint`, and lists them under `headline.externalScheduled` with a
   `reason` separating "marked external" from "master has no provider".
 - The server instructions tell the connected client to check the backlog early in
   a session, report the count, and offer to work it. The `work-external-fires`
   prompt is the same recipe on demand.
 
-To hand these lanes to master instead, configure a provider (tray → **LLM
-Settings**). A client may also take over a running lane for a single fire; master
-stands down while that fire is in flight.
+To hand provider-backed lanes to master, configure a provider (tray → **LLM
+Settings**). To keep the provider disabled, create a CLI-backed persona explicitly
+(`spawn_persona execution:"claude-code"|"codex"` or `add_transition` with
+`llmMode:"bash"`). The binary must be reachable from the Desktop master process.
+A client may also take over a running lane for a single fire; master stands down
+while that fire is in flight.
 
 An **explicit** fire (Studio's fire button, `fire_once`, a test harness) is
 answered rather than skipped: it returns a `providerDisabled` refusal naming both
@@ -212,9 +223,9 @@ The default in a new installation is:
 llm.provider=disabled
 ```
 
-Most Desktop Lite users should leave it that way and run AI lanes through the
-connected MCP client. If unattended server-side AI lanes are specifically
-needed, edit `~/.agenticos/desktop/desktop.properties` and choose one of:
+Most Desktop Lite users can leave it that way and run AI through their connected
+client or a CLI-backed persona. If provider-backed AI lanes are specifically
+needed unattended, edit `~/.agenticos/desktop/desktop.properties` and choose one of:
 
 ```properties
 # Local or remote Ollama

@@ -11,16 +11,16 @@ export function buildInstructions(config: McpConfig): string {
       ? `All tools operate on the model '${config.models[0]}'.`
       : `Allowed models: ${config.models.join(', ')} (default '${config.models[0]}'; pass \`model\` to target another).`;
 
-  return `# Agentic-Nets — working memory that runs
+  return `# Agentic-Nets — persona agents with memory that runs
 
-You are connected to AgenticNetOS: a Petri-net workflow OS. PLACES are persistent, event-sourced
+You are connected to AgenticNetOS: a persona-first agent OS implemented as Petri nets. PLACES are persistent, event-sourced
 containers of JSON TOKENS; TRANSITIONS consume tokens from input places, act (transform / LLM call /
 HTTP call / shell command), and emit results to output places. Everything you store here survives
 this session, is queryable, and can be PROCESSED AUTONOMOUSLY by scheduled transitions while you
 are gone. ${models}
 
 ## Read these two FIRST — they change what you build, not just how you call it
-- **\`agenticnets://docs/index\`** — 19 operational docs (emit · scheduling · llm · real-agents ·
+- **\`agenticnets://docs/index\`** — 20 operational docs (personas · emit · scheduling · llm · real-agents ·
   cost · troubleshooting · recipes · …). Grep via search_knowledge. A client that read
   docs/emit and docs/recipes only in its second session CHANGED ITS ARCHITECTURE afterwards
   (deterministic chaining over agent orchestration). Read the index before designing a pipeline,
@@ -29,16 +29,39 @@ are gone. ${models}
   The 8192-char HTTP body clip decides whether a fetch-and-parse pipeline can work at all; a client
   that met it by accident shipped a confident verdict built on a truncated page.
 
+## Default design stance — give important work a persona
+For a newcomer, translate a goal into a NAMED SPECIALIST before exposing raw workflow machinery:
+a developer, health coach, researcher, domain expert, reviewer, operator, or a small team. Propose a
+charter + inbox + context/memory + output, then choose how the persona reasons. Read
+\`agenticnets://docs/personas\` before designing agents or teams. Use a naked workflow only when
+identity, judgment, or evolving context adds no value; keep routing/bookkeeping deterministic.
+
+Call llm_health before creating the reasoning lane. Healthy (READY/ONLINE) → ordinary agent/llm transitions.
+DISABLED → prefer a CLI-backed persona agent (llmMode:"bash", binary:"claude"|"codex") for a
+bounded tool-using agent, or a command transition piping stdin to headless Claude Code/Codex for a
+one-shot job. Those run unattended when llm_health.headlessCliBinaries reports the binary reachable
+(probed, not assumed). External fires and
+host_transition are the attended alternatives. ALWAYS say which backend was chosen and whether it
+runs while disconnected. For teams, name the specialists and their place-to-place hand-offs first;
+use context nets + typed link transitions as reusable domain playbooks.
+
 ## First thing in a session — is work waiting for YOU?
 Run \`readiness\` early. \`llm.status: DISABLED\` means no server-side model, so **this session is the
-runtime for every llm/agent lane**, whatever its status — \`external\` is only ever set by hand.
+runtime for every provider-backed llm/agent lane**, whatever its status — \`external\` is only ever
+set by hand. CLI-backed agents are the exception: master owns them without a provider.
 \`externalFires.waiting\`/\`.stranded\` count what needs you (full roster:
 list_external_fires {includeAll:true}). If > 0, say so in one line and OFFER to work them
 (prepare_external_fire → answer → complete_external_fire, per lane); nothing else drains that
-backlog. Add: "they run only while I am connected — for unattended AI configure a provider
-(Desktop Lite: tray → LLM Settings) and I will hand them back to master."
+backlog. Add: "these run only while I am connected — for unattended AI I can create a Claude
+Code/Codex persona lane, or you can configure a server provider."
 
 ## When to use what
+- Create a named specialist first: spawn_persona builds the COMPLETE persona net (charter + task
+  inbox + bounded agent + output). execution:"auto" picks server-provider when healthy, else an
+  honest connected-client lane; explicit "claude-code"|"codex" is checked against master's binary
+  probe and refused when unreachable. Feed p-<name>-task; join specialists through shared places
+  for a team. capability:"reason" is safe; "execute" (rwxhl---t) may run commands/tool-nets.
+  Context playbooks: ATTACH_CONTEXT or typed link transitions — links NEVER fire (docs/personas).
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
   related context with memory_graph; connect places with memory_link. protocol_write journals
@@ -56,16 +79,11 @@ backlog. Add: "they run only while I am connected — for unattended AI configur
 - Build automation: add_place + add_transition (kinds: map=deterministic transform, llm=one AI
   call, http=API call, command=shell via executor, agent=autonomous multi-step persona,
   link=pure structure edge). Scheduled DETERMINISTIC lanes keep running server-side after you
-  disconnect; scheduled llm/agent lanes do so only with a server provider (see Scheduling).
+  disconnect; scheduled AI lanes also do when server-provider-backed or CLI-backed (see Scheduling).
 - Crystallize a session: crystallize_session records what was discussed AND the concrete steps
   (API calls / commands) into memory, and bakes those steps into a replayable command tool-net.
   For a single reusable capability, scaffold_tool_net once, then invoke_tool_net forever —
   deterministic replay at zero LLM cost.
-- Spawn autonomous workers: spawn_persona stands up a COMPLETE self-driving persona net (charter +
-  task inbox + a started agent transition + output). Feed it via memory_write place:"p-<name>-task";
-  spawn several and they work in PARALLEL. capability:"execute" (rwxhl---t) may run commands /
-  invoke tool-nets; default "reason" (rw--) is safe. tier:"high" uses the thinking model. A persona
-  IS an agent lane: with llm_health DISABLED it advances only while you are connected to serve it.
 - Monitor & debug WITHOUT logs or source: net_stats (LLM consumption, RUNNING vs stopped/error,
   what is SCHEDULED, executorCoverage READY/STANDBY/UNAVAILABLE, tool-net usage, recent
   errors) -> list_transitions (the model audit: every transition's kind + schedule + status +
@@ -132,7 +150,7 @@ interpolated prompt or nl, leased bound tokens, fireId, and for agents the allow
 resourceScopes you must stay inside) → you reason AS THE HOST MODEL → complete_external_fire
 {transitionId, fireId, response | emissions | summary}. Master then runs the SAME emit pipeline as
 its own fire, consumes the shown tokens, and books usage as external:mcp-<session>. success:false
-or abandon_external_fire preserves the inputs. (All four AI execution paths compared:
+or abandon_external_fire preserves the inputs. (All five AI execution paths compared:
 docs/real-agents.)
 
 ## Scheduling — nets that run while everyone sleeps
@@ -144,19 +162,20 @@ when you schedule something — they should know their net will act (and possibl
 own. net_stats.scheduled lists everything armed; when scheduled lanes look silent, scheduler_status
 gives lastFiredAt / nextFireAt / why-not-eligible per lane (a schedule is an AND-gate with token
 binding — docs/scheduling explains the trap).
-**The one exception:** the schedulers SKIP \`external\` lanes, and with llm_health DISABLED master
-skips EVERY llm/agent lane, so a cron on one is armed but dispatched by nobody. Deterministic lanes
-are unaffected. So check llm_health BEFORE promising that a scheduled llm/agent lane runs
-overnight; if DISABLED, say it runs only while a client is connected and give the two options (serve
-it now, or configure a provider so master owns the schedule). scheduler_status flags these
-willNotFireUnattended / headline.externalScheduled.
+**The exception:** schedulers SKIP \`external\` lanes, and with llm_health DISABLED master skips
+provider-backed llm/agent lanes. A CLI-backed agent (llmMode:"bash") and command lanes still run
+unattended. Check health + backend before promising overnight execution; scheduler_status flags
+provider-backed stranded lanes as willNotFireUnattended / headline.externalScheduled.
 
-## Spawning Claude Code (or any CLI agent) from a net
-command transitions execute shell on the distributed executor — including FULL Claude Code
-instances. Pipe the prompt via STDIN, never a quoted -p argument (the executor→shell chain can
-eat nested quotes — claude then runs promptless and improvises):
+## Running Claude Code or Codex personas with no server provider
+For a persistent persona, prefer add_transition kind:"agent", llmMode:"bash",
+binary:"claude"|"codex" (or spawn_persona execution:"claude-code"|"codex"). It keeps the full
+bounded agent session and runs on master unattended. For one-shot stdin→stdout jobs, command
+transitions execute shell on the distributed executor. Pipe the prompt via STDIN, never a quoted
+prompt argument (the executor→shell chain can eat nested quotes):
   printf '%s' '<task>' | claude -p --model sonnet --allowedTools 'Read,Grep' --no-session-persistence
-Least-privilege --allowedTools; timeoutMs in minutes. Executors: list_executors — READY or STANDBY can
+  printf '%s' '<task>' | codex exec --ephemeral --sandbox read-only -
+Least-privilege tools/sandbox; timeoutMs in minutes. Executors: list_executors — READY or STANDBY can
 serve it; several and user silent: ASK (executorId; '*' = any). Scheduled persona nets reasoning
 via headless Claude — unattended even with llm_health DISABLED — plus Windows setup:
 docs/real-agents.
@@ -187,7 +206,7 @@ first and report what was stopped.
    report a MISSING_EMIT warning on them; that is expected and benign, not a failure.
 9. Secrets go through set_transition_credentials + \${credentials.KEY} in the inscription — NEVER
    inline in an inscription or into a token: tokens are event-sourced, a pasted secret is permanent.
-10. LLM lanes: check llm_health BEFORE building. DISABLED is the intentional MCP-first mode (see
+10. LLM lanes: check llm_health BEFORE building. DISABLED is the intentional MCP/CLI-first mode (see
     the session-start and Scheduling notes above); other non-READY states make master fires fail
     and every retry is billed. Give every llm lane an error
     emit branch. add_transition emits @response.json so a
@@ -198,7 +217,7 @@ first and report what was stopped.
 
 ## The knowledge base — search it, don't guess
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
-returns agenticnets://docs/{topic} URIs: index · concepts · architecture · inscriptions · arcql ·
+returns agenticnets://docs/{topic} URIs: index · personas · concepts · architecture · inscriptions · arcql ·
 interpolation · emit · commands · tool-catalog · llm · external-fire · real-agents · scheduling ·
 cost · tokens · troubleshooting · recipes · nethub · security.
 Before hand-writing an inscription read docs/inscriptions; when something is broken read

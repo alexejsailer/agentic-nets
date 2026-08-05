@@ -10,8 +10,9 @@ Mixed master/external nets are supported. Unlike `host_transition`, this needs n
    `sessionId`, `all:true`. Model/session/net policies persist and apply to new transitions with
    matching metadata; transition choices override them. `external:false` returns to stopped.
 2. `list_external_fires` finds work. `includeStopped:true` adds stopped lanes;
-   **`includeAll:true` lists every llm/agent lane whatever its status** — the view you need when
-   master has no provider, since it cannot run any of them.
+   **`includeAll:true` lists every llm/agent lane whatever its status**. Check
+   `executionBackend`, `requiresServerLlmProvider`, and the servable verdict: with no provider,
+   API-backed lanes need a client while CLI-backed agents remain master-owned.
 3. `prepare_external_fire {transitionId}` returns a 30-minute leased `fireId`, bound tokens,
    and `prompt`/`systemPrompt` (llm) or `nl` plus capability policy (agent).
 4. Reason, then call
@@ -22,11 +23,14 @@ Mixed master/external nets are supported. Unlike `host_transition`, this needs n
 ## Servable
 
 Rows carry `servable` + `servableReason`. Yes: `MARKED_EXTERNAL`, `MASTER_HAS_NO_PROVIDER`
-(stranded), `LANE_IDLE`. No: `MASTER_OWNS_IT`, `NO_TOKENS_BOUND`, `POSTSET_AT_CAPACITY`,
+(stranded), `CLI_BINARY_MISSING` (stranded — a bash-backed lane whose claude/codex master cannot
+reach), `LANE_IDLE`. No: `MASTER_OWNS_IT`, `NO_TOKENS_BOUND`, `POSTSET_AT_CAPACITY`,
 `FIRE_IN_FLIGHT`, `NOT_DEPLOYED`. Advice, not a gate.
 
-`external` is only ever set by hand. A provider-less master marks nothing — it skips its AI lanes,
-which keep a normal status and wait for you.
+`external` is only ever set by hand. A provider-less master marks nothing — it skips only its
+provider-backed AI lanes, which keep a normal status and wait for you. An agent with
+`llmMode:"bash"` continues to run through Claude Code/Codex and normally reports
+`servableReason:"MASTER_OWNS_IT"`; do not race it from a connected client.
 
 ## Guarantees
 

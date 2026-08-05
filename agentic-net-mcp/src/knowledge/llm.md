@@ -5,10 +5,12 @@ every retry is a BILLED call. Treat this doc as the pre-flight checklist.
 
 ## Before building: llm_health
 
-Call the `llm_health` tool (GET, works in readonly). `READY` means master can
+Call the `llm_health` tool (GET, works in readonly). `READY`/`ONLINE` means master can
 execute AI lanes. `DISABLED` is the intentional MCP-first mode: deterministic
-lanes remain ready and master skips every llm/agent lane, leaving them for the
-connected client. `MODEL_NOT_FOUND` or `UNREACHABLE` means master-run
+lanes remain ready and master skips provider-backed llm/agent lanes, leaving them
+for a connected client. An agent with `llmMode:"bash"` is the exception: master
+uses its local Claude Code/Codex CLI and can run it without a server provider.
+`MODEL_NOT_FOUND` or `UNREACHABLE` means provider-backed master-run
 llm/agent fires fail until fixed (a cloud model that is not authenticated on the
 provider host is the classic case).
 
@@ -52,26 +54,29 @@ An llm lane on a schedule burns tokens forever — always tell the user what you
 `net_stats.llm.byTransition` for per-lane consumption, and prefer map/http for anything
 deterministic (docs/concepts: deterministic first).
 
-## provider=disabled means YOU are the model
+## provider=disabled: choose the persona's brain explicitly
 
-Desktop Lite ships no server LLM on purpose. Master then SKIPS every llm/agent lane
-rather than failing it, so lanes keep a normal status (`deployed`, even `running`)
-and simply wait — serving them is YOUR job: list_external_fires → prepare → complete.
-A lane that "never fires" here is usually one nobody served. For UNATTENDED reasoning
-with no provider, a command lane spawning headless Claude Code on the executor host is
-the working pattern (docs/real-agents); host_transition covers lanes while this session
-stays connected; or the user enables a provider in Studio → Settings → Desktop LLM
-(also reachable from the tray).
+Desktop Lite ships no server LLM on purpose. Master skips provider-backed llm/agent
+lanes rather than failing them, so they keep a normal status (`deployed`, even
+`running`) and wait. Serve those through list_external_fires → prepare → complete.
+For unattended reasoning without a provider, prefer an `agent` lane with
+`llmMode:"bash"` and `binary:"claude"|"codex"`: it preserves the bounded agent/tool
+loop and runs on master. A command lane piping a prompt to a headless CLI is the
+one-shot alternative on an executor. `host_transition` and external fires cover
+reasoning only while their client stays connected; or enable a provider in Studio →
+Settings → Desktop LLM (also reachable from the tray).
 
 `external` is never implied by a missing provider — it means someone called
-`set_external`, nothing else. So do NOT look for `external` to find your work: with
-no provider EVERY llm/agent lane is yours, whatever its status. Use
-`list_external_fires {includeAll:true}`; the default view omits exactly the stranded ones.
+`set_external`, nothing else. Do NOT look for that status alone to find your work.
+Use `list_external_fires {includeAll:true}` and its `requiresServerLlmProvider`,
+`executionBackend`, and `servableReason` fields. CLI-backed agents remain master-owned;
+provider-backed lanes with no provider are the stranded ones.
 
 Two things to say out loud rather than let the user discover:
 
-1. **They cannot be scheduled unattended.** Master skips them, so a cron is armed but
-   dispatched by nobody (docs/scheduling). Deterministic lanes are unaffected.
+1. **Provider-backed lanes cannot be scheduled unattended without a provider.** Their
+   cron is armed but dispatched by nobody (docs/scheduling). CLI-backed agents and
+   deterministic lanes are unaffected.
 2. **Check the backlog when you connect.** `readiness.externalFires.waiting` counts
    lanes holding bound tokens; `.stranded` counts lanes master cannot run at all.
    Report both and offer to work them (`work-external-fires` is the recipe). That offer

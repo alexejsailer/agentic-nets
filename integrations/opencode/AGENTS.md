@@ -1,13 +1,17 @@
 # Working with AgenticNetOS from OpenCode
 
 You are connected to an **AgenticNetOS** backend through the `agenticnets` MCP server.
-AgenticNetOS is a Petri-net workflow OS: **places** hold JSON **tokens**, **transitions**
+AgenticNetOS is a persona-first agent OS implemented with Petri nets: **places** hold JSON **tokens**, **transitions**
 consume tokens, act (transform / LLM / HTTP / shell / agent), and emit results. Nets are
 persistent, event-sourced, and can run autonomously (scheduled transitions) after you
 disconnect. Everything here survives the session and is queryable.
 
 ## What you can do through the `agenticnets` tools
 
+- **Create named specialists and teams** — start with a developer, health coach, domain expert,
+  reviewer, operator, or another role the user understands. Read `agenticnets://docs/personas`, call
+  `readiness`, then use `spawn_persona execution:"auto"` or install an Agent Hub team. Explain its
+  charter, context, hand-offs, execution backend, and whether it runs while disconnected.
 - **Persist working memory** — `memory_write` (capture), `memory_recall`, `memory_graph`,
   `memory_link`. Use this to remember decisions and facts across sessions.
 - **Build & run nets** — `create_net`, `add_place`, `add_transition` (map/llm/http/command/
@@ -30,13 +34,17 @@ disconnect. Everything here survives the session and is queryable.
 The point of AgenticNetOS is that your work **accumulates into reusable software**, not just
 chat. So:
 
-1. When you solve something with a concrete sequence of steps (commands, HTTP calls), and it
+1. For work involving judgment or evolving domain context, propose a **named persona or small
+   specialist team** before a naked workflow. Keep routing deterministic; use context nets and
+   typed link transitions as reusable playbooks. With no server LLM, prefer a CLI-backed agent
+   (`llmMode:"bash"`, Claude Code/Codex) or a headless command lane for one-shot work.
+2. When you solve something with a concrete sequence of steps (commands, HTTP calls), and it
    is worth repeating, **crystallize it into a tool-net** (`scaffold_tool_net` with the right
    `transitionKind`, then `invoke_tool_net`). Prefer invoking an existing tool-net over
    re-reasoning a known procedure.
-2. When a task needs autonomous, multi-step platform work, **delegate to `invoke_agent`**
+3. When a task needs autonomous, multi-step platform work, **delegate to `invoke_agent`**
    rather than doing it by hand tool-by-tool.
-3. **Record decisions** with `memory_write` so the next session (and scheduled nets) can build
+4. **Record decisions** with `memory_write` so the next session (and scheduled nets) can build
    on them.
 
 Use OpenCode's own file/shell/edit tools for local code work; use the `agenticnets` tools to

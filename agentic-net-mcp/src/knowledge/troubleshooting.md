@@ -49,7 +49,7 @@ an AND-gate with token binding — full ladder in docs/scheduling. A STOPPED sch
 
 ## LLM lane dead
 
-`llm_health` (provider READY, or intentionally DISABLED with this lane external?) →
+`llm_health` (provider READY/ONLINE, or intentionally DISABLED with this lane external?) →
 `net_stats.recentErrors` (timeouts? quota?) → check for the
 `{text, parseError}` fallback shape in the output place (docs/llm) → verify `action.model`/`tier`
 name a model that exists. Remember: on masters < 2.28 a failed llm fire emits nothing.
@@ -59,8 +59,9 @@ name a model that exists. Remember: on masters < 2.28 a failed llm fire emits no
 1. `create_model` (or confirm it exists — `list_models` shows state; CATALOGED ≠ loaded).
 2. First `add_place` succeeds ⇒ workspace skeleton is provisioned (auto on ≥ 2.27).
 3. Command lanes planned? `list_executors` — is state READY or STANDBY? Either can serve it.
-4. LLM lanes planned? `llm_health` says READY for master execution, or DISABLED —
-   master then skips every AI lane and YOU run them (includeAll:true to list them).
+4. LLM lanes planned? `llm_health` says READY/ONLINE for master execution, or DISABLED —
+   master then skips provider-backed AI lanes and YOU run them (includeAll:true to list them);
+   `headlessCliBinaries` says which bash-backed personas still run unattended.
 5. Remember `net_overview` without netId is SESSION-scoped: `sessionNetCount: 0` on a fresh
    connection does NOT mean the model is empty — check `modelSessionCount`.
 

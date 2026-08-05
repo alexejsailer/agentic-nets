@@ -16,7 +16,7 @@ import {
   validateCron,
 } from '../inscriptions.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
-import { clampValues } from './observe.js';
+import { clampValues, isLlmHealthReady } from './observe.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
@@ -40,7 +40,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   llm: new Set(['prompt', 'llmModel', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
   command: new Set(['executorId']),
-  agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit']),
+  agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary']),
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
   link: new Set(['relation']),
 };
@@ -48,6 +48,7 @@ const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'ou
 const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
   prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
+  llmMode: 'agent', binary: 'agent with llmMode:"bash"',
   executorId: 'command', errorPlace: 'llm/http', routes: 'map/llm/http', emit: 'map/llm/http',
 };
 
@@ -62,6 +63,14 @@ export function validateKindArgs(kind: string, args: Record<string, any>): void 
   throw new Error(
     `param(s) not applicable to kind '${kind}': ${hints}. They would be silently ignored, so nothing was created — drop them or switch the kind.`,
   );
+}
+
+/** Prevent a backend choice that looks accepted but cannot affect execution. */
+export function validateAgentBackendArgs(kind: string, args: Record<string, any>): void {
+  if (kind !== 'agent') return;
+  if (args.binary !== undefined && args.llmMode !== 'bash') {
+    throw new Error('binary only applies to an agent with llmMode:"bash"; set llmMode or drop binary');
+  }
 }
 
 /**
@@ -466,6 +475,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     tier: z.string().optional(),
     maxIterations: z.number().optional(),
     autoEmit: z.boolean().optional(),
+    llmMode: z.enum(['api', 'bash']).optional(),
+    binary: z.enum(['claude', 'codex']).optional(),
     url: z.string().optional(),
     method: z.string().optional(),
     headers: z.record(z.string()).optional(),
@@ -493,7 +504,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Add a transition (pre-wired by kind)',
       description:
-        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call: prompt template, optional model override), http (API call), command (executes command-shaped tokens on the executor), agent (autonomous multi-step persona — positional rwxhludcts role gating, tier-selected LLM, watches its input place), link (pure structure edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
+        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call), http (API call), command (command-shaped tokens on an executor, including one-shot headless CLI jobs), agent (autonomous multi-step persona; server provider by default or llmMode:"bash" + binary:"claude"|"codex" for an unattended Desktop Lite CLI session), link (pure context edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
       inputSchema: {
         netId: z.string(),
         transitionId: z.string().describe('Convention: t-<name>'),
@@ -510,6 +521,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         tier: z.string().optional().describe('llm/agent: LLM tier — omit for the worker/base model, "high" for the thinking model (llm also accepts "low"/"medium"; unknown tiers fall back to the EXPENSIVE model, so stick to these)'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
+        llmMode: z.enum(['api', 'bash']).optional().describe('agent: api (default) uses the server LLM provider; bash keeps the full agent loop but calls a headless Claude Code/Codex session and works in Desktop Lite with no provider'),
+        binary: z.enum(['claude', 'codex']).optional().describe('agent with llmMode:"bash": headless CLI to run (default claude)'),
         url: z.string().optional().describe('http: target URL (default ${input.data.url}). ${...} interpolates token fields; wrap user input in ${urlencode(...)} for query params'),
         method: z.string().optional().describe('http: default GET'),
         headers: z.record(z.string()).optional().describe('http: request headers; values may use ${...} and ${credentials.KEY}'),
@@ -540,6 +553,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     },
     (addTransitionHandler = wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
       validateKindArgs(String(args.kind), args);
+      validateAgentBackendArgs(String(args.kind), args);
       validateScheduleArgs(args);
       const host = ctx.hostFor(model);
       const dup = (err: any) => {
@@ -657,6 +671,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         tier: args.tier,
         maxIterations: args.maxIterations,
         autoEmit: args.autoEmit,
+        llmMode: args.llmMode,
+        binary: args.binary,
       });
       // Execution-mode inheritance resolves net/session policy from inscription metadata.
       // Keep it on both runtime and designtime copies so re-deploys preserve the scope.
@@ -1164,7 +1180,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Spawn an autonomous worker persona',
       description:
-        'Stand up a COMPLETE self-driving persona net (like a safe-team developer): charter + task inbox + an agent-kind transition that watches the inbox and works each task autonomously (multi-step, tools, tier-selected LLM) + an output place. STARTED by default, so it runs server-side in parallel with everything else — spawn several and they work concurrently while you keep going here. Use a `preset` (developer | reviewer | researcher | operator | assistant) for a ready-made archetype, or give your own role. Feed it with memory_write place:"p-<name>-task" (or query_tokens/net_stats to watch it). capability:"execute" grants command/tool-net access (rwxhl---t — t gates tool-net invocation); default "reason" is rw-- (safe).',
+        'Persona-first builder: stand up a COMPLETE specialist net (charter + task inbox + bounded multi-step agent + output). `execution:"auto"` checks llm_health: READY/ONLINE uses the server provider; without one it creates an honest connected-client lane. A Claude Code or Codex client on the same Desktop machine should proactively propose and explicitly select its matching CLI backend. CLI-backed personas run unattended on master without a server LLM provider; the binary must be installed and reachable by Desktop/master. Use a preset (developer | reviewer | researcher | operator | assistant), or give a domain role. Feed p-<name>-task; spawn several specialists to form a team. capability:"execute" grants command/tool-net access (rwxhl---t); default reason is rw--.',
       inputSchema: {
         name: z.string().describe('Short id, e.g. "dev" or "researcher"'),
         preset: z
@@ -1181,6 +1197,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         capacity: z.number().optional().describe('Output place capacity / backpressure (default 50)'),
         netId: z.string().optional().describe('Net id (default persona-<name>)'),
         start: z.boolean().optional().describe('Start the worker immediately (default true)'),
+        execution: z
+          .enum(['auto', 'server', 'claude-code', 'codex', 'connected-client'])
+          .optional()
+          .describe('Reasoning backend (default auto): server provider; unattended headless Claude Code/Codex on master; or the connected MCP host model via external fires'),
         ...modelParam,
       },
     },
@@ -1194,6 +1214,35 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       if (!responsibility) throw new Error('provide `role` (or a `preset` that supplies one)');
       const capability = args.capability ?? preset?.capability ?? 'reason';
       const tier = args.tier ?? preset?.tier; // 'worker' | 'high' | undefined
+      const requestedExecution = String(args.execution ?? 'auto');
+      let providerStatus = 'UNKNOWN';
+      let cliBinaries: Record<string, boolean> | undefined;
+      if (requestedExecution !== 'connected-client') {
+        const health: any = await ctx.client.masterApi('GET', '/llm/health').catch(() => null);
+        providerStatus = String(health?.status ?? 'UNKNOWN').toUpperCase();
+        cliBinaries = health?.headlessCliBinaries;
+      }
+      const execution = requestedExecution !== 'auto'
+        ? requestedExecution
+        : isLlmHealthReady(providerStatus) ? 'server' : 'connected-client';
+      if (execution === 'server' && args.start !== false
+          && providerStatus !== 'UNKNOWN' && !isLlmHealthReady(providerStatus)) {
+        throw new Error(
+          `server execution was requested, but llm_health is ${providerStatus}; nothing was created. `
+          + 'Choose execution:"claude-code"|"codex"|"connected-client", repair the provider, '
+          + 'or pass start:false to stage the persona without running it.',
+        );
+      }
+      const cliBinary = execution === 'codex' ? 'codex' : execution === 'claude-code' ? 'claude' : undefined;
+      // Fail fast on a CLI backend master cannot actually spawn — a persona built anyway would
+      // schedule, fire, exit 127 and flap. Masters without the probe field stay permissive.
+      if (cliBinary && args.start !== false && cliBinaries && cliBinaries[cliBinary] === false) {
+        throw new Error(
+          `master cannot reach the ${cliBinary} CLI (llm_health.headlessCliBinaries.${cliBinary}=false); `
+          + 'nothing was created. Install the CLI where Desktop/master runs (restart the app to re-probe), '
+          + 'pick the other binary, execution:"connected-client", or pass start:false to stage it.',
+        );
+      }
       // Master role string is positional rwxhludcts. 'execute' grants read/write/execute/http/logs
       // AND t (tooling): the persona's instruction tells it to DESCRIBE/INVOKE_TOOL_NET, which the
       // master gates behind t — the previous 'rwxhl' silently withheld exactly the tools the
@@ -1232,6 +1281,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
             role: responsibility,
             capability,
             tier: tier ?? 'worker',
+            execution,
             ...(args.preset ? { preset: args.preset } : {}),
             createdAt: new Date().toISOString(),
             source: 'mcp',
@@ -1270,6 +1320,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         nl,
         tier: tier === 'high' ? 'high' : undefined,
         maxIterations: args.maxIterations,
+        ...(cliBinary ? { llmMode: 'bash' as const, binary: cliBinary as 'claude' | 'codex' } : {}),
         capacity: args.capacity ?? 50,
         scheduleCron: args.scheduleCron,
         intervalMs: args.intervalMs,
@@ -1278,7 +1329,14 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       await persistInscriptionLeaf(ctx, model, netId, workTid, inscription);
 
       let started = false;
-      if (args.start !== false) {
+      let external = false;
+      if (execution === 'connected-client' && args.start !== false) {
+        await ctx.client.masterApi('POST', `/transitions/${encodeURIComponent(workTid)}/external`, {
+          modelId: model,
+          external: true,
+        });
+        external = true;
+      } else if (args.start !== false) {
         await ctx.master.startTransition(workTid, model);
         started = true;
       }
@@ -1292,12 +1350,26 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         role: roleFlags,
         capability,
         tier: tier ?? 'worker',
+        execution,
+        executionBackend: cliBinary ? `headless-cli:${cliBinary}` : execution === 'server' ? 'server-provider' : 'connected-client',
+        ...(requestedExecution !== 'connected-client'
+          ? { providerStatusAtCreation: providerStatus } : {}),
         charter,
         taskPlace: task,
         outputPlace: output,
         transition: workTid,
         started,
+        external,
         created,
+        note: cliBinary
+          ? `This persona keeps the full agent loop and runs unattended through the local ${cliBinary} CLI; no server LLM provider is required.`
+          : execution === 'connected-client'
+            ? args.start === false
+              ? 'No server/CLI backend was selected. The persona remains deployed and stopped until a client explicitly starts or marks it external.'
+              : 'No server/CLI backend was selected, so this persona is marked external and runs only while a connected client serves its fires.'
+            : !isLlmHealthReady(providerStatus) && providerStatus !== 'UNKNOWN'
+              ? `This persona is staged for the server provider, which is currently ${providerStatus}; it will not reason until that provider is healthy and the transition is started.`
+              : 'This persona is owned by master and uses the configured server LLM provider.',
         howToUse: {
           giveTask: `memory_write { place: "${task}", text: "<the task>" }  (or query_tokens/net_overview to inspect)`,
           readResults: `query_tokens { place: "${output}" }`,

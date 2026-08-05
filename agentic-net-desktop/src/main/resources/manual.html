@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>Manual - AgenticNetOS Desktop Lite</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Newcomer manual for AgenticNetOS Desktop Lite: what it is, how to connect an MCP client, and what to build first." />
+<meta name="description" content="Newcomer manual for AgenticNetOS Desktop Lite: create persona agents, specialist teams, context playbooks, and self-learning nets." />
 <style>
 :root {
   color-scheme: dark;
@@ -145,7 +145,7 @@ footer {
   <ol>
     <li><a href="#what">What this is</a></li>
     <li><a href="#start">Start here</a></li>
-    <li><a href="#ideas">Five ideas</a></li>
+    <li><a href="#ideas">Six ideas</a></li>
     <li><a href="#use-cases">What to build</a></li>
     <li><a href="#prompts">Say this</a></li>
     <li><a href="#unattended">While you are away</a></li>
@@ -162,25 +162,29 @@ footer {
 
 <div class="eyebrow">Manual</div>
 <h1>AgenticNetOS Desktop Lite</h1>
-<p class="lede">Persistent memory, a clock, and a pair of hands for the AI assistant you already use.</p>
+<p class="lede">Create a named specialist or a complete team, then give it memory, context, a clock, and safe hands.</p>
 
 <h2 id="what">1. What this is</h2>
 
-<p>You already have something that can think: Claude Code, Codex, Cursor, or another MCP client.
-What it does not have is a memory that outlives the session, a clock that fires while you sleep,
-and somewhere to put work so it can be picked up again tomorrow.</p>
+<p>AgenticNetOS lets you create people-shaped agents: a developer who owns code changes, a health
+coach who remembers goals and boundaries, a domain expert who knows one business area, or a small
+team whose specialists review one another. Each has a name, a charter, an inbox, context, durable
+results, and a visible way to stop it.</p>
 
-<p>Desktop Lite is that missing half. It installs as one desktop app, runs entirely on your own
-machine, and offers itself to your MCP client as a set of tools. Your client stays the brain.
-Desktop Lite is the memory, the hands, and the clock.</p>
+<p>Underneath, every persona is an Agentic-Net. The net gives it what an ordinary chat lacks: memory
+that outlives the session, work that waits safely, typed context it can navigate, deterministic
+tools, schedules, hand-offs, audit history, and a place for results. Start with the persona; the net
+remains inspectable when you want to understand or change the machinery.</p>
 
-<p>There is no API key to enter and no cloud service involved. By default nothing here calls an
-LLM on its own: the reasoning happens in the client you already pay for.</p>
+<p>Desktop Lite installs that runtime as one local app and connects it to Claude Code, Codex, or
+another MCP client. No server LLM or API key is required. Your connected client can be the brain,
+or a persona can use an installed Claude Code/Codex CLI for unattended work. If you later configure
+a server provider, ordinary <code>agent</code> and <code>llm</code> lanes run there instead.</p>
 
 <div class="note">
   <strong>New to Petri nets?</strong> You do not need them to start. Ask your client for what you
-  want in plain language and it will build the net. Section 3 explains the vocabulary when you
-  are curious about what it built.
+  want in plain language: “create a developer persona” is enough to begin. Section 3 explains the
+  vocabulary when you are curious about what was built.
 </div>
 
 <h2 id="start">2. Start here (about five minutes)</h2>
@@ -207,29 +211,35 @@ LLM provider, executor coverage. It answers with a verdict per layer plus a list
 it comes back clean you are ready. If not, it names the layer that is unhappy instead of making
 you guess.</p>
 
-<p>Now the first genuinely useful thing:</p>
+<p>Now create your first specialist. This prompt makes the execution choice visible instead of
+quietly assuming that a server model exists:</p>
 
 <div class="say">
   <span class="label">Say this</span>
-  <p>Deploy the working-memory template, then store this decision: we prefer TypeScript over
-     Python for internal scripts, because the team already reviews TypeScript.</p>
+  <p>Read your persona guide. Design and create a developer persona for this project with a clear
+     charter, task inbox, durable project context, journal, output, and reviewer hand-off. Check
+     LLM readiness first. If there is no server provider and your Claude Code or Codex CLI is
+     reachable by Desktop, propose that CLI backend so it can work while I am away; otherwise be
+     honest that it runs only while a client is connected. Tell me the backend before starting it.</p>
 </div>
 
-<p>Tomorrow, in a brand new session that knows nothing about today, say
-<em>"recall what we decided about scripting languages"</em>. That round trip is the whole product
-in miniature.</p>
+<p>Give it one real task. Its output remains after the chat closes. Tomorrow a new client can inspect
+the journal, recall the context, and add another task without recreating the agent. If software is
+not your domain, replace “developer” with “health coach”, “research analyst”, “study mentor”,
+“operations specialist”, or a role meaningful to you.</p>
 
-<h2 id="ideas">3. Five ideas, sixty seconds</h2>
+<h2 id="ideas">3. Six ideas, sixty seconds</h2>
 
 <div class="table-wrap">
 <table>
   <thead><tr><th style="width:120px">Idea</th><th>What it is</th></tr></thead>
   <tbody>
+    <tr><td><strong>Persona</strong></td><td>A named outcome owner with a charter, boundaries, context, inbox, and results. One persona or a team is the human-facing product.</td></tr>
     <tr><td><strong>Place</strong></td><td>A named container holding JSON documents. Think of a folder that is persistent, queryable and keeps its history.</td></tr>
     <tr><td><strong>Token</strong></td><td>One JSON document inside a place: a note, a task, an API response, a result.</td></tr>
     <tr><td><strong>Transition</strong></td><td>Something that acts. It reads tokens from places, does work, and writes tokens to other places.</td></tr>
-    <tr><td><strong>Net</strong></td><td>Places and transitions wired together. A workflow you can look at, inspect and change.</td></tr>
-    <tr><td><strong>Model</strong></td><td>A workspace that holds nets. A fresh install has one called <code>default</code>.</td></tr>
+    <tr><td><strong>Net</strong></td><td>Places and transitions wired together: a persona, team, context, tool, or automation you can inspect and change.</td></tr>
+    <tr><td><strong>Model</strong></td><td>A domain workspace holding nets. It is also the pause, budget, ownership, and cleanup boundary.</td></tr>
   </tbody>
 </table>
 </div>
@@ -238,10 +248,12 @@ in miniature.</p>
 
 <ul>
   <li><strong>Deterministic</strong> (<code>pass</code>, <code>map</code>, <code>http</code>,
-      <code>command</code>): run locally, no AI involved, no cost. These are the backbone.</li>
-  <li><strong>Thinking</strong> (<code>llm</code>, <code>agent</code>): need a language model. In
-      Desktop Lite your connected client supplies it.</li>
-  <li><strong>Link</strong>: pure structure. It connects places into a graph and never fires.</li>
+      <code>command</code>): follow a fixed operation and do not call a model unless the command
+      explicitly launches one. These are the backbone.</li>
+  <li><strong>Thinking</strong> (<code>llm</code>, <code>agent</code>): use a server provider, a
+      connected client, or a headless Claude Code/Codex session. <code>agent</code> is a bounded
+      multi-step persona; <code>llm</code> is one inference.</li>
+  <li><strong>Link</strong>: pure structure. It connects context with a typed relationship and never fires.</li>
 </ul>
 
 <p>The useful instinct to build early: put deterministic transitions everywhere you can, and spend
@@ -249,116 +261,118 @@ thinking only where judgment is genuinely required. That is what keeps this chea
 
 <h2 id="use-cases">4. What to build</h2>
 
-<h3><span class="num">4.1</span> A memory that survives the session</h3>
+<h3><span class="num">4.1</span> One specialist with a real charter</h3>
 
-<p>This is the one to start with. Every new client session begins from zero, so you re-explain the
-project, the conventions, the decisions and the pitfalls that bit you last month. Desktop Lite
-ends that.</p>
+<p><code>spawn_persona</code> creates the minimum complete agent: charter, task inbox, bounded
+<code>agent</code> transition, and output. Add a journal for observations, feedback for ratings, and
+config places for preferences that change. A charter should state outcomes, boundaries, allowed
+tools, when to ask a human, and what “done” looks like.</p>
 
-<p>Write with <code>memory_write</code> (into <em>inbox</em>, <em>notes</em>, <em>decisions</em> or
-<em>knowledge</em>), read with <code>memory_recall</code>. The <code>working-memory</code> template
-sets up those places along with a distiller that keeps raw capture tidy.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Persona</th><th>Useful charter</th><th>Important boundary</th></tr></thead>
+  <tbody>
+    <tr><td>Developer</td><td>Own a repository change; inspect, implement, verify, report risks</td><td>Small scoped changes; no version-control or deployment action unless asked</td></tr>
+    <tr><td>Health coach</td><td>Remember goals and constraints; reflect on check-ins; suggest small next actions</td><td>No diagnosis or replacement for a clinician; journal is context, not a medical record</td></tr>
+    <tr><td>Domain expert</td><td>Answer and curate knowledge for one technical or business domain</td><td>Separate verified facts from inference; retain source and provenance</td></tr>
+  </tbody>
+</table></div>
 
-<p>It is shared, not per-client: what Claude Code wrote this morning, Codex reads this afternoon.</p>
+<p>Presets provide developer, reviewer, researcher, operator, and assistant starting points. They are
+archetypes, not the product limit: describe any role in plain language. Use safe reasoning-only
+capability by default and grant execution only when the charter genuinely needs commands or tools.</p>
 
-<h3><span class="num">4.2</span> Context you can compose, not just recall</h3>
+<h3><span class="num">4.2</span> A complete specialist team</h3>
 
-<p>Plain recall is flat, and real work is not. A project has conventions, which relate to pitfalls,
-which came out of a particular incident, which is why a certain rule exists. Dumping all of that
-into one blob is how you burn a context window and still miss the relevant part.</p>
+<p>A team is not one super-agent with every permission. It is a visible playbook: a concierge or
+triage role clarifies work, a specialist acts, a reviewer returns approved/needs-work/blocked, and a
+human-review place pauses anything consequential. The roles exchange tokens through shared places,
+so every hand-off is durable and inspectable.</p>
 
-<p>Nets model the structure directly. Give each context its own place or its own small net. Connect
-the ones that genuinely relate with <code>memory_link</code>, or with <code>link</code> transitions
-when the connection should be part of the net itself. Then <code>memory_graph</code> lets your
-assistant walk the neighborhood instead of swallowing everything.</p>
-
-<p>The payoff is that context becomes navigable. Ask about billing and you get the billing glossary,
-plus the API conventions it links to, plus the two failure modes recorded against it. Not the
-other forty documents.</p>
+<p>This is the safe-team pattern: small roles, bounded authority, explicit review, and no hidden chat
+state. Search Agent Hub for an agent template such as a developer crew or health coach, inspect its
+manifest, install it stopped, fill its configuration/context, and then start it. Or compose two
+personas yourself: developer output becomes reviewer inbox; needs-work returns to the developer.</p>
 
 <div class="say">
   <span class="label">Say this</span>
-  <p>Create a context net for our billing domain, write these facts into it, and link it to the
-     API conventions place.</p>
-  <p>Later: what do you know about billing? Follow the links before you answer.</p>
+  <p>Design a small developer team: triage, developer, reviewer, and human approval. Keep routing
+     deterministic, give each role the least capability it needs, attach our project context, and
+     explain every hand-off before you build it.</p>
 </div>
 
-<p>A few habits that make this work well:</p>
+<h3><span class="num">4.3</span> Domain agents and context playbooks</h3>
+
+<p>Plain recall is flat; real domains have relationships. Put knowledge, decisions, constraints,
+examples, incidents, and insights into places or reusable context nets. Attach the same billing
+context to a domain expert, developer, and reviewer instead of copying one enormous prompt into all
+three.</p>
+
+<p><code>memory_link</code> and <code>link</code> transitions add typed relationships such as
+<em>contains</em>, <em>references</em>, <em>derives-from</em>, and <em>supersedes</em>. A link never
+fires or moves a token; it lets an agent walk only the relevant neighborhood with
+<code>memory_graph</code>. Use <code>domain_memory_write</code> when a fact belongs to the model's
+domain and should be shared by every attached persona.</p>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Create a billing domain expert plus a billing context net for glossary, rules, examples,
+     incidents, decisions, and insights. Attach it with typed links and show what other personas
+     could safely reuse.</p>
+</div>
+
+<h3><span class="num">4.4</span> Local hands, schedules, and headless CLI agents</h3>
+
+<p>Schedules make non-link transitions act while nobody is chatting. Deterministic
+<code>map</code>, <code>pass</code>, <code>http</code>, and <code>command</code> lanes are the cheap,
+reliable backbone: collect data, run a build, make a backup, probe a URL, or route a verdict. The
+<code>watcher</code> template is a zero-LLM sentinel that probes and alerts on a cron.</p>
+
+<p>When a persona needs judgment and there is no server provider, there are two unattended CLI
+patterns. Prefer an <code>agent</code> lane with <code>llmMode:"bash"</code> and
+<code>binary:"claude"</code> or <code>"codex"</code> for a bounded, tool-using persona. It keeps the
+agent loop, capabilities, context, and audit. Use a <code>command</code> lane for a one-shot job whose
+contract is simply stdin to stdout:</p>
+
+<pre><code>printf '%s' '&lt;task&gt;' | claude -p --allowedTools 'Read,Grep' --no-session-persistence
+printf '%s' '&lt;task&gt;' | codex exec --ephemeral --sandbox read-only -</code></pre>
+
+<p>Pipe prompts through stdin; never hide dynamic user text inside nested shell quotes. Keep tools,
+sandbox, working directory, and schedule least-privilege. The CLI must be installed and reachable by
+the Desktop master/executor process. A scheduled local runtime still requires the machine to be
+awake and AgenticNetOS running.</p>
+
+<p><span class="pill ok">READY</span> means the executor is polling this model.
+<span class="pill wait">STANDBY</span> means it is available and will activate after the first command
+assignment. Only <span class="pill">UNAVAILABLE</span> blocks command lanes.</p>
+
+<h3><span class="num">4.5</span> A net that learns without rewriting itself in secret</h3>
+
+<p>Agentic-Nets can become more capable over time while keeping changes reviewable. Work writes
+outcomes to a journal; feedback links success or failure to the task and context version; a
+context-curator proposes concise knowledge updates; a reviewer or human approves them. Typed
+<em>derives-from</em> and <em>supersedes</em> links preserve history and make rollback possible.</p>
+
+<p>When the same reasoning succeeds repeatedly, <code>crystallize_session</code> captures what was
+done and <code>scaffold_tool_net</code> turns it into a reusable deterministic tool. Novel work stays
+with personas; learned procedures become cheaper, faster, and safer transitions. Self-learning
+means evidence and reviewed promotion, never silently loosening the charter or safety boundary.</p>
+
+<h3><span class="num">4.6</span> The rest of the platform's power</h3>
+
 <ul>
-  <li>One net per context domain, so each stays independently editable and shareable.</li>
-  <li>Link only real relationships. A graph where everything connects to everything says nothing.</li>
-  <li>Use <code>domain_memory_write</code> when a fact belongs to the domain itself and every agent
-      touching it should see it, rather than to your current session.</li>
+  <li><strong>Event sourcing:</strong> tokens and fires retain provenance; Protocol and
+      <code>event_trail</code> explain what happened.</li>
+  <li><strong>Concurrency and backpressure:</strong> specialists work in parallel; capacities stop a
+      fast producer from overwhelming a reviewer.</li>
+  <li><strong>Time:</strong> six-field cron and intervals arm teams, watchers, and maintenance;
+      <code>scheduler_status</code> explains silent lanes.</li>
+  <li><strong>Control:</strong> stop one lane or <code>pause_model</code> as a whole-domain kill switch;
+      resume restores exactly what was paused.</li>
+  <li><strong>Sharing:</strong> publish and install nets, tools, contexts, agent sessions, or models
+      through NetHub/Agent Hub with credentials scrubbed.</li>
+  <li><strong>Visual editing:</strong> Studio shows the same places, transitions, links, schedules,
+      tokens, and protocol that MCP and CLI operate.</li>
 </ul>
-
-<h3><span class="num">4.3</span> Turn a session you keep repeating into a net</h3>
-
-<p>If you do the same thing every Monday, that is not really a session. It is a workflow that has
-not been written down yet. Collect the week's repository activity and summarize it. Check the
-dependency advisories. Rank yesterday's errors. Pull a report and file the numbers somewhere.</p>
-
-<p>Each of those becomes a net with a schedule. <code>set_schedule</code> accepts a six field cron
-expression and an explicit timezone such as <code>Europe/Berlin</code>, which matters more than it
-sounds: without it, twice a year your morning job quietly moves by an hour.</p>
-
-<div class="say">
-  <span class="label">Say this</span>
-  <p>Build a net that fetches that URL every weekday at 07:00 Europe/Berlin, pulls out the headline
-     items, and stores them in a place I can read later. Then tell me what you armed.</p>
-</div>
-
-<p>Deterministic schedules keep running with no client attached and at no cost. Monday morning you
-just ask what landed. If a step in the net needs judgment rather than a rule, that step is an AI
-lane and section 6 applies to it: worth knowing before you rely on a 07:00 summary being written at
-07:00.</p>
-
-<h3><span class="num">4.4</span> A persona that works while you do something else</h3>
-
-<p><code>spawn_persona</code> stands up a complete self-driving worker in one call: a charter, a task
-inbox, an agent transition watching that inbox, and an output place. Presets cover the common
-archetypes (developer, reviewer, researcher, operator, assistant). Spawn several and they work in
-parallel.</p>
-
-<p>The best uses are the ones where you want a different opinion rather than a second pair of hands.
-A reviewer that argues against your design before you commit to it. A researcher that keeps digging
-through a question while you get on with something else. Give two personas the same question and
-compare where they disagree; the disagreement is usually the interesting part.</p>
-
-<div class="note warn">
-  <strong>Worth knowing up front.</strong> A persona is an agent lane, so it thinks, so it needs a
-  model. With no LLM configured your connected client does that thinking, which means a persona
-  advances while you are there and its tasks queue safely when you are not. Giving it a cron does
-  not change that. Section 6 explains the rule and the two ways to change it.
-</div>
-
-<h3><span class="num">4.5</span> A watcher that costs nothing</h3>
-
-<p>The <code>watcher</code> template is a sentinel with no AI in it at all: probe a URL on a cron,
-call a webhook when the answer is not 200. It runs on schedule whether or not anything is
-connected, and it never bills anybody.</p>
-
-<p>It is also the clearest illustration of the point in section 3. Watching something does not
-require intelligence. Deciding what to do about it might.</p>
-
-<h3><span class="num">4.6</span> The hands: local commands on a schedule</h3>
-
-<p>Command transitions run shell commands on your own machine through the bundled executor. Backups,
-syncs, a build, log tidying, the script you always mean to run and never do.</p>
-
-<p>One thing that confuses newcomers: the executor reports a state per model. <span class="pill ok">READY</span>
-means it is polling because a command lane exists. <span class="pill wait">STANDBY</span> means it is
-available but no command lane has been assigned yet, which is completely normal on a fresh install.
-Only <span class="pill">UNAVAILABLE</span> is a real problem. Ask for <code>list_executors</code> if
-you want to see it.</p>
-
-<h3><span class="num">4.7</span> Make the repeated thing cheaper over time</h3>
-
-<p><code>crystallize_session</code> records what a session actually did, both into memory and as a
-replayable tool net. It supports the pattern this platform is built around: the first run needs full
-reasoning, and once the shape is known you replace the thinking with deterministic transitions.</p>
-
-<p>Done consistently, your cost curve bends downward as your automation grows, which is the opposite
-of what usually happens.</p>
 
 <h2 id="prompts">5. Say this to get started</h2>
 
@@ -370,11 +384,15 @@ recognise them in the answer.</p>
   <thead><tr><th style="width:34%">Goal</th><th>Say this</th></tr></thead>
   <tbody>
     <tr><td>Check the install</td><td>"Run readiness and summarize what works and what does not."</td></tr>
-    <tr><td>Start a second brain</td><td>"Deploy the working-memory template and store these facts about my project."</td></tr>
-    <tr><td>Get it back later</td><td>"Recall everything you know about &lt;topic&gt;."</td></tr>
+    <tr><td>Create a specialist</td><td>"Design a developer persona for this project. Give it a charter, context, journal, reviewer hand-off, and an honest execution backend."</td></tr>
+    <tr><td>Create a health coach</td><td>"Create a health-coach persona that remembers my goals and check-ins, suggests small next actions, and clearly states its safety boundaries."</td></tr>
+    <tr><td>Build a team</td><td>"Design a safe specialist team for &lt;goal&gt;. Name the roles and hand-offs before building."</td></tr>
+    <tr><td>Create a domain agent</td><td>"Create a &lt;domain&gt; expert with shared domain memory and a typed context playbook."</td></tr>
+    <tr><td>Choose the brain</td><td>"Check llm_health and available CLI/executor options. Propose the best backend and tell me whether it runs while disconnected."</td></tr>
+    <tr><td>Add durable memory</td><td>"Deploy working memory, store these decisions, and link them to the persona that uses them."</td></tr>
+    <tr><td>Teach through feedback</td><td>"Add a journal, feedback place, and context-curation review loop. Do not let the agent rewrite its own charter."</td></tr>
     <tr><td>Build a scheduled net</td><td>"Build a net that does X every day at 08:00 Europe/Berlin, and tell me what you armed."</td></tr>
     <tr><td>See what exists</td><td>"Give me a net overview and list my transitions with their schedules."</td></tr>
-    <tr><td>Hire a worker</td><td>"Spawn a reviewer persona and give it this design to argue against."</td></tr>
     <tr><td>Run what waited for me</td><td>"Are any AI lanes waiting for you? Run them and summarize."</td></tr>
     <tr><td>It has gone quiet</td><td>"Run scheduler_status and tell me which lanes are overdue or invalid."</td></tr>
     <tr><td>Check the spend</td><td>"Run usage_report. Which transition burns the most?"</td></tr>
@@ -385,36 +403,35 @@ recognise them in the answer.</p>
 </div>
 
 <div class="note">
-  <strong>The MCP server carries its own documentation.</strong> Seventeen curated guides ship
-  inside it, offline. Asking your client to <code>search_knowledge</code> before it designs
-  something usually produces a better net than asking it to improvise.
+  <strong>The MCP server carries its own documentation.</strong> Twenty curated guides ship inside
+  it, offline. Ask it to read <code>agenticnets://docs/personas</code> before designing a specialist
+  or team, and use <code>search_knowledge</code> for scheduling, context, commands, emit rules, cost,
+  troubleshooting, security, and recipes.
 </div>
 
 <h2 id="unattended">6. What runs while you are away</h2>
 
-<p>This is the single most important thing to understand about Desktop Lite, and the one that
-surprises people. It follows directly from there being no server-side LLM by default.</p>
+<p>Always ask two questions: <em>where does this persona think?</em> and <em>does that place still
+exist when my chat disconnects?</em> Desktop Lite has several correct answers.</p>
 
 <div class="note warn">
-  <strong>With no LLM configured, your MCP client is the only thing that can run
-  <code>llm</code> and <code>agent</code> transitions.</strong> Those lanes therefore cannot run on a
-  schedule while you are away. You can put a cron on one, and it will be accepted and displayed as
-  armed, but nobody dispatches it. It runs when a client connects and serves it.
-  Deterministic lanes are completely unaffected.
+  <strong>No server provider does not mean no unattended agents.</strong> Provider-backed
+  <code>llm</code>/<code>agent</code> lanes wait for a connected client, but a CLI-backed
+  <code>agent</code> (<code>llmMode:"bash"</code>) runs on master, and a command lane can run a
+  one-shot headless Claude Code/Codex job on the executor. Both require the chosen CLI to be
+  installed and reachable. Deterministic lanes are unaffected.
 </div>
-
-<p>Nothing about the lane changes because of this. It still deploys, still starts, still shows as
-running if you started it. There is simply no model on this machine for the server to run it with,
-so the server leaves it alone rather than failing it over and over. Your assistant picks it up
-instead.</p>
 
 <div class="table-wrap">
 <table>
   <thead><tr><th>Lane</th><th>Client connected</th><th>Client disconnected</th></tr></thead>
   <tbody>
     <tr><td>Scheduled <code>map</code>, <code>pass</code>, <code>http</code>, <code>command</code></td><td>Runs</td><td>Runs, on schedule</td></tr>
-    <tr><td><code>llm</code> / <code>agent</code>, default Lite profile</td><td>Runs, your client does the thinking</td><td><strong>Waits</strong>, schedule or not</td></tr>
-    <tr><td><code>llm</code> / <code>agent</code> with a provider configured</td><td>Runs</td><td>Runs, on schedule</td></tr>
+    <tr><td>Provider-backed <code>llm</code>/<code>agent</code>, provider disabled</td><td>Connected client can serve it</td><td><strong>Waits safely</strong></td></tr>
+    <tr><td><code>agent</code> with <code>llmMode:"bash"</code>, CLI reachable</td><td>Runs on master</td><td>Runs, including schedules</td></tr>
+    <tr><td><code>command</code> piping to a headless CLI</td><td>Runs on executor</td><td>Runs, including schedules</td></tr>
+    <tr><td><code>llm</code>/<code>agent</code> with a server provider configured</td><td>Runs on master</td><td>Runs, including schedules</td></tr>
+    <tr><td>Lane marked <code>external</code></td><td>Connected client serves it</td><td><strong>Waits safely</strong></td></tr>
   </tbody>
 </table>
 </div>
@@ -423,15 +440,14 @@ instead.</p>
 work is simply pending. That is the whole reason work is stored as tokens rather than held in a
 conversation: an interrupted pipeline is paused, not failed.</p>
 
-<p>You do not have to mark or configure anything for this. Build a net the normal way and the AI
-lanes in it simply wait for something that can think. If you press <strong>fire</strong> on one by
-hand, you get a plain refusal saying there is no model configured, and your input token stays
-exactly where it was.</p>
+<p><code>spawn_persona execution:"auto"</code> chooses the server when its provider is ready and an
+honest connected-client lane otherwise. It does not guess that master can see a CLI merely because
+your chat client can. A Claude Code or Codex client on the same machine should propose its matching
+explicit backend; select it only when the Desktop process can reach that binary.</p>
 
 <h3><span class="num">6.1</span> Your assistant should tell you about the backlog</h3>
 
-<p>You do not have to remember any of this. When a client connects, the MCP server tells it that
-this session is the runtime for those lanes and how many are waiting, so a well-behaved client
+<p>When a client connects, the MCP server tells it how many provider-backed lanes are waiting, so a well-behaved client
 reports something like <em>"3 AI lanes have work waiting for me, shall I run them?"</em> and works
 through them on your say-so. It sees every AI lane you have, not just ones you flagged, so a lane
 you forgot about still gets found.</p>
@@ -444,11 +460,16 @@ you forgot about still gets found.</p>
   <p>Or invoke the prompt your client exposes as <strong>work-external-fires</strong>.</p>
 </div>
 
-<h3><span class="num">6.2</span> If you want them to run unattended</h3>
+<h3><span class="num">6.2</span> Three ways to run reasoning unattended</h3>
 
-<p>Configure a model in <strong>LLM Settings</strong> (tray, or Studio's settings): a local Ollama,
-or an Anthropic key. Master then owns those lanes and their schedules run like any other, with
-nobody connected.</p>
+<ol class="steps">
+  <li><strong>CLI-backed persona:</strong> keep the complete agent loop with
+      <code>llmMode:"bash"</code> and Claude Code/Codex on the Desktop host.</li>
+  <li><strong>Headless command job:</strong> pipe a bounded prompt to the CLI on the executor; best
+      when stdin-to-stdout is the whole contract.</li>
+  <li><strong>Server provider:</strong> configure Ollama or Anthropic in <strong>LLM Settings</strong>;
+      ordinary agent/llm lanes and their schedules are then master-owned.</li>
+</ol>
 
 <div class="note">
   <strong>A middle option, if you are comfortable at a terminal.</strong> The
@@ -459,10 +480,10 @@ nobody connected.</p>
   app), so treat it as an extra rather than the normal path.
 </div>
 
-<p>That is the real trade. Leave it disabled and your assistant does the thinking, which costs you
-nothing extra and keeps everything local, but AI lanes only advance while you are there. Configure a
-provider and they run overnight, billed to that provider. Deterministic and command lanes need
-neither choice; they always run.</p>
+<p>Connected-client reasoning uses that client's account. Headless CLI lanes use the installed
+CLI's account. Server lanes use the configured provider. <code>usage_report</code> measures provider
+calls and estimates bash-mode agent usage; a command that launches its own model is outside that
+meter, so include that cost in the persona's journal if it matters.</p>
 
 <p>One hard requirement either way: the machine has to be awake with the app running. Desktop Lite
 is a local runtime, not a cloud service. Turn on <strong>Start at Login</strong> if you want it
@@ -477,7 +498,7 @@ always there.</p>
     <tr><td>Service list</td><td>Live state per service. All ticked means healthy.</td></tr>
     <tr><td>Open Studio</td><td>The visual editor, signed in automatically. Double clicking the tray icon does the same.</td></tr>
     <tr><td>Open Protocol</td><td>The activity log: what fired, when, and with what result.</td></tr>
-    <tr><td>LLM Settings</td><td>Optional server side provider. Leave it disabled unless you need unattended thinking.</td></tr>
+    <tr><td>LLM Settings</td><td>Optional server-side provider. CLI-backed personas and command lanes do not need it.</td></tr>
     <tr><td>Connect Claude Code / Codex</td><td>Copies a ready to paste command or config block, carrying this installation's own token.</td></tr>
     <tr><td>Copy MCP URL + Token</td><td>For any other Streamable HTTP MCP client. URL on line one, authorization value on line two.</td></tr>
     <tr><td>Manual</td><td>This page.</td></tr>
@@ -499,11 +520,15 @@ Protocol view. Protocol has its own model selector, independent of the editor, s
 one model or merge all of them without disturbing what you are editing. It supports search, level
 filtering and grouping by source, day, tag or model.</p>
 
+<p>For a persona or team, Studio makes the charter, inboxes, specialist hand-offs, typed context
+links, review gates, and backpressure visible. The same design applies to the full/server edition;
+that edition mainly changes where services, providers, and executors run.</p>
+
 <h2 id="cost">9. Cost and safety</h2>
 
 <ul>
-  <li><strong>No surprise bills from Desktop Lite.</strong> It ships with no server side LLM. Your
-      client's usage is billed by your client, the way it already was.</li>
+  <li><strong>No hidden server-model bill by default.</strong> It ships with no server-side LLM.
+      Connected clients and headless Claude Code/Codex lanes use those products' own accounts.</li>
   <li><strong>Local only.</strong> Every listener binds to <code>127.0.0.1</code>. There is
       deliberately no switch to expose it to the network; that belongs to the server deployment.</li>
   <li><strong>The MCP endpoint needs its token</strong>, generated per installation, which is why you
@@ -521,7 +546,7 @@ filtering and grouping by source, day, tag or model.</p>
   <thead><tr><th style="width:40%">Symptom</th><th>Ask your client for</th></tr></thead>
   <tbody>
     <tr><td>Nothing works at all</td><td><code>readiness</code>, which names the unhappy layer</td></tr>
-    <tr><td>An AI lane never ran overnight</td><td>Expected without a configured provider, not a fault: see section 6. <code>scheduler_status</code> marks these lanes <code>willNotFireUnattended</code></td></tr>
+    <tr><td>An AI lane never ran overnight</td><td>Check its backend. Provider-backed/external lanes wait for a client; CLI-backed agents can run without a provider. <code>scheduler_status</code> marks only stranded lanes <code>willNotFireUnattended</code></td></tr>
     <tr><td>Firing an AI lane by hand refused</td><td>Same cause, and deliberate: with no model configured the server says so instead of failing repeatedly. Your input token is untouched, so serving it later works</td></tr>
     <tr><td>A Windows update said files are in use, then failed writing a file</td><td>Old background processes survived the update. End <code>AgenticNetOS</code>, <code>node.exe</code> and <code>java.exe</code> in Task Manager (or just reboot), then run the installer again from the releases page. Your data in <code>C:\Users\&lt;you&gt;\.agenticos</code> is never touched by the installer, even by a failed one</td></tr>
     <tr><td>A scheduled net went silent</td><td><code>scheduler_status</code>: it reports stopped and invalid schedules, and keeps armed, fired and succeeded times apart</td></tr>

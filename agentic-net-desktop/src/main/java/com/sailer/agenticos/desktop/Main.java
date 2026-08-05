@@ -1,6 +1,7 @@
 package com.sailer.agenticos.desktop;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -240,7 +241,40 @@ public final class Main {
         env.put("SERVER_ADDRESS", bind);
         env.put("LOG_PATH", logs);
         env.put("OTEL_SDK_DISABLED", "true");
+        String path = enrichedPath(System.getenv("PATH"));
+        if (path != null) {
+            env.put("PATH", path);
+        }
         return env;
+    }
+
+    /**
+     * A tray/Finder-launched app inherits launchd's minimal PATH ({@code /usr/bin:/bin:...})
+     * — none of the places user CLIs live. Master's {@code llmMode:"bash"} personas and
+     * executor command lanes then fail with exit 127 for {@code claude}/{@code codex} that
+     * work fine in every terminal, which reads as a platform bug rather than an environment
+     * accident. Append the standard user bin dirs (existing ones only) so children see the
+     * CLIs the user actually installed. POSIX only — Windows GUI processes inherit the user
+     * PATH that CLI installers already extend.
+     */
+    static String enrichedPath(String current) {
+        if (File.separatorChar == '\\') {
+            return null; // keep the inherited Windows PATH untouched
+        }
+        String home = System.getProperty("user.home", "");
+        List<String> candidates = List.of(
+            home + "/.local/bin", "/opt/homebrew/bin", "/usr/local/bin");
+        StringBuilder path = new StringBuilder(current == null ? "" : current);
+        for (String dir : candidates) {
+            boolean present = (":" + path + ":").contains(":" + dir + ":");
+            if (!present && Files.isDirectory(Path.of(dir))) {
+                if (path.length() > 0) {
+                    path.append(':');
+                }
+                path.append(dir);
+            }
+        }
+        return path.length() == 0 ? null : path.toString();
     }
 
     private static Map<String, String> merge(Map<String, String> base, Map<String, String> extra) {

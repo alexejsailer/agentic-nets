@@ -127,6 +127,25 @@ const FOCUSED_CORE_KNOWLEDGE = `## Focused Runtime Contract
 
 const CORE_KNOWLEDGE = `## Core Knowledge
 
+### Persona-First Product Model
+- Start with **who owns the outcome**. For work involving judgment, memory, or evolving context,
+  propose a named specialist (developer, health coach, researcher, domain expert, reviewer,
+  operator) or a small team before presenting an anonymous workflow.
+- A persona is a net: charter/config + task inbox + bounded agent transition + output + optional
+  journal/feedback. Keep routing and bookkeeping deterministic; use agent/llm only for judgment.
+- Prefer ready-made teams: AGENT_HUB_SEARCH → DESCRIBE_AGENT_TEMPLATE → INSTALL_AGENT_TEMPLATE.
+  Configure while STOPPED, attach required contexts, then START_AGENT_SESSION. Health coach and dev
+  crew are examples, not special cases; adapt their role boundaries to the user's domain.
+- Brain choice must be explicit. Server provider available → agent/llm API mode. No server provider
+  → prefer an agent with \`llmMode:"bash"\`, \`binary:"claude"|"codex"\` for an unattended bounded
+  CLI-backed persona; use COMMAND for a one-shot stdin→stdout headless job; use local/external
+  execution when a connected client should be the brain. State whether it runs while disconnected.
+- Context nets are reusable playbooks. Attach knowledge/constraints/examples to several personas;
+  use kind:link transitions as typed relationships. Links NEVER fire. Journal outcomes, let a
+  curator propose context updates, review them, then crystallize repeated success into a tool-net.
+- Do not force a persona onto a single deterministic fetch/transform. Persona-first is a human
+  entry point; deterministic-first remains the execution discipline underneath.
+
 ### Two-Layer Architecture
 - **Layer 1: Visual PNML** (design-time): \`/root/workspace/sessions/{sessionId}/workspace-nets/{netId}/pnml/\`
 - **Layer 2: Runtime Execution**: \`/root/workspace/places/{placeId}/\` and \`/root/workspace/transitions/{transitionId}/inscription\`
@@ -503,7 +522,7 @@ Use \`\${credentials.KEY}\` in inscription action fields (NOT \`\${credentials.d
 ### COMMAND Transitions (Autonomous)
 CRITICAL rules:
 1. A MAP template that outputs a CommandToken does NOT auto-execute it. You MUST have a downstream COMMAND transition.
-2. Redirect stdin for CLI tools: \`claude -p 'prompt' --no-session-persistence < /dev/null\`
+2. Pipe prompts through stdin for CLI tools: \`printf '%s' '<task>' | claude -p --no-session-persistence\` or \`printf '%s' '<task>' | codex exec --ephemeral --sandbox read-only -\`. Never nest dynamic prompts inside shell quotes.
 3. COMMAND action fields are STATIC config — NO \`\${...}\`, NO \`command\`, NO \`cwd\`
 4. COMMAND transitions MUST be assigned to executor (\`assignedAgent: "agentic-net-executor-default"\`), not master
 When COMMAND fails: follow 4-check diagnostic — assignedAgent, action fields, placeIds, upstream CommandToken.
@@ -530,9 +549,22 @@ When your task involves net creation, improvement, or cleanup:
 - Build helper transitions for recurring tasks (HTTP, MAP, PASS, COMMAND)
 - Future runs: check memory first, FIRE_ONCE existing helper instead of rebuilding`;
 
-const PLAYBOOK_KNOWLEDGE = `## Workflow Playbooks
+const PLAYBOOK_KNOWLEDGE = `## Persona and Net Playbooks
 
 Follow these step-by-step when a task matches the trigger.
+
+### Playbook 0: Create a Persona or Team
+TRIGGER: "create an agent/persona", "developer", "coach", "domain expert", "build a team"
+1. Name the outcome owner(s), charter, boundaries, inbox/output, context, and review hand-off.
+2. AGENT_HUB_SEARCH for a close persona/team → DESCRIBE_AGENT_TEMPLATE before building from scratch.
+3. If installing: INSTALL_AGENT_TEMPLATE → fill required config/context → START_AGENT_SESSION.
+4. If composing: create charter/task/output/journal places and bounded agent transitions; connect
+   specialists through shared places; use deterministic verdict routing and typed link transitions
+   for context. Links never fire.
+5. Choose the backend explicitly: API provider, unattended bash-mode Claude/Codex agent, one-shot
+   CLI command, or connected local/external execution. Tell the user which and why.
+6. Seed one realistic task, verify the durable output + event trail, and explain pause/stop control.
+7. Add feedback/context-curation; crystallize only after a pattern succeeds repeatedly.
 
 ### Playbook 1: Create Complete Net
 TRIGGER: "create a net", "build a workflow"
