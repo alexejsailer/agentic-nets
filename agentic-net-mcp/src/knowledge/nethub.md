@@ -41,6 +41,15 @@ search/inspect it, install it — locally or across federated peers. The curated
   + crystallizer). Resident agents install STOPPED; a partial provisioning surfaces as an error
   listing per-artifact status — re-run with the same profile to complete (installs are idempotent).
 
+Two canonical domain-boundary examples ship in the local Agent Hub:
+
+- **`safe-product-team`** (`singleton` per model) is a software/product-delivery starter with six bounded
+  personas, typed product/repository and approval schemas, status + Protocol reporting, and no
+  command/repository/release authority by default. It is one template, not the product boundary.
+- **`model-steward`** (`singleton`) is domain-neutral and advisory-only. It reviews any model's
+  current sessions/nets/processes and event evidence, then writes only its own reports/findings/
+  journal and Protocol. It cannot modify or operate the nets it reviews.
+
 ## Self-contained packages — the part that makes installs actually run
 
 A published net used to carry only POINTERS to the tools its inscriptions used (a script's URN, a

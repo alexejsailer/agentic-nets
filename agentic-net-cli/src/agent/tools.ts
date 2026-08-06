@@ -675,7 +675,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   AGENT_HUB_SEARCH: {
-    description: "Search the hub catalogue for installable agent-session templates (kind=agent): ready-made persona teams (e.g. health coach, dev crew) built from net elements. Use DESCRIBE_AGENT_TEMPLATE before installing.",
+    description: "Search the hub catalogue for installable agent-session templates (kind=agent): the Safe Product Team starter, domain-neutral Model Steward reviewer, and other ready-made personas/teams built from net elements. Use DESCRIBE_AGENT_TEMPLATE before installing.",
     schema: {
       type: 'object',
       properties: {

@@ -14,6 +14,13 @@ inscription by hand, read `inscriptions`.
 - **personas** — START HERE for product design: named specialists, execution-backend choice,
   developer/health-coach/domain-expert examples, safe teams, context playbooks, and the
   journal→curator→review→crystallization learning loop.
+- **starter-patterns** — START HERE when choosing a reusable example: shipped small nets, the
+  command-vs-CLI-agent distinction, and the prioritized template catalog.
+- **safe-product-team** — one complete product-delivery example: PM/Architect/Developer/Reviewer/
+  Release Guardian/Chronicle, repository context, review gates, Protocol, and crystallization.
+- **model-steward** — a domain-neutral meta-agent for evidence-based review of current models,
+  sessions, nets, transitions, process flow, safety, observability, and crystallization candidates;
+  includes the advisory-only boundary and provider-free interactive fallback.
 - **concepts** — places/tokens/the seven transition kinds; deterministic-first; where things live.
 - **architecture** — the two layers (PNML drawing vs runtime machine); the "inscriptions bind
   RUNTIME places" rule; host format; lifecycle; why a fresh session looks empty.
@@ -40,7 +47,7 @@ inscription by hand, read `inscriptions`.
   ladder; the autonomy contract.
 - **cost** — the token meter: usage_report ranks per-transition burn; the analyze-rank-retune-watch
   loop; live intervalMs edits; the invisible script-spawned-model-call category.
-- **nethub** — export/import: publish kinds (net/session/model/toolnet/tool/catalog/blob),
+- **nethub** — export/import: publish kinds (net/session/model/agent/context/toolnet/tool/catalog/blob),
   self-contained packages (dependencies travel sha256-pinned, installed scope-aware), token
   policy + credential scrubbing, federation via remotes.
 - **tokens** — stringified properties (parse, sometimes twice); size discipline; client-side

@@ -36,7 +36,7 @@ const IDLE = {
 };
 
 /** Records every master call so a test can assert what was NOT called. */
-function connect(opts: { providerDisabled?: boolean } = {}) {
+function connect(opts: { providerDisabled?: boolean; events?: any[] } = {}) {
   const calls: Array<{ path: string; query?: Record<string, string> }> = [];
   const disabled = opts.providerDisabled !== false;
   const ctx = new AppContext(config());
@@ -58,6 +58,7 @@ function connect(opts: { providerDisabled?: boolean } = {}) {
     if (path === '/executors') return { executors: [] };
     if (path === '/models/m1/execution/status') return { transitions: [] };
     if (path.startsWith('/transitions/') && path.endsWith('/external')) return { external: true };
+    if (path === '/event-line/m1') return { events: opts.events ?? [] };
     throw new Error(`unexpected master path ${path}`);
   };
   (ctx.client as any).nodeApi = async (_m: string, path: string) => {
@@ -119,6 +120,46 @@ describe('servable AI-lane roster', () => {
 
     const roster = calls.find((c) => c.path === '/transitions/external/ready');
     expect(roster?.query?.includeAll).toBe('true');
+  });
+
+  it('readiness refuses to call an unusable provider READY on health alone', async () => {
+    // The staging shape this pins: /llm/health says READY (endpoint reachable, model listed)
+    // while every inference is rejected on billing — 380 consecutive failures over a week,
+    // all green on every diagnostic. Health is reachability; usability is the event line.
+    const aiFail = (seq: number, tid: string, kind: string) => ({
+      seq, category: 'transition', type: 'fire', status: 'error',
+      attributes: { transitionId: tid, kind },
+    });
+    const { client } = await connect({
+      providerDisabled: false,
+      events: [
+        aiFail(9, 't-a', 'llm'), aiFail(8, 't-a', 'llm'), aiFail(7, 't-b', 'agent'),
+        { seq: 6, category: 'agent-step', status: 'error',
+          details: { error: 'Ollama API error: this model uses extra usage only' } },
+      ],
+    });
+    const body = await call(client, 'readiness');
+
+    expect(body.llm.usable).toBe(false);
+    expect(body.llm.warning).toMatch(/ALL failed/);
+    expect(body.capabilities.llmLanes).toBe(false);
+    expect(body.ready).toBe(false);
+    expect((body.problems ?? []).join(' ')).toMatch(/extra usage only/);
+  });
+
+  it('readiness keeps a provider READY when recent AI fires actually succeed', async () => {
+    const { client } = await connect({
+      providerDisabled: false,
+      events: [
+        { seq: 3, category: 'transition', type: 'fire', status: 'error', attributes: { transitionId: 't-a', kind: 'llm' } },
+        { seq: 2, category: 'transition', type: 'fire', status: 'success', attributes: { transitionId: 't-a', kind: 'llm' } },
+        { seq: 1, category: 'transition', type: 'fire', status: 'error', attributes: { transitionId: 't-b', kind: 'agent' } },
+      ],
+    });
+    const body = await call(client, 'readiness');
+
+    expect(body.llm.usable).toBeUndefined();
+    expect(body.capabilities.llmLanes).toBe(true);
   });
 
   it('readiness skips the expensive roster sweep on a healthy master', async () => {

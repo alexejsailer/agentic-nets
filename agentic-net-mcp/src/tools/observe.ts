@@ -703,6 +703,50 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         llm = { status: 'UNKNOWN', error: String(err?.message ?? err).slice(0, 120) };
         problems.push('master /llm/health did not answer — llm/agent readiness unknown (is agentic-net-master up?)');
       }
+      // Health checks REACHABILITY and model PRESENCE, not usability: a cloud model outside the
+      // account's plan answers /api/tags fine and then rejects every inference on billing. That
+      // exact shape ran a staging model at 380 consecutive failures for a week while health said
+      // READY. So when health is green, cross-check the recent event line: AI fires that ALL fail
+      // with zero successes mean the provider is NOT usable, whatever health says.
+      let llmFireCheck: { aiFires: number; aiErrors: number; lastError?: string } | undefined;
+      if (isLlmHealthReady(llm?.status)) {
+        try {
+          const evRes: any = await ctx.client.masterApi(
+            'GET', `/event-line/${model}`, undefined, { limit: '150' });
+          let aiFires = 0;
+          let aiErrors = 0;
+          let lastError: string | undefined;
+          for (const e of evRes?.events ?? []) {
+            if (e.category === 'transition' && e.type === 'fire'
+                && ['llm', 'agent'].includes(String(e.attributes?.kind ?? ''))) {
+              aiFires++;
+              if (String(e.status ?? '').toLowerCase() === 'error') aiErrors++;
+            }
+            // Agent-step errors carry the raw provider message the fire summary truncates.
+            if (!lastError && e.category === 'agent-step'
+                && String(e.status ?? '').toLowerCase() === 'error') {
+              lastError = String(e.details?.error ?? e.summary ?? '').slice(0, 160);
+            }
+          }
+          llmFireCheck = { aiFires, aiErrors, ...(lastError ? { lastError } : {}) };
+          if (aiFires >= 3 && aiErrors >= aiFires) {
+            llm = {
+              ...llm,
+              usable: false,
+              warning:
+                `provider reports ${llm.status} but the last ${aiFires} llm/agent fires ALL failed — `
+                + 'a model can be present yet unusable (billing plan, quota, auth). Check '
+                + 'net_stats.recentErrors for the raw provider error before trusting AI lanes.',
+            };
+            problems.push(
+              `llm provider ${llm.provider ?? ''} answers health checks but every recent AI fire failed`
+              + (lastError ? ` (${lastError})` : '')
+              + ' — fix the provider/model before relying on llm/agent lanes');
+          }
+        } catch {
+          // The cross-check is best-effort; health verdict stands if the event line is unavailable.
+        }
+      }
 
       // Credential vault gates only lanes that actually consume credentials. Pure/status paths are
       // deliberately independent of it, but the degraded capability must still be visible.
@@ -855,7 +899,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
             ['UP', 'OK', 'READY', 'HEALTHY', 'DISABLED'].includes(
               String(vault?.status ?? '').toUpperCase(),
             ),
-          llmLanes: isLlmHealthReady(llm?.status),
+          llmLanes: isLlmHealthReady(llm?.status) && llm?.usable !== false,
           // Probed by master (llm_health.headlessCliBinaries), not assumed: a tray-launched
           // master may not reach a CLI that works in every terminal. Absent on old masters
           // (which cannot run bash-mode agents at all) → false, which is also the truth.

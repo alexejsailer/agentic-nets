@@ -1,0 +1,249 @@
+{
+  "id": "headless-cli-reviewer",
+  "name": "Headless CLI reviewer",
+  "description": "A domain-neutral, provider-free review lane that teaches the safe MAP -> COMMAND -> RESULT pattern. Put {prompt,_correlationId} in p-cli-review-inbox; a deterministic map builds a canonical CommandToken, and an executor invokes Claude Code or Codex in read-only mode. Requires an eligible executor and the selected CLI on that executor host. Override workingDir before real use.",
+  "version": "0.1.0",
+  "params": {
+    "binary": {
+      "description": "Headless CLI selected by a strict runtime case: claude or codex",
+      "default": "codex"
+    },
+    "workingDir": {
+      "description": "Absolute executor-visible directory reviewed by the CLI; override /tmp for real use",
+      "default": "/tmp"
+    }
+  },
+  "net": {
+    "netId": "headless-cli-reviewer",
+    "name": "Headless CLI Reviewer"
+  },
+  "places": [
+    {
+      "placeId": "p-cli-review-context",
+      "label": "review charter / context",
+      "x": 100,
+      "y": 40
+    },
+    {
+      "placeId": "p-cli-review-inbox",
+      "label": "review requests",
+      "x": 100,
+      "y": 160
+    },
+    {
+      "placeId": "p-cli-review-commands",
+      "label": "canonical command tokens",
+      "x": 450,
+      "y": 160
+    },
+    {
+      "placeId": "p-cli-review-results",
+      "label": "durable CLI results",
+      "x": 800,
+      "y": 160
+    }
+  ],
+  "transitions": [
+    {
+      "transitionId": "t-cli-review-build-command",
+      "label": "build safe headless CLI command",
+      "x": 275,
+      "y": 160,
+      "agentId": "agentic-net-master",
+      "start": true,
+      "inscription": {
+        "id": "t-cli-review-build-command",
+        "kind": "map",
+        "label": "build safe headless CLI command",
+        "presets": {
+          "task": {
+            "placeId": "p-cli-review-inbox",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": true,
+            "optional": false
+          },
+          "context": {
+            "placeId": "p-cli-review-context",
+            "arcql": "FROM $ ORDER BY $._meta.id DESC LIMIT 1",
+            "take": "FIRST",
+            "consume": false,
+            "optional": false
+          }
+        },
+        "postsets": {
+          "command": {
+            "placeId": "p-cli-review-commands",
+            "capacity": 10
+          }
+        },
+        "action": {
+          "type": "map",
+          "template": {
+            "kind": "command",
+            "id": "cli-review-${task.data._correlationId}",
+            "executor": "bash",
+            "command": "exec",
+            "args": {
+              "command": "case \"$AGENTIC_CLI\" in claude) command -v claude >/dev/null 2>&1 || { echo 'claude CLI is unavailable on this executor' >&2; exit 127; }; printf '%s\\n\\nReview charter and context:\\n%s\\n' \"$AGENTIC_TASK\" \"$AGENTIC_CONTEXT\" | claude -p --allowedTools 'Read,Grep,Glob' --no-session-persistence ;; codex) command -v codex >/dev/null 2>&1 || { echo 'codex CLI is unavailable on this executor' >&2; exit 127; }; printf '%s\\n\\nReview charter and context:\\n%s\\n' \"$AGENTIC_TASK\" \"$AGENTIC_CONTEXT\" | codex exec --ephemeral --sandbox read-only - ;; *) echo 'AGENTIC_CLI must be claude or codex' >&2; exit 64 ;; esac",
+              "workingDir": "${workingDir}",
+              "timeoutMs": 600000,
+              "captureStderr": true,
+              "env": {
+                "AGENTIC_CLI": "${binary}",
+                "AGENTIC_TASK": "${task.data.prompt}",
+                "AGENTIC_CONTEXT": "${context.data.text}",
+                "AGENTIC_CORRELATION_ID": "${task.data._correlationId}"
+              }
+            },
+            "expect": "text",
+            "meta": {
+              "correlationId": "${task.data._correlationId}",
+              "source": "headless-cli-reviewer"
+            }
+          }
+        },
+        "emit": [
+          {
+            "to": "command",
+            "from": "@response"
+          }
+        ],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-cli-review-run",
+      "label": "run read-only Claude or Codex",
+      "x": 625,
+      "y": 160,
+      "agentId": "agentic-net-executor-default",
+      "start": true,
+      "inscription": {
+        "id": "t-cli-review-run",
+        "kind": "command",
+        "label": "run read-only Claude or Codex",
+        "presets": {
+          "input": {
+            "placeId": "p-cli-review-commands",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": true,
+            "optional": false
+          }
+        },
+        "postsets": {
+          "result": {
+            "placeId": "p-cli-review-results",
+            "capacity": 50
+          }
+        },
+        "action": {
+          "type": "command",
+          "inputPlace": "input",
+          "groupBy": "executor",
+          "dispatch": [
+            {
+              "executor": "bash",
+              "channel": "default"
+            }
+          ],
+          "await": "ALL",
+          "timeoutMs": 660000
+        },
+        "emit": [
+          {
+            "to": "result",
+            "from": "@result"
+          }
+        ],
+        "mode": "SINGLE"
+      }
+    },
+    {
+      "transitionId": "t-link-cli-context-inbox",
+      "label": "review charter grounds requests",
+      "x": 100,
+      "y": 100,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-link-cli-context-inbox",
+        "kind": "link",
+        "label": "review charter grounds requests",
+        "presets": {
+          "from": {
+            "placeId": "p-cli-review-context",
+            "arcql": "FROM $ LIMIT 1",
+            "take": "FIRST",
+            "consume": false,
+            "optional": true
+          }
+        },
+        "postsets": {
+          "to": {
+            "placeId": "p-cli-review-inbox"
+          }
+        }
+      }
+    }
+  ],
+  "arcs": [
+    {
+      "arcId": "a-cli-build-task",
+      "sourceId": "p-cli-review-inbox",
+      "targetId": "t-cli-review-build-command"
+    },
+    {
+      "arcId": "a-cli-build-context",
+      "sourceId": "p-cli-review-context",
+      "targetId": "t-cli-review-build-command"
+    },
+    {
+      "arcId": "a-cli-build-out",
+      "sourceId": "t-cli-review-build-command",
+      "targetId": "p-cli-review-commands"
+    },
+    {
+      "arcId": "a-cli-run-in",
+      "sourceId": "p-cli-review-commands",
+      "targetId": "t-cli-review-run"
+    },
+    {
+      "arcId": "a-cli-run-out",
+      "sourceId": "t-cli-review-run",
+      "targetId": "p-cli-review-results"
+    },
+    {
+      "arcId": "a-cli-link-in",
+      "sourceId": "p-cli-review-context",
+      "targetId": "t-link-cli-context-inbox"
+    },
+    {
+      "arcId": "a-cli-link-out",
+      "sourceId": "t-link-cli-context-inbox",
+      "targetId": "p-cli-review-inbox"
+    }
+  ],
+  "seedTokens": [
+    {
+      "placeId": "p-cli-review-context",
+      "name": "read-only-review-charter",
+      "data": {
+        "config": "true",
+        "mode": "read-only",
+        "text": "Review only. Inspect the requested material, cite concrete evidence, distinguish observed facts from inference, and recommend changes. Do not edit files, run mutating commands, commit, push, deploy, publish, or claim that an external effect occurred. Return a concise review with strengths, findings, evidence, and next actions."
+      }
+    }
+  ],
+  "tags": [
+    "starter",
+    "provider-free",
+    "command",
+    "headless-cli",
+    "claude-code",
+    "codex",
+    "read-only",
+    "persona-pattern"
+  ]
+}

@@ -147,6 +147,7 @@ footer {
     <li><a href="#start">Start here</a></li>
     <li><a href="#ideas">Six ideas</a></li>
     <li><a href="#use-cases">What to build</a></li>
+    <li><a href="#observe">Observe &amp; improve</a></li>
     <li><a href="#prompts">Say this</a></li>
     <li><a href="#unattended">While you are away</a></li>
     <li><a href="#tray">The tray menu</a></li>
@@ -162,7 +163,7 @@ footer {
 
 <div class="eyebrow">Manual</div>
 <h1>AgenticNetOS Desktop Lite</h1>
-<p class="lede">Create a named specialist or a complete team, then give it memory, context, a clock, and safe hands.</p>
+<p class="lede">Create a named specialist or Safe Product Team, watch every hand-off, and improve it from evidence instead of hidden chat history.</p>
 
 <h2 id="what">1. What this is</h2>
 
@@ -175,6 +176,16 @@ results, and a visible way to stop it.</p>
 that outlives the session, work that waits safely, typed context it can navigate, deterministic
 tools, schedules, hand-offs, audit history, and a place for results. Start with the persona; the net
 remains inspectable when you want to understand or change the machinery.</p>
+
+<p>The Safe Product Team is one detailed product-delivery example, not a domain boundary. The same runtime
+models healthcare, research, operations, finance, support, logistics, and other domains as named
+personas, typed state, deterministic control, and historically analyzable processes.</p>
+
+<p>The difference is not merely that AgenticNetOS can run agents. Every token movement, transition
+fire, tool result, approval, and structural change leaves an event-sourced history. The
+<strong>Protocol</strong> turns the important milestones into a readable team narrative, while the
+event trail remains the complete evidence underneath it. You can reconstruct a story, find where it
+waited, compare persona outcomes, and promote repeated successful work into deterministic tools.</p>
 
 <p>Desktop Lite installs that runtime as one local app and connects it to Claude Code, Codex, or
 another MCP client. No server LLM or API key is required. Your connected client can be the brain,
@@ -211,22 +222,25 @@ LLM provider, executor coverage. It answers with a verdict per layer plus a list
 it comes back clean you are ready. If not, it names the layer that is unhappy instead of making
 you guess.</p>
 
-<p>Now create your first specialist. This prompt makes the execution choice visible instead of
-quietly assuming that a server model exists:</p>
+<p>Choose the smallest starter pattern that matches the goal. For a complete product-delivery
+example, the Safe Product Team MCP playbook deploys a
+deterministic backlog/review backbone, repository context, bounded specialists, an approval gate,
+and Protocol reporting. It makes the execution choice visible instead of quietly assuming that a
+server model exists:</p>
 
 <div class="say">
   <span class="label">Say this</span>
-  <p>Read your persona guide. Design and create a developer persona for this project with a clear
-     charter, task inbox, durable project context, journal, output, and reviewer hand-off. Check
-     LLM readiness first. If there is no server provider and your Claude Code or Codex CLI is
-     reachable by Desktop, propose that CLI backend so it can work while I am away; otherwise be
-     honest that it runs only while a client is connected. Tell me the backend before starting it.</p>
+  <p>Use the <strong>start-safe-product-team</strong> playbook for this repository and product goal.
+     Check readiness, show me the Product Manager, Architect, Developer, Reviewer, Release Guardian,
+     and Chronicle charters and hand-offs, and tell me which backend will run them before building.
+     Keep push and deploy approval-gated, report milestones to Protocol, and smoke-test one harmless
+     story before arming the team.</p>
 </div>
 
-<p>Give it one real task. Its output remains after the chat closes. Tomorrow a new client can inspect
-the journal, recall the context, and add another task without recreating the agent. If software is
-not your domain, replace “developer” with “health coach”, “research analyst”, “study mentor”,
-“operations specialist”, or a role meaningful to you.</p>
+<p>If you need only one colleague, ask for a developer, research analyst, study mentor, operations
+specialist, or another role meaningful to you. Either way, give it one real task. Its output and
+history remain after the chat closes; tomorrow a new client can read Protocol, inspect the evidence,
+recall context, and continue without recreating the agent.</p>
 
 <h2 id="ideas">3. Six ideas, sixty seconds</h2>
 
@@ -288,19 +302,60 @@ triage role clarifies work, a specialist acts, a reviewer returns approved/needs
 human-review place pauses anything consequential. The roles exchange tokens through shared places,
 so every hand-off is durable and inspectable.</p>
 
-<p>This is the safe-team pattern: small roles, bounded authority, explicit review, and no hidden chat
-state. Search Agent Hub for an agent template such as a developer crew or health coach, inspect its
-manifest, install it stopped, fill its configuration/context, and then start it. Or compose two
-personas yourself: developer output becomes reviewer inbox; needs-work returns to the developer.</p>
+<p>One complete worked example is the <strong>Safe Product Team</strong>: Product Manager as the only user
+inbox; Architect for design and risk; Developer for scoped changes; Reviewer/QA for independent
+evidence; Release Guardian for the commit/push/deploy boundary; and Chronicle for readable reports.
+A Domain Expert, Operations watcher, or Security reviewer is added only when the product needs it.
+Small roles, bounded authority, explicit review, and no hidden chat state are the safety mechanism.</p>
+
+<p>The built-in <code>dev-team</code> template is its zero-LLM deterministic backbone. Invoke the
+<strong>start-safe-product-team</strong> MCP prompt to add resident personas and an execution backend.
+On a full/server installation, Agent Hub's <code>safe-product-team</code> is the versioned six-persona
+package: it installs stopped, has typed product/repository and approval schemas, and grants no
+command/repository/release authority by default. Configure, verify, then arm its start plan. A forum
+or issue tracker is an optional adapter; the team's source of truth and reporting remain inside the
+model.</p>
+
+<p>Repository access belongs in a shared registry, not in a persona's imagination. Store one config
+token per repository with its URL or executor-visible working directory, default branch, allowed
+write scope, build/test commands, and explicit commit/push/deploy policy. Never put credentials in
+that token. A story names a <code>repositoryId</code>; it never asks an agent to guess a path.</p>
 
 <div class="say">
   <span class="label">Say this</span>
-  <p>Design a small developer team: triage, developer, reviewer, and human approval. Keep routing
-     deterministic, give each role the least capability it needs, attach our project context, and
-     explain every hand-off before you build it.</p>
+  <p>Start a Safe Product Team for &lt;product goal&gt; in &lt;repository&gt;. Keep routing deterministic,
+     give each role the least capability it needs, preserve one story ID through every hand-off,
+     require approval before external side effects, and make every milestone visible in Protocol.</p>
 </div>
 
-<h3><span class="num">4.3</span> Domain agents and context playbooks</h3>
+<h3 id="observe"><span class="num">4.3</span> Observe first, then improve</h3>
+
+<p>Agentic-Nets keeps three complementary views of the same work:</p>
+
+<ul>
+  <li><strong>Event trail:</strong> complete low-level history of token mutations, bindings, fires,
+      emissions, tool results, and lifecycle changes. Filter it by transition or story ID.</li>
+  <li><strong>Status board:</strong> structured current/aggregate facts such as story, persona, stage,
+      duration, verdict, and evidence. Use it to find rework and waiting time.</li>
+  <li><strong>Protocol:</strong> the human-readable operational narrative in <code>p-protocol</code>.
+      Personas record decisions, approvals, milestones, warnings, failures, and what happens next.
+      Open it directly from the tray or read it with <code>protocol_tail</code>.</li>
+</ul>
+
+<p>Protocol is not a replacement for audit history; it is the explanation over the evidence. Ask
+questions such as “where did STORY-42 wait?”, “which persona causes most rework?”, “what context
+version improved approvals?”, or “which repeated step is ready to crystallize?” Then use
+<code>event_trail</code>, <code>net_stats</code>, <code>usage_report</code>, and the stored feedback to
+answer rather than guessing.</p>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>Read Protocol and the event trail for this story. Reconstruct every hand-off, show wait time,
+     rework, tool/test evidence and final approval, then propose one safe persona/context/process
+     improvement. Do not change anything until you show the evidence.</p>
+</div>
+
+<h3><span class="num">4.4</span> Domain agents and context playbooks</h3>
 
 <p>Plain recall is flat; real domains have relationships. Put knowledge, decisions, constraints,
 examples, incidents, and insights into places or reusable context nets. Attach the same billing
@@ -320,7 +375,7 @@ domain and should be shared by every attached persona.</p>
      could safely reuse.</p>
 </div>
 
-<h3><span class="num">4.4</span> Local hands, schedules, and headless CLI agents</h3>
+<h3><span class="num">4.5</span> Local hands, schedules, and headless CLI agents</h3>
 
 <p>Schedules make non-link transitions act while nobody is chatting. Deterministic
 <code>map</code>, <code>pass</code>, <code>http</code>, and <code>command</code> lanes are the cheap,
@@ -345,7 +400,7 @@ awake and AgenticNetOS running.</p>
 <span class="pill wait">STANDBY</span> means it is available and will activate after the first command
 assignment. Only <span class="pill">UNAVAILABLE</span> blocks command lanes.</p>
 
-<h3><span class="num">4.5</span> A net that learns without rewriting itself in secret</h3>
+<h3><span class="num">4.6</span> A net that learns without rewriting itself in secret</h3>
 
 <p>Agentic-Nets can become more capable over time while keeping changes reviewable. Work writes
 outcomes to a journal; feedback links success or failure to the task and context version; a
@@ -357,11 +412,23 @@ done and <code>scaffold_tool_net</code> turns it into a reusable deterministic t
 with personas; learned procedures become cheaper, faster, and safer transitions. Self-learning
 means evidence and reviewed promotion, never silently loosening the charter or safety boundary.</p>
 
-<h3><span class="num">4.6</span> The rest of the platform's power</h3>
+<h3><span class="num">4.7</span> Templates and the rest of the platform</h3>
+
+<p>There are three reuse layers. MCP <strong>prompts/playbooks</strong> guide a connected model through
+environment-aware setup. Built-in <strong>starter templates</strong> deploy common deterministic
+topologies. NetHub/Agent Hub <strong>packages</strong> are versioned portable artifacts: publish or
+install a net, whole session/model, persona team (<code>agent</code>), context system, tool-net, tool,
+catalog, or blob. Agent/context packages land stopped so configuration and safety policy can be
+checked before execution.</p>
+
+<p>Agent Hub also ships <strong>Model Steward</strong>, a domain-neutral advisory meta-agent. It reviews
+the current model's sessions, nets, token flow, transition health, executors, and event evidence;
+reports bottlenecks, safety risks, strengths, and crystallization candidates; and can write only its
+own findings. It cannot change or operate the nets it reviews.</p>
 
 <ul>
   <li><strong>Event sourcing:</strong> tokens and fires retain provenance; Protocol and
-      <code>event_trail</code> explain what happened.</li>
+      <code>event_trail</code> explain the readable narrative and underlying evidence.</li>
   <li><strong>Concurrency and backpressure:</strong> specialists work in parallel; capacities stop a
       fast producer from overwhelming a reviewer.</li>
   <li><strong>Time:</strong> six-field cron and intervals arm teams, watchers, and maintenance;
@@ -384,6 +451,7 @@ recognise them in the answer.</p>
   <thead><tr><th style="width:34%">Goal</th><th>Say this</th></tr></thead>
   <tbody>
     <tr><td>Check the install</td><td>"Run readiness and summarize what works and what does not."</td></tr>
+    <tr><td>Run the product-team example</td><td>"Use start-safe-product-team for this repository and product goal; show roles, backend, repository policy, approval gate, and Protocol reporting before arming it."</td></tr>
     <tr><td>Create a specialist</td><td>"Design a developer persona for this project. Give it a charter, context, journal, reviewer hand-off, and an honest execution backend."</td></tr>
     <tr><td>Create a health coach</td><td>"Create a health-coach persona that remembers my goals and check-ins, suggests small next actions, and clearly states its safety boundaries."</td></tr>
     <tr><td>Build a team</td><td>"Design a safe specialist team for &lt;goal&gt;. Name the roles and hand-offs before building."</td></tr>
@@ -393,6 +461,9 @@ recognise them in the answer.</p>
     <tr><td>Teach through feedback</td><td>"Add a journal, feedback place, and context-curation review loop. Do not let the agent rewrite its own charter."</td></tr>
     <tr><td>Build a scheduled net</td><td>"Build a net that does X every day at 08:00 Europe/Berlin, and tell me what you armed."</td></tr>
     <tr><td>See what exists</td><td>"Give me a net overview and list my transitions with their schedules."</td></tr>
+    <tr><td>Read the team report</td><td>"Read protocol_tail, then use event_trail to verify the latest claimed milestone."</td></tr>
+    <tr><td>Review the current model</td><td>"Use review-current-model to find bottlenecks, safety or evidence gaps, strengths, and crystallization candidates. Cite evidence and apply nothing."</td></tr>
+    <tr><td>Publish a team</td><td>"Inspect this team and its repository context, then propose the correct NetHub agent/context/toolnet packages and config-only token policy before publishing."</td></tr>
     <tr><td>Run what waited for me</td><td>"Are any AI lanes waiting for you? Run them and summarize."</td></tr>
     <tr><td>It has gone quiet</td><td>"Run scheduler_status and tell me which lanes are overdue or invalid."</td></tr>
     <tr><td>Check the spend</td><td>"Run usage_report. Which transition burns the most?"</td></tr>
@@ -403,8 +474,9 @@ recognise them in the answer.</p>
 </div>
 
 <div class="note">
-  <strong>The MCP server carries its own documentation.</strong> Twenty curated guides ship inside
-  it, offline. Ask it to read <code>agenticnets://docs/personas</code> before designing a specialist
+  <strong>The MCP server carries its own documentation.</strong> Twenty-three curated guides ship inside
+  it, offline. Ask it to read <code>agenticnets://docs/starter-patterns</code> and
+  <code>agenticnets://docs/personas</code> before designing a specialist
   or team, and use <code>search_knowledge</code> for scheduling, context, commands, emit rules, cost,
   troubleshooting, security, and recipes.
 </div>
@@ -421,6 +493,11 @@ exist when my chat disconnects?</em> Desktop Lite has several correct answers.</
   one-shot headless Claude Code/Codex job on the executor. Both require the chosen CLI to be
   installed and reachable. Deterministic lanes are unaffected.
 </div>
+
+<p>The built-in <code>headless-cli-reviewer</code> is the reference for the one-shot command path:
+a map creates a canonical CommandToken, the executor invokes read-only Claude Code or Codex, and
+the complete result remains in a durable place. Use a CLI-backed <code>agent</code> instead when the
+work needs a resident persona, tool loop, memory, and capabilities.</p>
 
 <div class="table-wrap">
 <table>
@@ -519,6 +596,12 @@ your first net drawn as a graph is usually the moment the model clicks, so it is
 Protocol view. Protocol has its own model selector, independent of the editor, so you can inspect
 one model or merge all of them without disturbing what you are editing. It supports search, level
 filtering and grouping by source, day, tag or model.</p>
+
+<p>A good team writes only meaningful milestones to Protocol—story accepted, design chosen, change
+ready, review rejected or approved, release authorized, deploy verified—while the event store keeps
+every mechanical detail. Click from the readable report into tokens and transition history when a
+claim needs proof. This combination is the central Agentic-Nets advantage: operational visibility
+without forcing a newcomer to read raw logs.</p>
 
 <p>For a persona or team, Studio makes the charter, inboxes, specialist hand-offs, typed context
 links, review gates, and backpressure visible. The same design applies to the full/server edition;

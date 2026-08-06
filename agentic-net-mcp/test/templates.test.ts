@@ -3,8 +3,15 @@ import { TEMPLATES } from '../src/templates/index.js';
 import { validateBlueprint, BlueprintError } from '../src/templates/types.js';
 
 describe('blueprint registry', () => {
-  it('ships exactly the five templates', () => {
-    expect(Object.keys(TEMPLATES).sort()).toEqual(['blank', 'brain', 'dev-team', 'watcher', 'working-memory']);
+  it('ships exactly the six templates', () => {
+    expect(Object.keys(TEMPLATES).sort()).toEqual([
+      'blank',
+      'brain',
+      'dev-team',
+      'headless-cli-reviewer',
+      'watcher',
+      'working-memory',
+    ]);
   });
 
   for (const [id, bp] of Object.entries(TEMPLATES)) {
@@ -36,6 +43,33 @@ describe('blueprint registry', () => {
     for (const t of TEMPLATES['dev-team'].transitions) {
       expect(['map', 'link']).toContain(t.inscription.kind);
     }
+  });
+
+  it('dev-team carries the Safe Product Team context and reporting backbone', () => {
+    const places = TEMPLATES['dev-team'].places.map((p) => p.placeId);
+    expect(places).toEqual(expect.arrayContaining([
+      'p-team-repositories',
+      'p-team-product-context',
+      'p-team-decisions',
+      'p-team-lessons',
+      'p-team-status',
+      'p-protocol',
+    ]));
+  });
+
+  it('headless-cli-reviewer uses a bounded MAP -> COMMAND pattern for both CLIs', () => {
+    const reviewer = TEMPLATES['headless-cli-reviewer'];
+    const kinds = reviewer.transitions.map((t) => t.inscription.kind);
+    expect(kinds).toEqual(['map', 'command', 'link']);
+
+    const build = reviewer.transitions[0].inscription;
+    const token = build.action.template;
+    expect(token.command).toBe('exec');
+    expect(token.args.env.AGENTIC_TASK).toBe('${task.data.prompt}');
+    expect(token.args.command).toMatch(/claude -p/);
+    expect(token.args.command).toMatch(/codex exec --ephemeral --sandbox read-only/);
+    expect(token.args.command).not.toMatch(/\$\{task\.data\.prompt\}/);
+    expect(reviewer.seedTokens?.[0].data.mode).toBe('read-only');
   });
 });
 

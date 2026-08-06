@@ -11,7 +11,7 @@ import { TEMPLATES } from '../src/templates/index.js';
  * human process; this test is the machine check that nothing forbidden ever ships in ANY
  * string the MCP serves: knowledge docs, initialize-time instructions, and template blueprints.
  *
- * Also enforces the sizing discipline (per-doc 8KB, pack 64KB, instructions 15KB) so the
+ * Also enforces the sizing discipline (per-doc 8KB, pack 96KB, bounded instructions) so the
  * teaching layer stays cheap to read and can't silently bloat.
  */
 
@@ -88,8 +88,12 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // (the stdin-pipe rule, the /bin/sh bridge) were learnable only the hard way.
   // 78K → 88K for the persona-first guide: persona/team/context/self-learning design must be
   // available to every MCP client offline instead of living only in the newcomer tray manual.
+  // 88K → 96K for the Safe Product Team playbook: repository contracts, the event/status/Protocol
+  // observability stack, and NetHub packaging must travel with every client that can deploy it.
+  // 96K → 104K for the domain-neutral Model Steward: its evidence contract and advisory-only
+  // boundary must be available to provider-backed and provider-free clients alike.
   // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 90112;
+  const PACK_CAP = 106496;
   const INSTRUCTIONS_CAP = 17408;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {

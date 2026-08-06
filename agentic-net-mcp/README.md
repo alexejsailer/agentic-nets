@@ -91,8 +91,8 @@ Important capabilities the extra tools unlock:
   only the tools and resources master granted to it.
 
 Plus **resources** (`agenticnets://models`, `agenticnets://templates`, `agenticnets://tool-nets`,
-`agenticnets://docs/{personas,concepts,arcql,recipes,security}`) and **prompts**
-(`design-persona-team`, `spawn-worker`, `setup-working-memory`, `work-dev-team-backlog`,
+`agenticnets://docs/{starter-patterns,personas,safe-product-team,model-steward,concepts,arcql,recipes,security}`) and **prompts**
+(`start-safe-product-team`, `review-current-model`, `design-persona-team`, `spawn-worker`, `setup-working-memory`, `work-dev-team-backlog`,
 `capture-session`, `debug-net`, `monitor-personas`).
 The server also ships rich `instructions` at initialize, so your client knows how to use
 Agentic-Nets well without reading any docs.
@@ -102,9 +102,10 @@ Agentic-Nets well without reading any docs.
 | Template | What you get |
 |---|---|
 | `working-memory` | Memory places + link graph + an **always-on LLM distiller** (raw inbox capture → durable note) — the second-brain setup. |
-| `dev-team` | **Token-free development pipeline** (backlog → ready → in-progress → review → done, WIP limits, daily digest) where *your connected agent is the worker* — the net provides persistence, state, and audit; zero server-side LLM cost. |
+| `dev-team` | **Token-free Safe Product Team backbone** (backlog → ready → in-progress → review → done, WIP limits, daily digest) where *your connected agent is the worker*. Invoke `start-safe-product-team` to add bounded resident personas, repository context, approval policy, and Protocol reporting. |
 | `brain` | Divergent ideation: topic inbox → LLM panel → critic pass → vetted shortlist (this one runs server-side LLM calls). |
 | `watcher` | **Zero-LLM overnight sentinel**: cron-probes a URL, logs every result, POSTs `{"text": "..."}` to a webhook when the probe is not 200. Params: `url`, `webhook`, `cron`, `label`. "It tells you when it breaks." |
+| `headless-cli-reviewer` | **Provider-free read-only reviewer**: MAP builds a canonical CommandToken, then an executor invokes Claude Code or Codex and preserves the full result. Params: `binary`, absolute `workingDir`. |
 | `blank` | An empty canvas for `add_place` / `add_transition`. |
 
 Deploys are idempotent: re-running skips existing elements and never duplicates seed tokens.

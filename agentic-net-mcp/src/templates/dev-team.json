@@ -1,8 +1,8 @@
 {
   "id": "dev-team",
-  "name": "Dev team (token-free)",
-  "description": "The safe-team pattern without server-side LLM cost: a persistent development pipeline (backlog -> task-ready -> in-progress -> review -> done) where YOU, the connected coding agent, are the worker. The net provides durable state, WIP limits, an audit trail and a scheduled digest; you pull tasks, do the work with your own reasoning, and advance them. Workflow: query_tokens p-team-task-ready -> fire_once t-team-claim -> do the work -> memory-write your result token to p-team-review (or use query_tokens + fire_once t-team-submit) -> fire_once t-team-complete after review.",
-  "version": "0.1.0",
+  "name": "Safe Product Team backbone (token-free)",
+  "description": "The deterministic backbone of the Safe Product Team: backlog -> task-ready -> in-progress -> review -> done with WIP limits, repository/product context, decisions, lessons, structured status, Protocol reporting, and a scheduled digest. It runs without a server LLM; the connected coding agent can work it directly, or the start-safe-product-team MCP playbook can add bounded resident personas and approval gates.",
+  "version": "0.2.0",
   "params": {
     "digestCron": { "description": "When the digest heartbeat ticks", "default": "0 0 9 * * *" }
   },
@@ -14,7 +14,13 @@
     { "placeId": "p-team-review", "label": "review", "x": 1000, "y": 100 },
     { "placeId": "p-team-done", "label": "done", "x": 1300, "y": 100 },
     { "placeId": "p-team-log", "label": "team log / digests", "x": 700, "y": 260 },
-    { "placeId": "p-worker-charter", "label": "worker charter", "x": 100, "y": 260 }
+    { "placeId": "p-team-status", "label": "structured team status", "x": 1000, "y": 260 },
+    { "placeId": "p-worker-charter", "label": "worker charter", "x": 100, "y": 260 },
+    { "placeId": "p-team-repositories", "label": "repository registry", "x": 100, "y": 400 },
+    { "placeId": "p-team-product-context", "label": "product context", "x": 400, "y": 400 },
+    { "placeId": "p-team-decisions", "label": "decisions", "x": 700, "y": 400 },
+    { "placeId": "p-team-lessons", "label": "reviewed lessons", "x": 1000, "y": 400 },
+    { "placeId": "p-protocol", "label": "Protocol (readable milestones)", "x": 1300, "y": 400 }
   ],
   "transitions": [
     {
@@ -175,6 +181,57 @@
         },
         "postsets": { "to": { "placeId": "p-team-backlog" } }
       }
+    },
+    {
+      "transitionId": "t-link-repositories-context",
+      "label": "repositories ground product context",
+      "x": 250,
+      "y": 400,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-link-repositories-context",
+        "kind": "link",
+        "label": "repositories ground product context",
+        "presets": {
+          "from": { "placeId": "p-team-repositories", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+        },
+        "postsets": { "to": { "placeId": "p-team-product-context" } }
+      }
+    },
+    {
+      "transitionId": "t-link-context-decisions",
+      "label": "product context informs decisions",
+      "x": 550,
+      "y": 400,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-link-context-decisions",
+        "kind": "link",
+        "label": "product context informs decisions",
+        "presets": {
+          "from": { "placeId": "p-team-product-context", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+        },
+        "postsets": { "to": { "placeId": "p-team-decisions" } }
+      }
+    },
+    {
+      "transitionId": "t-link-decisions-lessons",
+      "label": "reviewed decisions become lessons",
+      "x": 850,
+      "y": 400,
+      "agentId": "agentic-net-master",
+      "start": false,
+      "inscription": {
+        "id": "t-link-decisions-lessons",
+        "kind": "link",
+        "label": "reviewed decisions become lessons",
+        "presets": {
+          "from": { "placeId": "p-team-decisions", "arcql": "FROM $ LIMIT 1", "take": "FIRST", "consume": false, "optional": true }
+        },
+        "postsets": { "to": { "placeId": "p-team-lessons" } }
+      }
     }
   ],
   "arcs": [
@@ -189,7 +246,13 @@
     { "arcId": "a-digest-in", "sourceId": "p-team-done", "targetId": "t-team-digest" },
     { "arcId": "a-digest-out", "sourceId": "t-team-digest", "targetId": "p-team-log" },
     { "arcId": "a-lcb-in", "sourceId": "p-worker-charter", "targetId": "t-link-charter-backlog" },
-    { "arcId": "a-lcb-out", "sourceId": "t-link-charter-backlog", "targetId": "p-team-backlog" }
+    { "arcId": "a-lcb-out", "sourceId": "t-link-charter-backlog", "targetId": "p-team-backlog" },
+    { "arcId": "a-lrc-in", "sourceId": "p-team-repositories", "targetId": "t-link-repositories-context" },
+    { "arcId": "a-lrc-out", "sourceId": "t-link-repositories-context", "targetId": "p-team-product-context" },
+    { "arcId": "a-lcd-in", "sourceId": "p-team-product-context", "targetId": "t-link-context-decisions" },
+    { "arcId": "a-lcd-out", "sourceId": "t-link-context-decisions", "targetId": "p-team-decisions" },
+    { "arcId": "a-ldl-in", "sourceId": "p-team-decisions", "targetId": "t-link-decisions-lessons" },
+    { "arcId": "a-ldl-out", "sourceId": "t-link-decisions-lessons", "targetId": "p-team-lessons" }
   ],
   "seedTokens": [
     {
@@ -212,5 +275,5 @@
       }
     }
   ],
-  "tags": ["starter", "development", "token-free"]
+  "tags": ["starter", "development", "safe-team", "persona-ready", "observability", "token-free"]
 }

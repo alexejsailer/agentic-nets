@@ -55,6 +55,12 @@ describe('searchKnowledge (pure)', () => {
     for (const r of results) expect(r.topic).toBe('security');
   });
 
+  it('teaches the provider-free CLI command starter', () => {
+    const { results } = searchKnowledge('headless-cli-reviewer CommandToken', { topic: 'starter-patterns' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].topic).toBe('starter-patterns');
+  });
+
   it('zero hits return a hint naming the topics', () => {
     const { results, hint } = searchKnowledge('xylophone zeppelin quux');
     expect(results).toEqual([]);

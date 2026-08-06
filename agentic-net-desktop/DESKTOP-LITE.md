@@ -3,7 +3,10 @@
 Desktop Lite is the quickest way to create persona agents and specialist teams
 on one computer: install one package, connect an MCP client, name the outcome
 owner, and let Agentic-Nets provide its memory, context, tools, schedules,
-hand-offs, and audit trail. It needs no Docker daemon, Java installation, Node
+hand-offs, Protocol reporting, and event-sourced audit trail. One complete
+worked example is the Safe Product Team: a Product Manager front door,
+bounded specialists, explicit review/release approval, repository context, and
+a Chronicle that reports from evidence. It needs no Docker daemon, Java installation, Node
 installation, server-side LLM, or API key.
 
 It is a local creator/operator environment, not the recommended production
@@ -25,9 +28,13 @@ infrastructure, or production lifecycle controls.
    command)** in the tray.
 4. Add the copied configuration to the MCP client and start a new client
    session.
-5. Ask the connected model to create a developer, coach, domain expert, or team.
-   It should read `agenticnets://docs/personas`, check `readiness`, propose an
-   execution backend, and state whether the persona runs while disconnected.
+5. Ask the client to read `agenticnets://docs/starter-patterns` and propose the
+   smallest matching example. For the complete product-delivery example, invoke
+   the MCP prompt `start-safe-product-team` with the product goal and repository. It reads
+   `agenticnets://docs/safe-product-team`, checks `readiness`, proposes an
+   execution backend, stages the team stopped, verifies it, and states which
+   personas run while disconnected. For another domain, use
+   `design-persona-team`; for one specialist, use `spawn-worker`.
 
 The connected MCP client supplies interactive intelligence. The bundled master
 is the durable control plane: it binds and consumes tokens, applies inscriptions,
@@ -41,7 +48,7 @@ Codex / Claude / another MCP client
                   |
          loopback MCP + bearer token
                   |
-   tray supervisor ── Studio
+   tray supervisor ── Studio + Protocol
         |
         ├─ node       durable event-sourced state
         ├─ master     nets, schedules, fires, audit (LLM disabled)
@@ -62,6 +69,8 @@ Codex / Claude / another MCP client
 - Use command lanes for one-shot headless CLI jobs; pipe the prompt through stdin
   (`claude -p` or `codex exec -`) rather than nesting dynamic shell quotes.
 - Create schedules, pause/resume models, and inspect scheduler or fire status.
+- Read the complete historical event trail and keep a readable operational
+  journal in `p-protocol`; Desktop renders it through **Open Protocol**.
 - Use transition-scoped credentials through the encrypted local vault.
 - Let the connected MCP model perform `llm` or `agent` transitions with
   `prepare_external_fire` and `complete_external_fire`. With no provider, master
@@ -214,6 +223,125 @@ does not change Studio's selected model. Check it with MCP `readiness`,
 Studio's Protocol view is independently model-scoped too: its dropdown can show one model or merge
 all models without changing the model selected in the editor. It supports free-text search, level
 filtering, grouping by source/day/tag/model, JSON body formatting, tag chips, and raw-token detail.
+
+## Worked example: Safe Product Team
+
+The Safe Product Team is one detailed persona-first product-delivery example, based on the
+working pattern used by the larger server deployment but self-contained inside
+the Agentic-Nets model. Its default roles are:
+
+| Persona | Owns | Default boundary |
+|---|---|---|
+| Product Manager | Single user inbox, story and acceptance criteria | Does not edit repositories |
+| Architect | Smallest viable design, affected components and risks | Does not implement its own design |
+| Developer | Scoped repository changes and test evidence | Writes only declared paths; no release authority |
+| Reviewer / QA | Independent verdict and actionable rework | Reviews evidence; does not silently approve its own changes |
+| Release Guardian | Commit/push/deploy/publish boundary | Requires the configured approval policy/token |
+| Chronicle | Readable status and Protocol reports | Observes and summarizes; does not change product state |
+
+Add the Domain Expert, Operations watcher, or Security reviewer only when the
+product needs those roles. More personas create more hand-offs and cost; clear
+separation of duties is the goal, not the largest possible team.
+
+The built-in `dev-team` template supplies the token-free deterministic backbone:
+backlog, ready, in-progress, review, done, WIP limits, repository/product context,
+decisions, reviewed lessons, structured team status, and `p-protocol`. The
+`start-safe-product-team` MCP playbook adds the resident personas and backend,
+wires their hand-offs, records repository policy, smoke-tests the team, and arms
+only ready lanes. A forum, issue tracker, Slack, or email adapter can be added
+later, but it is not the team's system of record.
+
+For a smaller provider-free concept example, deploy `headless-cli-reviewer` with
+an absolute executor-visible working directory and `binary=claude|codex`. It
+shows the safe MAP → CommandToken → COMMAND → result path in read-only mode.
+Use the starter-pattern catalog to choose other shapes instead of inheriting
+product-team roles for an unrelated domain.
+
+### Repository context and side effects
+
+One token in `p-team-repositories` should exist per repository and contain only
+portable configuration: `repositoryId`, `repoUrl` or executor-visible
+`workingDir`, `defaultBranch`, allowed write scope, build/test commands,
+`pushPolicy`, and `deployPolicy`. Stories reference `repositoryId`; personas do
+not guess paths or commands. Credentials remain in Vault and never travel in
+repository/context tokens or NetHub packages.
+
+The safe default is local analysis/edit/test with commit, push, deployment, and
+publishing approval-gated. The Release Guardian consumes the explicit approval
+token before permitting those external effects. Package repository/domain
+knowledge as a `kind=context` artifact when several teams should reuse it.
+
+## Observability is the product loop
+
+Agentic-Nets gives the team three views of the same execution:
+
+1. **Event trail** — immutable low-level history of token changes, bindings,
+   fires, emissions, tool results, and lifecycle changes. `event_trail` is the
+   evidence for reconstructing exactly what happened.
+2. **Status board** — structured story/persona/stage/outcome/duration facts used
+   for current state, metrics, stuck-work detection, and comparisons.
+3. **Protocol** — a curated human-readable narrative in `p-protocol`, rendered
+   by Studio and readable with `protocol_tail`. Personas write milestones,
+   decisions, approvals, warnings, failures, and what happens next.
+
+Protocol does not replace the event history; it explains it. A claim such as
+“QA approved STORY-42” should have a Protocol entry for the reader, a status
+token for analysis, and transition/token events as proof. This makes questions
+such as these answerable after the fact:
+
+- Where did a story wait, and for how long?
+- Which persona or context version creates the most rework?
+- Did the release follow its approval policy?
+- Which commands/tests support the reported outcome?
+- Which repeated successful reasoning step is ready to crystallize?
+
+Use `protocol_tail` for the narrative, then verify with `event_trail`,
+`query_tokens`, `net_stats`, `scheduler_status`, and `usage_report`. Persona or
+context optimizations should be proposed from that evidence, recorded as a new
+version, smoke-tested, and compared with the previous version—not silently
+rewritten in place.
+
+## Playbooks, templates, NetHub, and runtime agents
+
+These mechanisms are complementary:
+
+- **MCP prompts/playbooks** (`start-safe-product-team`,
+  `design-persona-team`) tell the connected model how to perform an
+  environment-aware deployment through tools. MCP is the setup/control surface;
+  master-owned nets continue after the MCP session closes.
+- **Starter templates** (`deploy_template`) materialize common topologies. They
+  are convenient local blueprints, not a versioned marketplace contract.
+- **NetHub / Agent Hub packages** are the portable artifacts. Use `kind=agent`
+  for a complete persona-team session and manifest, `kind=context` for repository
+  or domain context and links, `kind=toolnet` for deterministic capabilities,
+  and `kind=model` only when the whole isolated domain should travel. Agent and
+  context packages install stopped and return a configure-then-start checklist.
+  Two built-ins make the boundary concrete: `safe-product-team` is a worked
+  reasoning-only, approval-schema product-delivery example; `model-steward` is a
+  domain-neutral advisory agent that reviews any model's nets and event evidence
+  while writing only its own findings and Protocol summaries. Both install stopped.
+- **Built-in runtime agents** can be called from MCP with `invoke_agent`:
+  Builder authors nets, Operator diagnoses them, Chronicle summarizes history,
+  Persona helps shape residents, and Domain Expert answers grounded questions.
+  `start_domain_expert` gives the model a durable self-maintaining domain net.
+  These master-hosted agents need a healthy server provider; on provider-free
+  Desktop Lite, let the connected MCP model use the underlying curated tools or
+  create explicit CLI-backed resident personas instead.
+
+Publish team structure/config with `hub_publish` and `tokens:"config"`; do not
+publish a live backlog by default. Credentials are always scrubbed. Inspect with
+`hub_show`, install stopped with `hub_install`, fill the repository/context and
+credentials, verify, then arm. When a successful sequence repeats, use
+`crystallize_session` or `scaffold_tool_net` to propose deterministic replay and
+record the promotion in Protocol.
+
+The Safe Product Team is a teaching path, not the scope of the product. The same
+runtime models healthcare, research, operations, finance, support, logistics, or
+any other domain as named personas plus typed state and deterministic control.
+Use the MCP prompt `review-current-model` when you want the Model Steward pattern:
+with a server provider it can run from Agent Hub; without one, the connected MCP
+model performs the same evidence review interactively and does not pretend the
+stopped resident agent ran.
 
 ## Optional server-side LLM
 

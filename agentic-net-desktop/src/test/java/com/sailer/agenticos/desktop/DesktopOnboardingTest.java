@@ -61,7 +61,16 @@ class DesktopOnboardingTest {
             assertTrue(html.contains("id=\"start\""));
             assertTrue(html.contains("id=\"use-cases\""));
             assertTrue(html.contains("readiness"));
-            assertTrue(html.contains("Design and create a developer persona"));
+            assertTrue(html.contains("start-safe-product-team"));
+            assertTrue(html.contains("safe-product-team"));
+            assertTrue(html.contains("starter-patterns"));
+            assertTrue(html.contains("headless-cli-reviewer"));
+            assertTrue(html.contains("Model Steward"));
+            assertTrue(html.contains("review-current-model"));
+            assertTrue(html.contains("domain boundary"));
+            assertTrue(html.contains("Release Guardian"));
+            assertTrue(html.contains("Event trail"));
+            assertTrue(html.contains("Protocol"));
             assertTrue(html.contains("Create a health coach"));
             assertTrue(html.contains("llmMode:\"bash\""));
             assertTrue(html.contains("context-curator"));

@@ -20,21 +20,22 @@ this session, is queryable, and can be PROCESSED AUTONOMOUSLY by scheduled trans
 are gone. ${models}
 
 ## Read these two FIRST — they change what you build, not just how you call it
-- **\`agenticnets://docs/index\`** — 20 operational docs (personas · emit · scheduling · llm · real-agents ·
-  cost · troubleshooting · recipes · …). Grep via search_knowledge. A client that read
-  docs/emit and docs/recipes only in its second session CHANGED ITS ARCHITECTURE afterwards
-  (deterministic chaining over agent orchestration). Read the index before designing a pipeline,
-  not after it misbehaves.
+- **\`agenticnets://docs/index\`** — 23 operational docs (full list below). Grep via
+  search_knowledge. A client that read docs/emit and docs/recipes only in its second session
+  CHANGED ITS ARCHITECTURE afterwards (deterministic chaining over agent orchestration). Read the
+  index before designing a pipeline, not after it misbehaves.
 - **\`agenticnets://limits\`** — every hard cap, default and enum, none of them in the tool schemas.
   The 8192-char HTTP body clip decides whether a fetch-and-parse pipeline can work at all; a client
   that met it by accident shipped a confident verdict built on a truncated page.
 
 ## Default design stance — give important work a persona
 For a newcomer, translate a goal into a NAMED SPECIALIST before exposing raw workflow machinery:
-a developer, health coach, researcher, domain expert, reviewer, operator, or a small team. Propose a
+a developer, researcher, domain expert, reviewer, operator, or a small team. Propose a
 charter + inbox + context/memory + output, then choose how the persona reasons. Read
 \`agenticnets://docs/personas\` before designing agents or teams. Use a naked workflow only when
 identity, judgment, or evolving context adds no value; keep routing/bookkeeping deterministic.
+Use \`docs/starter-patterns\`; Safe Product Team is only a product-delivery example.
+Use \`review-current-model\` / \`docs/model-steward\` for advisory review of any domain model; it never mutates.
 
 Call llm_health before creating the reasoning lane. Healthy (READY/ONLINE) → ordinary agent/llm transitions.
 DISABLED → prefer a CLI-backed persona agent (llmMode:"bash", binary:"claude"|"codex") for a
@@ -65,17 +66,19 @@ Code/Codex persona lane, or you can configure a server provider."
 - Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
   decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
   related context with memory_graph; connect places with memory_link. protocol_write journals
-  milestones to p-protocol — Studio's Protocol view shows it (docs/recipes).
+  milestones to p-protocol — Studio's Protocol view shows it. The immutable event trail is the
+  complete low-level history; Protocol is its readable narrative (docs/safe-product-team).
 - Persist into the MODEL's OWN memory base (shared with the domain-expert persona and the
   Genesis/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
   model's domain net (p-{model}-domain-{knowledge|journal|insights}). Use this when the memory
   belongs to the model/domain itself and should be visible to every agent that reaches it, rather
   than to this MCP session's working-memory (p-mem-*).
 - Give the user a ready-made system: deploy_template (working-memory | dev-team | brain | watcher
-  | blank). dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
+  | headless-cli-reviewer | blank). dev-team makes YOU the worker of a persistent pipeline: query_tokens p-team-task-ready,
   fire_once t-team-claim, do the work, fire_once t-team-submit / t-team-complete. watcher is the
   zero-LLM overnight sentinel: cron-probes a URL and POSTs a webhook alert when it is not 200
-  (url, webhook, cron, label) — for "tell me when it breaks".
+  (url, webhook, cron, label) — for "tell me when it breaks". headless-cli-reviewer teaches
+  provider-free MAP → COMMAND with Claude/Codex.
 - Build automation: add_place + add_transition (kinds: map=deterministic transform, llm=one AI
   call, http=API call, command=shell via executor, agent=autonomous multi-step persona,
   link=pure structure edge). Scheduled DETERMINISTIC lanes keep running server-side after you
@@ -217,9 +220,10 @@ first and report what was stopped.
 
 ## The knowledge base — search it, don't guess
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
-returns agenticnets://docs/{topic} URIs: index · personas · concepts · architecture · inscriptions · arcql ·
-interpolation · emit · commands · tool-catalog · llm · external-fire · real-agents · scheduling ·
-cost · tokens · troubleshooting · recipes · nethub · security.
+returns agenticnets://docs/{topic} URIs: index · personas · safe-product-team · model-steward ·
+starter-patterns · concepts · architecture · inscriptions · arcql · interpolation · emit ·
+commands · tool-catalog · llm · external-fire · real-agents · scheduling · cost · tokens ·
+troubleshooting · recipes · nethub · security.
 Before hand-writing an inscription read docs/inscriptions; when something is broken read
 docs/troubleshooting; when unsure, search first — the traps in these docs were all found the hard way.`;
 }

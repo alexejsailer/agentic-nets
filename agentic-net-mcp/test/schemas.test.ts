@@ -237,6 +237,7 @@ describe('advertised tool surface', () => {
     const uris = resources.map((r) => r.uri);
     expect(uris).toContain('agenticnets://models');
     expect(uris).toContain('agenticnets://templates');
+    expect(uris).toContain('agenticnets://docs/starter-patterns');
     const doc = await client.readResource({ uri: 'agenticnets://docs/arcql' });
     expect((doc.contents[0] as any).text).toMatch(/DOUBLE equals/);
   });
@@ -250,12 +251,46 @@ describe('advertised tool surface', () => {
         'design-persona-team',
         'debug-net',
         'monitor-personas',
+        'review-current-model',
         'setup-working-memory',
         'spawn-worker',
+        'start-safe-product-team',
         'work-dev-team-backlog',
         'work-external-fires',
       ].sort(),
     );
+  });
+
+  it('Safe Product Team playbook preserves observability and side-effect boundaries', async () => {
+    const client = await connectedClient(makeConfig());
+    const prompt = await client.getPrompt({
+      name: 'start-safe-product-team',
+      arguments: { product: 'A release notes service', repository: '/work/release-notes' },
+    });
+    const text = prompt.messages.map((message: any) => message.content.text ?? '').join('\n');
+    expect(text).toMatch(/p-protocol/);
+    expect(text).toMatch(/NetHub agent package/);
+    expect(text).toMatch(/reasoning-only/);
+    expect(text).toMatch(/machine-readable status token/);
+    expect(text).toMatch(/event trail remains the complete low-level history/);
+    expect(text).toMatch(/Developer.*forbids commit.*push.*deploy/);
+    expect(text).toMatch(/explicit approval token before commit\/push\/deploy/);
+    expect(text).toMatch(/set_external for connected-client lanes/);
+    expect(text).toMatch(/start_transition only for server- or CLI-backed resident lanes/);
+  });
+
+  it('Model Steward prompt is domain-neutral, evidence-based, and advisory-only', async () => {
+    const client = await connectedClient(makeConfig());
+    const prompt = await client.getPrompt({
+      name: 'review-current-model',
+      arguments: { scope: 'net', target: 'claims-processing', question: 'Where does work wait?' },
+    });
+    const text = prompt.messages.map((message: any) => message.content.text ?? '').join('\n');
+    expect(text).toMatch(/docs\/model-steward/);
+    expect(text).toMatch(/hub_search.*model-steward/);
+    expect(text).toMatch(/observed facts from inference/);
+    expect(text).toMatch(/apply nothing/);
+    expect(text).toMatch(/protocol_write/);
   });
 
   it('scope guard rejects an out-of-allowlist model through the live protocol (multi-model)', async () => {

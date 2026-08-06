@@ -20,6 +20,25 @@ describe('resolveCapabilityPolicy', () => {
       { placePath: 'root/workspace/places/p-operational' })).toMatch(/outside resourceScopes/);
   });
 
+  it('model-steward can observe evidence but only write its own reports', () => {
+    const policy = resolveCapabilityPolicy({
+      capabilityProfile: 'model-steward',
+      resourceScopes: { writePlaces: ['p-ms-reports', 'p-ms-findings', 'p-ms-journal', 'p-protocol'] },
+    }, parseRole('rw--l-----'));
+
+    expect(policy.cappedTools.size).toBe(0);
+    for (const tool of ['OBSERVE_MODEL', 'GET_NET_OVERVIEW', 'QUERY_EVENTS', 'GET_EVENT_TRAIL', 'CREATE_TOKEN']) {
+      expect(policy.tools.has(tool as any)).toBe(true);
+    }
+    for (const tool of ['DELETE_TOKEN', 'SET_INSCRIPTION', 'START_TRANSITION', 'RUN_COMMAND', 'HTTP_CALL', 'INVOKE_TOOL_NET', 'INVOKE_PERSONA']) {
+      expect(policy.tools.has(tool as any)).toBe(false);
+    }
+    expect(policy.authorize('CREATE_TOKEN', { placeId: 'p-ms-findings' })).toBeUndefined();
+    expect(policy.authorize('CREATE_TOKEN', { placeId: 'p-protocol' })).toBeUndefined();
+    expect(policy.authorize('CREATE_TOKEN', { placeId: 'p-operational' }))
+      .toMatch(/outside resourceScopes/);
+  });
+
   it('explicit allowedTools can only narrow the role', () => {
     const policy = resolveCapabilityPolicy(
       { allowedTools: ['QUERY_TOKENS', 'CREATE_TOKEN'] }, parseRole('r'));

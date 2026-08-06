@@ -7,29 +7,72 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**Build AI systems you can see, stop, replay, and move.**
+**Design, run, observe, and continuously improve governed autonomous processes
+in any domain.**
 
-Agentic-Nets is a governed runtime for stateful, permission-scoped AI agents.
-It puts agents, LLM calls, deterministic steps, tools, memory, approvals, and
-remote execution into formal Petri nets. Places hold typed JSON state;
-transitions do the work; every change leaves an event-sourced trail.
+> Agentic-Nets is a domain-general backend for designing, operating, observing,
+> and continuously improving governed autonomous processes.
+
+Any process that can be represented as typed state, transitions, context,
+evidence, and authority boundaries can be modeled, automated, historically
+analyzed, and progressively optimized with Agentic-Nets. Personas are the most
+approachable starting point: create a developer, health coach, analyst, domain
+expert, reviewer, or complete team, then give it durable context, bounded tools,
+explicit handoffs, and a history you can learn from.
+
+Agentic-Nets puts personas, LLM calls, deterministic steps, tools, memory,
+approvals, schedules, and remote execution into formal Petri nets. Places hold
+typed JSON state; transitions do the work; every change leaves an event-sourced
+trail. Observability is part of the runtime model, not an add-on: you can inspect
+what happened, why it happened, which evidence was used, how long it took, and
+where a persona or process should improve.
 
 Use the visual Studio, an MCP client, the CLI, or the Claude Code plugin to
-build one guarded agent, install a complete persona team, or coordinate a
-network of long-running systems. The same runtime mixes server-hosted models,
-local models, and client-supplied reasoning without hiding control flow in a
-chat transcript.
+build one guarded persona, explore small starter patterns, run the Safe Product
+Team example, install a complete team package, or coordinate a network of
+long-running systems. The same runtime mixes server-hosted models, local models,
+connected MCP models, and unattended Claude Code or Codex sessions without
+hiding control flow or history in a chat transcript. Studio's Protocol gives
+the readable team narrative; the event trail preserves the complete evidence
+underneath it.
 
 ## At a glance
 
 | Question | Answer |
 |---|---|
-| What is it? | A Petri-net runtime for agents, tools, memory, remote execution, and audit trails. |
-| Why does it exist? | To make agent systems inspectable, permission-scoped, replayable, and reusable instead of hidden inside chat state. |
+| What is it? | A domain-general backend and Petri-net runtime for governed personas, workflows, tools, memory, remote execution, and evidence. |
+| Why does it exist? | To make autonomous processes inspectable, permission-scoped, historically analyzable, continuously improvable, and reusable instead of hidden inside chat state. |
 | Can I use my own model? | Yes. Run server-side with Claude, OpenAI, or Ollama; host lanes from the CLI/MCP process; or let the connected MCP model execute selected AI transitions through external fires. |
 | What is public in this repo? | Licensed public source for the gateway, executor, vault, CLI, chat bot, MCP server, blobstore, tool containers, deployment, and monitoring. |
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
-| Current release | `v2.36.0`. Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+| Current release | [`v2.42.0`](https://github.com/alexejsailer/agentic-nets/releases/tag/v2.42.0). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+
+## The product in one loop
+
+```text
+Design -> Run -> Observe -> Review -> Propose change -> Approve -> Version
+       -> Verify -> Compare -> Crystallize
+```
+
+| Stage | What Agentic-Nets provides |
+|---|---|
+| Design | Named personas and teams, typed places, seven transition types, durable context, policies, links, tools, and authority boundaries. |
+| Run | Deterministic workflows plus AI judgment from a server LLM, a connected MCP model, an unattended Claude Code/Codex session, or ordinary commands and APIs. |
+| Observe | An immutable event trail, token state, transition timing, tool evidence, structured status, and a readable Protocol narrative. |
+| Review | Model-wide inspection through the domain-neutral Model Steward, with bottlenecks, failures, rework, cost, wait time, and risk made visible. |
+| Improve | Approval-gated, versioned changes to personas, prompts, context, nets, tools, and policies, followed by evidence-based comparison. |
+| Reuse | NetHub packages for personas, teams, nets, context systems, tools, catalogs, models, and complete operating patterns. |
+
+This makes Agentic-Nets useful well beyond software delivery. The reusable
+substrate is the same for research, operations, support, education, finance,
+health coaching, logistics, or another domain: explicit state, controlled
+transitions, evidence, permissions, and a feedback loop.
+
+**Domain-general does not mean domain-omniscient.** A useful autonomous process
+still needs domain context, success criteria, trustworthy data and integrations,
+bounded tools and authority, human or policy approvals, and validation matched
+to its risk. Agentic-Nets provides the governed runtime and historical evidence;
+it does not silently self-rewrite or remove responsibility from the operator.
 
 ## The current platform in five points
 
@@ -38,10 +81,10 @@ chat transcript.
    Master leaves it alone; an MCP client leases the exact prepared prompt,
    supplies the answer with its own model, and hands it back to the normal
    emit-and-consume pipeline.
-2. **Installable agent teams.** Agent Hub currently ships five starting
-   templates: Dev Crew, Research Analyst, Health Coach, Context Curator, and
-   Crystallizer. Model profiles can compose the right resident agents and
-   context systems automatically.
+2. **Installable agent teams.** Agent Hub currently ships seven starting
+   templates: Safe Product Team, Model Steward, Dev Crew, Research Analyst,
+   Health Coach, Context Curator, and Crystallizer. Model profiles can compose
+   the right resident agents and context systems automatically.
 3. **NetHub packages whole systems.** Publish and install nine artifact kinds:
    nets, sessions, models, agent teams, context systems, tool nets, individual
    tools, catalogs, and blobs. Dependencies are bundled and credentials are
@@ -53,6 +96,15 @@ chat transcript.
 5. **One MCP server exposes the platform.** `@agenticnets/mcp` provides a focused
    curated workflow surface plus an optional native catalog used by in-net agents.
    Desktop Lite defaults to curated; server installs retain both for compatibility.
+
+One complete worked example is the **Safe Product Team**: Product
+Manager, Architect, Developer, Reviewer, Release Guardian, and Chronicle over a
+deterministic backlog/review backbone. Repository policy is explicit, release
+effects are approval-gated, every stage writes structured status, and meaningful
+milestones appear in Protocol. Invoke the MCP prompt `start-safe-product-team`.
+It is an example, not a domain boundary: the domain-neutral
+**Model Steward** reviews any model's nets, running processes, event evidence,
+risks, bottlenecks, and optimization opportunities without modifying them.
 
 <img src="https://alexejsailer.com/wp-content/uploads/2026/07/two-weeks-byom-featured.png" alt="Agentic-Nets net mixing an external MCP analyst with a master-run LLM editor" width="100%" />
 
@@ -75,7 +127,7 @@ layer:
 
 | Goal | Link |
 |---|---|
-| Fastest local creator/operator setup (no Docker) | [Desktop Lite](#desktop-lite-macos--linux--no-docker-or-server-llm) |
+| Fastest local creator/operator setup (no Docker) | [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm) |
 | Run the production-like Docker stack | [Install in 5 minutes](#install-in-5-minutes) |
 | Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
 | Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
@@ -123,10 +175,11 @@ open http://localhost:4200
 ## Desktop Lite (macOS + Windows + Linux) — no Docker or server LLM
 
 This is the fastest local persona/team creator: install one package, connect
-Codex, Claude Code, or another MCP client, and ask for a developer, health coach,
-domain expert, reviewer, or complete specialist team. Agentic-Nets gives those
+Codex, Claude Code, or another MCP client, and choose a small starter pattern,
+invoke `start-safe-product-team` for the product-delivery example, or ask for
+one developer, domain expert, reviewer, or another specialist. Agentic-Nets gives those
 personas durable context, task/result places, deterministic tools, schedules,
-review hand-offs, and an audit trail. The bundled server LLM is disabled by
+review hand-offs, readable Protocol reporting, and an event-sourced audit trail. The bundled server LLM is disabled by
 default; interactive reasoning comes from the connected client. A persona can
 also run unattended through an installed Claude Code/Codex CLI. No Docker
 daemon, Java or Node installation, API key, or Ollama process is required.
@@ -135,8 +188,28 @@ Desktop Lite is loopback-only and is not the recommended production
 deployment. Use the Docker/server deployment for remote access, clustering,
 monitoring, or production lifecycle controls.
 
-**Download** from [Releases](https://github.com/alexejsailer/agentic-nets/releases)
-and verify against `SHA256SUMS.txt`:
+**Download the latest release** from
+[GitHub Releases](https://github.com/alexejsailer/agentic-nets/releases/latest).
+The current Desktop Lite packages are:
+
+| Platform | Package |
+|---|---|
+| macOS, Apple Silicon | [AgenticNetOS 2.42.0 DMG](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-macos-arm64.dmg) |
+| Windows, x64 | [AgenticNetOS 2.42.0 MSI](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-windows-x64.msi) |
+| Debian/Ubuntu, amd64 | [AgenticNetOS 2.42.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-amd64.deb) |
+| Debian/Ubuntu, arm64 | [AgenticNetOS 2.42.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-arm64.deb) |
+| Fedora/RHEL, amd64 | [AgenticNetOS 2.42.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-amd64.rpm) |
+| Fedora/RHEL, arm64 | [AgenticNetOS 2.42.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-arm64.rpm) |
+
+Verify the package against
+[`SHA256SUMS.txt`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/SHA256SUMS.txt)
+and its
+[`SHA256SUMS.txt.sig`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/SHA256SUMS.txt.sig).
+The version-specific links above reflect `v2.42.0`; use
+[Releases](https://github.com/alexejsailer/agentic-nets/releases) for newer or
+older versions.
+
+Installation notes:
 
 - **macOS**: `AgenticNetOS-<version>-macos-<arch>.dmg` — open, accept the
   license, drag to Applications. Current builds are unsigned, so macOS refuses
@@ -162,7 +235,10 @@ come from matching checksum-verified release assets, with Docker Hub images
 only as a fallback.
 
 **Then**: use "Connect Codex (copy config)" or "Connect Claude Code (copy
-command)" in the tray and ask the client to read `agenticnets://docs/personas`.
+command)" in the tray and ask the client to read
+`agenticnets://docs/starter-patterns`, then choose the smallest matching example.
+Use `agenticnets://docs/safe-product-team` for the worked product-delivery team
+or `agenticnets://docs/personas` for a custom specialist/domain.
 With no server provider, master skips provider-backed AI lanes rather than
 failing them, and the connected model can serve them. For unattended personas,
 use an agent transition with `llmMode:"bash"` and `binary:"claude"|"codex"`;

@@ -87,6 +87,87 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'start-safe-product-team',
+    {
+      title: 'Start a Safe Product Team',
+      description:
+        'Deploy a worked persona-first product team with repository context, review gates, and Protocol reporting',
+      argsSchema: {
+        product: z.string().describe('What the team should build or improve'),
+        repository: z
+          .string()
+          .optional()
+          .describe('Repository URL or executor-visible working directory; omitted means configure before execution'),
+        execution: z
+          .enum(['auto', 'server', 'claude-code', 'codex', 'connected-client'])
+          .optional()
+          .describe('Reasoning backend for the resident personas (default auto after readiness)'),
+      },
+    },
+    ({ product, repository, execution }) =>
+      userMessage(
+        `Start the Agentic-Nets Safe Product Team for this product outcome: "${product}". ` +
+          `${repository ? `Repository/context root: "${repository}". ` : 'No repository was supplied: stage the team, but do not grant execution or invent a path; ask me for the repository contract before the first real task. '}` +
+          `First read agenticnets://docs/safe-product-team and call readiness/llm_health. ` +
+          `Choose one honest persona backend${execution ? ` (requested: "${execution}")` : ''}; say whether it runs while disconnected. ` +
+          `If the selected backend is a healthy server provider, prefer the versioned NetHub agent package: hub_search kind agent ` +
+          `for "safe-product-team", inspect it with hub_show, then hub_install latest into the current product model. It is singleton per ` +
+          `model so p-protocol stays canonical, and it installs STOPPED ` +
+          `and reasoning-only; populate its required p-spt-product-context schema, inspect the conservative charter/safety policy, verify, ` +
+          `and only after configuration use START_AGENT_SESSION when exposed, or start_transition on its returned startPlan in order. ` +
+          `Do not add command/repository execution authority unless ` +
+          `I separately request a reviewed adapter. Do not also build an ad-hoc team when that package path succeeds. ` +
+          `For CLI-backed or connected-client execution, deploy the token-free dev-team template as the deterministic backlog/WIP/review ` +
+          `backbone and compose the personas around it. Ensure shared places for repository registry, product context, decisions, lessons, ` +
+          `structured status, and p-protocol. Repository tokens must name ` +
+          `repoUrl or workingDir, defaultBranch, build/test commands, allowed write scope, and push/deploy policy; never store credentials. ` +
+          `Create the core resident personas STOPPED first: Product Manager, Architect, Developer, Reviewer/QA, Release Guardian, and ` +
+          `Chronicle. Product Manager is the only user inbox; Developer is the only default code writer and its charter forbids commit, ` +
+          `push, and deploy; Reviewer returns ` +
+          `approved|needs-work|blocked; Release Guardian requires an explicit approval token before commit/push/deploy; Chronicle ` +
+          `summarizes evidence but never changes product state. Use reason capability unless a role genuinely needs tools, and least privilege ` +
+          `for execute roles. Wire place-to-place hand-offs with deterministic transitions and preserve a single _correlationId/storyId ` +
+          `through every stage. Every persona must write a concise milestone to p-protocol and a machine-readable status token; the normal ` +
+          `event trail remains the complete low-level history. Add feedback and lessons places, but require review before promoting a lesson ` +
+          `into context or crystallizing repeated successful steps into a tool-net. Verify every inscription, smoke-test one harmless story, ` +
+          `then arm only the lanes whose backend and prerequisites are ready: use set_external for connected-client lanes, and ` +
+          `start_transition only for server- or CLI-backed resident lanes. Finish with protocol_write summarizing what was created, the ` +
+          `selected backend, repository readiness, stopped/started lanes, first inbox, approval boundary, and how to pause the model.`,
+      ),
+  );
+
+  server.registerPrompt(
+    'review-current-model',
+    {
+      title: 'Review the current model',
+      description:
+        'Run a domain-neutral evidence review of the current model, its nets, processes, safety, and optimization opportunities',
+      argsSchema: {
+        scope: z
+          .enum(['model', 'session', 'net', 'transition', 'correlation'])
+          .optional()
+          .describe('Review scope (default model)'),
+        target: z.string().optional().describe('Session, net, transition, or correlation id for a narrow scope'),
+        question: z.string().optional().describe('Optional domain-specific review question'),
+      },
+    },
+    ({ scope, target, question }) =>
+      userMessage(
+        `Review the current Agentic-Nets ${scope ?? 'model'}${target ? ` target "${target}"` : ''}` +
+          `${question ? ` with this focus: "${question}"` : ''}. Read agenticnets://docs/model-steward, then call readiness and llm_health. ` +
+          `If a server LLM is healthy, use the built-in NetHub model-steward agent: hub_search {kind:"agent",search:"model-steward"}, ` +
+          `hub_show it, install latest only if it is not already installed, keep the install STOPPED while inspecting its advisory-only ` +
+          `charter, then use START_AGENT_SESSION when exposed (otherwise arm the returned startPlan dependency-first with start_transition) ` +
+          `and write one correlated request to p-ms-inbox. Read p-ms-reports and p-ms-findings. ` +
+          `If no server provider is healthy, do NOT claim that the installed agent ran: perform the same review interactively with ` +
+          `net_stats, net_overview, query_tokens, scheduler_status, list_executors, usage_report, and event_trail. In either path, separate ` +
+          `observed facts from inference; assess flow/backpressure, correctness/error handling, authority/safety, observability/provenance, ` +
+          `cost/efficiency, context quality, resilience, and crystallization candidates. Produce strengths as well as risks, cite evidence, ` +
+          `recommend the smallest reviewable changes, apply nothing, and finish with protocol_write summarizing the review and limitations.`,
+      ),
+  );
+
+  server.registerPrompt(
     'spawn-worker',
     {
       title: 'Spawn an autonomous worker persona',
