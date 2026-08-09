@@ -289,6 +289,18 @@ export class ToolExecutor {
           return this.executeStartContext(params);
         case 'STOP_CONTEXT':
           return this.executeStopContext(params);
+        case 'LIST_APPLICATIONS':
+          return this.executeListApplications();
+        case 'APPLICATION_HUB_SEARCH':
+          return this.executeApplicationHubSearch(params);
+        case 'DESCRIBE_APPLICATION_TEMPLATE':
+          return this.executeDescribeApplicationTemplate(params);
+        case 'INSTALL_APPLICATION_TEMPLATE':
+          return this.executeInstallApplicationTemplate(params);
+        case 'DESCRIBE_APPLICATION':
+          return this.executeDescribeApplication(params);
+        case 'APPLICATION_ACTION':
+          return this.executeApplicationAction(params);
         case 'REGISTRY_LIST_IMAGES':
           return this.executeRegistryListImages(params);
         case 'REGISTRY_GET_IMAGE_INFO':
@@ -2507,6 +2519,86 @@ export class ToolExecutor {
       return { success: true, data: await this.masterApi.contextStop(this.modelId, params.sessionId) };
     } catch (err: any) {
       return { success: false, error: `STOP_CONTEXT failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeListApplications(): Promise<ToolResult> {
+    try {
+      return { success: true, data: { applications: await this.masterApi.applications(this.modelId) } };
+    } catch (err: any) {
+      return { success: false, error: `LIST_APPLICATIONS failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeApplicationHubSearch(params: Record<string, any>): Promise<ToolResult> {
+    try {
+      const query = { kind: 'session', search: params.query, tags: 'application', limit: params.limit ?? 20, offset: 0 };
+      const data = params.source && params.source !== 'local'
+        ? await this.masterApi.hubRemoteCatalog(params.source, query)
+        : await this.masterApi.hubCatalog(query);
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: `APPLICATION_HUB_SEARCH failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeDescribeApplicationTemplate(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'DESCRIBE_APPLICATION_TEMPLATE requires name' };
+    try {
+      const pkg = await this.masterApi.hubArtifact(params.name, params.version ?? 'latest');
+      if (!pkg?.applicationManifest) return { success: false, error: `'${params.name}' is not a net-backed application template` };
+      return { success: true, data: {
+        name: params.name, version: pkg?.manifest?.version ?? params.version,
+        kind: pkg?.kind ?? 'session', applicationManifest: pkg.applicationManifest,
+        netCount: Array.isArray(pkg?.nets) ? pkg.nets.length : 0, readme: pkg?.readme,
+      } };
+    } catch (err: any) {
+      return { success: false, error: `DESCRIBE_APPLICATION_TEMPLATE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeInstallApplicationTemplate(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'INSTALL_APPLICATION_TEMPLATE requires name' };
+    try {
+      const pkg = await this.masterApi.hubArtifact(params.name, params.version ?? 'latest');
+      if (!pkg?.applicationManifest) return { success: false, error: `'${params.name}' is not a net-backed application template` };
+      return { success: true, data: await this.masterApi.hubInstall({
+        source: params.source ?? 'local', name: params.name, version: params.version ?? 'latest',
+        targetModelId: this.modelId, targetSessionId: params.sessionId,
+      }) };
+    } catch (err: any) {
+      return { success: false, error: `INSTALL_APPLICATION_TEMPLATE failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeDescribeApplication(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name) return { success: false, error: 'DESCRIBE_APPLICATION requires name' };
+    try {
+      return { success: true, data: await this.masterApi.applicationDescribe(this.modelId, params.name) };
+    } catch (err: any) {
+      return { success: false, error: `DESCRIBE_APPLICATION failed: ${err.message || err}` };
+    }
+  }
+
+  private async executeApplicationAction(params: Record<string, any>): Promise<ToolResult> {
+    if (!params.name || !params.action || !params.placeId || !params.input) {
+      return { success: false, error: 'APPLICATION_ACTION requires name, action, placeId, and input' };
+    }
+    try {
+      const app = await this.masterApi.applicationDescribe(this.modelId, params.name);
+      const action = Array.isArray(app?.actions)
+        ? app.actions.find((candidate: any) => candidate?.name === params.action)
+        : undefined;
+      const store = Array.isArray(app?.stores)
+        ? app.stores.find((candidate: any) => candidate?.role === action?.targetRole)
+        : undefined;
+      if (!store?.placeId || store.placeId !== params.placeId) {
+        return { success: false, error: `APPLICATION_ACTION placeId does not match the installed manifest (expected ${store?.placeId || 'unresolved'}); call DESCRIBE_APPLICATION again` };
+      }
+      return { success: true, data: await this.masterApi.applicationAction(
+        this.modelId, params.name, params.action, params.input) };
+    } catch (err: any) {
+      return { success: false, error: `APPLICATION_ACTION failed: ${err.message || err}` };
     }
   }
 

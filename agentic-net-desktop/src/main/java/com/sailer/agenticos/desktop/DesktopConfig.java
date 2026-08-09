@@ -29,6 +29,7 @@ public final class DesktopConfig {
     public static final int GATEWAY_PORT = 8083;
     public static final int EXECUTOR_PORT = 8084;
     public static final int VAULT_PORT = 8085;
+    public static final int BLOBSTORE_PORT = 8090;
     public static final int MCP_PORT = 8091;
 
     private final Path appDir;
@@ -85,6 +86,7 @@ public final class DesktopConfig {
                 heap.gateway=256m
                 heap.vault=256m
                 heap.executor=256m
+                heap.blobstore=256m
                 """;
             Files.writeString(file, template);
         }
@@ -140,6 +142,8 @@ public final class DesktopConfig {
     public Path runDir(String service) { return desktopDir.resolve("run").resolve(service); }
     /** Parent of every service run dir — where the pid registry lives. */
     public Path runRoot() { return desktopDir.resolve("run"); }
+    /** Blob payloads (NetHub package bodies, knowledge blobs) — beside vault/, survives updates. */
+    public Path blobsDir() { return dataDir.resolve("blobs"); }
     public Path gatewayJwtDir() { return desktopDir.resolve("gateway").resolve("jwt"); }
     public Path adminSecretFile() { return gatewayJwtDir().resolve("admin-secret"); }
     public Path servicesDir() { return appDir.resolve("services"); }

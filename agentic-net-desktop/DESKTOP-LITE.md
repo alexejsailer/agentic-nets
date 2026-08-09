@@ -1,13 +1,14 @@
 # AgenticNetOS Desktop Lite
 
-Desktop Lite is the quickest way to create persona agents and specialist teams
-on one computer: install one package, connect an MCP client, name the outcome
-owner, and let Agentic-Nets provide its memory, context, tools, schedules,
-hand-offs, Protocol reporting, and event-sourced audit trail. One complete
-worked example is the Safe Product Team: a Product Manager front door,
-bounded specialists, explicit review/release approval, repository context, and
-a Chronicle that reports from evidence. It needs no Docker daemon, Java installation, Node
-installation, server-side LLM, or API key.
+AgenticNetOS is a runtime for observable workflows and persona agents. Desktop
+Lite is the quickest way to run it on one computer: create one named specialist
+or multiple personas, compose them into a team, and let them collaborate through
+shared context and explicit hand-offs. Agentic-Nets provides the durable state,
+tools, schedules, Protocol reporting, and event-sourced audit trail underneath.
+One complete worked example is the Safe Product Team: a Product Manager front
+door, bounded specialists, explicit review/release approval, repository context,
+and a Chronicle that reports from evidence. It needs no Docker daemon, Java
+installation, Node installation, server-side LLM, or API key.
 
 It is a local creator/operator environment, not the recommended production
 deployment. Use the Docker/server deployment when you need remote access,
@@ -70,7 +71,9 @@ Codex / Claude / another MCP client
   (`claude -p` or `codex exec -`) rather than nesting dynamic shell quotes.
 - Create schedules, pause/resume models, and inspect scheduler or fire status.
 - Read the complete historical event trail and keep a readable operational
-  journal in `p-protocol`; Desktop renders it through **Open Protocol**.
+  journal through the installed Protocol net's `entries` role; Desktop renders
+  those same tokens through **Open Protocol**. The built-in compatibility mapping
+  remains `p-protocol`, but clients discover the role rather than depending on it.
 - Use transition-scoped credentials through the encrypted local vault.
 - Let the connected MCP model perform `llm` or `agent` transitions with
   `prepare_external_fire` and `complete_external_fire`. With no provider, master
@@ -95,6 +98,7 @@ or consume a provider key.
 | Gateway | 8083 | Authenticated local API |
 | Executor | 8084 | Local command and script execution |
 | Vault | 8085 | AES-256-GCM file-backed credentials |
+| Blob store | 8090 | Package payloads and blobs behind NetHub publish/install |
 | MCP | 8091 | Streamable HTTP endpoint for the controlling client |
 
 All listeners are fixed to `127.0.0.1`. Desktop Lite intentionally has no LAN
@@ -109,6 +113,7 @@ User state is under `~/.agenticos/` and survives application updates:
 - `~/.agenticos/desktop/gateway/jwt/` — Studio/gateway credentials.
 - `~/.agenticos/desktop/logs/` — child-process logs.
 - `~/.agenticos/vault/` — encrypted transition credentials.
+- `~/.agenticos/blobs/` — blob store payloads (NetHub package bodies).
 
 The settings and secret files are created with user-only permissions on POSIX
 systems. Windows relies on the user's profile ACL.
@@ -280,9 +285,11 @@ Agentic-Nets gives the team three views of the same execution:
    evidence for reconstructing exactly what happened.
 2. **Status board** — structured story/persona/stage/outcome/duration facts used
    for current state, metrics, stuck-work detection, and comparisons.
-3. **Protocol** — a curated human-readable narrative in `p-protocol`, rendered
-   by Studio and readable with `protocol_tail`. Personas write milestones,
-   decisions, approvals, warnings, failures, and what happens next.
+3. **Protocol** — a curated human-readable narrative in the installed Protocol
+   net's `entries` store, rendered by Studio and readable with `protocol_tail`.
+   Personas write milestones, decisions, approvals, warnings, failures, and
+   what happens next. The built-in template maps this role to `p-protocol` so
+   existing histories continue to work without migration.
 
 Protocol does not replace the event history; it explains it. A claim such as
 “QA approved STORY-42” should have a Protocol entry for the reader, a status

@@ -172,6 +172,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         shape: Object.keys(shape).length ? shape : undefined,
         agentManifest: pkg?.agentManifest || undefined,
         contextManifest: pkg?.contextManifest || undefined,
+        applicationManifest: pkg?.applicationManifest || undefined,
       };
     }),
   );
@@ -181,13 +182,13 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Install a NetHub artifact',
       description:
-        'Install an artifact. kind=agent installs a STOPPED persona-team session. kind=context installs a STOPPED context session (default context-<name>); its structural links never fire and START_CONTEXT arms only maintenance transitions. Both return a machine-readable checklist.',
+        'Install an artifact. kind=agent installs a STOPPED persona-team; kind=context installs a context; an ordinary kind=session carrying applicationManifest installs as application-<name> and exposes semantic stores/actions to Studio and MCP. Application nets do not add a runtime kind.',
       inputSchema: {
         name: z.string(),
         version: z.string().describe('Version or "latest"'),
         source: z.string().optional().describe('local (default) or a registered remote name'),
         targetModelId: z.string().optional().describe('Target model (REQUIRED for kind=model — use a fresh id)'),
-        targetSessionId: z.string().optional().describe('kind=agent/context with instancePolicy=multiple: REQUIRED unique instance session id (becomes the deterministic namespace); singleton templates refuse a second differing session'),
+        targetSessionId: z.string().optional().describe('Optional target session. Agent/context/application templates choose agent-<name>, context-<name>, or application-<name> by default. Generic net/session artifacts default to the MCP working session.'),
         mode: z.enum(['CREATE_NEW', 'REPLACE']).optional().describe('model-kind only (default CREATE_NEW)'),
         scopeOwnerId: z.string().optional().describe('kind=context with scope=session/agent/task: REQUIRED id of the owning session/agent/task (model scope derives it automatically)'),
         ...modelParam,
@@ -197,7 +198,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       // Agent templates get their own session (master defaults to "agent-<name>") — only
       // net/session kinds fall back to the MCP working session. Probe the kind when the
       // caller didn't pin a session; on lookup failure keep the classic default.
-      let targetSessionId: string | undefined = args.targetSessionId ?? config.session;
+      let targetSessionId: string | undefined = args.targetSessionId;
       if (args.targetSessionId === undefined) {
         try {
           let art: any;
@@ -209,8 +210,11 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
           } else {
             art = await ctx.master.hubArtifact(args.name, args.version || 'latest');
           }
-          if (art?.kind === 'agent' || art?.kind === 'context') targetSessionId = undefined;
-        } catch { /* keep the working-session default when kind discovery is unavailable */ }
+          const application = !!art?.applicationManifest || (Array.isArray(art?.tags) && art.tags.includes('application'));
+          targetSessionId = art?.kind === 'agent' || art?.kind === 'context' || application
+            ? undefined
+            : config.session;
+        } catch { targetSessionId = config.session; }
       }
       const res = await ctx.master.hubInstall({
         source: args.source,

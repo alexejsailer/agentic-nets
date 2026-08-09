@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.44.0] - 2026-08-09
+
+The net-backed applications release: the human-facing surfaces of AgenticNetOS — Protocol, Interview, Goals — stop being built-in pages and become ordinary NetHub session nets that declare how they should be read. Anything you author the same way becomes a first-class application too, discoverable by every MCP client and usable in Studio without writing a line of frontend code.
+
+### Added
+- **Application tools for MCP clients** (`agentic-net-mcp` — `src/tools/applications.ts`). `application_list` reports the human-facing capabilities installed in a model, `application_describe` returns one application's semantic store roles (role → place), declared actions and their JSON input schemas, and `application_action` performs a declared append. A client that asks the manifest never has to guess a `p-*` place id again, and the tokens it writes are the same event-sourced state Studio renders. Readonly connections get the two read tools.
+- **`agenticnets://docs/applications` knowledge doc** (`agentic-net-mcp`). The offline contract for the shipped applications: the two-way Interview token schema (`ask` / `respond` with `intent` / `raise`), and — the part clients get wrong — how to ask a human *without* holding a firing lease: append the prompt plus a correlated checkpoint, end the fire, and let the response plus checkpoint trigger the resuming lane. Includes the ready-to-paste ArcQL presets for the answer, revision, and human-initiated lanes.
+- **Application-aware NetHub install** (`agentic-net-mcp` — `src/tools/hub.ts`). `hub_search {tags:"application"}` lists the installable surfaces and `hub_install` recognises an artifact carrying an application manifest, giving it its own `application-<name>` session instead of dropping it into the client's working session. `hub_show` surfaces the manifest so you can inspect an application before installing it.
+- **Six application tools for in-net agents and CLI personas** (`agentic-net-cli` — `src/agent/{tools,roles,tool-executor}.ts`). `APPLICATION_HUB_SEARCH`, `DESCRIBE_APPLICATION_TEMPLATE`, `INSTALL_APPLICATION_TEMPLATE` (write), `LIST_APPLICATIONS`, `DESCRIBE_APPLICATION`, and `APPLICATION_ACTION` (write) mirror the master catalog, so a persona running on a CLI backend can ask its owner a question through the same contract the platform agents use.
+- **Desktop Lite runs a blob store** (`agentic-net-desktop`). `sa-blobstore` is now a supervised child on port 8090 (single-node profile, payloads under `~/.agenticos/blobs`), started before node and master. NetHub offloads package payloads to it, so without it *every* publish failed on a Desktop Lite install — which silently meant the built-in agent, context, and application templates never appeared in NetHub at all. The tray shows its status alongside the other services.
+- **Tray entries for the application surfaces** (`agentic-net-desktop` — `TrayUi`). **Open Applications**, **Open Interview**, and **Open Goals** join Open Protocol.
+
+### Changed
+- **Protocol is resolved, not hardcoded** (`agentic-net-mcp` — `src/tools/protocol.ts`). `protocol_write` and `protocol_tail` resolve the installed Protocol application's `entries` role instead of assuming `p-protocol`. Existing models keep working untouched: when no application manifest is installed the built-in mapping is still `p-protocol`, and the tools fall back to the previous behaviour against an older master.
+
 ## [2.43.0] - 2026-08-06
 
 The governed-autonomy release: Agentic-Nets positions as a domain-general backend for designing, operating, observing, and continuously improving governed autonomous processes. Two shipped packages carry the story — a Safe Product Team worked example and a domain-neutral Model Steward whose authority is enforced by capability profile, not prompt hope.

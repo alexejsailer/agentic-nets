@@ -1,10 +1,11 @@
-# @agenticnets/mcp — persona agents, specialist teams, and living context
+# @agenticnets/mcp — observable autonomous processes, personas, and living context
 
 An [MCP](https://modelcontextprotocol.io) server that connects any MCP client (Claude Code, Claude
 Desktop, Cursor, agent frameworks) to an [AgenticNetOS](https://github.com/alexejsailer/agentic-nets)
-stack — turning Agentic-Nets into a **persona-first agent platform**. Create a developer, health
-coach, domain expert, reviewer, or team; give it persistent context, safe tools, schedules,
-observable hand-offs, and an audit trail.
+stack — turning Agentic-Nets into a general backend for **observable autonomous processes**.
+Personas such as a developer, health coach, domain expert, reviewer, or team are the approachable
+starting point; the same primitives build deterministic workflows, reusable contexts, human
+interaction, goal systems, tools, and historically optimizable domain processes.
 
 Why this beats a passive memory store:
 
@@ -40,7 +41,7 @@ With a server provider the persona uses an ordinary agent lane. Without one, exp
 Claude Code/Codex CLI-backed agent for unattended work, or use connected-client execution. The net
 keeps the work and context either way.
 
-## Tools (164 = 54 curated + 110 native)
+## Tools: curated product surface + full native catalog
 
 Two layers, one server:
 
@@ -54,6 +55,7 @@ Two layers, one server:
 | Layer | Tools |
 |---|---|
 | **Memory** | `memory_write` · `memory_recall` · `memory_link` · `memory_graph` |
+| **Net applications** | **`application_list`** · **`application_describe`** · **`application_action`** discover and use Protocol, Interview, Goals, or domain-specific Studio views without hardcoded place IDs |
 | **Net building** | `deploy_template` · `create_net` · `add_place` · `add_transition` (kind-aware: map/llm/http/command/**agent**/link, pre-wired inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · **`spawn_persona`** · `scaffold_tool_net` · `invoke_tool_net` · **`crystallize_session`** |
 | **Model lifecycle** | **`list_models`** (every model + `allowed` / `allowedVia`) · **`create_model`** (mint a NEW model, optionally deploy a template/profile; remembered for later sessions by default — rw, gated by `AGENTICOS_ALLOW_MODEL_CREATE`) |
 | **Model control** | **`pause_model`** (kill switch: stop ALL running transitions, audit-recorded) · **`resume_model`** (restore exactly the paused set) · **`DELETE_TRANSITION`** (deregister an orphaned runtime transition) |
@@ -62,9 +64,14 @@ Two layers, one server:
 | **Agent Hub + contexts** | Create models with standard/research/knowledge/development profiles; native tools search, install, configure, start, stop, and inspect versioned agent teams and context systems |
 | **NetHub** | **`hub_publish`** / **`hub_search`** / **`hub_show`** / **`hub_install`** for nine artifact kinds (net, session, model, agent, context, toolnet, tool, catalog, blob) · **`hub_add_remote`** for federation |
 | **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
-| **Native catalog (110)** | Full platform parity across structure, tokens, inscriptions, lifecycle, Agent Hub, contexts, NetHub, credentials, tool catalogs, Docker, HTTP, scripts, sessions, diagnosis, usage, and export. `THINK` / `DONE` / `FAIL` remain agent-loop-only and are intentionally excluded. |
+| **Native catalog** | Full platform parity across structure, tokens, inscriptions, lifecycle, Agent Hub, contexts, application nets, NetHub, credentials, tool catalogs, Docker, HTTP, scripts, sessions, diagnosis, usage, and export. `THINK` / `DONE` / `FAIL` remain agent-loop-only and are intentionally excluded. |
 
 Important capabilities the extra tools unlock:
+
+- **Net-backed applications** are ordinary NetHub `session` packages with an optional manifest
+  mapping semantic roles to places, declaring append actions, and selecting a Studio renderer.
+  Protocol (`entries`), Interview (`prompts → responses → decisions`), and Goals
+  (`goals → progress → outcomes`) are shipped examples—not new runtime kinds or hidden databases.
 
 - **`spawn_persona`** stands up a complete specialist net (charter + task inbox + bounded `agent`
   transition + output). `execution` selects server-provider, headless Claude Code/Codex, or

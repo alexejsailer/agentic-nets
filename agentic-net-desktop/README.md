@@ -19,7 +19,7 @@ AgenticNetOS.app
 ├── runtime/            jlink'd Java (shared by launcher + all Java services)
 └── app/
     ├── launcher.jar    tray app + supervisor + Studio static server (this module)
-    ├── services/       agentic-net-{node,master,gateway,vault,executor}.jar
+    ├── services/       agentic-net-{node,master,gateway,vault,executor}.jar + sa-blobstore.jar
     ├── gui/            compiled Angular Studio
     ├── mcp/            @agenticnets/mcp dist + production node_modules
     └── node-runtime/   bundled Node (runs the MCP server)
@@ -30,8 +30,9 @@ AgenticNetOS.app
 | Child | Port | Notes |
 |---|---|---|
 | vault | 8085 | `VAULT_BACKEND=file` — AES-256-GCM local store, **no OpenBao** |
+| blobstore | 8090 | `single` profile; blobs in `~/.agenticos/blobs`. NetHub offloads package payloads here, so template seeding needs it |
 | node | 8080 | data in `~/.agenticos/models` (same as native dev) |
-| master | 8082 | deterministic net/schedule runtime; server LLM, docker tools, registry and blob seeding off by default |
+| master | 8082 | deterministic net/schedule runtime; server LLM, docker tools, registry and knowledge-blob seeding off by default |
 | gateway | 8083 | single seed master; JWT keys in `~/.agenticos/desktop/gateway/jwt` |
 | executor | 8084 | direct-mode, eligible for every model; polls models on demand after command assignment |
 | mcp | 8091 | streamable HTTP, bearer token auto-generated |

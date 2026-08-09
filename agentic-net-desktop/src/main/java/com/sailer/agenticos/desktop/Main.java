@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * AgenticNetOS Desktop — single-install launcher.
  *
- * Supervises vault(file) → node → master → gateway → mcp(http) as child
+ * Supervises vault(file) → blobstore → node → master → gateway → mcp(http) as child
  * processes on the bundled runtimes, serves the Studio GUI on :4200 with a
  * built-in gateway reverse proxy, and lives in the system tray.
  */
@@ -110,6 +110,19 @@ public final class Main {
             "http://127.0.0.1:" + DesktopConfig.VAULT_PORT + "/api/health/ping",
             60));
 
+        // Blob store — NetHub publishes offload the package payload here, so it must be up
+        // before master's template seeding runs. Single-node profile: port 8090, no cluster.
+        specs.add(new ServiceSpec(
+            "blobstore", "Blob store",
+            javaCommand(config, "blobstore", "sa-blobstore.jar"),
+            merge(baseEnv(bind, logs), Map.of(
+                "SPRING_PROFILES_ACTIVE", "single",
+                "SERVER_PORT", String.valueOf(DesktopConfig.BLOBSTORE_PORT),
+                "SA_BLOBSTORE_STORAGE_PATH", config.blobsDir().toAbsolutePath().toString())),
+            config.runDir("blobstore"),
+            "http://127.0.0.1:" + DesktopConfig.BLOBSTORE_PORT + "/actuator/health",
+            60));
+
         specs.add(new ServiceSpec(
             "node", "Node (data engine)",
             javaCommand(config, "node", "agentic-net-node.jar"),
@@ -124,6 +137,7 @@ public final class Main {
             "AGENTICOS_DESKTOP_PROFILE", DesktopConfig.PROFILE_NAME,
             "AGENTIC_NET_NODE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/api",
             "AGENTICOS_VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT,
+            "BLOBSTORE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.BLOBSTORE_PORT,
             "AGENTICOS_REGISTRY_ENABLED", "false",
             "AGENTICOS_KNOWLEDGE_SEED_BLOBS_ENABLED", "false",
             "AGENTICNET_USAGE_PERSIST_FILE",

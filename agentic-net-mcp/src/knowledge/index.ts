@@ -11,6 +11,7 @@
  * - Every doc starts with a single `# Title` line; sections use `##` (the search index splits on
  *   them); topic keys are lowercase.
  */
+import applicationsMd from './applications.md';
 import architectureMd from './architecture.md';
 import arcqlMd from './arcql.md';
 import commandsMd from './commands.md';
@@ -53,6 +54,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   llm: { title: 'LLM transitions: the riskiest kind', text: llmMd },
   'model-steward': { title: 'Model Steward: domain-neutral model and process review', text: modelStewardMd },
   personas: { title: 'Persona-first agents, teams, contexts, and learning', text: personasMd },
+  applications: { title: 'Net applications: Protocol, Interview, Goals', text: applicationsMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
   'real-agents': { title: 'Real agents: personas scheduled on Petri nets', text: realAgentsMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },

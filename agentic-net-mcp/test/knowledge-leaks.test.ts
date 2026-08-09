@@ -92,8 +92,11 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // observability stack, and NetHub packaging must travel with every client that can deploy it.
   // 96K → 104K for the domain-neutral Model Steward: its evidence contract and advisory-only
   // boundary must be available to provider-backed and provider-free clients alike.
+  // 104K → 112K for docs/applications: net-backed application views (Protocol/Interview/Goals)
+  // are the human-input path, and a client that guesses place ids or waits for a person inside a
+  // firing lease gets both wrong — the contract has to travel offline with every client.
   // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 106496;
+  const PACK_CAP = 114688;
   const INSTRUCTIONS_CAP = 17408;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {

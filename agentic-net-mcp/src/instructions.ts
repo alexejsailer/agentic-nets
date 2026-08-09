@@ -63,11 +63,10 @@ Code/Codex persona lane, or you can configure a server provider."
   probe and refused when unreachable. Feed p-<name>-task; join specialists through shared places
   for a team. capability:"reason" is safe; "execute" (rwxhl---t) may run commands/tool-nets.
   Context playbooks: ATTACH_CONTEXT or typed link transitions — links NEVER fire (docs/personas).
-- Persist anything worth remembering: memory_write (inbox for raw capture, notes default,
-  decisions for choices made, knowledge for durable facts). Recall with memory_recall; navigate
-  related context with memory_graph; connect places with memory_link. protocol_write journals
-  milestones to p-protocol — Studio's Protocol view shows it. The immutable event trail is the
-  complete low-level history; Protocol is its readable narrative (docs/safe-product-team).
+- Persist knowledge with memory_write/recall/graph/link. Interview and Goals are nets:
+  discover roles with application_list/describe and write with application_action—never guess place
+  IDs. protocol_write/tail wrap Protocol. For human input, write an Interview prompt + persona
+  checkpoint, end the fire, then resume on response + checkpoint. Never wait in a firing lease.
 - Persist into the MODEL's OWN memory base (shared with the domain-expert persona and the
   Genesis/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
   model's domain net (p-{model}-domain-{knowledge|journal|insights}). Use this when the memory
@@ -125,6 +124,8 @@ transitions are structure and never fire; START_CONTEXT/STOP_CONTEXT control onl
 ATTACH_CONTEXT {sessionId, attachment, targetPlaceId} wires a declared attachment as a typed link
 (optional "relation": contains, derives-from, …) readable via GET_LINKED_PLACES and memory_graph.
 Agent manifests may declare required/optional contexts; START_AGENT_SESSION reports readiness.
+Application nets remain kind:"session"; find/install them with hub_search/hub_install. Their
+applicationManifest only declares semantic stores, actions, and a Studio renderer over the net.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>Manual - AgenticNetOS Desktop Lite</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="description" content="Newcomer manual for AgenticNetOS Desktop Lite: create persona agents, specialist teams, context playbooks, and self-learning nets." />
+<meta name="description" content="Newcomer manual for AgenticNetOS Desktop Lite: run observable workflows, persona agents, collaborating teams, context playbooks, and self-improving nets." />
 <style>
 :root {
   color-scheme: dark;
@@ -145,7 +145,7 @@ footer {
   <ol>
     <li><a href="#what">What this is</a></li>
     <li><a href="#start">Start here</a></li>
-    <li><a href="#ideas">Six ideas</a></li>
+    <li><a href="#ideas">Seven ideas</a></li>
     <li><a href="#use-cases">What to build</a></li>
     <li><a href="#observe">Observe &amp; improve</a></li>
     <li><a href="#prompts">Say this</a></li>
@@ -163,23 +163,33 @@ footer {
 
 <div class="eyebrow">Manual</div>
 <h1>AgenticNetOS Desktop Lite</h1>
-<p class="lede">Create a named specialist or Safe Product Team, watch every hand-off, and improve it from evidence instead of hidden chat history.</p>
+<p class="lede"><strong>AgenticNetOS is a runtime for observable workflows and persona agents.</strong>
+Create one named specialist or a whole team, let them collaborate through shared context and explicit
+hand-offs, and improve the process from its complete history.</p>
 
 <h2 id="what">1. What this is</h2>
 
-<p>AgenticNetOS lets you create people-shaped agents: a developer who owns code changes, a health
-coach who remembers goals and boundaries, a domain expert who knows one business area, or a small
-team whose specialists review one another. Each has a name, a charter, an inbox, context, durable
-results, and a visible way to stop it.</p>
+<p>Use a workflow when the steps are known; give judgment-heavy work to a persona agent. You can
+create a developer who owns code changes, a health coach who remembers goals and boundaries, a
+domain expert who knows one business area, or several specialists who plan, build, review, and
+decide together. A team does not become a hidden group chat: every persona has a clear role and
+charter, exchanges visible work through the net, and can be inspected or stopped.</p>
 
-<p>Underneath, every persona is an Agentic-Net. The net gives it what an ordinary chat lacks: memory
-that outlives the session, work that waits safely, typed context it can navigate, deterministic
-tools, schedules, hand-offs, audit history, and a place for results. Start with the persona; the net
-remains inspectable when you want to understand or change the machinery.</p>
+<p>Underneath, every workflow, persona, and team is built from Agentic-Nets. A net gives an autonomous
+process what an ordinary chat lacks: memory that outlives the session, work that waits safely, typed
+context it can navigate, deterministic tools, schedules, hand-offs, audit history, and durable
+results. Start with a familiar persona or outcome; the net remains inspectable when you want to
+understand or change the machinery.</p>
 
 <p>The Safe Product Team is one detailed product-delivery example, not a domain boundary. The same runtime
 models healthcare, research, operations, finance, support, logistics, and other domains as named
 personas, typed state, deterministic control, and historically analyzable processes.</p>
+
+<p>Personas are the easiest place to begin, not the limit of the product. A net can represent a
+workflow, reusable context, domain memory, tool, team, human-interaction surface, goal system, or
+self-improving process. Studio application views such as <strong>Protocol</strong>,
+<strong>Interview</strong>, and <strong>Goals</strong> are themselves backed by ordinary installable
+nets rather than separate hidden databases.</p>
 
 <p>The difference is not merely that AgenticNetOS can run agents. Every token movement, transition
 fire, tool result, approval, and structural change leaves an event-sourced history. The
@@ -242,7 +252,7 @@ specialist, or another role meaningful to you. Either way, give it one real task
 history remain after the chat closes; tomorrow a new client can read Protocol, inspect the evidence,
 recall context, and continue without recreating the agent.</p>
 
-<h2 id="ideas">3. Six ideas, sixty seconds</h2>
+<h2 id="ideas">3. Seven ideas, sixty seconds</h2>
 
 <div class="table-wrap">
 <table>
@@ -253,6 +263,7 @@ recall context, and continue without recreating the agent.</p>
     <tr><td><strong>Token</strong></td><td>One JSON document inside a place: a note, a task, an API response, a result.</td></tr>
     <tr><td><strong>Transition</strong></td><td>Something that acts. It reads tokens from places, does work, and writes tokens to other places.</td></tr>
     <tr><td><strong>Net</strong></td><td>Places and transitions wired together: a persona, team, context, tool, or automation you can inspect and change.</td></tr>
+    <tr><td><strong>Application view</strong></td><td>A human-friendly page over a net's semantic store roles. The page is a renderer; the event-sourced net remains the source of truth.</td></tr>
     <tr><td><strong>Model</strong></td><td>A domain workspace holding nets. It is also the pause, budget, ownership, and cleanup boundary.</td></tr>
   </tbody>
 </table>
@@ -337,7 +348,8 @@ that token. A story names a <code>repositoryId</code>; it never asks an agent to
       emissions, tool results, and lifecycle changes. Filter it by transition or story ID.</li>
   <li><strong>Status board:</strong> structured current/aggregate facts such as story, persona, stage,
       duration, verdict, and evidence. Use it to find rework and waiting time.</li>
-  <li><strong>Protocol:</strong> the human-readable operational narrative in <code>p-protocol</code>.
+  <li><strong>Protocol:</strong> the human-readable operational narrative in the installed Protocol
+      net's <code>entries</code> role (the built-in template preserves <code>p-protocol</code>).
       Personas record decisions, approvals, milestones, warnings, failures, and what happens next.
       Open it directly from the tray or read it with <code>protocol_tail</code>.</li>
 </ul>
@@ -355,7 +367,36 @@ answer rather than guessing.</p>
      improvement. Do not change anything until you show the evidence.</p>
 </div>
 
-<h3><span class="num">4.4</span> Domain agents and context playbooks</h3>
+<h3><span class="num">4.4</span> Net-backed application views</h3>
+
+<p>A full page in Studio does not need a new backend subsystem. AgenticNetOS can install an
+ordinary NetHub session whose manifest names semantic store roles, declared append actions, and a
+renderer. MCP calls <code>application_list</code> and <code>application_describe</code>, so a persona
+discovers where to write instead of memorizing place IDs.</p>
+
+<ul>
+  <li><strong>Protocol</strong> maps an <code>entries</code> role to a readable timeline over the
+      evidence.</li>
+  <li><strong>Interview</strong> maps <code>prompts → responses → decisions</code>. A developer,
+      architect, coach, or domain expert can offer choices and free-text input, end its current
+      fire, and resume when the response token arrives.</li>
+  <li><strong>Goals</strong> maps <code>goals → progress → outcomes</code>. The user owns the desired
+      outcome; autonomous processes append progress evidence against it.</li>
+</ul>
+
+<div class="say">
+  <span class="label">Say this</span>
+  <p>List the installed application nets. If Interview and Goals are present, read my active goals,
+     then use Interview whenever you need a plan choice or missing requirement. Report meaningful
+     milestones to Protocol. Resolve semantic roles from each manifest; do not guess place IDs.</p>
+</div>
+
+<p>Interview responses are context, not automatic authorization for a risky external effect.
+Push, deploy, payment, deletion, or publication still needs the team's explicit approval policy.
+These templates are examples: the same contract can back a clinical intake, incident room,
+compliance review, research notebook, or another domain-specific view.</p>
+
+<h3><span class="num">4.5</span> Domain agents and context playbooks</h3>
 
 <p>Plain recall is flat; real domains have relationships. Put knowledge, decisions, constraints,
 examples, incidents, and insights into places or reusable context nets. Attach the same billing
@@ -375,7 +416,7 @@ domain and should be shared by every attached persona.</p>
      could safely reuse.</p>
 </div>
 
-<h3><span class="num">4.5</span> Local hands, schedules, and headless CLI agents</h3>
+<h3><span class="num">4.6</span> Local hands, schedules, and headless CLI agents</h3>
 
 <p>Schedules make non-link transitions act while nobody is chatting. Deterministic
 <code>map</code>, <code>pass</code>, <code>http</code>, and <code>command</code> lanes are the cheap,
@@ -400,7 +441,7 @@ awake and AgenticNetOS running.</p>
 <span class="pill wait">STANDBY</span> means it is available and will activate after the first command
 assignment. Only <span class="pill">UNAVAILABLE</span> blocks command lanes.</p>
 
-<h3><span class="num">4.6</span> A net that learns without rewriting itself in secret</h3>
+<h3><span class="num">4.7</span> A net that learns without rewriting itself in secret</h3>
 
 <p>Agentic-Nets can become more capable over time while keeping changes reviewable. Work writes
 outcomes to a journal; feedback links success or failure to the task and context version; a
@@ -412,7 +453,7 @@ done and <code>scaffold_tool_net</code> turns it into a reusable deterministic t
 with personas; learned procedures become cheaper, faster, and safer transitions. Self-learning
 means evidence and reviewed promotion, never silently loosening the charter or safety boundary.</p>
 
-<h3><span class="num">4.7</span> Templates and the rest of the platform</h3>
+<h3><span class="num">4.8</span> Templates and the rest of the platform</h3>
 
 <p>There are three reuse layers. MCP <strong>prompts/playbooks</strong> guide a connected model through
 environment-aware setup. Built-in <strong>starter templates</strong> deploy common deterministic
@@ -575,6 +616,8 @@ always there.</p>
     <tr><td>Service list</td><td>Live state per service. All ticked means healthy.</td></tr>
     <tr><td>Open Studio</td><td>The visual editor, signed in automatically. Double clicking the tray icon does the same.</td></tr>
     <tr><td>Open Protocol</td><td>The activity log: what fired, when, and with what result.</td></tr>
+    <tr><td>Open Interview</td><td>Prompts from installed personas or nets, with choices and free-text responses.</td></tr>
+    <tr><td>Open Goals</td><td>User-owned outcomes plus progress and result evidence reported by nets.</td></tr>
     <tr><td>LLM Settings</td><td>Optional server-side provider. CLI-backed personas and command lanes do not need it.</td></tr>
     <tr><td>Connect Claude Code / Codex</td><td>Copies a ready to paste command or config block, carrying this installation's own token.</td></tr>
     <tr><td>Copy MCP URL + Token</td><td>For any other Streamable HTTP MCP client. URL on line one, authorization value on line two.</td></tr>
@@ -592,10 +635,14 @@ always there.</p>
 <p>Studio is optional. You can run everything through your MCP client and never open it. But seeing
 your first net drawn as a graph is usually the moment the model clicks, so it is worth a look early.</p>
 
-<p>Inside you can inspect places and their tokens, follow the arcs, and watch fires arrive in the
-Protocol view. Protocol has its own model selector, independent of the editor, so you can inspect
+<p>Inside you can inspect places and their tokens, follow the arcs, and use application views over
+the same state. Protocol has its own model selector, independent of the editor, so you can inspect
 one model or merge all of them without disturbing what you are editing. It supports search, level
 filtering and grouping by source, day, tag or model.</p>
+
+<p>Interview and Goals are the same architectural pattern: the tray opens a purpose-built renderer,
+while MCP and nets interact through manifest-declared roles and actions. Uninstall the view and the
+net state remains standard Agentic-Net state; export the session and the contract travels with it.</p>
 
 <p>A good team writes only meaningful milestones to Protocol—story accepted, design chosen, change
 ready, review rejected or approved, release authorized, deploy verified—while the event store keeps

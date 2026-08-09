@@ -407,6 +407,21 @@ export class MasterApi {
     return this.client.masterApi('POST', `/installed-contexts/${modelId}/${sessionId}/stores`, body);
   }
 
+  // ---- Net-backed application sessions (Protocol, Interview, Goals, custom) ----
+  async applications(modelId: string): Promise<any> {
+    return this.client.masterApi('GET', `/applications/${modelId}`);
+  }
+
+  async applicationDescribe(modelId: string, name: string): Promise<any> {
+    return this.client.masterApi('GET', `/applications/${modelId}/${encodeURIComponent(name)}`);
+  }
+
+  async applicationAction(modelId: string, name: string, action: string,
+                          input: Record<string, any>): Promise<any> {
+    return this.client.masterApi('POST',
+      `/applications/${modelId}/${encodeURIComponent(name)}/actions/${encodeURIComponent(action)}`, input);
+  }
+
   // ---- Transition validation ----
   async dryRunTransition(transitionId: string, modelId: string): Promise<any> {
     return this.client.masterApi('POST', `/transitions/${transitionId}/dry-run`, undefined, { modelId });

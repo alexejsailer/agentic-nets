@@ -74,6 +74,13 @@ export type AgentTool =
   | 'CONTEXT_ADD_STORE'
   | 'START_CONTEXT'
   | 'STOP_CONTEXT'
+  // Net-backed Studio/human application sessions
+  | 'APPLICATION_HUB_SEARCH'
+  | 'DESCRIBE_APPLICATION_TEMPLATE'
+  | 'INSTALL_APPLICATION_TEMPLATE'
+  | 'LIST_APPLICATIONS'
+  | 'DESCRIBE_APPLICATION'
+  | 'APPLICATION_ACTION'
   // NetHub (R/W flag) — publish/discover/install net|session|model artifacts across instances
   | 'HUB_PUBLISH'
   | 'HUB_CATALOG'
@@ -802,6 +809,39 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
   STOP_CONTEXT: {
     description: "Stop an installed context's maintenance startPlan in reverse order.",
     schema: { type: 'object', properties: { sessionId: { type: 'string' } }, required: ['sessionId'] },
+  },
+  LIST_APPLICATIONS: {
+    description: 'List installed net-backed applications such as Protocol, Interview, and Goals, including semantic stores, actions, and Studio surface.',
+    schema: { type: 'object', properties: {}, required: [] },
+  },
+  APPLICATION_HUB_SEARCH: {
+    description: 'Search NetHub for ordinary kind=session templates tagged application, such as Protocol, Interview, and Goals.',
+    schema: { type: 'object', properties: {
+      query: { type: 'string' }, source: { type: 'string' }, limit: { type: 'number' },
+    }, required: [] },
+  },
+  DESCRIBE_APPLICATION_TEMPLATE: {
+    description: 'Describe one net-backed application template before installing it.',
+    schema: { type: 'object', properties: {
+      name: { type: 'string' }, version: { type: 'string' },
+    }, required: ['name'] },
+  },
+  INSTALL_APPLICATION_TEMPLATE: {
+    description: 'Install a net-backed application session into this model; defaults to session application-<name>.',
+    schema: { type: 'object', properties: {
+      name: { type: 'string' }, version: { type: 'string' }, sessionId: { type: 'string' },
+    }, required: ['name'] },
+  },
+  DESCRIBE_APPLICATION: {
+    description: 'Describe one installed application net. Use its role-to-place mappings and action schemas instead of guessing place IDs.',
+    schema: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+  },
+  APPLICATION_ACTION: {
+    description: 'Append through a manifest-declared application action. placeId must be copied from DESCRIBE_APPLICATION and is verified for capability enforcement. Interview is two-way: ask (options/multiSelect/allowFreeText/supersedes), respond (intent answer|revise|reject), raise (a question the human asks you).',
+    schema: { type: 'object', properties: {
+      name: { type: 'string' }, action: { type: 'string' }, placeId: { type: 'string' },
+      input: { type: 'object', description: 'Payload matching the declared action inputSchema' },
+    }, required: ['name', 'action', 'placeId', 'input'] },
   },
   HUB_PUBLISH: {
     description: 'Publish a NetHub artifact (net | session | model | toolnet | tool | catalog | blob | agent | context) as a versioned, shareable package. Context packages carry a context-manifest and structural link transitions.',

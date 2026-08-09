@@ -32,6 +32,7 @@ assemble_app_dir() {
   cp "$NETS_DIR/agentic-net-gateway/target/agentic-net-gateway-"*.jar   "$app/services/agentic-net-gateway.jar"
   cp "$NETS_DIR/agentic-net-vault/target/agentic-net-vault-"*.jar       "$app/services/agentic-net-vault.jar"
   cp "$NETS_DIR/agentic-net-executor/target/agentic-net-executor-"*.jar "$app/services/agentic-net-executor.jar"
+  cp "$NETS_DIR/sa-blobstore/target/sa-blobstore-"*.jar                 "$app/services/sa-blobstore.jar"
 
   cp -R "$CLOSED_DIR/gui/." "$app/gui/"
 
@@ -72,6 +73,7 @@ build_open_components() {
   (cd "$NETS_DIR/agentic-net-gateway"  && ./mvnw -q clean package -DskipTests)
   (cd "$NETS_DIR/agentic-net-vault"    && ./mvnw -q clean package -DskipTests)
   (cd "$NETS_DIR/agentic-net-executor" && ./mvnw -q clean package -DskipTests)
+  (cd "$NETS_DIR/sa-blobstore"         && ./mvnw -q clean package -DskipTests)
   (cd "$MODULE_DIR" && ./mvnw -q clean package)
   (cd "$NETS_DIR/agentic-net-cli" && { [ -d node_modules ] || npm install; } \
     && { [ -d dist ] || npx tsup; })

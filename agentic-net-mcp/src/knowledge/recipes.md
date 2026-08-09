@@ -105,6 +105,9 @@ usage_report and cleanup all-or-nothing.
 
 ## Narrate long-running work: the protocol journal
 
-protocol_write appends to p-protocol; nets journal themselves via an emit to it.
-Studio renders the feed as the Protocol view (tray → Open Protocol). Write on
-deploy / schedule armed / batch done / failure; protocol_tail reads it back.
+Protocol is an ordinary installed application net. `protocol_write` resolves its semantic
+`entries` role and appends there; `protocol_tail` resolves the same role and Studio renders those
+tokens (tray → Open Protocol). The built-in/legacy mapping is `p-protocol`, but new clients do
+not guess that ID. For generic or custom views, call `application_list`, then
+`application_describe`, then `application_action`. Write Protocol on deploy / schedule armed /
+batch done / failure; keep the complete machine evidence in the event trail.

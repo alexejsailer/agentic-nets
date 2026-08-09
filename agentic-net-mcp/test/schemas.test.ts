@@ -60,6 +60,9 @@ const CURATED = [
   'memory_recall',
   'protocol_write',
   'protocol_tail',
+  'application_list',
+  'application_describe',
+  'application_action',
   'memory_link',
   'memory_graph',
   'domain_memory_write',
@@ -212,7 +215,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['domain_memory_recall', 'event_trail', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'domain_memory_recall', 'event_trail', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
     );
   });
 
@@ -220,6 +223,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig());
     expect(client.getInstructions()).toMatch(/persona agents with memory that runs/i);
     expect(client.getInstructions()).toMatch(/ArcQL/);
+    expect(client.getInstructions()).toMatch(/Interview.*Goals/i);
   });
 
   it('teaches every new MCP session that STANDBY executors can serve command lanes', async () => {
