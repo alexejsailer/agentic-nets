@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.44.1] - 2026-08-10
+
+The engine-correctness patch: the sibling `core/` repo ships twelve master/node engine fixes found by the new full-fire-path test harness (97 engine tests) — see `core/CHANGELOG.md` for the details that matter to operators (ArcQL injection closed, reservation starvation and self-block fixed, silent token-loss on emit typos fixed). This repo carries the desktop tray and MCP guidance changes below.
+
 ### Changed
 - **One tray entry for all application surfaces** (`agentic-net-desktop` — `TrayUi`). **Open Applications**, **Open Protocol**, **Open Interview** and **Open Goals** collapse into a single **Open Apps (Goals, Protocol, …)** item that lands on the application index. The index already lists every installed surface plus what NetHub offers, so per-application tray items only grew the menu — and each newly installed application would have grown it further. The manual's tray table describes the surfaces in one row.
 - **All MCP clients now default to semantic nets instead of loose places.** The rule is shared by Desktop, stdio, and HTTP/server deployments and by curated and full tool surfaces; it is not Lite-specific. Initialize-time guidance makes a related collection of stores incomplete until it is placed in a named net and its durable relationships are represented by directional, typed `kind:link` transitions. It explicitly covers context organization, distinguishes non-firing semantic links from executable flow, and is reinforced in the `create_net`, `add_place`, `add_transition`, and `memory_write` tool descriptions. Inline `memory_write.links` now accepts `relation`, so one-call captures can preserve typed edge meaning too.
