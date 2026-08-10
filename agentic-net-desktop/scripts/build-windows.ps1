@@ -47,7 +47,10 @@ function Invoke-Checked($what, [scriptblock]$block) {
 # ---------------------------------------------------------------------------
 if (-not $SkipBuilds) {
     Log "Building open components"
-    foreach ($svc in "agentic-net-gateway", "agentic-net-vault", "agentic-net-executor") {
+    # Must stay in lockstep with the launcher's service roster (Main.java) and with the
+    # mac/linux list in lib-assemble.sh — a service in the roster but not here ships an
+    # installer whose stack cannot start (sa-blobstore was missing in 2.44.0/2.44.1).
+    foreach ($svc in "agentic-net-gateway", "agentic-net-vault", "agentic-net-executor", "sa-blobstore") {
         $Pom = Join-Path $NetsDir "$svc\pom.xml"
         Invoke-Checked "maven $svc" { & $Maven -q -f $Pom clean package -DskipTests }
     }
@@ -126,6 +129,17 @@ Copy-Item (Join-Path $Closed "agentic-net-node.jar")   "$App\services\agentic-ne
 Copy-Item (Join-Path $Closed "agentic-net-master.jar") "$App\services\agentic-net-master.jar"
 foreach ($svc in "gateway", "vault", "executor") {
     Copy-Item (Get-Item (Join-Path $NetsDir "agentic-net-$svc\target\agentic-net-$svc-*.jar"))[0] "$App\services\agentic-net-$svc.jar"
+}
+# sa-blobstore breaks the agentic-net-* naming pattern, so it needs its own line
+Copy-Item (Get-Item (Join-Path $NetsDir "sa-blobstore\target\sa-blobstore-*.jar"))[0] "$App\services\sa-blobstore.jar"
+
+# Fail the BUILD, not the user's first launch: every jar the launcher's roster starts must
+# be present in the package.
+foreach ($jar in "agentic-net-node.jar", "agentic-net-master.jar", "agentic-net-gateway.jar",
+                 "agentic-net-vault.jar", "agentic-net-executor.jar", "sa-blobstore.jar") {
+    if (-not (Test-Path (Join-Path "$App\services" $jar))) {
+        throw "packaging incomplete: services\$jar is missing — the installed stack could not start"
+    }
 }
 Copy-Item -Recurse (Join-Path $Closed "gui\*") "$App\gui\"
 Copy-Item (Join-Path $NetsDir "LICENSE.md") "$App\LICENSE.md"

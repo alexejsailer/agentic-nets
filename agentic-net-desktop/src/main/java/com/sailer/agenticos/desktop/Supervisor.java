@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,7 @@ public final class Supervisor {
 
     /** Sequential start with per-service health gate. Throws on the first failure. */
     public void startAll() throws IOException, InterruptedException {
+        verifyPackaging();
         try {
             for (ServiceSpec spec : specs) {
                 if (stopping.get()) {
@@ -70,6 +72,37 @@ public final class Supervisor {
         } catch (IOException | InterruptedException e) {
             stopAll();
             throw e;
+        }
+    }
+
+    /**
+     * Check every service jar exists BEFORE starting anything.
+     *
+     * <p>The start sequence is fail-fast with a teardown, so one missing jar anywhere in the
+     * roster kills the whole stack — and the user only saw whichever service happened to be
+     * next in line die with a generic "exited during startup". A 2.44.0/2.44.1 Windows package
+     * shipped without sa-blobstore.jar, which sits SECOND in the roster: vault came up, blobstore
+     * could not, and node/master/gateway/Studio never started at all. Naming every missing file
+     * up front turns that into a one-line diagnosis.
+     */
+    private void verifyPackaging() throws IOException {
+        List<String> missing = new ArrayList<>();
+        for (ServiceSpec spec : specs) {
+            List<String> command = spec.command();
+            int jarFlag = command.indexOf("-jar");
+            if (jarFlag < 0 || jarFlag + 1 >= command.size()) {
+                continue; // not a plain java -jar service (mcp runs through node)
+            }
+            Path jar = Path.of(command.get(jarFlag + 1));
+            if (!Files.isReadable(jar)) {
+                missing.add(spec.displayName() + " → " + jar);
+            }
+        }
+        if (!missing.isEmpty()) {
+            throw new IOException("This installation is incomplete — "
+                + missing.size() + " service file(s) are missing, so the stack cannot start:\n  "
+                + String.join("\n  ", missing)
+                + "\nReinstall AgenticNetOS, or report this with the version number.");
         }
     }
 
