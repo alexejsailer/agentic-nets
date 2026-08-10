@@ -115,16 +115,20 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Write to working memory',
       description:
-        'Store a memory token in a place. Places: inbox (raw capture), notes (default), decisions, knowledge, archive — or any custom place id. Optionally link the target place to related places in the same call.',
+        'Store a memory token in a place. Places: inbox (raw capture), notes (default), decisions, knowledge, archive — or any custom place id. Optionally add typed links in the same call. For multiple durable domain/context stores, prefer a named net with link transitions; auto-created runtime places alone are not a complete semantic model.',
       inputSchema: {
         text: z.string().optional().describe('The memory as prose (stored as {text})'),
         data: z.record(z.any()).optional().describe('Structured fields to store alongside/instead of text'),
         place: z.string().optional().describe('inbox | notes | decisions | knowledge | archive | custom place id (default notes)'),
         tags: z.array(z.string()).optional(),
         links: z
-          .array(z.object({ to: z.string(), label: z.string().optional() }))
+          .array(z.object({
+            to: z.string(),
+            label: z.string().optional(),
+            relation: z.string().optional().describe('What TARGET is to SOURCE: contains | references | derives-from | supersedes | promotes-to | ...'),
+          }))
           .optional()
-          .describe('Link the target place to other places (navigable via memory_graph)'),
+          .describe('Create typed semantic edges from the target place to related places (navigable via memory_graph)'),
         ...modelParam,
       },
     },
@@ -145,7 +149,14 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       const linked: string[] = [];
       for (const link of args.links ?? []) {
         const to = resolveMemoryPlace(link.to);
-        linked.push(await linkPlaces(ctx, model, placeId, to, link.label ?? `${placeId} relates to ${to}`));
+        linked.push(await linkPlaces(
+          ctx,
+          model,
+          placeId,
+          to,
+          link.label ?? link.relation ?? `${placeId} relates to ${to}`,
+          link.relation,
+        ));
       }
       // Return a clean result — not the raw node event (version/eventResults/… is noise).
       return { stored: true, place: placeId, ...(linked.length ? { links: linked } : {}) };

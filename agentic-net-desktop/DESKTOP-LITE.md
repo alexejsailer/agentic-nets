@@ -72,7 +72,7 @@ Codex / Claude / another MCP client
 - Create schedules, pause/resume models, and inspect scheduler or fire status.
 - Read the complete historical event trail and keep a readable operational
   journal through the installed Protocol net's `entries` role; Desktop renders
-  those same tokens through **Open Protocol**. The built-in compatibility mapping
+  those same tokens through **Open Apps → Protocol**. The built-in compatibility mapping
   remains `p-protocol`, but clients discover the role rather than depending on it.
 - Use transition-scoped credentials through the encrypted local vault.
 - Let the connected MCP model perform `llm` or `agent` transitions with

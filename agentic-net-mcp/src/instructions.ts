@@ -20,13 +20,10 @@ this session, is queryable, and can be PROCESSED AUTONOMOUSLY by scheduled trans
 are gone. ${models}
 
 ## Read these two FIRST — they change what you build, not just how you call it
-- **\`agenticnets://docs/index\`** — 23 operational docs (full list below). Grep via
-  search_knowledge. A client that read docs/emit and docs/recipes only in its second session
-  CHANGED ITS ARCHITECTURE afterwards (deterministic chaining over agent orchestration). Read the
-  index before designing a pipeline, not after it misbehaves.
-- **\`agenticnets://limits\`** — every hard cap, default and enum, none of them in the tool schemas.
-  The 8192-char HTTP body clip decides whether a fetch-and-parse pipeline can work at all; a client
-  that met it by accident shipped a confident verdict built on a truncated page.
+- **\`agenticnets://docs/index\`** — the operational-doc index; grep via search_knowledge. Read it
+  before designing a pipeline, especially docs/emit and docs/recipes.
+- **\`agenticnets://limits\`** — hard caps, defaults and enums omitted from tool schemas. Read it
+  before assuming payload sizes or other engine limits.
 
 ## Default design stance — give important work a persona
 For a newcomer, translate a goal into a NAMED SPECIALIST before exposing raw workflow machinery:
@@ -36,6 +33,18 @@ charter + inbox + context/memory + output, then choose how the persona reasons. 
 identity, judgment, or evolving context adds no value; keep routing/bookkeeping deterministic.
 Use \`docs/starter-patterns\`; Safe Product Team is only a product-delivery example.
 Use \`review-current-model\` / \`docs/model-steward\` for advisory review of any domain model; it never mutates.
+
+## Structural default — build a semantic net, not a bag of places
+This applies to EVERY MCP deployment and transport (Desktop, stdio, HTTP/server). Related durable
+stores belong in one NAMED NET: a collection of places is not a finished model. Connect each
+meaningful relationship with a directional, typed \`kind:"link"\` transition; \`relation\` says what
+the TARGET is to the SOURCE (\`contains\`, \`references\`, \`derives-from\`, \`supersedes\`, ...).
+For context, policies, decisions, examples, memories, personas, and attachments should form a
+navigable context net, not isolated containers. Build with \`create_net\` → \`add_place\` →
+\`add_transition {kind:"link"}\`; runtime places alone are not a reusable domain/context model.
+Links express semantics only: they never fire or move tokens. Use firing transitions for executable
+flow. Disconnect a place only if temporary, truly independent, or not understood yet. Tokens hold
+facts; places group state; typed links preserve meaning.
 
 Call llm_health before creating the reasoning lane. Healthy (READY/ONLINE) → ordinary agent/llm transitions.
 DISABLED → prefer a CLI-backed persona agent (llmMode:"bash", binary:"claude"|"codex") for a
@@ -80,7 +89,8 @@ Code/Codex persona lane, or you can configure a server provider."
   provider-free MAP → COMMAND with Claude/Codex.
 - Build automation: add_place + add_transition (kinds: map=deterministic transform, llm=one AI
   call, http=API call, command=shell via executor, agent=autonomous multi-step persona,
-  link=pure structure edge). Scheduled DETERMINISTIC lanes keep running server-side after you
+  link=directional typed structure edge). Related data/context places should form a semantic net,
+  not remain a disconnected set. Scheduled DETERMINISTIC lanes keep running server-side after you
   disconnect; scheduled AI lanes also do when server-provider-backed or CLI-backed (see Scheduling).
 - Crystallize a session: crystallize_session records what was discussed AND the concrete steps
   (API calls / commands) into memory, and bakes those steps into a replayable command tool-net.
@@ -95,11 +105,9 @@ Code/Codex persona lane, or you can configure a server provider."
   net_overview gives structure (session-scoped without netId — sessionNetCount 0 ≠ empty model).
 
 ## Models — the whole stack, through the protocol
-list_models shows every model node knows, each with an "allowed" flag (which ones THIS connection may
-target). create_model (rw, when enabled) mints a brand-new model — optionally deploying a starter
-template into it in the same call — and it joins this session's allowlist immediately, so any tool
-can target it with the model param. Prefer a fresh model per domain over piling into 'default' —
-the model is the pause/budget/cleanup boundary. Master auto-discovers active models within ~10s.
+list_models shows all models and which THIS connection may target. create_model (rw, when enabled)
+mints one, can deploy a starter, and immediately adds it to this session's allowlist. Prefer a model
+per domain: it is the pause/budget/cleanup boundary. Master discovers active models within ~10s.
 Sessions: CREATE_SESSION. Nets: create_net.
 
 ## Cleaning up — no orphaned registrations
@@ -109,23 +117,16 @@ inscription/status/assignment) — use it to clear transitions left STOPPED behi
 net_stats stays honest. Irreversible; re-assign to recreate.
 
 ## NetHub — share and install nets, sessions, whole models
-hub_publish {kind, name, version, tokens} turns a net / session / model into a versioned shareable
-artifact (credentials always scrubbed; tokens = none | config | all). hub_search browses the local
-catalog or a peer's (remote param); hub_show inspects one artifact before committing; hub_install
-installs (model artifacts create a NEW model that joins your allowlist). Federate with
-hub_add_remote — peers serve anonymous reads only with their public-catalog flag on.
-Ready-made agents: hub_search {kind:"agent"} finds persona-team templates. hub_install lands one
-STOPPED in its own agent-<name> session with a configure-then-start checklist — fill the required
-config places (CREATE_TOKEN), arm with START_AGENT_SESSION (STOP_AGENT_SESSION disarms,
-LIST_AGENT_SESSIONS shows state). Talk to an armed agent through its manifest entry inbox place.
-Context nets: hub_search {kind:"context"}; hub_show exposes stores, scope, hierarchy, attachments
-and maintenance startPlan; hub_install puts one in its own context-<name> session. Its kind=link
-transitions are structure and never fire; START_CONTEXT/STOP_CONTEXT control only maintenance.
-ATTACH_CONTEXT {sessionId, attachment, targetPlaceId} wires a declared attachment as a typed link
-(optional "relation": contains, derives-from, …) readable via GET_LINKED_PLACES and memory_graph.
-Agent manifests may declare required/optional contexts; START_AGENT_SESSION reports readiness.
-Application nets remain kind:"session"; find/install them with hub_search/hub_install. Their
-applicationManifest only declares semantic stores, actions, and a Studio renderer over the net.
+hub_publish {kind, name, version, tokens} versions a net/session/model; credentials are scrubbed and
+tokens = none | config | all. hub_search browses local/peer catalogs, hub_show inspects, hub_install
+installs (model artifacts create an allowed NEW model), and hub_add_remote federates public peers.
+Agent packages install STOPPED in agent-<name>: fill required config places, then
+START_AGENT_SESSION; their manifest declares inbox, start plan and required contexts.
+Context packages install in context-<name>; hub_show exposes stores, scope, hierarchy, attachments
+and maintenance startPlan. Their kind=link transitions never fire. ATTACH_CONTEXT wires declared
+attachments as typed links readable via GET_LINKED_PLACES/memory_graph; START_CONTEXT controls only
+maintenance. Application nets remain kind:"session" with manifest-declared stores/actions/renderers.
+Details: docs/nethub.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)
 The lowercase tools are the ergonomic layer: pre-wired inscriptions, session fallbacks, engine

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **One tray entry for all application surfaces** (`agentic-net-desktop` — `TrayUi`). **Open Applications**, **Open Protocol**, **Open Interview** and **Open Goals** collapse into a single **Open Apps (Goals, Protocol, …)** item that lands on the application index. The index already lists every installed surface plus what NetHub offers, so per-application tray items only grew the menu — and each newly installed application would have grown it further. The manual's tray table describes the surfaces in one row.
+- **All MCP clients now default to semantic nets instead of loose places.** The rule is shared by Desktop, stdio, and HTTP/server deployments and by curated and full tool surfaces; it is not Lite-specific. Initialize-time guidance makes a related collection of stores incomplete until it is placed in a named net and its durable relationships are represented by directional, typed `kind:link` transitions. It explicitly covers context organization, distinguishes non-firing semantic links from executable flow, and is reinforced in the `create_net`, `add_place`, `add_transition`, and `memory_write` tool descriptions. Inline `memory_write.links` now accepts `relation`, so one-call captures can preserve typed edge meaning too.
+
 ## [2.44.0] - 2026-08-09
 
 The net-backed applications release: the human-facing surfaces of AgenticNetOS — Protocol, Interview, Goals — stop being built-in pages and become ordinary NetHub session nets that declare how they should be read. Anything you author the same way becomes a first-class application too, discoverable by every MCP client and usable in Studio without writing a line of frontend code.

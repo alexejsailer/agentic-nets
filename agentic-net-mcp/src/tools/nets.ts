@@ -362,7 +362,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     'create_net',
     {
       title: 'Create a net',
-      description: 'Create an empty designtime net in the MCP session (a canvas for add_place/add_transition).',
+      description:
+        'Create an empty designtime net in the MCP session (a canvas for add_place/add_transition). This is the preferred home for related durable stores: model their semantic relationships with directional typed kind=link transitions instead of leaving loose runtime places.',
       inputSchema: {
         netId: z.string(),
         name: z.string().optional(),
@@ -400,7 +401,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Add a place',
       description:
-        'Add a place to a net (designtime, for the GUI) AND as a runtime token container (so transitions can bind it). The net must already exist — a netId typo used to silently vivify a NEW net and split your topology across two; pass createIfMissing:true if you really do want it created here.',
+        'Add a place to a net (designtime, for the GUI) AND as a runtime token container (so transitions can bind it). A related set should not remain disconnected: follow with typed kind=link transitions for semantic/context relationships, or firing transitions for executable flow. The net must already exist — a netId typo used to silently vivify a NEW net and split your topology across two; pass createIfMissing:true if you really do want it created here.',
       inputSchema: {
         netId: z.string(),
         placeId: z.string().describe('Convention: p-<name>'),
@@ -504,7 +505,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Add a transition (pre-wired by kind)',
       description:
-        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call), http (API call), command (command-shaped tokens on an executor, including one-shot headless CLI jobs), agent (autonomous multi-step persona; server provider by default or llmMode:"bash" + binary:"claude"|"codex" for an unattended Desktop Lite CLI session), link (pure context edge, never fires). Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
+        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call), http (API call), command (command-shaped tokens on an executor, including one-shot headless CLI jobs), agent (autonomous multi-step persona; server provider by default or llmMode:"bash" + binary:"claude"|"codex" for an unattended Desktop Lite CLI session), link (directional typed semantic/context edge, never fires). Prefer link transitions whenever related places need durable meaning or navigable context; use relation to state what the target is to the source. Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
       inputSchema: {
         netId: z.string(),
         transitionId: z.string().describe('Convention: t-<name>'),

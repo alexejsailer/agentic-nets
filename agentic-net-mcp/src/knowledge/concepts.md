@@ -16,6 +16,20 @@ Agentic-Nets extends Petri nets into a self-improving automation substrate:
 - Crystallization: patterns discovered by AI harden into deterministic tool-nets that replay at
   zero LLM cost (scaffold_tool_net / invoke_tool_net).
 
+## Semantic structure is the default
+
+Do not model related durable data as a loose collection of places. Put the places in a named net
+and connect meaningful relationships with directional `kind:"link"` transitions. Give each link a
+typed `relation` describing what the target is to the source, such as `contains`, `references`,
+`derives-from`, `supersedes`, or `promotes-to`. Links never fire or move tokens; they make the
+domain/context topology navigable through `memory_graph` / `GET_LINKED_PLACES`. Use firing
+transitions for actual dataflow. A disconnected place is appropriate only when it is temporary,
+truly independent, or not understood well enough to relate yet.
+
+For context in particular, structure policies, decisions, examples, memories, persona charters,
+and attachments as a context net with typed links. Tokens hold the facts, places group state, and
+the links retain the semantics among those stores.
+
 ## Picking a transition kind
 
 Deterministic first: if a step CAN be a map/http/pass, never make it llm/agent. Reach for llm only

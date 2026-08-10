@@ -226,6 +226,40 @@ describe('advertised tool surface', () => {
     expect(client.getInstructions()).toMatch(/Interview.*Goals/i);
   });
 
+  it('teaches clients to structure related data as nets with typed link transitions', async () => {
+    const client = await connectedClient(makeConfig());
+    const instructions = client.getInstructions() ?? '';
+    expect(instructions).toMatch(/semantic net, not a bag of places/i);
+    expect(instructions).toMatch(/EVERY MCP deployment and transport \(Desktop, stdio, HTTP\/server\)/);
+    expect(instructions).toMatch(/collection of places is not a finished model/i);
+    expect(instructions).toMatch(/directional, typed `kind:"link"` transition/i);
+    expect(instructions).toMatch(/context.*not isolated\s+containers/is);
+    expect(instructions).toMatch(/Links express semantics\s+only: they never fire or move tokens/i);
+
+    const { tools } = await client.listTools();
+    expect(tools.find((tool) => tool.name === 'create_net')?.description).toMatch(/preferred home for related durable stores/i);
+    expect(tools.find((tool) => tool.name === 'add_place')?.description).toMatch(/should not remain disconnected/i);
+    expect(tools.find((tool) => tool.name === 'add_transition')?.description).toMatch(/Prefer link transitions/i);
+
+    const write = tools.find((tool) => tool.name === 'memory_write');
+    const linkItem = (write!.inputSchema as any).properties.links.items;
+    expect(linkItem.properties.relation).toBeTruthy();
+  });
+
+  it('keeps the semantic-net default independent of MCP transport and tool-surface mode', async () => {
+    const variants: Array<Partial<McpConfig>> = [
+      { transport: 'stdio', nativeTools: 'all' },
+      { transport: 'http', httpToken: 'test-token', nativeTools: 'curated' },
+      { transport: 'http', httpToken: 'test-token', nativeTools: 'all', mode: 'readonly' },
+    ];
+    for (const variant of variants) {
+      const client = await connectedClient(makeConfig(variant));
+      expect(client.getInstructions()).toMatch(/EVERY MCP deployment and transport/);
+      expect(client.getInstructions()).toMatch(/directional, typed `kind:"link"` transition/);
+      await client.close();
+    }
+  });
+
   it('teaches every new MCP session that STANDBY executors can serve command lanes', async () => {
     const client = await connectedClient(makeConfig());
     expect(client.getInstructions()).toMatch(/READY or STANDBY can\s+serve it/i);

@@ -89,18 +89,12 @@ public final class TrayUi {
         popup.add(action("Open Studio", () ->
             Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
                 + guiServer.createLoginPath()))));
-        popup.add(action("Open Applications", () ->
+        // ONE entry for every application surface: the index already lists Goals,
+        // Protocol, Interview and anything installed later, so per-app tray items
+        // only grew the menu without adding reach.
+        popup.add(action("Open Apps (Goals, Protocol, …)", () ->
             Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
                 + guiServer.createLoginPath() + "&to=%2F%23%2Fapplications"))));
-        popup.add(action("Open Protocol", () ->
-            Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
-                + guiServer.createLoginPath() + "&to=%2F%23%2Fprotocol"))));
-        popup.add(action("Open Interview", () ->
-            Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
-                + guiServer.createLoginPath() + "&to=%2F%23%2Finterview"))));
-        popup.add(action("Open Goals", () ->
-            Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
-                + guiServer.createLoginPath() + "&to=%2F%23%2Fgoals"))));
         popup.add(action("LLM Settings", () ->
             Desktop.getDesktop().browse(URI.create("http://localhost:" + DesktopConfig.GUI_PORT
                 + guiServer.createLoginPath() + "&to=%2F%23%2Fsettings"))));

@@ -107,7 +107,7 @@ usage_report and cleanup all-or-nothing.
 
 Protocol is an ordinary installed application net. `protocol_write` resolves its semantic
 `entries` role and appends there; `protocol_tail` resolves the same role and Studio renders those
-tokens (tray → Open Protocol). The built-in/legacy mapping is `p-protocol`, but new clients do
+tokens (tray → Open Apps → Protocol). The built-in/legacy mapping is `p-protocol`, but new clients do
 not guess that ID. For generic or custom views, call `application_list`, then
 `application_describe`, then `application_action`. Write Protocol on deploy / schedule armed /
 batch done / failure; keep the complete machine evidence in the event trail.
