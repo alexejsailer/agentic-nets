@@ -24,7 +24,8 @@ public final class Main {
 
         Path appDir = resolveAppDir();
         DesktopConfig config = new DesktopConfig(appDir);
-        Supervisor supervisor = new Supervisor(buildSpecs(config), config.logsDir());
+        Supervisor supervisor = new Supervisor(buildSpecs(config), config.logsDir(),
+            Long.parseLong(config.setting("logs.console.maxMb", "16")) * 1024 * 1024);
         GuiServer guiServer = new GuiServer(config.guiDir(), DesktopConfig.GATEWAY_PORT, () -> {
             try {
                 return config.adminSecret();

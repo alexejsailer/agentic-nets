@@ -33,15 +33,24 @@ public final class Supervisor {
     private final Map<String, Integer> restarts = new ConcurrentHashMap<>();
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final Path logsDir;
+    private final long consoleLogMaxBytes;
     private final HttpClient http = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(2))
         .build();
     /** Called with (serviceName, status) on every change — drives the tray UI. */
     private volatile BiConsumer<String, Status> listener = (n, s) -> { };
 
+    /** Per-service console log cap; with one retained generation that is 32 MB per service. */
+    static final long DEFAULT_CONSOLE_LOG_MAX_BYTES = 16L * 1024 * 1024;
+
     public Supervisor(List<ServiceSpec> specs, Path logsDir) {
+        this(specs, logsDir, DEFAULT_CONSOLE_LOG_MAX_BYTES);
+    }
+
+    public Supervisor(List<ServiceSpec> specs, Path logsDir, long consoleLogMaxBytes) {
         this.specs = specs;
         this.logsDir = logsDir;
+        this.consoleLogMaxBytes = consoleLogMaxBytes;
         specs.forEach(s -> statuses.put(s.name(), Status.PENDING));
     }
 
@@ -110,14 +119,18 @@ public final class Supervisor {
         setStatus(spec.name(), Status.STARTING);
         Files.createDirectories(spec.workingDir());
 
+        // PIPE, not appendTo: the output goes through a rotating writer so one service stuck in
+        // an error loop cannot fill the disk (a master once wrote a 452 MB console log).
         ProcessBuilder pb = new ProcessBuilder(spec.command())
             .directory(spec.workingDir().toFile())
             .redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.appendTo(
-                logsDir.resolve(spec.name() + ".console.log").toFile()));
+            .redirectOutput(ProcessBuilder.Redirect.PIPE);
         pb.environment().putAll(spec.env());
 
         Process process = pb.start();
+        ConsoleLog.pump(process.getInputStream(),
+            new ConsoleLog(logsDir, spec.name(), consoleLogMaxBytes),
+            "console-" + spec.name());
         processes.put(spec.name(), process);
         // pid + start instant next to the user's data: the update sweep's strongest
         // identification, and the one that still works for orphans of a crashed launcher
