@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.44.2] - 2026-08-10
+## [2.44.3] - 2026-08-10
 
 ### Fixed
 - **Windows installer could not start the stack** (`agentic-net-desktop` — `scripts/build-windows.ps1`). Every Windows package since 2.44.0 shipped without `services/sa-blobstore.jar`: blob store joined the launcher's service roster in 2.44.0 and the mac/linux assembly was updated, but the Windows script was not. Because startup is sequential with a health gate that tears the stack down on the first failure, and blob store sits second in the roster (vault → blob store → node → master → gateway → executor → mcp), the missing file meant node, master, gateway and Studio never started at all — the installed app simply would not come up. The Windows build now builds and packages sa-blobstore, and fails the build if any roster jar is missing.
 - **A missing service file now names itself** (`agentic-net-desktop` — `Supervisor`). Before starting anything, the launcher verifies every service jar is present and reports all missing files in one message, instead of the next service in line dying with a generic "exited during startup".
+- **Console logs are bounded** (`agentic-net-desktop` — new `ConsoleLog`). Each child's stdout/stderr was appended to `<service>.console.log` with no limit; a master stuck in a connection-pool error loop wrote a **452 MB** file, making the very log that exists for diagnosis unreadable. Output now rolls at 16 MB (settings key `logs.console.maxMb`) keeping one previous generation, so a service costs at most 32 MB and always retains recent history. An oversized file from an earlier version is rolled on first launch and reclaimed by the next rotation.
 
 
 ## [2.44.1] - 2026-08-10
