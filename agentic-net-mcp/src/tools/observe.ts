@@ -274,12 +274,13 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Event trail (audit log)',
       description:
-        'The model event line — why a token exists, what a transition did, in order. Filter by free text, correlationId, category or status. This is how you audit memory and debug nets.',
+        'The model event line — why a token exists, what a transition did, in order. Filter by free text, correlationId, category, type or status. "Did this lane ever fire?" = category:"transition" type:"fire" q:"<transitionId>". NOTE: the line is an in-memory ring buffer (~2000 events per model, reset on master restart) — a write-heavy session evicts older fire events, so absence in the trail is NOT proof a fire never happened; scheduler_status.fireCount is the durable-ish counter.',
       inputSchema: {
-        q: z.string().optional().describe('Free-text filter'),
+        q: z.string().optional().describe('Free-text filter (searches summaries AND attributes, so a transitionId works here)'),
         correlationId: z.string().optional(),
-        category: z.string().optional(),
-        status: z.string().optional(),
+        category: z.string().optional().describe('transition | agent-step | mutation | workspace | chat | assistant | agent-stream | delegation | general'),
+        type: z.string().optional().describe('Within a category, e.g. category:"transition" type:"fire"'),
+        status: z.string().optional().describe('For fires: requested | success | blocked | error | skipped | external-prepared | external-completed'),
         limit: z.number().optional().describe('Default 50, capped at 200 (larger pages can exceed the response-size cap and truncate)'),
         before: z.number().optional().describe('Page backwards: return events with seq < this. Use the nextBeforeSeq from a prior call to walk into older history.'),
         ...modelParam,
@@ -291,7 +292,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const requested = Number(args.limit ?? 50);
       const limit = Math.min(Math.max(1, requested), 200);
       const query: Record<string, string> = { limit: String(limit) };
-      for (const k of ['q', 'correlationId', 'category', 'status'] as const) {
+      for (const k of ['q', 'correlationId', 'category', 'type', 'status'] as const) {
         if (args[k] != null && args[k] !== '') query[k] = String(args[k]);
       }
       if (args.before != null) {
@@ -350,21 +351,31 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const recentErrors: any[] = [];
       let fires = 0;
       let fireErrors = 0;
+      // Field finding F4b: this loop used to count every fire event twice (each fire emits a
+      // 'requested' AND a terminal event) and branded every 'requested' an error via
+      // `status !== 'success'` — so fireErrors > 0 on a perfectly clean model, with no error
+      // records behind it. Now: `fires` counts attempts ('requested'), `fireErrors` counts
+      // genuine terminal errors only, and the two are reconcilable with recentErrors.
       for (const e of events) {
         const st = String(e.status ?? '').toLowerCase();
         if ((st === 'error' || st === 'failed') && recentErrors.length < 15) {
           recentErrors.push({ seq: e.seq, ts: e.ts, category: e.category, type: e.type, summary: String(e.summary ?? '').slice(0, 200) });
         }
         if (e.category !== 'transition' || e.type !== 'fire') continue;
-        fires++;
-        const kind = String(e.attributes?.kind ?? 'unknown');
-        activityByKind[kind] = (activityByKind[kind] ?? 0) + 1;
-        const isErr = st !== 'success';
+        const isAttempt = st === 'requested';
+        const isErr = st === 'error' || st === 'failed';
+        if (isAttempt) {
+          fires++;
+          const kind = String(e.attributes?.kind ?? 'unknown');
+          activityByKind[kind] = (activityByKind[kind] ?? 0) + 1;
+        }
         if (isErr) fireErrors++;
         const tid = String(e.attributes?.transitionId ?? '?');
+        const kind = String(e.attributes?.kind ?? 'unknown');
         const ms = Number(e.attributes?.durationMs ?? 0) || 0;
         const cur = perTx.get(tid) ?? { transitionId: tid, kind, calls: 0, errors: 0, totalMs: 0 };
-        cur.calls++;
+        if (kind !== 'unknown' && cur.kind === 'unknown') cur.kind = kind;
+        if (isAttempt) cur.calls++;
         cur.totalMs += ms;
         if (isErr) cur.errors++;
         perTx.set(tid, cur);

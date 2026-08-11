@@ -1,6 +1,55 @@
 import { describe, expect, it } from 'vitest';
-import { buildInscription, buildAgentInscription, scheduleEmptyFireWarning } from '../src/inscriptions.js';
+import { buildInscription, buildAgentInscription, scheduleEmptyFireWarning, validateFilter } from '../src/inscriptions.js';
 import { compileSteps } from '../src/tools/nets.js';
+
+describe('preset filter (add_transition filter: — F8c)', () => {
+  it('filter becomes the preset WHERE clause with the LIMIT preserved', () => {
+    const ins: any = buildInscription('map', {
+      id: 't-f', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      filter: '$.verarbeitet == null',
+    });
+    expect(ins.presets.input.arcql).toBe('FROM $ WHERE $.verarbeitet == null LIMIT 1');
+    expect(ins.presets.input.take).toBe('FIRST');
+  });
+
+  it('FOREACH batch keeps the filter and the batch LIMIT together', () => {
+    const ins: any = buildInscription('map', {
+      id: 't-f', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      filter: '$.status == "open"', mode: 'FOREACH', batchSize: 5,
+    });
+    expect(ins.presets.input.arcql).toBe('FROM $ WHERE $.status == "open" LIMIT 5');
+    expect(ins.presets.input.take).toBe('ALL');
+  });
+
+  it('rejects a full query pasted as a filter, and a filter without $. paths', () => {
+    expect(() => validateFilter('FROM $ WHERE $.a == 1')).toThrow(/WHERE condition only/);
+    expect(() => validateFilter('$.a == 1 LIMIT 3')).toThrow(/WHERE condition only/);
+    expect(() => validateFilter('status == "open"')).toThrow(/\$\. prefix/);
+    expect(() => validateFilter('   ')).toThrow(/non-empty/);
+  });
+
+  it('self-loop guard: emitting into the own input place without a filter is refused', () => {
+    // F8c: the unfiltered preset would rebind the lane's own output immediately — an
+    // infinite loop. With a marker filter the mark-and-requeue pattern is legitimate.
+    expect(() =>
+      buildInscription('map', { id: 't-loop', host: 'm@h:8080', inputPlace: 'p-store', outputPlace: 'p-store' }),
+    ).toThrow(/own input place/);
+    const ok: any = buildInscription('map', {
+      id: 't-loop', host: 'm@h:8080', inputPlace: 'p-store', outputPlace: 'p-store',
+      filter: '$.processed == null',
+    });
+    expect(ok.presets.input.arcql).toContain('WHERE $.processed == null');
+  });
+
+  it('self-loop guard also covers routes and errorPlace targets', () => {
+    expect(() =>
+      buildInscription('llm', {
+        id: 't-loop', host: 'm@h:8080', inputPlace: 'p-a',
+        routes: [{ place: 'p-a', when: "v == 'x'" }],
+      }),
+    ).toThrow(/own input place/);
+  });
+});
 
 describe('agent inscription (spawn_persona / add_transition kind:agent)', () => {
   it('builds a valid agent shape with role + tier + autoEmit, modelId derived from host', () => {
@@ -209,9 +258,9 @@ describe('http auth normalization (credentialKey → master params shape)', () =
 });
 
 describe('verdict routing (add_transition routes: [{place, when}])', () => {
-  it('llm: builds one postset + one when-gated emit per route, from @response.json, no catch-all', () => {
+  it('llm routes-only (no outputPlace): one postset + one when-gated emit per route, no catch-all', () => {
     const ins: any = buildInscription('llm', {
-      id: 't-review', host: 'm@h:8080', inputPlace: 'p-diff', outputPlace: 'p-out',
+      id: 't-review', host: 'm@h:8080', inputPlace: 'p-diff',
       prompt: 'review ${input.data.batchResults}',
       routes: [
         { place: 'p-approved', when: "verdict == 'APPROVE'" },
@@ -220,6 +269,7 @@ describe('verdict routing (add_transition routes: [{place, when}])', () => {
     });
     expect(ins.postsets.approved.placeId).toBe('p-approved');
     expect(ins.postsets['needs_work'].placeId).toBe('p-needs-work');
+    expect(ins.postsets.out).toBeUndefined();
     expect(ins.emit).toContainEqual({ to: 'approved', from: '@response.json', when: "verdict == 'APPROVE'" });
     expect(ins.emit).toContainEqual({ to: 'needs_work', from: '@response.json', when: "verdict == 'NEEDS_WORK'" });
     // no unconditional catch-all next to conditionals
@@ -227,9 +277,24 @@ describe('verdict routing (add_transition routes: [{place, when}])', () => {
     expect(ins.emit).toHaveLength(2);
   });
 
+  it('F3: routes PLUS a declared outputPlace no route targets → out gets an unconditional emit', () => {
+    // Field finding F3: outputPlace was required, reported, wired on the canvas — and dead.
+    // Now a declared output that no route covers receives every result unconditionally.
+    const ins: any = buildInscription('llm', {
+      id: 't-review', host: 'm@h:8080', inputPlace: 'p-diff', outputPlace: 'p-out',
+      routes: [
+        { place: 'p-approved', when: "verdict == 'APPROVE'" },
+        { place: 'p-needs-work', when: "verdict == 'NEEDS_WORK'" },
+      ],
+    });
+    expect(ins.postsets.out.placeId).toBe('p-out');
+    expect(ins.emit).toContainEqual({ to: 'out', from: '@response.json' });
+    expect(ins.emit).toHaveLength(3);
+  });
+
   it('routes compose with errorPlace (adds an err branch)', () => {
     const ins: any = buildInscription('http', {
-      id: 't-h', host: 'm@h:8080', inputPlace: 'p-in', outputPlace: 'p-out',
+      id: 't-h', host: 'm@h:8080', inputPlace: 'p-in',
       url: 'https://api/x', errorPlace: 'p-err',
       routes: [{ place: 'p-a', when: 'status == 200' }, { place: 'p-b', when: 'status == 404' }],
     });

@@ -3,7 +3,11 @@
  *
  * Conventions: memory places are `p-mem-{inbox|notes|decisions|knowledge|archive}`
  * in the runtime places container; short names are accepted everywhere. Tokens
- * carry `{kind:'memory', text?, ...data, tags?, createdAt, source:'mcp'}`.
+ * carry `{kind:'memory', createdAt, source:'mcp', text?, ...data, tags?}` — the tool's
+ * provenance defaults come FIRST so a same-named user data field always wins (field
+ * finding F13b: `source` in user data was silently overwritten with 'mcp', and a
+ * downstream template interpolated the wrong value). Explicit args (text/tags) still
+ * override data, because the caller typed them deliberately.
  *
  * memory_write works WITHOUT the working-memory template deployed (it auto-creates
  * the runtime place); deploying the template later upgrades the very same places
@@ -32,6 +36,41 @@ export function resolveMemoryPlace(name?: string): string {
 
 function placePath(placeId: string): string {
   return `root/workspace/places/${placeId}`;
+}
+
+/**
+ * Token payload for memory_write. Provenance defaults come FIRST so a same-named user data
+ * field always wins (field finding F13b: user `source` was silently replaced with 'mcp' and a
+ * downstream template interpolated the wrong value). Explicit args (text/tags) still override
+ * data, because the caller typed them deliberately.
+ */
+export function memoryTokenData(args: { text?: string; data?: Record<string, any>; tags?: string[] }): Record<string, any> {
+  return {
+    kind: 'memory',
+    createdAt: new Date().toISOString(),
+    source: 'mcp',
+    ...(args.data ?? {}),
+    ...(args.text ? { text: args.text } : {}),
+    ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
+  };
+}
+
+/** Same F13b merge order for domain_memory_write (adds content/type as explicit args). */
+export function domainMemoryTokenData(args: {
+  content?: string;
+  data?: Record<string, any>;
+  type?: string;
+  tags?: string[];
+}): Record<string, any> {
+  return {
+    kind: 'domain-memory',
+    createdAt: new Date().toISOString(),
+    source: 'mcp',
+    ...(args.data ?? {}),
+    ...(args.content ? { content: args.content } : {}),
+    ...(args.type ? { type: args.type } : {}),
+    ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
+  };
 }
 
 /**
@@ -136,14 +175,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       if (!args.text && !args.data) throw new Error('provide text and/or data');
       const placeId = resolveMemoryPlace(args.place);
       await ensurePlace(ctx, model, placeId);
-      const data = {
-        kind: 'memory',
-        ...(args.text ? { text: args.text } : {}),
-        ...(args.data ?? {}),
-        ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
-        createdAt: new Date().toISOString(),
-        source: 'mcp',
-      };
+      const data = memoryTokenData(args);
       const res = await ctx.executorFor(model).execute('CREATE_TOKEN', { placePath: placePath(placeId), data });
       if (!res.success) throw new Error(res.error ?? 'CREATE_TOKEN failed');
       const linked: string[] = [];
@@ -332,15 +364,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       // Context-resolved stores were created by the install/bootstrap; only the legacy
       // convention may need the place materialized on first use.
       if (placeId === domainPlace(model, store)) await ensurePlace(ctx, model, placeId);
-      const data = {
-        kind: 'domain-memory',
-        ...(args.content ? { content: args.content } : {}),
-        ...(args.data ?? {}),
-        ...(args.type ? { type: args.type } : {}),
-        ...(args.tags?.length ? { tags: JSON.stringify(args.tags) } : {}),
-        createdAt: new Date().toISOString(),
-        source: 'mcp',
-      };
+      const data = domainMemoryTokenData(args);
       const res = await ctx.executorFor(model).execute('CREATE_TOKEN', { placePath: placePath(placeId), data });
       if (!res.success) throw new Error(res.error ?? 'CREATE_TOKEN failed');
       return { stored: true, store, place: placeId };

@@ -16,12 +16,15 @@ Emit rules route a fire's result to postsets: `{"to": "<postsetKey>", "from": "<
 - `@input.data` — pass the input token through.
 - Any other `@path` resolves against the response context; a plain string is template-interpolated.
 
-## when — evaluated against the EMITTED data, not the input
+## when — evaluated against the EMITTED data, with the input bindings in scope
 
-`when` defaults to `"success"`. `"error"` routes failures. Anything else is a condition evaluated
-on what `from` resolved to — `"when": "category == 'urgent'"` checks the emitted object's field
-(flat paths). A custom condition that references input-token fields does not work; route on the
-result, or put the decision into the result.
+`when` defaults to `"success"`. `"error"` routes failures. Anything else is a condition: emitted
+fields at root — `"when": "category == 'urgent'"` — plus (master ≥ 2.45) the bound presets under
+their names — `"when": "input.data.site_id != null"` guards on the INPUT token (protects an
+onEmpty:"fire" config lane from emitting junk on empty ticks). A result field sharing a preset
+name wins. ⚠️ Older masters: `input.*` silently evaluated FALSE — guard on an EMITTED field there.
+`fire_once` always returns `emissions` + `emittedCount`; 0 with success = all guards suppressed,
+inputs preserved.
 
 ## EVERY matching rule fires — routing needs mutually exclusive whens
 
@@ -40,6 +43,11 @@ exclusive and cover every value the producer can emit:
 
 If the producer emits an unexpected value, NO rule matches — the input stays unconsumed and
 visible (the safe failure mode) instead of a duplicate landing in the wrong queue.
+
+Multi-place write is first-class: `routes` PLUS an `outputPlace` no route targets emits every
+result to the output unconditionally AND routes conditionally. Omit outputPlace for a pure branch
+lane. Postset keys derive from place ids (`p-wissen-vorschlag` → `wissen_vorschlag`; output =
+`out`, error = `err`, command = `log`) — read the returned inscription before an `emit` override.
 
 ## Success/error split
 

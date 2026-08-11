@@ -20,6 +20,13 @@ error — it silently resolves to an EMPTY string. Keep preset keys short and bo
 - A missing path interpolates to an empty string — silently. When a downstream value comes out
   blank, check the prefix-vs-preset-key rule first.
 
+## Empty input place (onEmpty:"fire" ticks)
+
+With no bound token, an EMBEDDED placeholder becomes "" (`"crawl-${input.data.id}"` → `"crawl-"`);
+an exactly-one-placeholder value becomes JSON `null`. Both stamp `_status:"success"`. Guard via an
+emit `when` on `input.*` (docs/emit) or `onEmpty:"skip"`. ⚠️ dry_run on an empty place shows the
+raw template — runtime interpolates; never design a guard from the dry-run display.
+
 ## Type preservation
 
 A template value that is EXACTLY one placeholder keeps its type: `"count": "${input.data.n}"`

@@ -14,6 +14,19 @@ FROM $ LIMIT 1                          -- the default preset binding
 Paths always start with `$.`. The top-3 mistakes: single `=` instead of `==`, single quotes
 instead of double quotes, missing `$` prefix on the field path.
 
+## Missing fields
+
+`$.f == null` matches tokens where `f` is absent OR null. `$.f != "x"` also matches fieldless
+tokens (missing = not-equal, same as emit `when`) — but ⚠️ nodes < 2.45 silently EXCLUDED them
+from `!=`, starving "not yet marked" filters; prefer `== null` there. Ordered comparisons never
+match a missing field.
+
+## Filtered presets
+
+`add_transition {filter: '$.done == null'}` becomes the preset WHERE clause — required for
+mark-and-requeue (a lane emitting into its own input MUST filter out its own output or it rebinds
+forever; the tool refuses that shape without filter).
+
 ## In presets
 
 A preset's `arcql` must NEVER be empty — even a link transition's preset carries `FROM $ LIMIT 1`

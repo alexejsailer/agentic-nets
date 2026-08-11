@@ -73,6 +73,8 @@ const CURATED = [
   'add_place',
   'add_transition',
   'add_transitions',
+  'delete_transition',
+  'delete_net',
   'delete_tokens',
   'set_schedule',
   'set_transition_credentials',

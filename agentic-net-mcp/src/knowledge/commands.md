@@ -36,6 +36,9 @@ batchResults, parsedStdout?}`. Two traps when a downstream llm/map interpolates 
 - **`parsedStdout` only exists when stdout WAS valid JSON.** Plain-text output (git log, build
   logs, test output) has NO flat stdout property — it lives only inside the stringified
   `batchResults`.
+- **Read vs template disagree on `parsedStdout`:** query_tokens returns it as a JSON STRING, but
+  `${input.data.parsedStdout.<field>}` interpolates fine and preserves types (numbers, arrays,
+  nesting). Don't conclude from the read view that interpolation is impossible.
 
 Working pattern for review/analyze pipelines (proven): interpolate the WHOLE result and tell the
 model where to look —

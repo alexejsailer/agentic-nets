@@ -34,7 +34,12 @@ export interface BuildOpts {
   description?: string;
   host: string;
   inputPlace: string;
-  outputPlace: string;
+  /** Required for link/agent/command; optional for map/llm/http WHEN routes cover the output. */
+  outputPlace?: string;
+  /** ArcQL WHERE condition filtering which input tokens bind (e.g. `$.verarbeitet == null`).
+   *  The ONLY way to express a filtered preset on this surface — without it, mark-and-requeue
+   *  designs self-loop because the preset rebinds whatever the lane emits back. */
+  filter?: string;
   /** 6-field cron or interval ms — either arms a schedule. */
   scheduleCron?: string;
   intervalMs?: number;
@@ -136,15 +141,65 @@ function schedule(opts: BuildOpts): Record<string, any> {
   return {};
 }
 
+/**
+ * Light validation for the `filter` param — a WHERE condition, not a full query. Full ArcQL
+ * grammar checking stays server-side; this catches the two real-world mistakes (pasting a whole
+ * query, forgetting the `$.` path prefix) before an inscription is written.
+ */
+export function validateFilter(filter: string): void {
+  const f = filter.trim();
+  if (!f) throw new Error('filter must be a non-empty ArcQL condition');
+  if (/^\s*FROM\b/i.test(f) || /\b(LIMIT|ORDER\s+BY)\b/i.test(f)) {
+    throw new Error(
+      `filter is a WHERE condition only (e.g. '$.status == "open"'), not a full query — ` +
+        `FROM/LIMIT/ORDER BY are added by the tool. Got: "${f}"`,
+    );
+  }
+  if (!f.includes('$.')) {
+    throw new Error(
+      `filter must reference token fields with the $. prefix (e.g. '$.verarbeitet == null'). Got: "${f}"`,
+    );
+  }
+}
+
 function inputPreset(opts: BuildOpts): PresetSpec {
   const batch = opts.batchSize ?? 1;
   if (!Number.isInteger(batch) || batch < 1) {
     throw new Error('batchSize must be a positive integer');
   }
+  if (opts.filter) validateFilter(opts.filter);
+  const where = opts.filter ? ` WHERE ${opts.filter.trim()}` : '';
   const foreach = opts.mode === 'FOREACH' && batch > 1
-    ? { arcql: `FROM $ LIMIT ${batch}`, take: 'ALL' as const }
-    : {};
+    ? { arcql: `FROM $${where} LIMIT ${batch}`, take: 'ALL' as const }
+    : where
+      ? { arcql: `FROM $${where} LIMIT 1` }
+      : {};
   return preset(opts.inputPlace, opts.host, { ...schedulePresetOverride(opts), ...foreach });
+}
+
+/**
+ * A lane that emits back into its own input place with an unfiltered preset rebinds its own
+ * output immediately — an infinite self-loop that spams every downstream place. Field finding
+ * F8c: this was impossible to build SAFELY before `filter` existed; now it is impossible to
+ * build UNSAFELY. Agent lanes are exempt (the want-token pattern legitimately writes to its
+ * own input, and agents bind work explicitly rather than by preset rebind).
+ */
+function guardSelfLoop(opts: BuildOpts, kind: string): void {
+  if (kind === 'agent' || kind === 'link' || opts.filter) return;
+  const targets = [opts.outputPlace, opts.errorPlace, ...(opts.routes ?? []).map((r) => r.place)];
+  if (targets.includes(opts.inputPlace)) {
+    throw new Error(
+      `transition '${opts.id}' emits into its own input place '${opts.inputPlace}' with an unfiltered ` +
+        `preset — it would rebind its own output forever. Either pass filter (e.g. '$.processed == null') ` +
+        `so re-emitted tokens carry a marker the preset excludes, or emit to a separate archive place.`,
+    );
+  }
+}
+
+/** The kinds whose output place may be replaced entirely by routes. */
+function requireOutputPlace(opts: BuildOpts, kind: string): string {
+  if (opts.outputPlace) return opts.outputPlace;
+  throw new Error(`kind '${kind}' requires outputPlace`);
 }
 
 /**
@@ -183,7 +238,8 @@ export function scheduleEmptyFireWarning(opts: BuildOpts): string | null {
   );
 }
 
-function postset(opts: BuildOpts) {
+function postset(opts: BuildOpts): Record<string, any> {
+  if (!opts.outputPlace) return {};
   return {
     out: {
       placeId: opts.outputPlace,
@@ -211,6 +267,10 @@ function routeKey(place: string, taken: Set<string>): string {
  * Returns null when no routes are set. Reuses the `out`/`err` keys so a route may target the
  * declared output or error place. Lets a pure-MCP client build review/branch lanes without
  * hand-authoring SET_INSCRIPTION.
+ *
+ * Field finding F3: when an outputPlace is declared AND no route targets it, the result ALSO
+ * emits there unconditionally — a declared-and-reported output must never be silently dead.
+ * Routes-only lanes simply omit outputPlace.
  */
 function routeSplit(opts: BuildOpts, from: string): { postsets: Record<string, any>; emit: any[] } | null {
   if (!opts.routes || opts.routes.length === 0) return null;
@@ -221,6 +281,10 @@ function routeSplit(opts: BuildOpts, from: string): { postsets: Record<string, a
     const key = r.place === opts.outputPlace ? 'out' : r.place === opts.errorPlace ? 'err' : routeKey(r.place, taken);
     postsets[key] = { placeId: r.place, host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) };
     emit.push({ to: key, from, when: r.when });
+  }
+  if (opts.outputPlace && !opts.routes.some((r) => r.place === opts.outputPlace)) {
+    // The out postset itself comes from postset(opts) in each builder; this is its emit rule.
+    emit.push({ to: 'out', from });
   }
   return { postsets, emit };
 }
@@ -248,6 +312,7 @@ export function buildLinkInscription(
 
 export function buildMapInscription(opts: BuildOpts) {
   const routed = routeSplit(opts, '@response');
+  if (!routed) requireOutputPlace(opts, 'map');
   return {
     id: opts.id,
     kind: 'map',
@@ -262,6 +327,7 @@ export function buildMapInscription(opts: BuildOpts) {
 }
 
 export function buildLlmInscription(opts: BuildOpts) {
+  if (!opts.routes?.length) requireOutputPlace(opts, 'llm');
   const postsets: Record<string, any> = postset(opts);
   if (opts.errorPlace) {
     postsets.err = { placeId: opts.errorPlace, host: opts.host };
@@ -346,6 +412,7 @@ export function normalizeAuth(auth: Record<string, any> | undefined): Record<str
 }
 
 export function buildHttpInscription(opts: BuildOpts) {
+  if (!opts.routes?.length) requireOutputPlace(opts, 'http');
   const postsets: Record<string, any> = postset(opts);
   if (opts.errorPlace) {
     postsets.err = { placeId: opts.errorPlace, host: opts.host };
@@ -401,7 +468,7 @@ export function buildCommandInscription(opts: BuildOpts) {
     presets: {
       input: inputPreset(opts),
     },
-    postsets: { log: { placeId: opts.outputPlace, host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) } },
+    postsets: { log: { placeId: requireOutputPlace(opts, 'command'), host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) } },
     action: {
       type: 'command',
       inputPlace: 'input',
@@ -427,6 +494,7 @@ export function buildCommandInscription(opts: BuildOpts) {
  * task token that lands there, in parallel with everything else running.
  */
 export function buildAgentInscription(opts: BuildOpts) {
+  requireOutputPlace(opts, 'agent');
   return {
     id: opts.id,
     kind: 'agent',
@@ -462,10 +530,11 @@ export function buildAgentInscription(opts: BuildOpts) {
 }
 
 export function buildInscription(kind: string, opts: BuildOpts): Record<string, any> {
+  guardSelfLoop(opts, kind);
   switch (kind) {
     case 'link':
       return buildLinkInscription(
-        opts.id, opts.label ?? '', opts.inputPlace, opts.outputPlace, opts.host, opts.relation);
+        opts.id, opts.label ?? '', opts.inputPlace, requireOutputPlace(opts, 'link'), opts.host, opts.relation);
     case 'map':
       return buildMapInscription(opts);
     case 'llm':

@@ -40,6 +40,14 @@ search/inspect it, install it — locally or across federated peers. The curated
   (+ research-analyst), `knowledge` (+ context-curator + crystallizer), `development` (+ dev-crew
   + crystallizer). Resident agents install STOPPED; a partial provisioning surfaces as an error
   listing per-artifact status — re-run with the same profile to complete (installs are idempotent).
+- **net/session/toolnet installs do NOT force-stop** (agent/context/application do). Lifecycle
+  leaves are create-if-absent: a cold install lands `stopped`, a reinstall over a running
+  instance stays RUNNING — so a package published from a live model can arrive with ARMED cron
+  schedules. Rule: `pause_model` before `hub_publish`, `resume_model` after.
+- **Template sources:** `create_model {profile}` bakes the model id into ~10 domain-context
+  element ids; a `kind:"model"` package carries them into every install. Create template-source
+  models WITHOUT `profile`, or publish per net (0 baked ids; `host` is rewritten on install and
+  cross-net references survive when installed in dependency order).
 
 Two canonical domain-boundary examples ship in the local Agent Hub:
 

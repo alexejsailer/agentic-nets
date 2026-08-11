@@ -95,8 +95,11 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // 104K → 112K for docs/applications: net-backed application views (Protocol/Interview/Goals)
   // are the human-input path, and a client that guesses place ids or waits for a person inside a
   // firing lease gets both wrong — the contract has to travel offline with every client.
+  // 112K → 114K for the 2026-08-11 field-report semantics: missing-field ArcQL, input-scope emit
+  // guards, empty-tick interpolation, parsedStdout read-vs-template, hub install lifecycle and
+  // template-source id-baking — every one a measured silent-failure a client re-hits without it.
   // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 114688;
+  const PACK_CAP = 116736;
   const INSTRUCTIONS_CAP = 17408;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {

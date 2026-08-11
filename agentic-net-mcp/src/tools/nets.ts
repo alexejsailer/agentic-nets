@@ -16,6 +16,7 @@ import {
   validateCron,
 } from '../inscriptions.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
+import { NetLayout } from '../layout.js';
 import { clampValues, isLlmHealthReady } from './observe.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
@@ -30,7 +31,7 @@ import { fetchTokens, linkPlaces } from './memory.js';
  * #4: `tier` on the wrong kind once silently bought the EXPENSIVE model).
  */
 const COMMON_TRANSITION_ARGS = new Set([
-  'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'x', 'y',
+  'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'filter', 'label', 'x', 'y',
   // `onEmpty` rides with the schedule params: it only means anything on a scheduled lane, and it
   // applies to every firing kind, so it belongs here rather than in a per-kind set.
   'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'model',
@@ -50,6 +51,7 @@ const PARAM_HOMES: Record<string, string> = {
   prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
   llmMode: 'agent', binary: 'agent with llmMode:"bash"',
   executorId: 'command', errorPlace: 'llm/http', routes: 'map/llm/http', emit: 'map/llm/http',
+  filter: 'map/llm/http/command/agent (not link — links never bind tokens)',
 };
 
 /** Throws (BEFORE any write) when a param does not apply to the chosen kind. */
@@ -71,6 +73,25 @@ export function validateAgentBackendArgs(kind: string, args: Record<string, any>
   if (args.binary !== undefined && args.llmMode !== 'bash') {
     throw new Error('binary only applies to an agent with llmMode:"bash"; set llmMode or drop binary');
   }
+}
+
+/**
+ * Read a net's current designtime geometry into a {@link NetLayout} plus the set of element ids
+ * that already exist (with or without coordinates). Fails soft: an unreadable net behaves like an
+ * empty one, so layout degrades to origin-anchored placement instead of blocking the write.
+ */
+async function loadNetLayout(
+  ctx: AppContext,
+  model: string,
+  session: string,
+  netId: string,
+): Promise<{ layout: NetLayout; existing: Set<string> }> {
+  const info: any = await ctx.master.getNet(netId, model, session).catch(() => null);
+  const elements = [
+    ...((info?.places ?? []) as any[]).map((p) => ({ id: String(p?.placeId ?? ''), x: p?.x, y: p?.y })),
+    ...((info?.transitions ?? []) as any[]).map((t) => ({ id: String(t?.transitionId ?? ''), x: t?.x, y: t?.y })),
+  ].filter((e) => e.id);
+  return { layout: new NetLayout(elements), existing: new Set(elements.map((e) => e.id)) };
 }
 
 /**
@@ -436,19 +457,28 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           );
         }
       }
-      await ctx.master
-        .createPlace(args.netId, {
-          modelId: model,
-          sessionId: config.session,
-          placeId: args.placeId,
-          label: args.label ?? args.placeId,
-          x: args.x ?? 100,
-          y: args.y ?? 100,
-          tokens: 0,
-        })
-        .catch((err: any) => {
-          if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
-        });
+      // Without explicit coords, take the next free grid slot instead of stacking every
+      // place on (100,100) — and never reposition/relabel a place that already exists
+      // (the designtime POST is an upsert, so a blind re-POST clobbers layout).
+      const netLayout = await loadNetLayout(ctx, model, config.session, String(args.netId));
+      if (!netLayout.existing.has(String(args.placeId))) {
+        const slot = args.x != null && args.y != null
+          ? { x: args.x, y: args.y }
+          : netLayout.layout.nextSlot(String(args.placeId));
+        await ctx.master
+          .createPlace(args.netId, {
+            modelId: model,
+            sessionId: config.session,
+            placeId: args.placeId,
+            label: args.label ?? args.placeId,
+            x: slot.x,
+            y: slot.y,
+            tokens: 0,
+          })
+          .catch((err: any) => {
+            if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
+          });
+      }
       const res = await ctx.executorFor(model).execute('CREATE_RUNTIME_PLACE', { placeId: args.placeId });
       if (!res.success) {
         // Partial success: the designtime place exists but the runtime container does not.
@@ -465,7 +495,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     transitionId: z.string(),
     kind: z.enum(['map', 'llm', 'http', 'command', 'agent', 'link']),
     inputPlace: z.string(),
-    outputPlace: z.string(),
+    outputPlace: z.string().optional(),
+    filter: z.string().optional(),
     label: z.string().optional(),
     relation: z.string().optional(),
     x: z.number().optional(),
@@ -511,7 +542,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         transitionId: z.string().describe('Convention: t-<name>'),
         kind: z.enum(['map', 'llm', 'http', 'command', 'agent', 'link']),
         inputPlace: z.string(),
-        outputPlace: z.string(),
+        outputPlace: z.string().optional().describe('Where results land. Required for every kind EXCEPT map/llm/http with routes (a pure branch lane may omit it). If given alongside routes and no route targets it, every result is ALSO emitted there unconditionally (multi-place write)'),
+        filter: z.string().optional().describe('ArcQL WHERE condition selecting which input tokens bind, e.g. \'$.status == "open"\' or \'$.verarbeitet == null\'. Use == null for "field absent". Without a filter the preset binds ANY token — required for mark-and-requeue designs (a lane emitting into its own input place must exclude its own output or it self-loops)'),
         label: z.string().optional(),
         relation: z.string().optional().describe('link: typed edge semantics (what TARGET is to SOURCE) — relates | contains | references | derives-from | supersedes | promotes-to | archives-to | ... (open vocabulary; label defaults from it)'),
         x: z.number().optional(),
@@ -532,7 +564,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         retry: z.record(z.any()).optional().describe('http: retry policy passed through to HttpActionHandler'),
         emit: z.array(z.any()).optional().describe('http/map: override the default emit rules verbatim (advanced)'),
         errorPlace: z.string().optional().describe('http/llm: route errors to this place (adds an err postset + a when:"error" emit) so a failed call lands somewhere visible instead of being silently dropped'),
-        routes: z.array(z.object({ place: z.string(), when: z.string() })).optional().describe('map/llm/http: verdict/branch routing — one output place per {place, when}. Each `when` is a condition on the RESULT data (e.g. "verdict == \'APPROVE\'"); conditions must be mutually exclusive and cover every value (NO catch-all — an unmatched value leaves the input unconsumed/visible). Builds a review or branch lane (e.g. p-approved / p-needs-work) without hand-writing an inscription'),
+        routes: z.array(z.object({ place: z.string(), when: z.string() })).optional().describe('map/llm/http: verdict/branch routing — one output place per {place, when}. Each `when` is a condition on the RESULT data (e.g. "verdict == \'APPROVE\'"), NOT the input token — ${input.*} paths never resolve in `when`; conditions must be mutually exclusive and cover every value (an unmatched value leaves the input unconsumed/visible). Omit outputPlace for a pure branch lane; keep it to ADDITIONALLY write every result there. Builds a review or branch lane (e.g. p-approved / p-needs-work) without hand-writing an inscription'),
         template: z.record(z.any()).optional().describe('map: the output template object'),
         executorId: z.string().optional().describe("For kind 'command': which executor runs it (see list_executors). '*' = any executor. Omit = default executor. If several executors are ONLINE and the user didn't say, ask them."),
         scheduleCron: z.string().optional().describe('6-field cron — makes this a scheduled tick'),
@@ -560,52 +592,68 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       const dup = (err: any) => {
         if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
       };
-      // Ensure both endpoint places exist as DESIGNTIME places before wiring arcs. createArc
-      // returns 404 (NOT 409/422, so `dup` won't swallow it) when a source/target place is
-      // absent from the net's designtime PNML — which happens whenever the caller made the
-      // place a runtime-only container (CREATE_RUNTIME_PLACE / an emit target) instead of
-      // add_place. Mirror add_place's two idempotent writes so add_transition honours its
-      // "wires input/output arcs" contract regardless of how the places were created.
-      const ensurePlace = async (placeId: string, y: number) => {
-        await ctx.master
-          .createPlace(args.netId, {
-            modelId: model,
-            sessionId: config.session,
-            placeId,
-            label: placeId,
-            x: args.x ?? 200,
-            y,
-            tokens: 0,
-          })
-          .catch(dup);
-        await ctx
-          .executorFor(model)
-          .execute('CREATE_RUNTIME_PLACE', { placeId })
-          .catch(() => undefined);
-      };
-      await ensurePlace(args.inputPlace, (args.y ?? 100) - 60);
-      await ensurePlace(args.outputPlace, (args.y ?? 100) + 60);
       // Branch targets (routes/errorPlace) are real emit postsets — they must exist as places too,
       // or the emitted verdict token has nowhere to land.
       const branchPlaces = [
         ...(Array.isArray(args.routes) ? args.routes.map((r: any) => r.place) : []),
         ...(args.errorPlace ? [args.errorPlace] : []),
       ].filter((p, i, a) => p && p !== args.outputPlace && p !== args.inputPlace && a.indexOf(p) === i);
-      let branchY = (args.y ?? 100) + 120;
+      // Read the net's current geometry once, then place ONLY the missing elements along the
+      // spine (place → transition → place, 200/180px pitch). Elements that already exist are
+      // never re-POSTed: the designtime POST is an upsert, so a blind re-create used to reset
+      // a carefully positioned place back to the default column and its label to the place id.
+      const netLayout = await loadNetLayout(ctx, model, config.session, String(args.netId));
+      const plan = netLayout.layout.planTransition({
+        transitionId: String(args.transitionId),
+        inputPlace: String(args.inputPlace),
+        outputPlace: args.outputPlace ? String(args.outputPlace) : undefined,
+        branchPlaces,
+        x: args.x,
+        y: args.y,
+      });
+      // Ensure endpoint places exist as DESIGNTIME places before wiring arcs. createArc
+      // returns 404 (NOT 409/422, so `dup` won't swallow it) when a source/target place is
+      // absent from the net's designtime PNML — which happens whenever the caller made the
+      // place a runtime-only container (CREATE_RUNTIME_PLACE / an emit target) instead of
+      // add_place. Mirror add_place's two idempotent writes so add_transition honours its
+      // "wires input/output arcs" contract regardless of how the places were created.
+      const ensurePlace = async (placeId: string) => {
+        if (!netLayout.existing.has(placeId)) {
+          const p = plan.places.get(placeId) ?? netLayout.layout.nextSlot(placeId);
+          await ctx.master
+            .createPlace(args.netId, {
+              modelId: model,
+              sessionId: config.session,
+              placeId,
+              label: placeId,
+              x: p.x,
+              y: p.y,
+              tokens: 0,
+            })
+            .catch(dup);
+        }
+        await ctx
+          .executorFor(model)
+          .execute('CREATE_RUNTIME_PLACE', { placeId })
+          .catch(() => undefined);
+      };
+      await ensurePlace(args.inputPlace);
+      if (args.outputPlace) await ensurePlace(args.outputPlace);
       for (const bp of branchPlaces) {
-        await ensurePlace(bp, branchY);
-        branchY += 60;
+        await ensurePlace(bp);
       }
-      await ctx.master
-        .createTransition(args.netId, {
-          modelId: model,
-          sessionId: config.session,
-          transitionId: args.transitionId,
-          label: args.label ?? args.transitionId,
-          x: args.x ?? 200,
-          y: args.y ?? 100,
-        })
-        .catch(dup);
+      if (!netLayout.existing.has(String(args.transitionId))) {
+        await ctx.master
+          .createTransition(args.netId, {
+            modelId: model,
+            sessionId: config.session,
+            transitionId: args.transitionId,
+            label: args.label ?? args.transitionId,
+            x: plan.transition.x,
+            y: plan.transition.y,
+          })
+          .catch(dup);
+      }
       await ctx.master
         .createArc(args.netId, {
           modelId: model,
@@ -615,15 +663,17 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           targetId: args.transitionId,
         })
         .catch(dup);
-      await ctx.master
-        .createArc(args.netId, {
-          modelId: model,
-          sessionId: config.session,
-          arcId: `a-${args.transitionId}-out`,
-          sourceId: args.transitionId,
-          targetId: args.outputPlace,
-        })
-        .catch(dup);
+      if (args.outputPlace) {
+        await ctx.master
+          .createArc(args.netId, {
+            modelId: model,
+            sessionId: config.session,
+            arcId: `a-${args.transitionId}-out`,
+            sourceId: args.transitionId,
+            targetId: args.outputPlace,
+          })
+          .catch(dup);
+      }
       // Wire an output arc to each branch target so the routed net is visually complete.
       for (let bi = 0; bi < branchPlaces.length; bi++) {
         await ctx.master
@@ -644,6 +694,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         host,
         inputPlace: args.inputPlace,
         outputPlace: args.outputPlace,
+        filter: args.filter,
         prompt: args.prompt,
         llmModel: args.llmModel,
         url: args.url,
@@ -708,7 +759,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         id: String(args.transitionId),
         host,
         inputPlace: String(args.inputPlace),
-        outputPlace: String(args.outputPlace),
+        outputPlace: args.outputPlace ? String(args.outputPlace) : undefined,
         scheduleCron: args.scheduleCron,
         intervalMs: args.intervalMs,
         timezone: args.timezone,
@@ -789,6 +840,52 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         partialSuccess: succeeded > 0 && succeeded < results.length,
         results,
       };
+    }),
+  );
+
+  // Field finding F13 (user-confirmed): structural mistakes were PERMANENT on the curated
+  // surface — no way to remove a mis-built transition or net without AGENTICOS_NATIVE_TOOLS=all.
+  // These wrap the same native DELETE_* paths (stop-first, best-effort deregistration).
+  server.registerTool(
+    'delete_transition',
+    {
+      title: 'Delete a transition (stop + deregister)',
+      description:
+        'Remove a transition permanently: stops it, then removes its runtime registration, inscription, status and assignment. Tokens in its places are untouched. Use for mis-built or orphaned lanes; the designtime PNML element (canvas shape) stays until its net is deleted.',
+      inputSchema: {
+        transitionId: z.string(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'delete_transition', mutates: true }, async (model, args) => {
+      const res: any = await ctx.executorFor(model).execute('DELETE_TRANSITION', { transitionId: args.transitionId });
+      if (res?.success === false) throw new Error(String(res.error ?? 'DELETE_TRANSITION failed'));
+      return { deleted: args.transitionId, ...(res?.data ?? {}) };
+    }),
+  );
+
+  server.registerTool(
+    'delete_net',
+    {
+      title: 'Delete a net (designtime structure + its transitions)',
+      description:
+        'Remove a net\'s designtime structure (places, transitions, arcs on the canvas) and — by default — deregister its runtime transitions too. Pass deleteTransitions:false to keep runtime transitions (they are model-global and may be shared across nets). Tokens in runtime places are NOT deleted (use delete_tokens). Permanent; there is no undo.',
+      inputSchema: {
+        netId: z.string(),
+        deleteTransitions: z
+          .boolean()
+          .optional()
+          .describe('Default true: also stop + deregister every transition in the net\'s PNML. Set false if transitions are shared with another net.'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'delete_net', mutates: true }, async (model, args) => {
+      const res: any = await ctx.executorFor(model).execute('DELETE_NET', {
+        netId: args.netId,
+        deleteTransitions: args.deleteTransitions ?? true,
+      });
+      if (res?.success === false) throw new Error(String(res.error ?? 'DELETE_NET failed'));
+      return { ...(res?.data ?? { deleted: args.netId }) };
     }),
   );
 

@@ -135,7 +135,8 @@ platform catalog (the exact same tools agent transitions use in-net), exposed 1:
 surgery (SET_INSCRIPTION, ADAPT_INSCRIPTIONS, CREATE/DELETE_PLACE|ARC|NET|TOKEN), deep diagnosis
 (NET_DOCTOR, VERIFY_NET, VERIFY_RUNTIME_BINDINGS), cleanup, packages, Docker/registry ops,
 EXPORT_PNML backup, raw HTTP_CALL and more — agenticnets://tool-catalog lists every one.
-Anything the platform can do, you can do here; nothing requires dropping to raw REST.
+Native layer only with AGENTICOS_NATIVE_TOOLS=all; Desktop Lite defaults to curated — there
+add_transition's filter/routes/emit and delete_transition/delete_net cover the SET_INSCRIPTION cases.
 
 ## Hosting transitions HERE (client-side LLM — no server-side model needed)
 host_transition executes an llm/agent transition IN THIS PROCESS instead of on master, using the LLM
