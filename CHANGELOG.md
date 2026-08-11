@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.45.0] - 2026-08-11
+
 The MCP field-report patch: a Windows Desktop Lite user built a real five-net model through the MCP and wrote down every defect (18 findings, most sharing one signature: *the lane reports success and does nothing*), followed by a volume-2 supplement (6 more from the live model). This release fixes the MCP-side half; the engine-side half (emit guards, ArcQL `!=`, fire telemetry, application action effects) ships in the sibling `core/` repo.
 
 ### Added
