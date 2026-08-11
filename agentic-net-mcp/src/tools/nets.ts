@@ -34,7 +34,7 @@ const COMMON_TRANSITION_ARGS = new Set([
   'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'filter', 'label', 'x', 'y',
   // `onEmpty` rides with the schedule params: it only means anything on a scheduled lane, and it
   // applies to every firing kind, so it belongs here rather than in a per-kind set.
-  'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'model',
+  'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'replace', 'model',
 ]);
 const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   map: new Set(['template', 'emit', 'routes']),
@@ -529,6 +529,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     mode: z.enum(['SINGLE', 'FOREACH']).optional(),
     batchSize: z.number().int().min(1).max(100).optional(),
     start: z.boolean().optional(),
+    replace: z.boolean().optional(),
   });
 
   server.registerTool(
@@ -580,7 +581,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         capacity: z.number().optional().describe('Output place capacity (backpressure)'),
         mode: z.enum(['SINGLE', 'FOREACH']).optional().describe('Execution mode. SINGLE (default) binds all presets and fires once; FOREACH processes each bound token independently with bounded per-fire fan-out — use for per-token work like enriching every item in a batch'),
         batchSize: z.number().int().min(1).max(100).optional().describe('FOREACH only: bind/process this many tokens per firing (default 1); the lane drains the place across repeated polls'),
-        start: z.boolean().optional().describe('Default true (links are never started)'),
+        start: z.boolean().optional().describe('Default true for NEW lanes (links are never started). A REPLACED lane stays STOPPED unless start:true is explicit.'),
+        replace: z.boolean().optional().describe('Required (true) to overwrite an existing transitionId — this is the inscription-edit path. Without it, an existing id is an ERROR (protects against a typo destroying an unrelated lane). The response returns the previous inscription.'),
         ...modelParam,
       },
     },
@@ -592,6 +594,32 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       const dup = (err: any) => {
         if (err?.name !== 'GatewayError' || (err.status !== 409 && err.status !== 422)) throw err;
       };
+      // Field finding V2-3: a re-used transitionId silently REPLACED the existing lane — a typo'd
+      // id destroyed an unrelated inscription with no signal, and the replaced lane came back
+      // RUNNING against the changed-inscription-stays-STOPPED rule. Replacing is legitimate (it
+      // is the inscription-edit path on this surface) but must be explicit and reversible-ish.
+      const prior: any = await ctx.client
+        .masterApi('GET', `/transitions/${encodeURIComponent(String(args.transitionId))}/status`, undefined, { modelId: model })
+        .catch(() => null);
+      const priorExists = prior != null && (prior.status != null || prior.state != null);
+      if (priorExists && args.replace !== true) {
+        throw new Error(
+          `Transition '${args.transitionId}' already exists in model '${model}' (status ${prior.status ?? prior.state}). ` +
+            `add_transition would REPLACE its inscription. Pass replace:true to overwrite deliberately ` +
+            `(the previous inscription is returned so you can restore it), or pick a new id.`,
+        );
+      }
+      let previousInscription: any;
+      if (priorExists) {
+        const prev: any = await ctx.executorFor(model)
+          .execute('GET_TRANSITION', { transitionId: args.transitionId })
+          .catch(() => null);
+        previousInscription = prev?.data?.inscription ?? prev?.data ?? undefined;
+        // The changed-inscription rule: stop before swapping, and stay stopped unless the caller
+        // explicitly asked to start (the executor caches inscriptions, and a lane that returns
+        // RUNNING with a changed inscription mid-flight is the trap the doc rule exists for).
+        await ctx.master.stopTransition(String(args.transitionId), model).catch(() => undefined);
+      }
       // Branch targets (routes/errorPlace) are real emit postsets — they must exist as places too,
       // or the emitted verdict token has nowhere to land.
       const branchPlaces = [
@@ -740,7 +768,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       await persistInscriptionLeaf(ctx, model, args.netId, args.transitionId, inscription);
 
       let started = false;
-      if (args.kind !== 'link' && args.start !== false) {
+      // A REPLACED lane stays STOPPED unless start:true is explicit (the changed-inscription
+      // rule); a fresh lane keeps the start-by-default behavior.
+      const wantStart = priorExists ? args.start === true : args.start !== false;
+      if (args.kind !== 'link' && wantStart) {
         const runtime: any = await ctx.client.masterApi(
           'GET',
           `/transitions/${encodeURIComponent(String(args.transitionId))}/status`,
@@ -774,7 +805,16 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         transition: args.transitionId,
         kind: args.kind,
         started,
-        external: args.kind !== 'link' && args.start !== false && !started,
+        ...(priorExists
+          ? {
+              replaced: true,
+              ...(previousInscription ? { previousInscription } : {}),
+              ...(started
+                ? {}
+                : { note: 'replaced lane left STOPPED (a changed inscription must be verified before it runs) — start_transition when ready, or pass start:true on the replace' }),
+            }
+          : {}),
+        external: args.kind !== 'link' && wantStart && !started,
         ...(scheduled || args.mode === 'FOREACH'
           ? {
               presetSemantics: {
@@ -1041,6 +1081,10 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
                   .boolean()
                   .optional()
                   .describe('Default true: acquire the scheduler in-flight guard and test a RUNNING lane without changing its lifecycle state. Set false for legacy 409-while-running behavior.'),
+                boundTokens: z
+                  .enum(['counts', 'full'])
+                  .optional()
+                  .describe('Default "counts": bound tokens are summarized per preset (count + token names) — the full echo repeated every bound token twice and drowned the part that matters (emissions). "full" returns the complete bound-token payload.'),
               }
             : {}),
           ...modelParam,
@@ -1084,14 +1128,44 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         if (name === 'fire_once') {
           const max = Number(args.maxResponseChars ?? 4000);
           const state = { truncated: false };
-          const clamped = clampValues(payload, max, state);
-          return state.truncated
-            ? {
-                ...clamped,
-                truncated: true,
-                note: `long values shortened to ${max} chars for this response only — the stored token is intact; read it with query_tokens, or re-fire with maxResponseChars:0`,
-              }
-            : clamped;
+          const clamped: any = clampValues(payload, max, state);
+          // V2-6: the full bound-token echo (data + _meta.properties, per token, per fire) was
+          // the single largest source of context noise in a fire-heavy session, and it buried
+          // `emissions` — the answer to the question fire_once asks. Summarize by default and
+          // put the answer first.
+          if ((args.boundTokens ?? 'counts') !== 'full' && clamped.boundTokens && typeof clamped.boundTokens === 'object') {
+            const summary: Record<string, any> = {};
+            for (const [preset, toks] of Object.entries(clamped.boundTokens as Record<string, any>)) {
+              const list = Array.isArray(toks) ? toks : [];
+              summary[preset] = {
+                count: list.length,
+                tokens: list.slice(0, 10).map((t: any) => t?.name ?? t?.id ?? t?._meta?.name ?? '?'),
+              };
+            }
+            clamped.boundTokens = summary;
+            clamped.boundTokensNote = 'summarized — pass boundTokens:"full" for the complete payload';
+          }
+          const { success, emissions, emittedCount, produced, toPlaces, consumed, note, ...rest } = clamped;
+          const ordered = {
+            ...(success !== undefined ? { success } : {}),
+            ...(emissions !== undefined ? { emissions } : {}),
+            ...(emittedCount !== undefined ? { emittedCount } : {}),
+            ...(produced !== undefined ? { produced } : {}),
+            ...(toPlaces !== undefined ? { toPlaces } : {}),
+            ...(consumed !== undefined ? { consumed } : {}),
+            ...(note !== undefined ? { note } : {}),
+            ...rest,
+          };
+          if (state.truncated) {
+            const truncNote = `long values shortened to ${max} chars for this response only — the stored token is intact; read it with query_tokens, or re-fire with maxResponseChars:0`;
+            return {
+              ...ordered,
+              truncated: true,
+              // keep the engine's own note (e.g. "all guards suppressed") next to the truncation one
+              note: note !== undefined ? `${note} | ${truncNote}` : truncNote,
+            };
+          }
+          return ordered;
         }
         return payload;
       }),

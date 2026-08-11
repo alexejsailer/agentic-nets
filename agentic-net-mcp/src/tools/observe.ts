@@ -1012,6 +1012,24 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           lastErrorAt: typeof errorMs === 'number' ? new Date(errorMs).toISOString() : null,
           ...(typeof sched?.fireCount === 'number' ? { fireCount: sched.fireCount } : {}),
           ...(typeof sched?.successCount === 'number' ? { successCount: sched.successCount } : {}),
+          // Per-origin split (V2-2): fireCount counts EVERY dispatch including manual fire_once,
+          // so it cannot answer "did my schedule run". scheduledFireCount can.
+          ...(typeof sched?.scheduledFireCount === 'number' ? { scheduledFireCount: sched.scheduledFireCount } : {}),
+          ...(typeof sched?.manualFireCount === 'number' ? { manualFireCount: sched.manualFireCount } : {}),
+          ...(typeof sched?.lastScheduledFireAtMillis === 'number'
+            ? { lastScheduledFireAt: new Date(sched.lastScheduledFireAtMillis).toISOString() }
+            : {}),
+          ...(typeof sched?.lastScheduledSuccessAtMillis === 'number'
+            ? { lastScheduledSuccessAt: new Date(sched.lastScheduledSuccessAtMillis).toISOString() }
+            : {}),
+          ...(typeof sched?.scheduledFireCount === 'number' && sched.scheduledFireCount === 0
+            && typeof sched?.manualFireCount === 'number' && sched.manualFireCount > 0
+            ? {
+                scheduleNeverDispatched: true,
+                scheduleHint: `the schedule itself has NEVER dispatched — all ${sched.manualFireCount} `
+                  + 'fire(s) were manual fire_once calls. fireCount/lastFiredAt reflect those, not the schedule.',
+              }
+            : {}),
           ...(sched?.lastError != null ? { lastError: sched.lastError } : {}),
           ...(sched?.timezone != null ? { timezone: sched.timezone } : {}),
           ...(sched?.nextFireAtLocal != null ? { nextFireAtLocal: sched.nextFireAtLocal } : {}),

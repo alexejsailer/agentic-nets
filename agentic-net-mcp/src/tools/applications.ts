@@ -22,6 +22,36 @@ async function describe(ctx: AppContext, model: string, name: string): Promise<a
   );
 }
 
+/**
+ * Derive each store's write contract from the actions that target it (field finding V2-5:
+ * action defaults like kind stamps apply ONLY on the application_action path — a net lane
+ * writing directly into an application place bypasses them, the store declares no schema,
+ * and the renderer silently degrades or drops the token). This makes the expected shape
+ * queryable so direct writers can conform.
+ */
+function withStoreContracts(app: any): any {
+  if (!app || !Array.isArray(app.stores)) return app;
+  const actions: any[] = Array.isArray(app.actions) ? app.actions : [];
+  const stores = app.stores.map((store: any) => {
+    const writers = actions.filter((a: any) => a?.targetRole === store?.role);
+    const kinds = [...new Set(writers.map((a: any) => a?.defaults?.kind).filter(Boolean))];
+    const requiredFields = [...new Set(writers.flatMap((a: any) =>
+      Array.isArray(a?.inputSchema?.required) ? a.inputSchema.required : []))];
+    if (!kinds.length && !requiredFields.length) return store;
+    return {
+      ...store,
+      writeContract: {
+        ...(kinds.length ? { expectedKind: kinds.length === 1 ? kinds[0] : kinds } : {}),
+        ...(requiredFields.length ? { correlationFields: requiredFields } : {}),
+        note: 'Derived from the actions targeting this store. A net lane emitting DIRECTLY into '
+          + 'this place bypasses action defaults — carry at least the expected kind and the '
+          + 'correlation fields, or the renderer may silently degrade/drop the token.',
+      },
+    };
+  });
+  return { ...app, stores };
+}
+
 export async function resolveApplicationStore(
   ctx: AppContext,
   model: string,
@@ -74,7 +104,7 @@ export function registerApplicationReaders(server: McpServer, ctx: AppContext): 
       },
     },
     wrapTool(scope, config.mode, { name: 'application_describe', mutates: false }, async (model, args) =>
-      describe(ctx, model, args.name),
+      withStoreContracts(await describe(ctx, model, args.name)),
     ),
   );
 }

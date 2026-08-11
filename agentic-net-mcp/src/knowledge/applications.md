@@ -83,7 +83,14 @@ daily standup that waits for a human without blocking on one.
   path, so `options` and `selected` come back as strings. Studio parses both; ArcQL cannot treat
   them as arrays. Keep anything you need to query as a scalar.
 - **A prompt counts as answered** purely because some response carries its `promptId`. Reusing a
-  `promptId` marks the new prompt answered on arrival — always mint a fresh one.
+  `promptId` marks the new prompt answered on arrival — always mint a fresh one. On masters ≥ 2.45
+  `respond` with intent answer/reject ALSO settles the prompt token's `status` (open →
+  answered/rejected) via a declared action effect, so settled-ness survives automation consuming
+  the response token. Older masters: `status` never leaves "open" — track via decision tokens.
+- **Direct writes bypass action defaults.** A net lane emitting straight into an application place
+  gets no `kind` stamp, no schema check, and Studio may render it degraded or drop it silently.
+  `application_describe` returns each store's `writeContract` (expectedKind + correlation fields) —
+  carry those on every direct write.
 - **`createdAt` orders the view.** The action sets it; a net emitting straight to the place must
   set `createdAt` or `ts` itself or the prompt sorts last.
 - **An answer is information, not authorization.** "Yes, sounds good" is not approval for a

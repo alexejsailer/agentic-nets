@@ -32,6 +32,16 @@ Token names must be unique within a place — creating a duplicate 422s. Use
   windows instead of one giant read. Validate JSON completeness before feeding a big payload to an
   LLM — a plausible-looking analysis of truncated garbage is the worst failure mode.
 
+## Reserved / system field names
+
+The engine and tools stamp fields into the same namespaces your templates read — never name your
+fields after them: `data` gets `_status`, `_emittedAt`, `_transitionId`, `_correlationId`
+(emission provenance, readable in `when` guards); `_meta.properties` gets `_parentPlace`.
+`_lock` (reservation state) no longer leaks into bindings on masters ≥ 2.45. `memory_write` adds
+`kind`/`createdAt`/`source` (your same-named data fields win); `application_action` adds
+`createdAt`/`application`/`action` + the action defaults (caller input wins). Rule: a leading
+underscore means "the platform wrote this"; everything else in `data` should be yours.
+
 ## Config tokens
 
 Long-lived configuration is a token in a `*-config` place read with `consume:false` — scheduled
