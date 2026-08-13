@@ -37,6 +37,8 @@ const COMMON_TRANSITION_ARGS = new Set([
   'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'replace', 'model',
 ]);
 const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
+  // pass is routing and nothing else: no action to configure, so emit/routes ARE its whole surface.
+  pass: new Set(['emit', 'routes']),
   map: new Set(['template', 'emit', 'routes']),
   llm: new Set(['prompt', 'llmModel', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
@@ -50,8 +52,8 @@ const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
   prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
   llmMode: 'agent', binary: 'agent with llmMode:"bash"',
-  executorId: 'command', errorPlace: 'llm/http', routes: 'map/llm/http', emit: 'map/llm/http',
-  filter: 'map/llm/http/command/agent (not link — links never bind tokens)',
+  executorId: 'command', errorPlace: 'llm/http', routes: 'pass/map/llm/http', emit: 'pass/map/llm/http',
+  filter: 'pass/map/llm/http/command/agent (not link — links never bind tokens)',
 };
 
 /** Throws (BEFORE any write) when a param does not apply to the chosen kind. */
@@ -493,7 +495,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
   let addTransitionHandler!: ReturnType<typeof wrapTool>;
   const batchTransitionSchema = z.object({
     transitionId: z.string(),
-    kind: z.enum(['map', 'llm', 'http', 'command', 'agent', 'link']),
+    kind: z.enum(['pass', 'map', 'llm', 'http', 'command', 'agent', 'link']),
     inputPlace: z.string(),
     outputPlace: z.string().optional(),
     filter: z.string().optional(),
@@ -537,11 +539,11 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Add a transition (pre-wired by kind)',
       description:
-        'Add a transition with a known-good inscription for its kind. Kinds: map (template transform), llm (one AI call), http (API call), command (command-shaped tokens on an executor, including one-shot headless CLI jobs), agent (autonomous multi-step persona; server provider by default or llmMode:"bash" + binary:"claude"|"codex" for an unattended Desktop Lite CLI session), link (directional typed semantic/context edge, never fires). Prefer link transitions whenever related places need durable meaning or navigable context; use relation to state what the target is to the source. Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
+        'Add a transition with a known-good inscription for its kind. Kinds: pass (pure routing — forwards the input token, no action; use routes/emit when-conditions to split traffic), map (template transform), llm (one AI call), http (API call), command (command-shaped tokens on an executor, including one-shot headless CLI jobs), agent (autonomous multi-step persona; server provider by default or llmMode:"bash" + binary:"claude"|"codex" for an unattended Desktop Lite CLI session), link (directional typed semantic/context edge, never fires). Prefer link transitions whenever related places need durable meaning or navigable context; use relation to state what the target is to the source. Wires input/output arcs, assigns, and starts it (unless kind=link or start:false).',
       inputSchema: {
         netId: z.string(),
         transitionId: z.string().describe('Convention: t-<name>'),
-        kind: z.enum(['map', 'llm', 'http', 'command', 'agent', 'link']),
+        kind: z.enum(['pass', 'map', 'llm', 'http', 'command', 'agent', 'link']),
         inputPlace: z.string(),
         outputPlace: z.string().optional().describe('Where results land. Required for every kind EXCEPT map/llm/http with routes (a pure branch lane may omit it). If given alongside routes and no route targets it, every result is ALSO emitted there unconditionally (multi-place write)'),
         filter: z.string().optional().describe('ArcQL WHERE condition selecting which input tokens bind, e.g. \'$.status == "open"\' or \'$.verarbeitet == null\'. Use == null for "field absent". Without a filter the preset binds ANY token — required for mark-and-requeue designs (a lane emitting into its own input place must exclude its own output or it self-loops)'),

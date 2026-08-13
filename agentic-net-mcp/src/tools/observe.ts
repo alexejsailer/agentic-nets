@@ -220,7 +220,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Net / session overview',
       description:
-        'Structure + live execution status. With netId: that one net (places, transitions, arcs, statuses). Without netId: the nets in THIS MCP session (sessionNets) PLUS a model-wide session summary. IMPORTANT: sessionNetCount is scoped to this connection\'s session — a freshly-connected session is empty even when the model is full, so sessionNetCount:0 does NOT mean the model is empty (check modelSessionCount / sessionIds, or pass a sessionId).',
+        'Structure + live execution status. With netId: that one net (places, transitions, arcs, statuses) plus its convergence points — fanIn (places MORE THAN ONE transition writes) and fanOut (places more than one reads, i.e. lanes racing for the same tokens unless their ArcQL filters are disjoint), both derived from inscriptions and excluding token-less link transitions. Note sharedPlaces means something else: places this net shares with ANOTHER net in the session (cross-net coupling), so it is empty for a place two of this net\'s own transitions meet at — that is fanIn. Without netId: the nets in THIS MCP session (sessionNets) PLUS a model-wide session summary. IMPORTANT: sessionNetCount is scoped to this connection\'s session — a freshly-connected session is empty even when the model is full, so sessionNetCount:0 does NOT mean the model is empty (check modelSessionCount / sessionIds, or pass a sessionId).',
       inputSchema: {
         netId: z.string().optional(),
         sessionId: z.string().optional().describe('Inspect a specific session instead of this connection\'s session'),

@@ -326,6 +326,30 @@ export function buildMapInscription(opts: BuildOpts) {
   };
 }
 
+/**
+ * Pass ("task") — pure routing. No action at all: the engine forwards the INPUT token, so
+ * `from` is `@input.data` rather than a computed `@response`, and the master's own checker
+ * warns when a task carries action config.
+ *
+ * <p>This kind was reachable by the engine and by fire_once but not by the MCP builder, so a
+ * routing-only lane could not be created through the tools at all — the one kind whose entire
+ * job is the `when` semantics everything else depends on.</p>
+ */
+export function buildPassInscription(opts: BuildOpts) {
+  const routed = routeSplit(opts, '@input.data');
+  if (!routed) requireOutputPlace(opts, 'pass');
+  return {
+    id: opts.id,
+    kind: 'task',
+    label: opts.label ?? opts.id,
+    ...schedule(opts),
+    presets: { input: inputPreset(opts) },
+    postsets: { ...postset(opts), ...(routed?.postsets ?? {}) },
+    emit: opts.emit ?? routed?.emit ?? [{ to: 'out', from: '@input.data' }],
+    mode: opts.mode ?? 'SINGLE',
+  };
+}
+
 export function buildLlmInscription(opts: BuildOpts) {
   if (!opts.routes?.length) requireOutputPlace(opts, 'llm');
   const postsets: Record<string, any> = postset(opts);
@@ -537,6 +561,8 @@ export function buildInscription(kind: string, opts: BuildOpts): Record<string, 
         opts.id, opts.label ?? '', opts.inputPlace, requireOutputPlace(opts, 'link'), opts.host, opts.relation);
     case 'map':
       return buildMapInscription(opts);
+    case 'pass':
+      return buildPassInscription(opts);
     case 'llm':
       return buildLlmInscription(opts);
     case 'http':
@@ -546,7 +572,7 @@ export function buildInscription(kind: string, opts: BuildOpts): Record<string, 
     case 'agent':
       return buildAgentInscription(opts);
     default:
-      throw new Error(`Unsupported transition kind '${kind}' (supported: link, map, llm, http, command, agent)`);
+      throw new Error(`Unsupported transition kind '${kind}' (supported: link, pass, map, llm, http, command, agent)`);
   }
 }
 

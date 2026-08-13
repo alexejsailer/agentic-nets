@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildInscription, buildAgentInscription, scheduleEmptyFireWarning, validateFilter } from '../src/inscriptions.js';
-import { compileSteps } from '../src/tools/nets.js';
+import { compileSteps, validateKindArgs } from '../src/tools/nets.js';
 
 describe('preset filter (add_transition filter: — F8c)', () => {
   it('filter becomes the preset WHERE clause with the LIMIT preserved', () => {
@@ -437,5 +437,64 @@ describe('scheduleEmptyFireWarning', () => {
     expect(
       scheduleEmptyFireWarning({ ...base, template: { tick: '${input.data.seq}' } } as any),
     ).toBeNull();
+  });
+});
+
+describe('pass inscription (add_transition kind:pass — pure routing)', () => {
+  it('emits the INPUT token and carries no action', () => {
+    const ins: any = buildInscription('pass', {
+      id: 't-route', host: 'net-lab@127.0.0.1:8080',
+      inputPlace: 'p-pass-inbox', outputPlace: 'p-pass-out',
+    });
+    // kind on the wire is the engine's name for pass.
+    expect(ins.kind).toBe('task');
+    // A pass lane forwards what it bound; @response would be an action's output and there is none.
+    expect(ins.emit).toEqual([{ to: 'out', from: '@input.data' }]);
+    // The master's own checker flags a task that carries action config.
+    expect(ins.action).toBeUndefined();
+    expect(ins.presets.input.placeId).toBe('p-pass-inbox');
+    expect(ins.postsets.out.placeId).toBe('p-pass-out');
+    expect(ins.mode).toBe('SINGLE');
+  });
+
+  it('routes split traffic on mutually exclusive when-conditions, still from @input.data', () => {
+    const ins: any = buildInscription('pass', {
+      id: 't-split', host: 'net-lab@127.0.0.1:8080', inputPlace: 'p-pass-inbox',
+      routes: [
+        { place: 'p-pass-high', when: "priority == 'high'" },
+        { place: 'p-pass-low', when: "priority != 'high'" },
+      ],
+    });
+    expect(ins.emit.every((e: any) => e.from === '@input.data')).toBe(true);
+    expect(ins.emit.map((e: any) => e.when)).toEqual(["priority == 'high'", "priority != 'high'"]);
+    expect(Object.values(ins.postsets).map((p: any) => p.placeId).sort())
+      .toEqual(['p-pass-high', 'p-pass-low']);
+  });
+
+  it('honours filter, FOREACH batching and schedules like every other bindable kind', () => {
+    const ins: any = buildInscription('pass', {
+      id: 't-drain', host: 'net-lab@127.0.0.1:8080',
+      inputPlace: 'p-pass-inbox', outputPlace: 'p-pass-out',
+      filter: '$.routed == null', mode: 'FOREACH', batchSize: 3,
+    });
+    expect(ins.presets.input.arcql).toBe('FROM $ WHERE $.routed == null LIMIT 3');
+    expect(ins.presets.input.take).toBe('ALL');
+    expect(ins.mode).toBe('FOREACH');
+  });
+});
+
+describe('pass param applicability (the guard must not outlaw its own surface)', () => {
+  it('accepts routes and emit — routing IS what a pass lane configures', () => {
+    expect(() => validateKindArgs('pass', {
+      routes: [{ place: 'p-high', when: "priority == 'high'" }],
+    })).not.toThrow();
+    expect(() => validateKindArgs('pass', {
+      emit: [{ to: 'out', from: '@input.data', when: "status == 'ready'" }],
+    })).not.toThrow();
+  });
+
+  it('still rejects action params that a pass lane has nowhere to put', () => {
+    expect(() => validateKindArgs('pass', { template: { a: 1 } })).toThrow(/template/);
+    expect(() => validateKindArgs('pass', { url: 'http://x' })).toThrow(/url/);
   });
 });
