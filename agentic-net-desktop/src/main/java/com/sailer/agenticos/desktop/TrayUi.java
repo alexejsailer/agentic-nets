@@ -31,6 +31,7 @@ public final class TrayUi {
     private PopupMenu menu;
     private MenuItem updateItem;
     private volatile String pendingUpdate;
+    private static final String RELEASES_URL = "https://github.com/alexejsailer/agentic-nets/releases";
 
     public TrayUi(DesktopConfig config, Supervisor supervisor, GuiServer guiServer, Runnable onQuit) {
         this.config = config;
@@ -159,11 +160,11 @@ public final class TrayUi {
             + (autoApply ? "install it from the tray menu." : "download it from the tray menu."));
     }
 
-    /** No update known: open the Releases page. Update known: download, verify, apply. */
+    /** No update known: CHECK, and relabel on a hit. Update known: download, verify, apply. */
     private void onUpdateAction() throws IOException {
         String version = pendingUpdate;
         if (version == null) {
-            Desktop.getDesktop().browse(URI.create("https://github.com/alexejsailer/agentic-nets/releases"));
+            checkForUpdatesNow();
             return;
         }
         Thread.ofVirtual().start(() -> {
@@ -189,6 +190,42 @@ public final class TrayUi {
                 }
             } catch (Exception e) {
                 notifyError("Update failed", String.valueOf(e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * "Check for Updates" has to actually check.
+     *
+     * <p>It used to only open the Releases page, while the menu item's label was driven
+     * exclusively by the background poll — which runs once at startup and then every 24 hours.
+     * So a user who published (or simply saw) a release minutes ago clicked the item, was shown
+     * a page proving a newer version exists, and found the item still saying "Check for
+     * Updates": the in-app updater stayed unreachable until the next daily poll or an app
+     * restart. Reported from the field on 2.44.3 → 2.45.0.
+     *
+     * <p>Now the click asks GitHub. A hit relabels the item through the same path the
+     * background poll uses, so a second click installs. "Up to date" says so. Only a FAILED
+     * check falls back to opening the Releases page — the old behaviour, kept for offline use.
+     */
+    private void checkForUpdatesNow() {
+        Thread.ofVirtual().start(() -> {
+            try {
+                String latest = UpdateChecker.checkNow(config.version());
+                if (latest != null) {
+                    showUpdateAvailable(latest);
+                } else {
+                    notifyInfo("Up to date",
+                        "AgenticNetOS " + config.version() + " is the latest release.");
+                }
+            } catch (Exception e) {
+                notifyError("Update check failed",
+                    "Opening the Releases page instead — " + e.getMessage());
+                try {
+                    Desktop.getDesktop().browse(URI.create(RELEASES_URL));
+                } catch (Exception ignored) {
+                    // no browser (headless/kiosk) — the notification already carried the reason
+                }
             }
         });
     }

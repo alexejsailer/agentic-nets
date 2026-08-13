@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **"Check for Updates" now actually checks** (`agentic-net-desktop` — `TrayUi`, `UpdateChecker`). The menu item only opened the Releases page; the item's label was driven exclusively by a background poll that runs once at startup and then every 24 hours. So a user who saw a newer release clicked the item, got a page proving the update exists, and found the item still reading "Check for Updates" — the in-app updater was unreachable until the next daily poll or an app restart. The click now asks GitHub: a hit relabels the item to "Install update X (restarts app)" so a second click installs, "up to date" says so explicitly, and only a *failed* check falls back to opening the Releases page. Reported from the field upgrading 2.44.3 → 2.45.0.
+
 ## [2.45.0] - 2026-08-11
 
 The MCP field-report patch: a Windows Desktop Lite user built a real five-net model through the MCP and wrote down every defect (18 findings, most sharing one signature: *the lane reports success and does nothing*), followed by a volume-2 supplement (6 more from the live model). This release fixes the MCP-side half; the engine-side half (emit guards, ArcQL `!=`, fire telemetry, application action effects) ships in the sibling `core/` repo.
