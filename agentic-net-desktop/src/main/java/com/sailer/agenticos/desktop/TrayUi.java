@@ -3,6 +3,7 @@ package com.sailer.agenticos.desktop;
 import java.awt.CheckboxMenuItem;
 import java.awt.Color;
 import java.awt.Desktop;
+import java.awt.EventQueue;
 import java.awt.Graphics2D;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
@@ -30,6 +31,9 @@ public final class TrayUi {
     private TrayIcon trayIcon;
     private PopupMenu menu;
     private MenuItem updateItem;
+    private MenuItem quitItem;
+    private final java.util.concurrent.atomic.AtomicBoolean quitting =
+        new java.util.concurrent.atomic.AtomicBoolean(false);
     private volatile String pendingUpdate;
     private static final String RELEASES_URL = "https://github.com/alexejsailer/agentic-nets/releases";
 
@@ -143,8 +147,28 @@ public final class TrayUi {
         })));
         popup.addSeparator();
 
-        popup.add(action("Quit AgenticNetOS", onQuit::run));
+        quitItem = action("Quit AgenticNetOS", this::onQuitAction);
+        popup.add(quitItem);
         return popup;
+    }
+
+    /**
+     * Quit stops the services one by one and can take up to the supervisor's grace budget.
+     * Running that on the AWT event thread would freeze the tray for those seconds — the app
+     * would look hung exactly while it is doing the careful thing — so it goes to its own
+     * thread and the menu says what is happening. The service lines keep refreshing, so the
+     * shutdown is visible service by service.
+     */
+    private void onQuitAction() {
+        if (!quitting.compareAndSet(false, true)) {
+            return; // already going down; a second click must not start a second teardown
+        }
+        if (quitItem != null) {
+            quitItem.setLabel("Stopping services …");
+            quitItem.setEnabled(false);
+        }
+        notifyInfo("Stopping AgenticNetOS", "Services are shutting down one by one.");
+        Thread.ofVirtual().start(onQuit);
     }
 
     /** Called by UpdateChecker when a newer release exists. */
@@ -258,6 +282,15 @@ public final class TrayUi {
 
     private void refresh() {
         if (trayIcon == null) {
+            return;
+        }
+        // Status changes arrive on process-exit and supervisor threads. Mutating menu peers
+        // from there is a documented way to wedge the toolkit, and a wedged toolkit during
+        // quit is the worst case there is: the services are down but the launcher never
+        // exits, so it keeps holding the install directory and the next installer run fails
+        // with "error writing to file" and nothing on screen to explain why.
+        if (!EventQueue.isDispatchThread()) {
+            EventQueue.invokeLater(this::refresh);
             return;
         }
         Map<String, Supervisor.Status> statuses = supervisor.statuses();

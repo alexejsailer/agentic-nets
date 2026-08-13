@@ -3,6 +3,7 @@ package com.sailer.agenticos.desktop;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,9 +37,20 @@ public final class Main {
 
         Runnable quit = () -> {
             System.out.println("[desktop] shutting down");
-            supervisor.stopAll();
-            guiServer.stop();
-            System.exit(0);
+            startExitWatchdog();
+            try {
+                supervisor.stopAll();
+                sweepOrphans(config);
+                guiServer.stop();
+            } catch (Throwable e) {
+                // Nothing in the teardown may keep the process alive. A launcher that
+                // survives its own quit still holds the install directory, so the next
+                // installer run dies on "error writing to file" — with the tray icon gone,
+                // there is nothing on screen to connect the two.
+                System.err.println("[desktop] shutdown error, exiting anyway: " + e);
+            } finally {
+                System.exit(0);
+            }
         };
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             supervisor.stopAll();
@@ -85,6 +97,51 @@ public final class Main {
         });
 
         Thread.currentThread().join();
+    }
+
+    /**
+     * The supervisor stops what THIS launcher started. Anything else running from the install
+     * directory — orphans of a force-quit or a crash, a second launcher instance — keeps
+     * holding files inside it, and an installer run right after a clean quit then fails with
+     * "error writing to file" and no visible reason. Killing is by positive identity only
+     * (pid registry or shipped image name under the install root); anything else is reported,
+     * never killed. Unlike the updater this does not fail closed: there is nothing left to
+     * abort at quit, so survivors are named in the log and the exit continues.
+     */
+    private static void sweepOrphans(DesktopConfig config) {
+        List<ProcessHandle> survivors = InstallProcesses.killAllUnder(
+            config.installRoot(), config.runRoot(), Duration.ofSeconds(5), Duration.ofSeconds(5));
+        for (ProcessHandle survivor : survivors) {
+            System.err.println("[desktop] still running from the install directory: pid "
+                + survivor.pid() + " (" + survivor.info().command().orElse("unknown image")
+                + ") — an installer run may fail until it ends");
+        }
+    }
+
+    /**
+     * Comfortably past a worst-case orderly shutdown (the supervisor's grace budget plus a
+     * kill and its confirmation for every service), so it never cuts a working teardown short.
+     */
+    static final Duration EXIT_DEADLINE = Supervisor.SHUTDOWN_GRACE.plusSeconds(60);
+
+    /**
+     * Quit ends the process, always. {@code System.exit} runs shutdown hooks and can be held
+     * up by any one of them; {@code halt} cannot be blocked by a hook, a lock or a toolkit
+     * that has wedged. Daemon, so the watchdog itself never keeps the JVM alive.
+     */
+    private static void startExitWatchdog() {
+        Thread watchdog = new Thread(() -> {
+            try {
+                Thread.sleep(EXIT_DEADLINE.toMillis());
+            } catch (InterruptedException e) {
+                return;
+            }
+            System.err.println("[desktop] shutdown did not finish within "
+                + EXIT_DEADLINE.toSeconds() + "s — halting");
+            Runtime.getRuntime().halt(0);
+        }, "agenticos-exit-watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
     }
 
     private static Path resolveAppDir() throws Exception {

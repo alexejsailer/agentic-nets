@@ -19,7 +19,8 @@ import java.util.function.BiConsumer;
 
 /**
  * Starts the child services in order with health gating, restarts crashed
- * children (bounded), and stops everything in reverse order on quit.
+ * children (bounded), and on quit stops them one at a time in reverse order —
+ * killing whatever has not gone down when the grace budget runs out.
  */
 public final class Supervisor {
 
@@ -231,37 +232,104 @@ public final class Supervisor {
         }
     }
 
+    /**
+     * Total budget for the graceful phase of {@link #stopAll()}. Spent one service at a
+     * time; whatever is still alive when it runs out is killed.
+     */
+    static final Duration SHUTDOWN_GRACE = Duration.ofSeconds(30);
+
+    /**
+     * How long a kill gets to LAND. TerminateProcess is asynchronous and file handles are
+     * released only at actual death — the Windows updater relies on stopAll() returning
+     * with no child still holding the install directory.
+     */
+    private static final Duration AFTER_KILL = Duration.ofSeconds(5);
+
+    /**
+     * Graceful, sequential teardown in reverse start order: mcp → executor → gateway →
+     * master → node → blobstore → vault, so nothing is asked to stop while something that
+     * still talks to it is running, and the data engine is the last one out.
+     */
     public void stopAll() {
         stopping.set(true);
-        List<ServiceSpec> reversed = specs.reversed();
-        for (ServiceSpec spec : reversed) {
-            Process process = processes.get(spec.name());
-            if (process == null || !process.isAlive()) {
-                continue;
-            }
-            process.destroy();
-        }
-        for (ServiceSpec spec : reversed) {
+        List<StopTarget> targets = new ArrayList<>();
+        for (ServiceSpec spec : specs.reversed()) {
             Process process = processes.get(spec.name());
             if (process == null) {
+                continue; // never started — nothing to stop, and its status stays as it was
+            }
+            targets.add(new StopTarget(spec.displayName(), process, () -> {
+                if (!process.isAlive()) {
+                    PidRegistry.clear(spec.workingDir()); // clean stops leave no stale record
+                }
+                setStatus(spec.name(), Status.STOPPED);
+            }));
+        }
+        stopInOrder(targets, SHUTDOWN_GRACE, AFTER_KILL);
+    }
+
+    /** One child to stop, plus what to record once it is down. */
+    record StopTarget(String displayName, Process process, Runnable onStopped) { }
+
+    /**
+     * SIGTERM each target and WAIT for it to exit before touching the next one, then kill
+     * whatever is still alive — in the same order.
+     *
+     * <p>One at a time, not all at once: a service asked to stop while its dependants are
+     * still calling it logs errors on the way out, and master/node want an undisturbed
+     * moment to flush. The wait is what makes the ordering mean anything — signalling
+     * everything and then collecting exits (what this did before) is a parallel stop with
+     * a sequential-looking loop.</p>
+     *
+     * <p>The grace budget is shared, not per service: each target may wait for at most its
+     * fair share of what is LEFT, so one child that ignores SIGTERM cannot eat the whole
+     * period and leave node and vault — the ones with state to flush — no window at all.
+     * A quick exit hands its unused share to the services behind it.</p>
+     */
+    static void stopInOrder(List<StopTarget> targets, Duration grace, Duration afterKill) {
+        long deadline = System.nanoTime() + grace.toNanos();
+        for (int i = 0; i < targets.size(); i++) {
+            StopTarget target = targets.get(i);
+            if (!target.process().isAlive()) {
                 continue;
             }
-            try {
-                if (!process.waitFor(10, TimeUnit.SECONDS)) {
-                    process.destroyForcibly();
-                    // Wait for the kill to LAND: TerminateProcess is asynchronous and file
-                    // handles are released only at actual death. The Windows updater relies
-                    // on stopAll returning with no child still holding the install dir.
-                    process.waitFor(5, TimeUnit.SECONDS);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                process.destroyForcibly();
+            System.out.println("[desktop] stopping " + target.displayName() + " …");
+            long start = System.nanoTime();
+            target.process().destroy();
+            long share = Math.max(0, deadline - System.nanoTime()) / (targets.size() - i);
+            awaitExit(target.process(), Duration.ofNanos(share));
+            if (!target.process().isAlive()) {
+                System.out.println("[desktop] " + target.displayName() + " stopped ("
+                    + Duration.ofNanos(System.nanoTime() - start).toMillis() + " ms)");
             }
-            if (!process.isAlive()) {
-                PidRegistry.clear(spec.workingDir()); // clean stops leave no stale record
+        }
+
+        for (StopTarget target : targets) {
+            if (target.process().isAlive()) {
+                // Not "within 30s": a service is killed once the SEQUENCE is out of budget,
+                // which — when the ones before it exited quickly — can be well before that.
+                System.err.println("[desktop] " + target.displayName()
+                    + " did not stop gracefully — killing it");
+                target.process().destroyForcibly();
+                awaitExit(target.process(), afterKill);
             }
-            setStatus(spec.name(), Status.STOPPED);
+            target.onStopped().run();
+        }
+    }
+
+    /**
+     * Interruption is not an error here: the flag stays set, every later wait returns at
+     * once, and the caller's kill phase takes over — which is the right answer when the
+     * JVM itself is going down.
+     */
+    private static void awaitExit(Process process, Duration timeout) {
+        if (timeout.isZero() || timeout.isNegative()) {
+            return;
+        }
+        try {
+            process.waitFor(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
