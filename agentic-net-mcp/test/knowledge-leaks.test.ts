@@ -98,8 +98,12 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // 112K → 114K for the 2026-08-11 field-report semantics: missing-field ArcQL, input-scope emit
   // guards, empty-tick interpolation, parsedStdout read-vs-template, hub install lifecycle and
   // template-source id-baking — every one a measured silent-failure a client re-hits without it.
+  // 114K → 118K for docs/observability: the three-layer history model (ring/journal/node
+  // blocks), per-model retention config, and the absence-of-evidence rules must travel with
+  // every client that now has a durable journal to read — misreading eviction as "never
+  // happened" was the field reports' core failure class.
   // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 116736;
+  const PACK_CAP = 120832;
   const INSTRUCTIONS_CAP = 17408;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {
