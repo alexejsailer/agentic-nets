@@ -16,7 +16,6 @@ import {
   evaluateLlmHealth,
   eventStories,
   isLlmHealthReady,
-  redactLogs,
 } from '../src/tools/observe.js';
 
 function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
@@ -267,12 +266,4 @@ describe('MCP event observation helpers', () => {
     expect(stories[0].steps.map((step: any) => step.seq)).toEqual([10, 11, 12]);
   });
 
-  it('redacts credentials and loudly caps service logs', () => {
-    const result = redactLogs(`Authorization: Bearer secret-token-value\npassword=hunter2\n${'x'.repeat(100)}`, 40);
-
-    expect(result.logs).not.toContain('secret-token-value');
-    expect(result.logs).not.toContain('hunter2');
-    expect(result.truncated).toBe(true);
-    expect(result.logs).toMatch(/earlier log text omitted/);
-  });
 });

@@ -208,18 +208,6 @@ export function eventStories(events: any[], includeMutations = false): any[] {
     .sort((a, b) => Number(b.lastSeq ?? 0) - Number(a.lastSeq ?? 0));
 }
 
-export function redactLogs(raw: string, maxChars: number): { logs: string; truncated: boolean } {
-  const redacted = raw
-    .replace(/(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+/gi, '$1[REDACTED]')
-    .replace(/(bearer\s+)[A-Za-z0-9._~+\/-]{12,}/gi, '$1[REDACTED]')
-    .replace(/((?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]');
-  if (redacted.length <= maxChars) return { logs: redacted, truncated: false };
-  return {
-    logs: `${redacted.slice(redacted.length - maxChars)}\n...[earlier log text omitted, ${redacted.length} chars total]`,
-    truncated: true,
-  };
-}
-
 export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
   const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
@@ -598,54 +586,6 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
-  server.registerTool(
-    'service_logs_tail',
-    {
-      title: 'Redacted AgenticOS service logs',
-      description:
-        'Tail logs for an AgenticNetOS-managed Docker service through Master. This complements structured events when startup, transport, or stack traces never reached a model event. Secrets are redacted and output is capped.',
-      inputSchema: {
-        service: z.enum(['master', 'node', 'gateway', 'executor', 'mcp', 'blobstore', 'vault', 'gui']),
-        tail: z.number().optional().describe('Lines, default 100, capped at 500'),
-        maxChars: z.number().optional().describe('Default 30000, capped at 50000'),
-        ...modelParam,
-      },
-    },
-    wrapTool(scope, config.mode, { name: 'service_logs_tail', mutates: false }, async (_model, args) => {
-      let listed: any;
-      try {
-        listed = await ctx.client.masterApi('GET', '/docker/containers', undefined, { filter: String(args.service) });
-      } catch (error: any) {
-        return {
-          available: false,
-          service: args.service,
-          reason: 'Master Docker log access is unavailable (common for native/local processes).',
-          error: error?.message ?? String(error),
-        };
-      }
-      const containers: any[] = listed?.containers ?? (Array.isArray(listed) ? listed : []);
-      const needle = String(args.service).toLowerCase();
-      const container = containers.find((item) => JSON.stringify(item).toLowerCase().includes(needle));
-      if (!container) {
-        return { available: false, service: args.service, reason: 'No matching AgenticNetOS-managed Docker container.' };
-      }
-      const id = container.id ?? container.containerId ?? container.name;
-      if (!id) return { available: false, service: args.service, reason: 'Matching container has no usable id.' };
-      const tail = Math.min(500, Math.max(1, Number(args.tail ?? 100)));
-      const response: any = await ctx.client.masterApi(
-        'GET', `/docker/containers/${encodeURIComponent(String(id))}/logs`, undefined, { tail: String(tail) },
-      );
-      const capped = redactLogs(String(response?.logs ?? ''), Math.min(50_000, Math.max(1_000, Number(args.maxChars ?? 30_000))));
-      return {
-        available: true,
-        service: args.service,
-        containerId: id,
-        tail,
-        ...capped,
-        redacted: true,
-      };
-    }),
-  );
 
   server.registerTool(
     'net_stats',
