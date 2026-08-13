@@ -3,7 +3,7 @@
  * deliberately NOT running on master. This MCP process is its executor,
  * powered by the LLM the *client side* already has (default: the local
  * `claude` binary — the user's own subscription; or ollama / anthropic /
- * openai / codex via AGENTICOS_LLM_PROVIDER).
+ * openai / openrouter / codex via AGENTICOS_LLM_PROVIDER).
  *
  * Semantics (honest): a hosted transition executes only while this MCP server
  * is alive (i.e. while your client session is connected). Tokens that arrive

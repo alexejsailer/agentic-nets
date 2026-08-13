@@ -2,14 +2,28 @@ import OpenAI from 'openai';
 import type { LlmProvider, LlmMessage, LlmResponse, LlmContent } from './provider.js';
 import type { ToolSchema } from '../agent/tools.js';
 
+export interface OpenAICompatibleOptions {
+  /** Alternative chat-completions endpoint (e.g. https://openrouter.ai/api/v1). */
+  baseURL?: string;
+  /** Provider label surfaced in logs/telemetry ('openai' | 'openrouter'). */
+  name?: string;
+  /** Static headers sent with every request (OpenRouter attribution). */
+  defaultHeaders?: Record<string, string>;
+}
+
 export class OpenAIProvider implements LlmProvider {
   name = 'openai';
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'gpt-5.4-mini') {
-    this.client = new OpenAI({ apiKey });
+  constructor(apiKey: string, model: string = 'gpt-5.4-mini', opts: OpenAICompatibleOptions = {}) {
+    this.client = new OpenAI({
+      apiKey,
+      ...(opts.baseURL ? { baseURL: opts.baseURL } : {}),
+      ...(opts.defaultHeaders ? { defaultHeaders: opts.defaultHeaders } : {}),
+    });
     this.model = model;
+    if (opts.name) this.name = opts.name;
   }
 
   async chat(

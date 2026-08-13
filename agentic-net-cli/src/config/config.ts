@@ -38,6 +38,13 @@ export interface ProfileConfig {
     medium_model?: string;
     low_model?: string;
   };
+  openrouter?: {
+    api_key?: string;
+    base_url?: string;
+    high_model?: string;
+    medium_model?: string;
+    low_model?: string;
+  };
   claude_code?: {
     binary?: string;
     model?: string;
@@ -95,6 +102,13 @@ const DEFAULT_PROFILE: ProfileConfig = {
     high_model: 'gpt-5.4',
     medium_model: 'gpt-5.4-mini',
     low_model: 'gpt-5.4-nano',
+  },
+  openrouter: {
+    api_key: '${OPENROUTER_API_KEY}',
+    base_url: 'https://openrouter.ai/api/v1',
+    high_model: 'z-ai/glm-4.6',
+    medium_model: 'z-ai/glm-4.6',
+    low_model: 'z-ai/glm-4.6',
   },
   claude_code: {
     binary: 'claude',
@@ -254,6 +268,13 @@ export function resolveProfile(profile: ProfileConfig): ProfileConfig {
       high_model: process.env['OPENAI_HIGH_MODEL'] ?? profile.openai?.high_model,
       medium_model: process.env['OPENAI_MEDIUM_MODEL'] ?? profile.openai?.medium_model,
       low_model: process.env['OPENAI_LOW_MODEL'] ?? profile.openai?.low_model,
+    },
+    openrouter: {
+      api_key: resolveValue(profile.openrouter?.api_key, 'OPENROUTER_API_KEY'),
+      base_url: process.env['OPENROUTER_BASE_URL'] ?? profile.openrouter?.base_url,
+      high_model: process.env['OPENROUTER_HIGH_MODEL'] ?? profile.openrouter?.high_model,
+      medium_model: process.env['OPENROUTER_MEDIUM_MODEL'] ?? profile.openrouter?.medium_model,
+      low_model: process.env['OPENROUTER_LOW_MODEL'] ?? profile.openrouter?.low_model,
     },
     claude_code: {
       binary: profile.claude_code?.binary,

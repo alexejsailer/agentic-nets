@@ -55,6 +55,23 @@ export function createLlmProvider(name: string, profile: ProfileConfig, tier?: M
       const model = resolveModelForTier(effectiveTier, profile.openai, 'gpt-5.4-mini');
       return new OpenAIProvider(apiKey, model);
     }
+    case 'openrouter': {
+      const apiKey = profile.openrouter?.api_key;
+      if (!apiKey) {
+        throw new Error(
+          'OpenRouter API key not configured. Set OPENROUTER_API_KEY or configure in ~/.agenticos/config.yaml',
+        );
+      }
+      const model = resolveModelForTier(effectiveTier, profile.openrouter, 'z-ai/glm-4.6');
+      return new OpenAIProvider(apiKey, model, {
+        baseURL: profile.openrouter?.base_url || 'https://openrouter.ai/api/v1',
+        name: 'openrouter',
+        defaultHeaders: {
+          'HTTP-Referer': 'https://github.com/alexejsailer/agentic-nets',
+          'X-Title': 'AgenticNetOS',
+        },
+      });
+    }
     case 'ollama': {
       const model = resolveModelForTier(effectiveTier, profile.ollama, 'kimi-k2.5:cloud');
       return new OllamaProvider(
@@ -92,7 +109,7 @@ export function createLlmProvider(name: string, profile: ProfileConfig, tier?: M
     }
     default:
       throw new Error(
-        `Unknown LLM provider: '${name}'. Supported: claude, openai, ollama, claude-code, codex`,
+        `Unknown LLM provider: '${name}'. Supported: claude, openai, openrouter, ollama, claude-code, codex`,
       );
   }
 }

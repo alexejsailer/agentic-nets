@@ -185,10 +185,16 @@ public final class GuiServer {
         String masked = key.isEmpty() ? ""
             : key.length() <= 12 ? "•••"
             : key.substring(0, 7) + "…" + key.substring(key.length() - 4);
+        String orKey = desktopConfig.setting("openrouter.api.key", "");
+        String orMasked = orKey.isEmpty() ? ""
+            : orKey.length() <= 12 ? "•••"
+            : orKey.substring(0, 7) + "…" + orKey.substring(orKey.length() - 4);
         return """
             {"provider":"%s","ollamaBaseUrl":"%s","ollamaModel":"%s",
              "lowModel":"%s","mediumModel":"%s","highModel":"%s","thinkingModel":"%s",
-             "anthropicKeyMasked":"%s"}
+             "anthropicKeyMasked":"%s",
+             "openrouterModel":"%s","openrouterLowModel":"%s","openrouterMediumModel":"%s",
+             "openrouterHighModel":"%s","openrouterThinkingModel":"%s","openrouterKeyMasked":"%s"}
             """.formatted(
                 desktopConfig.setting("llm.provider", "disabled"),
                 desktopConfig.setting("ollama.base.url", ""),
@@ -197,14 +203,25 @@ public final class GuiServer {
                 desktopConfig.setting("ollama.medium.model", ""),
                 desktopConfig.setting("ollama.high.model", ""),
                 desktopConfig.setting("ollama.thinking.model", ""),
-                masked);
+                masked,
+                desktopConfig.setting("openrouter.model", ""),
+                desktopConfig.setting("openrouter.low.model", ""),
+                desktopConfig.setting("openrouter.medium.model", ""),
+                desktopConfig.setting("openrouter.high.model", ""),
+                desktopConfig.setting("openrouter.thinking.model", ""),
+                orMasked);
     }
 
     /** Returns an error message, or null when the settings were applied. */
     private String applyLlmSettings(String body) {
         String provider = jsonString(body, "provider");
-        if (!java.util.List.of("disabled", "ollama", "claude").contains(provider)) {
-            return "provider must be disabled, ollama or claude";
+        if (!java.util.List.of("disabled", "ollama", "claude", "openrouter").contains(provider)) {
+            return "provider must be disabled, ollama, claude or openrouter";
+        }
+        String openrouterKey = jsonString(body, "openrouterKey");
+        if ("openrouter".equals(provider) && openrouterKey.isEmpty()
+            && desktopConfig.setting("openrouter.api.key", "").isEmpty()) {
+            return "openrouter needs an OpenRouter API key";
         }
         String anthropicKey = jsonString(body, "anthropicKey");
         if ("claude".equals(provider) && anthropicKey.isEmpty()
@@ -223,8 +240,16 @@ public final class GuiServer {
         updates.put("ollama.medium.model", jsonString(body, "mediumModel"));
         updates.put("ollama.high.model", jsonString(body, "highModel"));
         updates.put("ollama.thinking.model", jsonString(body, "thinkingModel"));
+        updates.put("openrouter.model", jsonString(body, "openrouterModel"));
+        updates.put("openrouter.low.model", jsonString(body, "openrouterLowModel"));
+        updates.put("openrouter.medium.model", jsonString(body, "openrouterMediumModel"));
+        updates.put("openrouter.high.model", jsonString(body, "openrouterHighModel"));
+        updates.put("openrouter.thinking.model", jsonString(body, "openrouterThinkingModel"));
         if (!anthropicKey.isEmpty()) {
             updates.put("anthropic.api.key", anthropicKey); // blank never wipes a stored key
+        }
+        if (!openrouterKey.isEmpty()) {
+            updates.put("openrouter.api.key", openrouterKey); // blank never wipes a stored key
         }
         try {
             desktopConfig.updateSettings(updates);

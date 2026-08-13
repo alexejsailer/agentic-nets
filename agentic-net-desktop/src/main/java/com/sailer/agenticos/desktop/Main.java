@@ -277,6 +277,17 @@ public final class Main {
         if ("disabled".equals(provider)) {
             return env;
         }
+        if ("openrouter".equals(provider)) {
+            // One key, every hosted model. Master validates the key fail-fast, so pass it only
+            // when set; tier models fall back to openrouter.model like the other providers.
+            putIfConfigured(env, config, "openrouter.api.key", "OPENROUTER_API_KEY");
+            putIfConfigured(env, config, "openrouter.model", "OPENROUTER_MODEL");
+            putIfConfigured(env, config, "openrouter.low.model", "OPENROUTER_LOW_MODEL");
+            putIfConfigured(env, config, "openrouter.medium.model", "OPENROUTER_MEDIUM_MODEL");
+            putIfConfigured(env, config, "openrouter.high.model", "OPENROUTER_HIGH_MODEL");
+            putIfConfigured(env, config, "openrouter.thinking.model", "OPENROUTER_THINKING_MODEL");
+            return env;
+        }
         env.put("OLLAMA_BASE_URL", config.setting("ollama.base.url", "http://127.0.0.1:11434"));
         env.put("OLLAMA_MODEL", config.setting("ollama.model", "glm-5.2:cloud"));
         putIfConfigured(env, config, "ollama.low.model", "OLLAMA_LOW_MODEL");
