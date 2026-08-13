@@ -329,7 +329,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Event trail (audit log)',
       description:
-        'The model event line — why a token exists, what a transition did, in order. Filter by free text, correlationId, session/workspace, category, type or status. Returns a cursor with an epoch so clients can detect Master restarts or eviction. This remains an in-memory ring (~2000 events); use model_history for durable Node mutations.',
+        'The model event line — why a token exists, what a transition did, in order. Filter by free text, correlationId, session/workspace, category, type or status. Returns a cursor with an epoch so clients can detect Master restarts or eviction. This remains an in-memory ring (~2000 events, reset on master restart) — ABSENCE in the trail is NOT proof a fire never happened (eviction/restart erase history); scheduler_status.fireCount is the durable-ish counter, and model_history holds durable Node mutations.',
       inputSchema: {
         q: z.string().optional().describe('Free-text filter (searches summaries AND attributes, so a transitionId works here)'),
         correlationId: z.string().optional(),
@@ -495,7 +495,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const limit = Math.min(200, Math.max(1, Number(args.limit ?? 100)));
       const [consoleResponse, journal] = await Promise.all([
         ctx.client.masterApi('GET', `/event-line/${model}`, undefined, {
-          q: String(args.transitionId), limit: String(limit),
+          // free-text q is a SUBSTRING match: 't-build' would pull 't-build-2' stories into
+          // this lane's history (review L2). Fetch a window and filter by the exact attribute.
+          limit: String(Math.min(1000, limit * 5)),
         }),
         ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, {
           transitionId: String(args.transitionId), limit: String(limit),
@@ -503,12 +505,17 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         }),
       ]);
       const live: any = consoleResponse;
+      const wanted = String(args.transitionId);
+      const exact = (live?.events ?? []).filter((e: any) =>
+        e?.attributes?.transitionId === wanted
+        || (e?.correlationId && (live?.events ?? []).some((s2: any) =>
+              s2?.correlationId === e.correlationId && s2?.attributes?.transitionId === wanted)));
       return {
         modelId: model,
         transitionId: args.transitionId,
         console: {
           cursor: live?.cursor,
-          stories: eventStories(live?.events ?? [], true),
+          stories: eventStories(exact, true),
           nextBeforeSeq: live?.nextBeforeSeq,
         },
         mutations: journal,
