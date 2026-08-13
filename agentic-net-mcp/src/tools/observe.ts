@@ -400,47 +400,6 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerTool(
-    'console_tail',
-    {
-      title: 'Console history as correlated stories',
-      description:
-        'Read the same Master event stream that drives the GUI Console tab. story view joins requested/agent-step/mutation/terminal events by correlationId; raw preserves individual events. Page older data with nextBeforeSeq.',
-      inputSchema: {
-        view: z.enum(['story', 'raw']).optional().describe('Default story'),
-        includeMutations: z.boolean().optional().describe('Include low-level mutation steps in story view'),
-        limit: z.number().optional().describe('Default 100, capped at 200'),
-        before: z.number().optional(),
-        q: z.string().optional(),
-        correlationId: z.string().optional(),
-        category: z.string().optional(),
-        type: z.string().optional(),
-        status: z.string().optional(),
-        sessionId: z.string().optional(),
-        workspaceNetId: z.string().optional(),
-        ...modelParam,
-      },
-    },
-    wrapTool(scope, config.mode, { name: 'console_tail', mutates: false }, async (model, args) => {
-      const query = copyQuery(args, EVENT_FILTER_KEYS, {
-        limit: String(Math.min(200, Math.max(1, Number(args.limit ?? 100)))),
-      });
-      if (args.before != null) query.beforeSeq = String(args.before);
-      const response: any = await ctx.client.masterApi('GET', `/event-line/${model}`, undefined, query);
-      if (args.view === 'raw') return response;
-      const stories = eventStories(response?.events ?? [], args.includeMutations === true);
-      return {
-        modelId: model,
-        count: response?.count ?? 0,
-        storyCount: stories.length,
-        nextBeforeSeq: response?.nextBeforeSeq ?? null,
-        cursor: response?.cursor,
-        stories,
-        servedAt: response?.servedAt,
-      };
-    }),
-  );
-
-  server.registerTool(
     'model_history',
     {
       title: 'Durable Node mutation history',
@@ -462,26 +421,18 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         fireId: z.string().optional(),
         q: z.string().optional(),
         includeEvents: z.boolean().optional().describe('Default true'),
+        blockId: z.string().optional().describe('Fetch ONE complete EventBlock by id (causal metadata + committed events) instead of a filtered page'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'model_history', mutates: false }, async (model, args) => {
+      if (args.blockId) {
+        return ctx.client.masterApi('GET', `/models/${model}/event-history/${encodeURIComponent(String(args.blockId))}`);
+      }
       const query = copyQuery(args, HISTORY_FILTER_KEYS);
       if (args.limit != null) query.limit = String(Math.min(500, Math.max(1, Number(args.limit))));
       return ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, query);
     }),
-  );
-
-  server.registerTool(
-    'event_block_get',
-    {
-      title: 'Get one Node EventBlock',
-      description: 'Fetch a complete immutable Node EventBlock by blockId, including causal metadata and committed events.',
-      inputSchema: { blockId: z.string(), ...modelParam },
-    },
-    wrapTool(scope, config.mode, { name: 'event_block_get', mutates: false }, async (model, args) =>
-      ctx.client.masterApi('GET', `/models/${model}/event-history/${encodeURIComponent(args.blockId)}`),
-    ),
   );
 
   server.registerTool(
@@ -494,6 +445,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         transitionId: z.string(),
         limit: z.number().optional().describe('Default 100, capped at 200 per history'),
         includeEvents: z.boolean().optional(),
+        focus: z.enum(['all', 'failures']).optional().describe("failures: latest correlated failure story + error events + (rw) master binding diagnosis — use instead of guessing from a generic 'command reported failure' line"),
         ...modelParam,
       },
     },
@@ -516,6 +468,30 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         e?.attributes?.transitionId === wanted
         || (e?.correlationId && (live?.events ?? []).some((s2: any) =>
               s2?.correlationId === e.correlationId && s2?.attributes?.transitionId === wanted)));
+      if (args.focus === 'failures') {
+        // absorbed failure_context: the latest correlated failure story with its raw error
+        // events, the committed mutations, and (rw only) the master's binding diagnosis.
+        const errors = exact.filter((e: any) => String(e?.status ?? '').toLowerCase() === 'error');
+        const latestCorrelation = errors[0]?.correlationId;
+        const related = latestCorrelation
+          ? exact.filter((e: any) => e?.correlationId === latestCorrelation)
+          : errors;
+        const diagnosis = ctx.config.mode === 'readonly'
+          ? null
+          : await (ctx.master as any).diagnoseTransition(args.transitionId, model).catch((error: any) => ({
+              unavailable: true, error: error?.message ?? String(error),
+            }));
+        return {
+          modelId: model,
+          transitionId: args.transitionId,
+          latestError: errors[0] ?? null,
+          errorCountInWindow: errors.length,
+          latestFailureStory: eventStories(related, true)[0] ?? null,
+          committedMutations: journal,
+          diagnosis,
+          cursor: live?.cursor,
+        };
+      }
       return {
         modelId: model,
         transitionId: args.transitionId,
@@ -551,54 +527,6 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       });
     }),
   );
-
-  server.registerTool(
-    'failure_context',
-    {
-      title: 'Consolidated transition failure context',
-      description:
-        'Return the latest correlated console story, detailed error events, committed Node mutations/output properties, and (in rw mode) Master binding diagnosis for one transition. Use this instead of guessing from the generic "command reported failure" line.',
-      inputSchema: {
-        transitionId: z.string(),
-        limit: z.number().optional().describe('Default 100, capped at 200'),
-        ...modelParam,
-      },
-    },
-    wrapTool(scope, config.mode, { name: 'failure_context', mutates: false }, async (model, args) => {
-      const limit = Math.min(200, Math.max(1, Number(args.limit ?? 100)));
-      const [consoleResponse, journal, diagnosis] = await Promise.all([
-        ctx.client.masterApi('GET', `/event-line/${model}`, undefined, {
-          q: String(args.transitionId), limit: String(limit),
-        }),
-        ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, {
-          transitionId: String(args.transitionId), limit: String(limit), includeEvents: 'true',
-        }),
-        config.mode === 'readonly'
-          ? Promise.resolve(null)
-          : (ctx.master as any).diagnoseTransition(args.transitionId, model).catch((error: any) => ({
-              unavailable: true, error: error?.message ?? String(error),
-            })),
-      ]);
-      const live: any = consoleResponse;
-      const events: any[] = live?.events ?? [];
-      const errors = events.filter((event) => String(event?.status ?? '').toLowerCase() === 'error');
-      const latestCorrelation = errors[0]?.correlationId;
-      const related = latestCorrelation
-        ? events.filter((event) => event?.correlationId === latestCorrelation)
-        : events;
-      return {
-        modelId: model,
-        transitionId: args.transitionId,
-        latestError: errors[0] ?? null,
-        errorCountInWindow: errors.length,
-        latestFailureStory: eventStories(related, true)[0] ?? null,
-        committedMutations: journal,
-        diagnosis,
-        cursor: live?.cursor,
-      };
-    }),
-  );
-
 
   server.registerTool(
     'net_stats',
