@@ -98,6 +98,29 @@ class ExecutorScopeEnforcementFilterTest {
     }
 
     @Test
+    void observabilityHistoryRoutes_executorScope_areBlocked() throws Exception {
+        // Plan C1: the event-line/journal + node event-history routes are readonly-analysis
+        // surface — a leaked executor secret must not be able to read a model's history.
+        for (String uri : new String[]{
+                "/api/event-line/m1",
+                "/api/event-line/m1/wait",
+                "/api/event-line/m1/facets",
+                "/api/models/m1/event-history",
+                "/api/models/m1/event-history/blk-1"}) {
+            authenticate("agenticos executor");
+            MockHttpServletRequest req = request("GET", uri);
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+
+            filter.doFilter(req, res, chain);
+
+            verify(chain, never()).doFilter(req, res);
+            assertThat(res.getStatus()).as("GET %s", uri).isEqualTo(HttpStatus.FORBIDDEN.value());
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     void adminScope_passesThroughUntouched() throws Exception {
         authenticate("agenticos admin");
         MockHttpServletRequest req = request("POST", "/api/transitions/assign");

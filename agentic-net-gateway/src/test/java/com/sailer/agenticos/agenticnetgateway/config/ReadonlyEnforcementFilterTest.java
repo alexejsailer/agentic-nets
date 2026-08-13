@@ -52,6 +52,29 @@ class ReadonlyEnforcementFilterTest {
     }
 
     @Test
+    void observabilityHistoryRoutes_readonlyScope_areAllowed() throws Exception {
+        // Plan C1: history analysis is exactly what a readonly MCP connection is FOR — every
+        // event-line/journal/node-history route is a GET and must pass without write scope.
+        for (String uri : new String[]{
+                "/api/event-line/m1",
+                "/api/event-line/m1/wait",
+                "/api/event-line/m1/facets",
+                "/api/models/m1/event-history",
+                "/api/models/m1/event-history/blk-1"}) {
+            authenticate("agenticos readonly");
+            MockHttpServletRequest req = request("GET", uri);
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+
+            filter.doFilter(req, res, chain);
+
+            verify(chain, times(1)).doFilter(req, res);
+            assertThat(res.getStatus()).as("GET %s", uri).isEqualTo(HttpStatus.OK.value());
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     void postRequest_readonlyScope_isBlockedWith403() throws Exception {
         authenticate("agenticos readonly");
         MockHttpServletRequest req = request("POST", "/api/models");
