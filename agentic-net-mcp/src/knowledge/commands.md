@@ -109,7 +109,7 @@ docs/real-agents.
 ## Executor output size
 
 Executor stdout larger than ~128KB is offloaded to the blobstore; the result then carries a blob
-URN — fetch it with READ_BLOB_TEXT instead of expecting inline stdout.
+URN — fetch with `read_blob_text` (native: `READ_BLOB_TEXT`).
 
 ## Desktop Lite: headless CLI agents run on THIS machine
 

@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -540,18 +541,32 @@ public class BashCommandHandler implements CommandHandler {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, String> getEnvironment(JsonNode args) {
         if (args == null || !args.has("env") || args.get("env").isNull()) {
             return null;
         }
 
-        try {
-            return objectMapper.convertValue(args.get("env"), Map.class);
-        } catch (Exception e) {
-            logger.warn("Failed to parse environment variables: {}", e.getMessage());
+        JsonNode envNode = args.get("env");
+        if (!envNode.isObject()) {
+            logger.warn("Ignoring command environment because env is not an object");
             return null;
         }
+
+        Map<String, String> environment = new LinkedHashMap<>();
+        envNode.fields().forEachRemaining(entry -> {
+            JsonNode value = entry.getValue();
+            // ProcessEnvironment rejects null values. A null here normally comes from an optional
+            // configuration variable, so treat it as "inherit/unset" instead of crashing before
+            // the command starts. Scalar values are rendered exactly as ProcessBuilder expects.
+            if (value == null || value.isNull()) {
+                logger.debug("Omitting null environment variable '{}'", entry.getKey());
+            } else if (value.isValueNode()) {
+                environment.put(entry.getKey(), value.asText());
+            } else {
+                logger.warn("Ignoring non-scalar environment variable '{}'", entry.getKey());
+            }
+        });
+        return environment;
     }
 
     // Helper methods for extracting arguments

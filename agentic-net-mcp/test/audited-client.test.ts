@@ -17,7 +17,7 @@ function clientWithRecorder(): { client: AuditedGatewayClient; calls: RecordedRe
   const client = new AuditedGatewayClient({
     gatewayUrl: 'http://gw.test:8083',
     profileName: 'test',
-  });
+  }, 'mcp-test-session');
   const calls: RecordedRequest[] = [];
   // request() is the single private transport method both masterApi and
   // nodeApi delegate to — stubbing it keeps the test fully hermetic.
@@ -38,7 +38,26 @@ describe('AuditedGatewayClient', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe('http://gw.test:8083/api/proxy/events/claude-memory/execute');
     expect(calls[0].method).toBe('POST');
-    expect(calls[0].body).toEqual(body);
+    expect(calls[0].body).toEqual({
+      ...body,
+      options: { sessionId: 'mcp-test-session', source: 'mcp' },
+    });
+  });
+
+  it('preserves explicit causal metadata while adding MCP session provenance', async () => {
+    const { client, calls } = clientWithRecorder();
+
+    await client.nodeApi('POST', '/events/execute/m1', {
+      events: [{ eventType: 'createLeaf' }],
+      options: { correlationId: 'fire-7', transitionId: 't-worker' },
+    });
+
+    expect(calls[0].body.options).toEqual({
+      correlationId: 'fire-7',
+      transitionId: 't-worker',
+      sessionId: 'mcp-test-session',
+      source: 'mcp',
+    });
   });
 
   it('leaves non-event node calls on the direct /node-api route', async () => {

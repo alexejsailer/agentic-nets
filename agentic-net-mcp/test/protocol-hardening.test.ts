@@ -10,7 +10,14 @@ import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
 import { validateAgentBackendArgs, validateKindArgs, validateScheduleArgs } from '../src/tools/nets.js';
-import { clampValues, dedupeTokenPayload, evaluateLlmHealth, isLlmHealthReady } from '../src/tools/observe.js';
+import {
+  clampValues,
+  dedupeTokenPayload,
+  evaluateLlmHealth,
+  eventStories,
+  isLlmHealthReady,
+  redactLogs,
+} from '../src/tools/observe.js';
 
 function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -244,5 +251,28 @@ describe('dedupeTokenPayload (P3: the projection has to actually reduce the payl
     expect(dedupeTokenPayload({ count: 0 })).toEqual({ count: 0 });
     expect(dedupeTokenPayload(null)).toBeNull();
     expect(dedupeTokenPayload('text')).toBe('text');
+  });
+});
+
+describe('MCP event observation helpers', () => {
+  it('groups one fire into a chronological correlation story', () => {
+    const stories = eventStories([
+      { seq: 12, correlationId: 'fire-1', category: 'transition', status: 'error', summary: 'failed' },
+      { seq: 10, correlationId: 'fire-1', category: 'transition', status: 'requested', summary: 'start' },
+      { seq: 11, correlationId: 'fire-1', category: 'mutation', status: 'success', summary: 'write' },
+    ], true);
+
+    expect(stories).toHaveLength(1);
+    expect(stories[0]).toMatchObject({ correlationId: 'fire-1', firstSeq: 10, lastSeq: 12, outcome: 'error' });
+    expect(stories[0].steps.map((step: any) => step.seq)).toEqual([10, 11, 12]);
+  });
+
+  it('redacts credentials and loudly caps service logs', () => {
+    const result = redactLogs(`Authorization: Bearer secret-token-value\npassword=hunter2\n${'x'.repeat(100)}`, 40);
+
+    expect(result.logs).not.toContain('secret-token-value');
+    expect(result.logs).not.toContain('hunter2');
+    expect(result.truncated).toBe(true);
+    expect(result.logs).toMatch(/earlier log text omitted/);
   });
 });

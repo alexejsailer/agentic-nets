@@ -42,7 +42,11 @@ Blueprints are host/model-agnostic JSON in the package, executed by a TS port of
 
 **Memory**: `memory_write(text|data, place?, links?)` · `memory_recall(query)` · `memory_link(from, to, label)` · `memory_graph(start?, depth?)`
 **Net-building**: `deploy_template` · `create_net` · `add_place` (designtime + runtime both — required for presets to resolve) · `add_transition` (kind-aware, pre-wired command/http/llm inscriptions) · `set_schedule` · `fire_once` · `start_transition` · `stop_transition` · `create_persona` · `scaffold_tool_net` · `invoke_tool_net`
-**Observability**: `net_overview` · `query_tokens` · `event_trail` (direct `GET /api/event-line/{modelId}` — grounded in `EventLineController.java`)
+**Observability**: `net_overview` · `query_tokens` · `event_trail` / `events_wait` / `console_tail`
+(Master's bounded operational event line) · `model_history` / `event_block_get` (the Node's durable
+model EventBlocks through Master/Gateway) · `transition_history` / `token_lineage` /
+`failure_context` (causal joins via correlationId, transitionId and fireId) · `service_logs_tail`
+(redacted infrastructure fallback).
 
 Read catalogs (`tool-nets`, templates, models) ship as MCP **resources**, not extra tools.
 

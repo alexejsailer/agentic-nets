@@ -43,6 +43,14 @@ const CURATED = [
   'net_overview',
   'query_tokens',
   'event_trail',
+  'events_wait',
+  'console_tail',
+  'model_history',
+  'event_block_get',
+  'transition_history',
+  'token_lineage',
+  'failure_context',
+  'service_logs_tail',
   'net_stats',
   'list_transitions',
   'list_models',
@@ -55,6 +63,9 @@ const CURATED = [
   'diagnose_transition',
   'dry_run_transition',
   'verify_inscription',
+  'inspect_token_size',
+  'extract_token_content',
+  'read_blob_text',
   // memory
   'memory_write',
   'memory_recall',
@@ -217,7 +228,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['application_describe', 'application_list', 'domain_memory_recall', 'event_trail', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'console_tail', 'domain_memory_recall', 'event_block_get', 'event_trail', 'events_wait', 'failure_context', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'service_logs_tail', 'token_lineage', 'transition_history', 'usage_report'].sort(),
     );
   });
 

@@ -351,6 +351,23 @@ class MasterProxyRoutingTest {
                 .andExpect(jsonPath("$.status").value("ok"));
     }
 
+    @Test
+    @WithMockUser
+    void modelScopedHistoryPathRoutesToOwningMasterWithoutRedundantQueryParam() throws Exception {
+        master1.stubFor(WireMock.get(urlPathEqualTo("/api/models/model-a/event-history"))
+                .willReturn(okJson("{\"modelId\":\"model-a\",\"source\":\"master-1\"}")));
+
+        MvcResult asyncResult = mockMvc.perform(get("/api/models/model-a/event-history"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(asyncResult))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("master-1"));
+        master1.verify(getRequestedFor(urlPathEqualTo("/api/models/model-a/event-history")));
+        master2.verify(0, getRequestedFor(urlPathEqualTo("/api/models/model-a/event-history")));
+    }
+
     // ── Master down scenario ────────────────────────────────────────────────
 
     @Test

@@ -153,6 +153,73 @@ export function clampValues(value: any, max: number, state: { truncated: boolean
   return value;
 }
 
+const EVENT_FILTER_KEYS = [
+  'q', 'correlationId', 'category', 'type', 'status', 'sessionId', 'workspaceNetId',
+] as const;
+
+const HISTORY_FILTER_KEYS = [
+  'afterVersion', 'beforeVersion', 'limit', 'eventType', 'elementId', 'parentId',
+  'transactionId', 'correlationId', 'causationId', 'sessionId', 'workspaceNetId',
+  'transitionId', 'fireId', 'q', 'includeEvents',
+] as const;
+
+function copyQuery(
+  args: Record<string, any>,
+  keys: readonly string[],
+  initial: Record<string, string> = {},
+): Record<string, string> {
+  const query = { ...initial };
+  for (const key of keys) {
+    if (args[key] != null && args[key] !== '') query[key] = String(args[key]);
+  }
+  return query;
+}
+
+export function eventStories(events: any[], includeMutations = false): any[] {
+  const chronological = [...events]
+    .filter((event) => includeMutations || String(event?.category ?? '') !== 'mutation')
+    .sort((a, b) => Number(a?.seq ?? 0) - Number(b?.seq ?? 0));
+  const grouped = new Map<string, any[]>();
+  for (const event of chronological) {
+    const correlationId = String(event?.correlationId ?? '').trim();
+    const key = correlationId || `event:${event?.seq ?? grouped.size}`;
+    const story = grouped.get(key) ?? [];
+    story.push(event);
+    grouped.set(key, story);
+  }
+  return [...grouped.entries()]
+    .map(([key, steps]) => {
+      const terminal = [...steps].reverse().find((event) =>
+        ['success', 'error', 'blocked', 'skipped'].includes(String(event?.status ?? '').toLowerCase()),
+      );
+      const first = steps[0];
+      const last = steps[steps.length - 1];
+      return {
+        correlationId: key.startsWith('event:') ? null : key,
+        firstSeq: first?.seq,
+        lastSeq: last?.seq,
+        startedAt: first?.ts,
+        finishedAt: last?.ts,
+        outcome: terminal?.status ?? last?.status,
+        headline: terminal?.summary ?? last?.summary,
+        steps,
+      };
+    })
+    .sort((a, b) => Number(b.lastSeq ?? 0) - Number(a.lastSeq ?? 0));
+}
+
+export function redactLogs(raw: string, maxChars: number): { logs: string; truncated: boolean } {
+  const redacted = raw
+    .replace(/(authorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+/gi, '$1[REDACTED]')
+    .replace(/(bearer\s+)[A-Za-z0-9._~+\/-]{12,}/gi, '$1[REDACTED]')
+    .replace(/((?:api[_-]?key|access[_-]?token|client[_-]?secret|password)\s*[:=]\s*)[^\s,;]+/gi, '$1[REDACTED]');
+  if (redacted.length <= maxChars) return { logs: redacted, truncated: false };
+  return {
+    logs: `${redacted.slice(redacted.length - maxChars)}\n...[earlier log text omitted, ${redacted.length} chars total]`,
+    truncated: true,
+  };
+}
+
 export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
   const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
@@ -274,13 +341,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Event trail (audit log)',
       description:
-        'The model event line — why a token exists, what a transition did, in order. Filter by free text, correlationId, category, type or status. "Did this lane ever fire?" = category:"transition" type:"fire" q:"<transitionId>". NOTE: the line is an in-memory ring buffer (~2000 events per model, reset on master restart) — a write-heavy session evicts older fire events, so absence in the trail is NOT proof a fire never happened; scheduler_status.fireCount is the durable-ish counter.',
+        'The model event line — why a token exists, what a transition did, in order. Filter by free text, correlationId, session/workspace, category, type or status. Returns a cursor with an epoch so clients can detect Master restarts or eviction. This remains an in-memory ring (~2000 events); use model_history for durable Node mutations.',
       inputSchema: {
         q: z.string().optional().describe('Free-text filter (searches summaries AND attributes, so a transitionId works here)'),
         correlationId: z.string().optional(),
         category: z.string().optional().describe('transition | agent-step | mutation | workspace | chat | assistant | agent-stream | delegation | general'),
         type: z.string().optional().describe('Within a category, e.g. category:"transition" type:"fire"'),
         status: z.string().optional().describe('For fires: requested | success | blocked | error | skipped | external-prepared | external-completed'),
+        sessionId: z.string().optional(),
+        workspaceNetId: z.string().optional(),
         limit: z.number().optional().describe('Default 50, capped at 200 (larger pages can exceed the response-size cap and truncate)'),
         before: z.number().optional().describe('Page backwards: return events with seq < this. Use the nextBeforeSeq from a prior call to walk into older history.'),
         ...modelParam,
@@ -292,9 +361,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const requested = Number(args.limit ?? 50);
       const limit = Math.min(Math.max(1, requested), 200);
       const query: Record<string, string> = { limit: String(limit) };
-      for (const k of ['q', 'correlationId', 'category', 'type', 'status'] as const) {
-        if (args[k] != null && args[k] !== '') query[k] = String(args[k]);
-      }
+      Object.assign(query, copyQuery(args, EVENT_FILTER_KEYS));
       if (args.before != null) {
         query.before = String(args.before);
         query.beforeSeq = String(args.before); // tolerate either server param name
@@ -303,6 +370,280 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       return requested > 200 && res && typeof res === 'object'
         ? { ...res, note: `limit capped to 200 (requested ${requested}); page older events with \`before\`` }
         : res;
+    }),
+  );
+
+  server.registerTool(
+    'events_wait',
+    {
+      title: 'Wait for model events',
+      description:
+        'Long-poll the Master event line without holding an SSE connection. Pass nextAfterSeq and cursor.epoch from the previous response. resetDetected=true means the Master restarted or the cursor fell behind the 2,000-event ring; resync with console_tail/model_history.',
+      inputSchema: {
+        afterSeq: z.number().optional().describe('Last processed sequence; default 0'),
+        epoch: z.string().optional().describe('cursor.epoch from the previous event response'),
+        timeoutMs: z.number().optional().describe('100..30000, default 25000'),
+        limit: z.number().optional().describe('Buffered catch-up size, default server limit'),
+        q: z.string().optional(),
+        correlationId: z.string().optional(),
+        category: z.string().optional(),
+        type: z.string().optional(),
+        status: z.string().optional(),
+        sessionId: z.string().optional(),
+        workspaceNetId: z.string().optional(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'events_wait', mutates: false }, async (model, args) => {
+      const query = copyQuery(args, EVENT_FILTER_KEYS, {
+        afterSeq: String(Math.max(0, Number(args.afterSeq ?? 0))),
+        timeoutMs: String(Math.min(30_000, Math.max(100, Number(args.timeoutMs ?? 25_000)))),
+      });
+      if (args.epoch) query.epoch = String(args.epoch);
+      if (args.limit != null) query.limit = String(Math.min(200, Math.max(1, Number(args.limit))));
+      return ctx.client.masterApi('GET', `/event-line/${model}/wait`, undefined, query);
+    }),
+  );
+
+  server.registerTool(
+    'console_tail',
+    {
+      title: 'Console history as correlated stories',
+      description:
+        'Read the same Master event stream that drives the GUI Console tab. story view joins requested/agent-step/mutation/terminal events by correlationId; raw preserves individual events. Page older data with nextBeforeSeq.',
+      inputSchema: {
+        view: z.enum(['story', 'raw']).optional().describe('Default story'),
+        includeMutations: z.boolean().optional().describe('Include low-level mutation steps in story view'),
+        limit: z.number().optional().describe('Default 100, capped at 200'),
+        before: z.number().optional(),
+        q: z.string().optional(),
+        correlationId: z.string().optional(),
+        category: z.string().optional(),
+        type: z.string().optional(),
+        status: z.string().optional(),
+        sessionId: z.string().optional(),
+        workspaceNetId: z.string().optional(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'console_tail', mutates: false }, async (model, args) => {
+      const query = copyQuery(args, EVENT_FILTER_KEYS, {
+        limit: String(Math.min(200, Math.max(1, Number(args.limit ?? 100)))),
+      });
+      if (args.before != null) query.beforeSeq = String(args.before);
+      const response: any = await ctx.client.masterApi('GET', `/event-line/${model}`, undefined, query);
+      if (args.view === 'raw') return response;
+      const stories = eventStories(response?.events ?? [], args.includeMutations === true);
+      return {
+        modelId: model,
+        count: response?.count ?? 0,
+        storyCount: stories.length,
+        nextBeforeSeq: response?.nextBeforeSeq ?? null,
+        cursor: response?.cursor,
+        stories,
+        servedAt: response?.servedAt,
+      };
+    }),
+  );
+
+  server.registerTool(
+    'model_history',
+    {
+      title: 'Durable Node mutation history',
+      description:
+        'Read retained model-scoped EventBlocks directly from the Node journal through Master/Gateway. Unlike the Master console ring, these structural/token mutations survive restarts; snapshot compaction can remove old blocks. Filter by causal metadata to connect a fire to exact committed events.',
+      inputSchema: {
+        afterVersion: z.number().optional(),
+        beforeVersion: z.number().optional().describe('Page backwards by model version'),
+        limit: z.number().optional().describe('Default 100, capped at 500'),
+        eventType: z.string().optional(),
+        elementId: z.string().optional(),
+        parentId: z.string().optional(),
+        transactionId: z.string().optional(),
+        correlationId: z.string().optional(),
+        causationId: z.string().optional(),
+        sessionId: z.string().optional(),
+        workspaceNetId: z.string().optional(),
+        transitionId: z.string().optional(),
+        fireId: z.string().optional(),
+        q: z.string().optional(),
+        includeEvents: z.boolean().optional().describe('Default true'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'model_history', mutates: false }, async (model, args) => {
+      const query = copyQuery(args, HISTORY_FILTER_KEYS);
+      if (args.limit != null) query.limit = String(Math.min(500, Math.max(1, Number(args.limit))));
+      return ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, query);
+    }),
+  );
+
+  server.registerTool(
+    'event_block_get',
+    {
+      title: 'Get one Node EventBlock',
+      description: 'Fetch a complete immutable Node EventBlock by blockId, including causal metadata and committed events.',
+      inputSchema: { blockId: z.string(), ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'event_block_get', mutates: false }, async (model, args) =>
+      ctx.client.masterApi('GET', `/models/${model}/event-history/${encodeURIComponent(args.blockId)}`),
+    ),
+  );
+
+  server.registerTool(
+    'transition_history',
+    {
+      title: 'Joined transition execution history',
+      description:
+        'Join operational Master events with durable Node mutations for one transition. correlationId/fireId metadata connects a console story to the exact mutation EventBlocks.',
+      inputSchema: {
+        transitionId: z.string(),
+        limit: z.number().optional().describe('Default 100, capped at 200 per history'),
+        includeEvents: z.boolean().optional(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'transition_history', mutates: false }, async (model, args) => {
+      const limit = Math.min(200, Math.max(1, Number(args.limit ?? 100)));
+      const [consoleResponse, journal] = await Promise.all([
+        ctx.client.masterApi('GET', `/event-line/${model}`, undefined, {
+          q: String(args.transitionId), limit: String(limit),
+        }),
+        ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, {
+          transitionId: String(args.transitionId), limit: String(limit),
+          includeEvents: String(args.includeEvents !== false),
+        }),
+      ]);
+      const live: any = consoleResponse;
+      return {
+        modelId: model,
+        transitionId: args.transitionId,
+        console: {
+          cursor: live?.cursor,
+          stories: eventStories(live?.events ?? [], true),
+          nextBeforeSeq: live?.nextBeforeSeq,
+        },
+        mutations: journal,
+      };
+    }),
+  );
+
+  server.registerTool(
+    'token_lineage',
+    {
+      title: 'Token mutation lineage',
+      description:
+        'Find durable Node mutations for a token/element. Prefer elementId when known; tokenName uses text search. Causal metadata identifies which transition fire created, updated, moved, or deleted it.',
+      inputSchema: {
+        elementId: z.string().optional(),
+        tokenName: z.string().optional(),
+        limit: z.number().optional().describe('Default 100, capped at 500'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'token_lineage', mutates: false }, async (model, args) => {
+      if (!args.elementId && !args.tokenName) throw new Error('provide elementId or tokenName');
+      return ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, {
+        ...(args.elementId ? { elementId: String(args.elementId) } : { q: String(args.tokenName) }),
+        limit: String(Math.min(500, Math.max(1, Number(args.limit ?? 100)))),
+        includeEvents: 'true',
+      });
+    }),
+  );
+
+  server.registerTool(
+    'failure_context',
+    {
+      title: 'Consolidated transition failure context',
+      description:
+        'Return the latest correlated console story, detailed error events, committed Node mutations/output properties, and (in rw mode) Master binding diagnosis for one transition. Use this instead of guessing from the generic "command reported failure" line.',
+      inputSchema: {
+        transitionId: z.string(),
+        limit: z.number().optional().describe('Default 100, capped at 200'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'failure_context', mutates: false }, async (model, args) => {
+      const limit = Math.min(200, Math.max(1, Number(args.limit ?? 100)));
+      const [consoleResponse, journal, diagnosis] = await Promise.all([
+        ctx.client.masterApi('GET', `/event-line/${model}`, undefined, {
+          q: String(args.transitionId), limit: String(limit),
+        }),
+        ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, {
+          transitionId: String(args.transitionId), limit: String(limit), includeEvents: 'true',
+        }),
+        config.mode === 'readonly'
+          ? Promise.resolve(null)
+          : (ctx.master as any).diagnoseTransition(args.transitionId, model).catch((error: any) => ({
+              unavailable: true, error: error?.message ?? String(error),
+            })),
+      ]);
+      const live: any = consoleResponse;
+      const events: any[] = live?.events ?? [];
+      const errors = events.filter((event) => String(event?.status ?? '').toLowerCase() === 'error');
+      const latestCorrelation = errors[0]?.correlationId;
+      const related = latestCorrelation
+        ? events.filter((event) => event?.correlationId === latestCorrelation)
+        : events;
+      return {
+        modelId: model,
+        transitionId: args.transitionId,
+        latestError: errors[0] ?? null,
+        errorCountInWindow: errors.length,
+        latestFailureStory: eventStories(related, true)[0] ?? null,
+        committedMutations: journal,
+        diagnosis,
+        cursor: live?.cursor,
+      };
+    }),
+  );
+
+  server.registerTool(
+    'service_logs_tail',
+    {
+      title: 'Redacted AgenticOS service logs',
+      description:
+        'Tail logs for an AgenticNetOS-managed Docker service through Master. This complements structured events when startup, transport, or stack traces never reached a model event. Secrets are redacted and output is capped.',
+      inputSchema: {
+        service: z.enum(['master', 'node', 'gateway', 'executor', 'mcp', 'blobstore', 'vault', 'gui']),
+        tail: z.number().optional().describe('Lines, default 100, capped at 500'),
+        maxChars: z.number().optional().describe('Default 30000, capped at 50000'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'service_logs_tail', mutates: false }, async (_model, args) => {
+      let listed: any;
+      try {
+        listed = await ctx.client.masterApi('GET', '/docker/containers', undefined, { filter: String(args.service) });
+      } catch (error: any) {
+        return {
+          available: false,
+          service: args.service,
+          reason: 'Master Docker log access is unavailable (common for native/local processes).',
+          error: error?.message ?? String(error),
+        };
+      }
+      const containers: any[] = listed?.containers ?? (Array.isArray(listed) ? listed : []);
+      const needle = String(args.service).toLowerCase();
+      const container = containers.find((item) => JSON.stringify(item).toLowerCase().includes(needle));
+      if (!container) {
+        return { available: false, service: args.service, reason: 'No matching AgenticNetOS-managed Docker container.' };
+      }
+      const id = container.id ?? container.containerId ?? container.name;
+      if (!id) return { available: false, service: args.service, reason: 'Matching container has no usable id.' };
+      const tail = Math.min(500, Math.max(1, Number(args.tail ?? 100)));
+      const response: any = await ctx.client.masterApi(
+        'GET', `/docker/containers/${encodeURIComponent(String(id))}/logs`, undefined, { tail: String(tail) },
+      );
+      const capped = redactLogs(String(response?.logs ?? ''), Math.min(50_000, Math.max(1_000, Number(args.maxChars ?? 30_000))));
+      return {
+        available: true,
+        service: args.service,
+        containerId: id,
+        tail,
+        ...capped,
+        redacted: true,
+      };
     }),
   );
 
@@ -1144,6 +1485,88 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   // travel as POST, which the readonly gateway scope rejects (like ArcQL), so
   // they are only registered in rw mode. net_stats (all GET) stays readonly-safe.
   if (config.mode === 'readonly') return;
+
+  server.registerTool(
+    'inspect_token_size',
+    {
+      title: 'Inspect token sizes before reading',
+      description:
+        'Measure token/property sizes without returning their content. Use first for command output, HTML, repository snapshots, or any place likely to contain large values; then choose query_tokens or extract_token_content.',
+      inputSchema: {
+        place: z.string().optional().describe('Place id or full path (alias: placeId)'),
+        placeId: z.string().optional(),
+        arcql: z.string().optional().describe('Default FROM $ LIMIT 20'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'inspect_token_size', mutates: false }, async (model, args) => {
+      const place = String(args.place ?? args.placeId ?? '').trim();
+      if (!place) throw new Error('provide place or placeId');
+      const placePath = place.includes('/') ? place : `root/workspace/places/${place}`;
+      const result = await ctx.executorFor(model).execute('INSPECT_TOKEN_SIZE', {
+        placePath,
+        ...(args.arcql ? { arcql: args.arcql } : {}),
+      });
+      if (!result.success) throw new Error(result.error ?? 'INSPECT_TOKEN_SIZE failed');
+      return result.data;
+    }),
+  );
+
+  server.registerTool(
+    'extract_token_content',
+    {
+      title: 'Safely extract one large token',
+      description:
+        'Read and process one large token property without flooding the MCP response. auto strips noisy markup; text/head/window content; summarize uses the configured helper when available.',
+      inputSchema: {
+        place: z.string().optional().describe('Place id or full path (alias: placeId)'),
+        placeId: z.string().optional(),
+        tokenName: z.string(),
+        mode: z.enum(['auto', 'summarize', 'text', 'links', 'structure', 'head']).optional(),
+        property: z.string().optional().describe('Default body'),
+        limit: z.number().optional().describe('Default 4000 chars'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'extract_token_content', mutates: false }, async (model, args) => {
+      const place = String(args.place ?? args.placeId ?? '').trim();
+      if (!place) throw new Error('provide place or placeId');
+      const placePath = place.includes('/') ? place : `root/workspace/places/${place}`;
+      const result = await ctx.executorFor(model).execute('EXTRACT_TOKEN_CONTENT', {
+        placePath,
+        tokenName: args.tokenName,
+        ...(args.mode ? { mode: args.mode } : { mode: 'auto' }),
+        ...(args.property ? { property: args.property } : {}),
+        ...(args.limit != null ? { limit: args.limit } : {}),
+      });
+      if (!result.success) throw new Error(result.error ?? 'EXTRACT_TOKEN_CONTENT failed');
+      return result.data;
+    }),
+  );
+
+  server.registerTool(
+    'read_blob_text',
+    {
+      title: 'Read offloaded blob text',
+      description:
+        'Fetch text behind a blob URN returned by command output, knowledge search, or token properties. Use searchFor to retrieve only relevant paragraphs and keep the MCP result bounded.',
+      inputSchema: {
+        blobUrn: z.string(),
+        maxLength: z.number().optional().describe('Default 4000'),
+        searchFor: z.string().optional(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'read_blob_text', mutates: false }, async (model, args) => {
+      const result = await ctx.executorFor(model).execute('READ_BLOB_TEXT', {
+        blobUrn: args.blobUrn,
+        ...(args.maxLength != null ? { maxLength: args.maxLength } : {}),
+        ...(args.searchFor ? { searchFor: args.searchFor } : {}),
+      });
+      if (!result.success) throw new Error(result.error ?? 'READ_BLOB_TEXT failed');
+      return result.data;
+    }),
+  );
 
   // diagnose_transition is registered on its own because for COMMAND transitions it augments the
   // master diagnosis with executor availability/activation — the one failure the master itself

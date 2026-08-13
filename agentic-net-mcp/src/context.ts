@@ -29,6 +29,10 @@ import type { HostedRunner } from './tools/hosted.js';
  * so every mutating tool is covered without forking the CLI transport.
  */
 export class AuditedGatewayClient extends GatewayClient {
+  constructor(options: any, private readonly mcpSessionId: string) {
+    super(options);
+  }
+
   override async nodeApi<T = any>(
     method: string,
     path: string,
@@ -37,7 +41,15 @@ export class AuditedGatewayClient extends GatewayClient {
   ): Promise<T> {
     const events = /^\/events\/execute\/([^/?]+)$/.exec(path);
     if (events && method.toUpperCase() === 'POST') {
-      return this.masterApi<T>('POST', `/proxy/events/${events[1]}/execute`, body, query);
+      const auditedBody = {
+        ...(body ?? {}),
+        options: {
+          ...(body?.options ?? {}),
+          sessionId: body?.options?.sessionId ?? this.mcpSessionId,
+          source: body?.options?.source ?? 'mcp',
+        },
+      };
+      return this.masterApi<T>('POST', `/proxy/events/${events[1]}/execute`, auditedBody, query);
     }
     return super.nodeApi<T>(method, path, body, query);
   }
@@ -62,7 +74,7 @@ export class AppContext {
       gatewayUrl: config.gatewayUrl,
       profileName: config.mode === 'readonly' ? 'mcp-readonly' : 'mcp',
       clientId: config.mode === 'readonly' ? 'agenticos-readonly' : 'agenticos-admin',
-    });
+    }, config.session);
     this.master = new MasterApi(this.client);
     this.node = new NodeApi(this.client);
     this.scope = scopeFromConfig(config);

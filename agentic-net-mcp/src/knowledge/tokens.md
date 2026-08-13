@@ -19,16 +19,15 @@ Token names must be unique within a place — creating a duplicate 422s. Use
 
 ## Size discipline
 
-- Check before you read: `INSPECT_TOKEN_SIZE` classifies a token (SMALL/LARGE), then
-  `EXTRACT_TOKEN_CONTENT mode:"auto"` reads large ones safely (windowed).
+- First call `inspect_token_size`, then `extract_token_content mode:"auto"` for large values
+  (native aliases are uppercase).
 - `query_tokens` truncates long values in its default projection (marked, e.g. `_truncated`) —
   raise `maxValueLength` or project `fields` when you need full payloads.
-- Executor stdout > ~128KB offloads to the blobstore; the result token carries a blob URN — fetch
-  with READ_BLOB_TEXT.
+- Executor stdout > ~128KB offloads to the blobstore; fetch its URN with `read_blob_text`.
 - Server storage and reads are verified to carry 100KB+ token properties intact (node, gateway,
   and ArcQL paths). **If you ever see a payload cut at a suspiciously round length (e.g. exactly
   65536 chars, mid-JSON), suspect YOUR client's tool-output cap before the platform** — MCP
-  clients truncate large tool results; re-read with a `fields` projection or EXTRACT_TOKEN_CONTENT
+  clients truncate large tool results; re-read with a `fields` projection or `extract_token_content`
   windows instead of one giant read. Validate JSON completeness before feeding a big payload to an
   LLM — a plausible-looking analysis of truncated garbage is the worst failure mode.
 

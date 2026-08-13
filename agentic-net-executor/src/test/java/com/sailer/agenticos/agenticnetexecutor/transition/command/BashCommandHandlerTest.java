@@ -106,6 +106,21 @@ class BashCommandHandlerTest {
     }
 
     @Test
+    void nullEnvironmentValuesAreOmittedInsteadOfCrashingProcessBuilder() {
+        ObjectNode a = args();
+        a.put("command", "printf '%s|%s' \"${OPTIONAL_FLAG-unset}\" \"$DEFINED_FLAG\"");
+        ObjectNode env = om.createObjectNode();
+        env.putNull("OPTIONAL_FLAG");
+        env.put("DEFINED_FLAG", "present");
+        a.set("env", env);
+
+        CommandResult res = handler.execute(exec(a));
+
+        assertEquals(CommandResult.Status.SUCCESS, res.status());
+        assertEquals("unset|present", res.output().get("stdout").asText());
+    }
+
+    @Test
     void invalidWorkingDirIsRejected() {
         ObjectNode a = args();
         a.put("command", "echo hi");

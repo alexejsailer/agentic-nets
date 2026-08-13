@@ -24,9 +24,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 /**
  * Catch-all reverse proxy — routes /api/** requests to the correct master based on
@@ -36,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ol>
  *   <li>Query param {@code modelId}</li>
  *   <li>Request body JSON field {@code modelId}</li>
+ *   <li>Canonical model-scoped URL segment</li>
  *   <li>Fallback: first active master</li>
  * </ol>
  *
@@ -72,6 +76,14 @@ public class MasterProxyController {
             // surfaces to the user as a 403 "Invalid CORS request" on POSTs only (GETs carry
             // no Origin). Stripping them here lets master treat proxied calls as same-origin.
             "origin", "access-control-request-method", "access-control-request-headers"
+    );
+
+    /** Canonical Master routes that carry model ownership in the URL itself. */
+    private static final List<Pattern> MODEL_PATH_PATTERNS = List.of(
+            Pattern.compile("^/api/models/([^/]+)(?:/|$)"),
+            Pattern.compile("^/api/event-line/([^/]+)(?:/|$)"),
+            Pattern.compile("^/api/proxy/events/([^/]+)(?:/|$)"),
+            Pattern.compile("^/api/assistant/universal/([^/]+)(?:/|$)")
     );
 
     private final MasterRegistryService registryService;
@@ -390,6 +402,7 @@ public class MasterProxyController {
      * <ol>
      *   <li>Query parameter {@code modelId}</li>
      *   <li>JSON body field {@code modelId}</li>
+     *   <li>Known canonical path segment ({@code /api/models/{modelId}/...}, etc.)</li>
      *   <li>Returns null (caller decides fallback)</li>
      * </ol>
      */
@@ -412,6 +425,22 @@ public class MasterProxyController {
                 }
             } catch (Exception e) {
                 logger.debug("Failed to parse request body as JSON for modelId extraction: {}", e.getMessage());
+            }
+        }
+
+        // 3. Canonical model-scoped path. This is required for GET endpoints such as event
+        // history and SSE, whose contract already carries modelId in the URL and therefore has
+        // no body/query field. Without this, a multi-Master gateway silently chose any Master.
+        String path = request.getRequestURI();
+        if (path != null) {
+            for (Pattern pattern : MODEL_PATH_PATTERNS) {
+                var match = pattern.matcher(path);
+                if (match.find()) {
+                    String pathModelId = URLDecoder.decode(match.group(1), StandardCharsets.UTF_8);
+                    if (!pathModelId.isBlank() && !pathModelId.contains("/")) {
+                        return pathModelId;
+                    }
+                }
             }
         }
 

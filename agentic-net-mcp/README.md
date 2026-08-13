@@ -63,7 +63,8 @@ Two layers, one server:
 | **External execution** | **`list_external_fires`** · **`set_external`** · **`prepare_external_fire`** · **`complete_external_fire`** · **`abandon_external_fire`** (the connected model itself reasons; master retains binding, emission, accounting, permissions, and idempotency) |
 | **Agent Hub + contexts** | Create models with standard/research/knowledge/development profiles; native tools search, install, configure, start, stop, and inspect versioned agent teams and context systems |
 | **NetHub** | **`hub_publish`** / **`hub_search`** / **`hub_show`** / **`hub_install`** for nine artifact kinds (net, session, model, agent, context, toolnet, tool, catalog, blob) · **`hub_add_remote`** for federation |
-| **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
+| **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · `events_wait` · `console_tail` · `model_history` · `transition_history` · `token_lineage` · `failure_context` · `service_logs_tail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
+| **Large output** | `inspect_token_size` · `extract_token_content` · `read_blob_text` |
 | **Native catalog** | Full platform parity across structure, tokens, inscriptions, lifecycle, Agent Hub, contexts, application nets, NetHub, credentials, tool catalogs, Docker, HTTP, scripts, sessions, diagnosis, usage, and export. `THINK` / `DONE` / `FAIL` remain agent-loop-only and are intentionally excluded. |
 
 Important capabilities the extra tools unlock:
