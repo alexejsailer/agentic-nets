@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { buildInscription, buildAgentInscription, scheduleEmptyFireWarning, validateFilter } from '../src/inscriptions.js';
 import { compileSteps, validateKindArgs } from '../src/tools/nets.js';
+import { readFileSync } from 'node:fs';
+/** The replace: describe() text from the registered add_transition schema. */
+function addTransitionReplaceDescription(): string {
+  const src = readFileSync(new URL('../src/tools/nets.ts', import.meta.url), 'utf8');
+  const m = src.match(/replace: z\.boolean\(\)\.optional\(\)\.describe\('([^']+)'\)/);
+  if (!m) throw new Error('replace describe() not found in nets.ts');
+  return m[1];
+}
+
 
 describe('preset filter (add_transition filter: — F8c)', () => {
   it('filter becomes the preset WHERE clause with the LIMIT preserved', () => {
@@ -496,5 +505,17 @@ describe('pass param applicability (the guard must not outlaw its own surface)',
   it('still rejects action params that a pass lane has nowhere to put', () => {
     expect(() => validateKindArgs('pass', { template: { a: 1 } })).toThrow(/template/);
     expect(() => validateKindArgs('pass', { url: 'http://x' })).toThrow(/url/);
+  });
+});
+
+describe('replace:true consistency (field finding: a replace that CREATES)', () => {
+  it('is documented as rejected when the id does not exist', () => {
+    // The guard itself lives in the add_transition handler (it needs a live master to know
+    // whether the id exists); what is pinned here is that the surface PROMISES the rejection,
+    // because the old behaviour silently created a second lane on the same input place.
+    const desc = String(addTransitionReplaceDescription());
+    expect(desc).toMatch(/EXISTING/);
+    expect(desc).toMatch(/does NOT exist/);
+    expect(desc).toMatch(/competing consumer/);
   });
 });

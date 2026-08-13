@@ -250,6 +250,84 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerTool(
+    'add_tokens',
+    {
+      title: 'Add many tokens to a place in one call',
+      description:
+        'Seed a place with up to 200 tokens in ONE call. Creating 100 tokens previously meant 100 memory_write round trips. Execution is sequential and NOT atomic — a failure does not roll back what already landed — so the result always reports created, failed and the index + reason of every failure, and stopOnError:true (default false) halts at the first one instead of pushing through. Each item is a plain object stored as the token data; pass text for prose, or arbitrary fields for structure.',
+      inputSchema: {
+        place: z.string().describe('Runtime place id (e.g. p-inbox); created if missing'),
+        tokens: z.array(z.record(z.any())).min(1).max(200)
+          .describe('One object per token — the token data itself'),
+        stopOnError: z.boolean().optional()
+          .describe('Stop at the first failure instead of continuing (default false)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'add_tokens', mutates: true }, async (model, args) => {
+      const placeId = resolveMemoryPlace(args.place);
+      await ensurePlace(ctx, model, placeId);
+      const items: any[] = args.tokens ?? [];
+      const stopOnError = args.stopOnError === true;
+      const failures: Array<{ index: number; error: string }> = [];
+      let created = 0;
+      for (let i = 0; i < items.length; i++) {
+        const res = await ctx.executorFor(model).execute('CREATE_TOKEN', {
+          placePath: placePath(placeId),
+          data: items[i],
+        });
+        if (res.success) {
+          created++;
+        } else {
+          failures.push({ index: i, error: res.error ?? 'CREATE_TOKEN failed' });
+          if (stopOnError) break;
+        }
+      }
+      return {
+        place: placeId,
+        requested: items.length,
+        created,
+        failed: failures.length,
+        // Partial writes are visible by construction: requested > created + failed means the run
+        // stopped early, which only happens with stopOnError.
+        ...(failures.length ? { failures } : {}),
+        ...(created < items.length && stopOnError
+          ? { stoppedEarly: true, notAttempted: items.length - created - failures.length }
+          : {}),
+      };
+    }),
+  );
+
+  server.registerTool(
+    'count_tokens',
+    {
+      title: 'Count tokens in a place',
+      description:
+        'How many tokens a place holds, without returning any of them. query_tokens had to ship token DATA just to answer "how many", which is the wrong trade for a place holding hundreds of large tokens. Pass arcql to count a subset (same grammar as query_tokens). Read-only, so it works in readonly mode.',
+      inputSchema: {
+        place: z.string().describe('Runtime place id (alias: placeId)'),
+        arcql: z.string().optional().describe('Optional selector; default counts every token'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'count_tokens', mutates: false }, async (model, args) => {
+      const placeId = resolveMemoryPlace(args.place ?? (args as any).placeId);
+      const arcql = String(args.arcql ?? 'FROM $').trim();
+      // maxValueLength:1 keeps the wire payload to a stub per token — the count is the answer,
+      // the values are not.
+      const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+        placePath: placePath(placeId),
+        query: arcql,
+        maxValueLength: 1,
+      });
+      if (!res.success) throw new Error(res.error ?? 'QUERY_TOKENS failed');
+      const raw: any = res.data ?? {};
+      const tokens: any[] = Array.isArray(raw) ? raw : (raw.results ?? raw.tokens ?? []);
+      return { place: placeId, arcql, count: tokens.length };
+    }),
+  );
+
+  server.registerTool(
     'delete_tokens',
     {
       title: 'Delete tokens matched by an ArcQL query',

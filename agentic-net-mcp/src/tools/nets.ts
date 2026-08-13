@@ -203,9 +203,33 @@ export const PERSONA_PRESETS: Record<
 export function registerNetTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
   const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
+  // The allowlist is MUTABLE at runtime (create_model / hub_install call grantModel), but a tool
+  // description is baked at registration. That is why the enum went stale: a model created in this
+  // session worked perfectly while every description still named only the models present at
+  // connect time — reported as "dynamic model schemas are stale". The text now says it is a
+  // snapshot and points at the live answer, and announceModelGranted() tells the client to
+  // re-list so a refreshed description reaches it without a reconnect.
+  const modelDescription = () =>
+    `Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel}). `
+    + 'Snapshot from connect time plus anything granted since; create_model/hub_install can add more '
+    + 'mid-session — list_models is always the live answer.';
   const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
-    ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
+    ? { model: z.string().optional().describe(modelDescription()) }
     : {};
+
+  /**
+   * A newly granted model is usable immediately; this makes it VISIBLE too. Clients cache the tool
+   * list, so without the notification the new model stays absent from every description until the
+   * next reconnect — which is precisely how a working model looked unsupported.
+   */
+  const announceModelGranted = () => {
+    try {
+      server.sendToolListChanged();
+    } catch {
+      // A transport that cannot notify (or a client that never subscribed) is not a failure:
+      // the grant already succeeded and list_models still reports the truth.
+    }
+  };
 
   server.registerTool(
     'deploy_template',
@@ -268,6 +292,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         const existingModels: any[] = Array.isArray(existingRes) ? existingRes : (existingRes?.models ?? []);
         if (existingModels.some((m: any) => (m.modelId ?? m.id) === modelId)) {
           grantModel(scope, modelId);
+          announceModelGranted();
           // Persist only when explicitly requested for a pre-existing model, but do it before
           // optional profile/workspace recovery so a downstream failure cannot discard the grant.
           const persist = args.persistAllowlist === true ? allowlist.add(modelId) : null;
@@ -333,6 +358,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
             try { parsed = JSON.parse(err.body); } catch { /* keep the raw message below */ }
             if (parsed?.modelCreated === true) {
               grantModel(scope, modelId);
+          announceModelGranted();
               const persist = args.persistAllowlist === false ? null : allowlist.add(modelId);
               throw new Error(`model '${modelId}' was created but profile '${args.profile}' provisioning is `
                 + `incomplete: ${JSON.stringify(parsed?.modelProfile?.artifacts ?? [])} — re-run `
@@ -347,6 +373,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           throw err;
         }
         grantModel(scope, modelId);
+          announceModelGranted();
         // Persist as soon as model creation is known to have succeeded. Workspace/template setup
         // may fail afterward, but that must not strand a running model outside future sessions.
         const persist = args.persistAllowlist === false ? null : allowlist.add(modelId);
@@ -584,7 +611,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         mode: z.enum(['SINGLE', 'FOREACH']).optional().describe('Execution mode. SINGLE (default) binds all presets and fires once; FOREACH processes each bound token independently with bounded per-fire fan-out — use for per-token work like enriching every item in a batch'),
         batchSize: z.number().int().min(1).max(100).optional().describe('FOREACH only: bind/process this many tokens per firing (default 1); the lane drains the place across repeated polls'),
         start: z.boolean().optional().describe('Default true for NEW lanes (links are never started). A REPLACED lane stays STOPPED unless start:true is explicit.'),
-        replace: z.boolean().optional().describe('Required (true) to overwrite an existing transitionId — this is the inscription-edit path. Without it, an existing id is an ERROR (protects against a typo destroying an unrelated lane). The response returns the previous inscription.'),
+        replace: z.boolean().optional().describe('Required (true) to overwrite an EXISTING transitionId, and rejected when that id does NOT exist (a replace that creates is a contradiction, and a mistyped id would add a competing consumer on the same input place). This is the inscription-edit path; the response returns the previous inscription.'),
         ...modelParam,
       },
     },
@@ -609,6 +636,19 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           `Transition '${args.transitionId}' already exists in model '${model}' (status ${prior.status ?? prior.state}). ` +
             `add_transition would REPLACE its inscription. Pass replace:true to overwrite deliberately ` +
             `(the previous inscription is returned so you can restore it), or pick a new id.`,
+        );
+      }
+      // The mirror of the guard above, and the one that was missing: replace:true means
+      // "overwrite the lane at this id". If nothing is there, the request contradicts itself and
+      // the old behaviour quietly CREATED a transition instead — so a mistyped id under
+      // replace:true produced a second lane on the same input place, i.e. two consumers racing
+      // for the same tokens, which is exactly what the caller was trying to avoid.
+      if (!priorExists && args.replace === true) {
+        throw new Error(
+          `replace:true was passed but no transition '${args.transitionId}' exists in model '${model}' — ` +
+            `nothing to replace. Creating one here would silently add a lane (and a competing consumer ` +
+            `on '${args.inputPlace}') under a flag that promised to overwrite. ` +
+            `Check the id for a typo (list_transitions shows what exists), or drop replace to create it deliberately.`,
         );
       }
       let previousInscription: any;
@@ -1058,6 +1098,78 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       };
     }),
   );
+
+  for (const [name, verb, tool] of [
+    ['start_net', 'start', 'START_TRANSITION'],
+    ['stop_net', 'stop', 'STOP_TRANSITION'],
+  ] as const) {
+    server.registerTool(
+      name,
+      {
+        title: `${verb === 'start' ? 'Start' : 'Stop'} every firing lane in a net`,
+        description:
+          verb === 'start'
+            ? 'Start every firing transition of a net in ONE call. Structural kind:"link" transitions are skipped automatically — they carry no tokens and never fire, so starting them is meaningless. Sequential and NOT atomic: the result lists each transition with started/skipped/failed and the reason, so a partial start is visible rather than assumed.'
+            : 'Stop every firing transition of a net in ONE call — the per-net kill switch. Structural kind:"link" transitions are skipped (they never ran). Sequential and NOT atomic: the result lists each transition with stopped/skipped/failed, so a lane that refused to stop is named instead of silently left running.',
+        inputSchema: {
+          netId: z.string().describe('Net whose transitions to act on'),
+          ...modelParam,
+        },
+      },
+      wrapTool(scope, config.mode, { name, mutates: true }, async (model, args) => {
+        const listed = await ctx.executorFor(model)
+          .execute('LIST_ALL_INSCRIPTIONS', { includeContent: true });
+        if (!listed.success) throw new Error(listed.error ?? 'LIST_ALL_INSCRIPTIONS failed');
+        const raw: any = listed.data ?? {};
+        const all: any[] = Array.isArray(raw) ? raw : (raw.inscriptions ?? raw.results ?? []);
+
+        const inNet = all.filter((entry: any) => {
+          const ins = entry?.inscription ?? entry?.content ?? entry;
+          return String(ins?.metadata?.netId ?? '') === String(args.netId);
+        });
+        if (inNet.length === 0) {
+          throw new Error(
+            `no transitions found for net '${args.netId}' in model '${model}' — check the netId with net_overview `
+            + '(a net whose transitions were built elsewhere carries a different metadata.netId)',
+          );
+        }
+
+        const results: Array<Record<string, any>> = [];
+        let acted = 0;
+        for (const entry of inNet) {
+          const ins = entry?.inscription ?? entry?.content ?? entry;
+          const id = String(ins?.id ?? entry?.transitionId ?? entry?.id ?? '');
+          const kind = String(ins?.kind ?? 'unknown');
+          if (!id) continue;
+          // Links are structure, not lanes. Trying to start one is a no-op at best and an
+          // error at worst, and either way it is noise in the report.
+          if (kind === 'link') {
+            results.push({ transitionId: id, kind, skipped: 'structural link — never fires' });
+            continue;
+          }
+          const res = await ctx.executorFor(model).execute(tool, { transitionId: id });
+          if (res.success) {
+            acted++;
+            results.push({ transitionId: id, kind, [verb === 'start' ? 'started' : 'stopped']: true });
+          } else {
+            results.push({ transitionId: id, kind, failed: res.error ?? `${tool} failed` });
+          }
+        }
+        const failed = results.filter((r) => r.failed).length;
+        return {
+          net: args.netId,
+          transitions: inNet.length,
+          [verb === 'start' ? 'started' : 'stopped']: acted,
+          skippedLinks: results.filter((r) => r.skipped).length,
+          failed,
+          results,
+          ...(failed
+            ? { note: `${failed} transition(s) did not ${verb} — see results[].failed` }
+            : {}),
+        };
+      }),
+    );
+  }
 
   for (const [name, tool, description] of [
     ['fire_once', 'FIRE_ONCE', 'Fire a map/http/command/pass transition once (manual trigger). By default preserveRunning:true atomically tests an already-RUNNING lane without stopping it; action side effects still happen. NOT for llm/agent lanes: run those server-side by start_transition, or client-side via host_transition / EXECUTE_TRANSITION_SMART.'],

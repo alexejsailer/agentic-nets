@@ -533,7 +533,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Model statistics — LLM usage, running transitions, tool-nets',
       description:
-        'Aggregated operational stats for a model, computed with NO log-file or source access. Reports RUNNING vs STOPPED/ERROR transitions; schedules; measured llm/agent consumption; activity and recent errors; tool-net usage; and executorCoverage with READY (polling), STANDBY (eligible, activates after command assignment), or UNAVAILABLE. This answers "what consumes LLM / what is running or scheduled / what broke / can command lanes run?".',
+        'Aggregated operational stats for a model, computed with NO log-file or source access. Reports RUNNING vs STOPPED/ERROR transitions; schedules; measured llm/agent consumption; activity and recent errors; tool-net usage; and executorCoverage with READY (polling), STANDBY (eligible, activates after command assignment), or UNAVAILABLE. This answers "what consumes LLM / what is running or scheduled / what broke / can command lanes run?". paused means pause_model was used (the record resume_model restores from); idle means nothing is polling for any other reason — the two are reported separately because conflating them made net_stats and resume_model contradict each other.',
       inputSchema: {
         window: z.number().optional().describe('How many recent events to aggregate for LLM/activity stats (default 500)'),
         ...modelParam,
@@ -645,10 +645,27 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         ...(covWarning ? { warning: covWarning } : {}),
       };
 
+      // "Explicitly paused" and "nothing happens to be running" are DIFFERENT states, and
+      // conflating them made net_stats report paused:true while resume_model answered "no
+      // pause-record exists" — a contradiction with no way to tell which tool was wrong. Only
+      // pause_model's own record means paused; everything else is idle, whatever the reason
+      // (never started, stopped by hand, all lanes crashed).
+      const pauseRecord = (await fetchTokens(ctx, model, 'p-mcp-control').catch(() => []))
+        .map((t: any) => (t?.data && Object.keys(t.data).length ? t.data : (t?.properties ?? {})))
+        .filter((d: any) => d.kind === 'pause-record')
+        .sort((a: any, b: any) => String(b.pausedAt ?? '').localeCompare(String(a.pausedAt ?? '')))[0];
+      const idle = txList.length > 0 && running.length === 0;
+
       return {
         model,
-        // paused = nothing is polling: no transition can fire until resume_model / start_transition.
-        paused: txList.length > 0 && running.length === 0,
+        // Set ONLY by pause_model — the same record resume_model restores from, so the two agree.
+        paused: pauseRecord != null,
+        ...(pauseRecord ? { pausedAt: pauseRecord.pausedAt ?? null, pausedBy: pauseRecord.source ?? null } : {}),
+        // Nothing is polling, so no transition can fire — but nobody pressed the kill switch.
+        idle,
+        ...(idle && pauseRecord == null
+          ? { idleNote: 'no lane is running, and there is NO pause record — this model was stopped or never started, so resume_model has nothing to restore; use start_transition / start_net' }
+          : {}),
         transitions: { total: txList.length, byStatus, running, notRunning },
         ...(external.length
           ? { externalFires: { transitions: external, note: 'client-fired lane — see list_external_fires' } }
