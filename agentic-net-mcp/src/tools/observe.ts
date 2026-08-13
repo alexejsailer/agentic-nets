@@ -154,7 +154,7 @@ export function clampValues(value: any, max: number, state: { truncated: boolean
 }
 
 const EVENT_FILTER_KEYS = [
-  'q', 'correlationId', 'category', 'type', 'status', 'sessionId', 'workspaceNetId',
+  'q', 'correlationId', 'category', 'type', 'status', 'sessionId', 'workspaceNetId', 'source',
 ] as const;
 
 const HISTORY_FILTER_KEYS = [
@@ -355,9 +355,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         query.beforeSeq = String(args.before); // tolerate either server param name
       }
       const res: any = await ctx.client.masterApi('GET', `/event-line/${model}`, undefined, query);
-      return requested > 200 && res && typeof res === 'object'
-        ? { ...res, note: `limit capped to 200 (requested ${requested}); page older events with \`before\`` }
-        : res;
+      // grouped:true = the Console tab's correlation-story view (absorbs the console_tail tool).
+      let shaped: any = res;
+      if (args.grouped && res && Array.isArray(res.events)) {
+        const { events, ...rest } = res;
+        shaped = { ...rest, stories: eventStories(events, true) };
+      }
+      return requested > 200 && shaped && typeof shaped === 'object'
+        ? { ...shaped, note: `limit capped to 200 (requested ${requested}); page older events with \`before\`` }
+        : shaped;
     }),
   );
 
