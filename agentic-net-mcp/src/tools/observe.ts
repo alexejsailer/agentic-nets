@@ -7,6 +7,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
 import { fetchTokens } from './memory.js';
+import { annotateLeases, LEASED_NOTE } from './lease-util.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
 
 /**
@@ -267,7 +268,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Query tokens in a place',
       description:
-        'Read tokens from any runtime place with ArcQL. Paths: bare place id (resolved under root/workspace/places) or a full node path. ArcQL: FROM $ [WHERE $.field=="value"] [ORDER BY $.f DESC] [LIMIT n] — note == and double quotes. Token properties STRINGIFY nested objects/arrays: a field that was written as an array comes back as a JSON-encoded string — parse it (sometimes twice for LLM output) before use.',
+        'Read tokens from any runtime place with ArcQL. Paths: bare place id (resolved under root/workspace/places) or a full node path. ArcQL: FROM $ [WHERE $.field=="value"] [ORDER BY $.f DESC] [LIMIT n] — note == and double quotes. Tokens held by an IN-FLIGHT fire are still listed (visible ≠ available) and carry leased:{owner,expiresInMs} — see docs/leases before treating a lingering token as queued or stuck. Token properties STRINGIFY nested objects/arrays: a field that was written as an array comes back as a JSON-encoded string — parse it (sometimes twice for LLM output) before use.',
       inputSchema: {
         place: z.string().optional().describe('Place id or full path (alias: placeId)'),
         placeId: z.string().optional().describe('Alias for `place`'),
@@ -303,10 +304,12 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           const max = Number(args.maxValueLength ?? 500);
           results = clampValues(tokens, max, state);
         }
+        const leases = annotateLeases(tokens, results);
         return {
           place,
           resultCount: tokens.length,
           results,
+          ...(leases.leasedCount ? { leasedCount: leases.leasedCount, leasedNote: LEASED_NOTE } : {}),
           ...(state.truncated
             ? { truncated: true, note: 'long values shortened (JSON strings use structured __truncated__ markers; plain strings use inline markers) — re-query with maxValueLength:0 for full values' }
             : {}),
@@ -320,7 +323,16 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         ...(args.maxValueLength != null ? { maxValueLength: args.maxValueLength } : {}),
       });
       if (!res.success) throw new Error(res.error ?? 'QUERY_TOKENS failed');
-      return dedupeTokenPayload(res.data, args.fields as string[] | undefined);
+      const payload: any = dedupeTokenPayload(res.data, args.fields as string[] | undefined);
+      const rawRows: any[] = (res.data as any)?.results ?? [];
+      if (Array.isArray(payload?.results) && rawRows.length === payload.results.length) {
+        const leases = annotateLeases(rawRows, payload.results);
+        if (leases.leasedCount) {
+          payload.leasedCount = leases.leasedCount;
+          payload.leasedNote = LEASED_NOTE;
+        }
+      }
+      return payload;
     }),
   );
 

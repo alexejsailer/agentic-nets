@@ -33,6 +33,7 @@ import starterPatternsMd from './starter-patterns.md';
 import schedulingMd from './scheduling.md';
 import securityMd from './security.md';
 import tokensMd from './tokens.md';
+import leasesMd from './leases.md';
 import toolCatalogMd from './tool-catalog.md';
 import observabilityMd from './observability.md';
 import troubleshootingMd from './troubleshooting.md';
@@ -62,6 +63,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   cost: { title: 'Watching the meter: token cost', text: costMd },
   nethub: { title: 'NetHub: export, import, self-contained packages', text: nethubMd },
   tokens: { title: 'Token shapes, stringification, size', text: tokensMd },
+  leases: { title: 'Token leases — visibility vs availability', text: leasesMd },
   observability: { title: 'Observability layers, retention, the 3-day query', text: observabilityMd },
   troubleshooting: { title: 'Troubleshooting playbooks', text: troubleshootingMd },
   recipes: { title: 'Recipes', text: recipesMd },

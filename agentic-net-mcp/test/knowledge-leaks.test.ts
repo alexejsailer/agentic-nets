@@ -103,8 +103,14 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // every client that now has a durable journal to read — misreading eviction as "never
   // happened" was the field reports' core failure class.
   // Per-doc 8KB discipline is unchanged — this is budget growth, not budget removal.
-  const PACK_CAP = 120832;
-  const INSTRUCTIONS_CAP = 17408;
+  // 2026-08-14: +4KB for docs/leases — the reservation mechanism became teachable after the
+  // staging lease-collision incident; a doc that prevents operators deleting in-flight tokens
+  // earns its bytes. Growth stays deliberate: raise this only WITH a new doc, never for edits.
+  const PACK_CAP = 126976;
+  // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
+  // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
+  // rule, never for rewording.
+  const INSTRUCTIONS_CAP = 17920;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {
     it(`doc '${topic}' fits the ${PER_DOC_CAP}B cap and is well-formed`, () => {

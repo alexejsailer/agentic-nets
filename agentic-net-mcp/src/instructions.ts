@@ -200,9 +200,9 @@ first and report what was stopped.
 1. ArcQL: double equals and double quotes — FROM $ WHERE $.status=="active" LIMIT 5. Paths start with $.
 2. \${input.data.field} in prompts/templates interpolates the INPUT TOKEN's fields; the root name
    is the preset key (default 'input').
-3. link transitions NEVER fire — they are navigable edges only. Never start them.
-4. A capacity-N output place blocks its producer when full (backpressure, not an error).
-5. fire_once defaults preserveRunning:true: test RUNNING lanes without stop/start; side effects happen.
+3. link transitions NEVER fire — navigable edges only; never start them.
+4. A capacity-N output place blocks its producer when full (backpressure, not error).
+5. fire_once defaults preserveRunning:true: tests RUNNING lanes in place; side effects happen.
 6. assign/set_schedule stops a transition; the tools here restart it for you — but remember it if
    you work the REST API directly.
 7. Prefer deterministic kinds (map/http) wherever possible; use llm/agent transitions only where
@@ -220,6 +220,9 @@ first and report what was stopped.
     stores the reply as an escaped string under 'value' — only for freeform text (docs/llm).
 11. Templates have functions: \${urlencode(...)} for ANY url built from data (raw #/space/&
     silently corrupts it), plus sum/len/default/lower/upper/trim — docs/interpolation.
+
+12. leased:{owner,…} on a query_tokens row = in-flight work: visible, but hidden from binding.
+    Don't delete (skipped unless force:true); stop_transition frees leases. docs/leases.
 
 ## The knowledge base — search it, don't guess
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and

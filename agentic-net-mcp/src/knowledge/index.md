@@ -53,6 +53,9 @@ inscription by hand, read `inscriptions`.
 - **nethub** — export/import: publish kinds (net/session/model/agent/context/toolnet/tool/catalog/blob),
   self-contained packages (dependencies travel sha256-pinned, installed scope-aware), token
   policy + credential scrubbing, federation via remotes.
+- **leases** — who is working on what: the `_lock` CAS+TTL mechanism, why binding hides
+  foreign-leased tokens while `query_tokens` shows them, external fires as leases, and why
+  deleting a leased token breaks the fire that holds it.
 - **tokens** — stringified properties (parse, sometimes twice); size discipline; client-side
   truncation caution; config tokens; design-time `tokens: 0` ≠ live state.
 - **troubleshooting** — the playbooks: stuck lane, queued-no-output, scheduled-but-silent, dead

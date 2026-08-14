@@ -20,6 +20,7 @@
  * them. Added alongside p-mem-* (which is unchanged).
  */
 import { z } from 'zod';
+import { leaseOf } from './lease-util.js';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
@@ -337,6 +338,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         place: z.string().describe('Runtime place id (e.g. p-inbox)'),
         arcql: z.string().min(1).describe('Required ArcQL selector, e.g. FROM $ WHERE $.status=="obsolete"'),
         max: z.number().int().min(1).max(100).optional().describe('Maximum deletions (default 100, hard cap 100)'),
+        force: z.boolean().optional().describe('Also delete tokens LEASED by in-flight fires (default false: they are skipped and reported — deleting one breaks the holder\u2019s consumption)'),
         ...modelParam,
       },
     },
@@ -355,7 +357,18 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       if (!query.success) throw new Error(query.error ?? 'QUERY_TOKENS failed');
       const raw: any = query.data ?? {};
       const tokens: any[] = (Array.isArray(raw) ? raw : (raw.results ?? raw.tokens ?? [])).slice(0, max);
-      const ids = tokens
+      // A leased token is held by an IN-FLIGHT fire: deleting it does not stop that work, it
+      // just makes the fire's consumption fail afterwards (docs/leases — and exactly the
+      // operator mistake that motivated this guard). Skip them unless force:true.
+      const skippedLeased: Array<{ id: string; owner: string; expiresInMs: number }> = [];
+      const deletable = args.force === true ? tokens : tokens.filter((t: any) => {
+        const lease = leaseOf(t);
+        if (!lease) return true;
+        const id = String(t?._meta?.id ?? t?.id ?? t?.tokenId ?? 'unknown');
+        skippedLeased.push({ id, owner: lease.owner, expiresInMs: lease.expiresInMs });
+        return false;
+      });
+      const ids = deletable
         .map((t: any) => t?._meta?.id ?? t?.id ?? t?.tokenId)
         .filter((id: any) => id != null)
         .map(String);
@@ -374,6 +387,9 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         matched: tokens.length,
         deleted: deleted.length,
         ids: deleted,
+        ...(skippedLeased.length
+          ? { skippedLeased, leasedNote: 'held by in-flight fires — stop_transition releases leases cleanly; pass force:true only if you accept breaking the holder\u2019s consumption' }
+          : {}),
         ...(tokens.length !== ids.length ? { missingIdCount: tokens.length - ids.length } : {}),
         ...(failures.length ? { failures } : {}),
       };
