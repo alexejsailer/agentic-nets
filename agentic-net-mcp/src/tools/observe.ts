@@ -1067,7 +1067,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           const waiting = rows.filter((t: any) => t.ready && t.servable !== false);
           // Lanes master cannot run at all. Distinct from `waiting`: a stranded lane may be
           // running and look perfectly healthy on every other surface while going nowhere.
-          const stranded = rows.filter((t: any) => t.servableReason === 'MASTER_HAS_NO_PROVIDER');
+          // CLI_BINARY_MISSING strands a lane exactly like a missing provider does.
+          const stranded = rows.filter((t: any) =>
+            t.servableReason === 'MASTER_HAS_NO_PROVIDER' || t.servableReason === 'CLI_BINARY_MISSING');
           externalFires = {
             external: rows.length,
             waiting: waiting.length,
@@ -1095,7 +1097,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
             );
           } else if (stranded.length) {
             warnings.push(
-              `${stranded.length} llm/agent lane(s) exist that master cannot run (no provider): `
+              `${stranded.length} llm/agent lane(s) exist that master cannot run (no provider / missing CLI binary): `
                 + `${stranded.map((t: any) => t.transitionId).slice(0, 5).join(', ')}`
                 + `${stranded.length > 5 ? ', …' : ''}. They are idle now, but nothing will ever run them `
                 + 'except a connected client. list_external_fires {includeAll:true} shows the full picture.',
@@ -1321,9 +1323,13 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           transitionId: t.transitionId,
           kind: t.kind,
           schedule: t.schedule,
+          // Three distinct ways in, three distinct labels — a CLI-stranded lane blamed on the
+          // provider sends the operator to the wrong fix (configure a provider vs install a binary).
           reason: String(t.status ?? '').toLowerCase() === 'external'
             ? 'MARKED_EXTERNAL'
-            : 'MASTER_HAS_NO_PROVIDER',
+            : cliLaneStranded(t)
+              ? 'CLI_BINARY_MISSING'
+              : 'MASTER_HAS_NO_PROVIDER',
         }));
       return {
         model,

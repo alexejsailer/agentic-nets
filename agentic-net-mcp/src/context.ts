@@ -115,6 +115,17 @@ export class AppContext {
     };
   }
 
+  /** True when (model, transitionId, fireId) is the agent fire THIS process prepared and still holds. */
+  isActiveAgentFire(model: string, transitionId: string, fireId: string): boolean {
+    const active = this.activeExternalAgent;
+    return Boolean(
+      active &&
+        active.model === model &&
+        active.transitionId === transitionId &&
+        active.fireId === fireId,
+    );
+  }
+
   clearExternalAgentFire(model: string, transitionId: string, fireId: string): void {
     const active = this.activeExternalAgent;
     if (

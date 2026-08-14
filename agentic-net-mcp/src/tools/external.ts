@@ -138,9 +138,9 @@ export function registerExternalTools(server: McpServer, ctx: AppContext): void 
     {
       title: 'Prepare an external fire — get the prompt + bound tokens',
       description:
-        'Start firing an external (or stopped) llm/agent transition YOURSELF: master binds and leases the preset tokens and builds the exact interpolated prompt a master fire would use, and returns them with a fireId. ' +
+        'Fire ANY llm/agent transition YOURSELF, on demand, whatever its status — external, stopped, or running; being marked external is NOT required (set_external is a standing policy, not a precondition). Master binds and leases the preset tokens and builds the exact interpolated prompt a master fire would use, and returns them with a fireId. ' +
         'llm kind → answer `prompt` and submit via complete_external_fire {response}. agent kind → do the task in `nl` using only returned allowedTools/resourceScopes, then complete with {emissions} or {summary}. ' +
-        'Returns ready:false (no fireId) when the input places have no tokens. Refuses running transitions (master owns those — stop them or set_external first).',
+        'Returns ready:false (no fireId) when the input places have no tokens or another fire holds their lease. Preparing a running lane is a takeover (`takenOverFromMaster:true` — master stands down for the duration; the token lease arbitrates any race). Only `starting` is refused (mid-executor-handshake). Deterministic kinds (pass/map/http/command) are fired on demand with fire_once instead.',
       inputSchema: { transitionId: z.string(), ...modelParam },
     },
     wrapTool(scope, config.mode, { name: 'prepare_external_fire', mutates: true }, async (model, args) => {
@@ -177,7 +177,8 @@ export function registerExternalTools(server: McpServer, ctx: AppContext): void 
       description:
         'Hand your result back to master, which runs the SAME pipeline as a master fire: llm kind → your `response` is parsed and routed through the emit rules (when-conditions, error branches, correlation); agent kind → your `emissions` are emitted (or `summary` auto-emitted to a sole postset). ' +
         'Master then consumes exactly the boundTokens shown at prepare time and records the fire with provider external:<worker> (never counted against the master LLM breaker). ' +
-        'success:false preserves the input tokens for retry (llm: routes when:"error" rules). Completion is idempotent: retrying the same fireId returns the original result without emitting twice.',
+        'success:false — agent kind ALWAYS preserves the inputs for retry; llm kind routes the error through a matching when:"error" emit rule (error token emitted, inputs CONSUMED — the failure is recorded in the net, same as a native fire), and only preserves the inputs when no emit rule matches. Use abandon_external_fire when you want a guaranteed no-trace release. ' +
+        'Completion is idempotent: retrying the same fireId returns the original result without emitting twice, and a rejected (400) body never burns the fireId.',
       inputSchema: {
         transitionId: z.string(),
         fireId: z.string().describe('From prepare_external_fire'),
@@ -200,6 +201,24 @@ export function registerExternalTools(server: McpServer, ctx: AppContext): void 
     wrapTool(scope, config.mode, { name: 'complete_external_fire', mutates: true }, async (model, args) => {
       const transitionId = String(args.transitionId);
       const fireId = String(args.fireId);
+      // Friendly shape validation BEFORE the wire (master's 400s stay the backstop, and a
+      // rejected body never burns the fireId — the lease survives for a corrected retry).
+      const failed = args.success === false;
+      const hasResponse = typeof args.response === 'string' && args.response.length > 0;
+      const hasEmissions = Array.isArray(args.emissions) && args.emissions.length > 0;
+      const hasSummary = typeof args.summary === 'string' && args.summary.trim().length > 0;
+      if (failed && !(typeof args.error === 'string' && args.error.trim().length > 0)) {
+        throw new Error(
+          "success:false requires 'error' (the failure reason) — it is routed to when:\"error\" rules (llm) or recorded for the retry (agent)",
+        );
+      }
+      if (!failed && !hasResponse && !hasEmissions && !hasSummary) {
+        throw new Error(
+          ctx.isActiveAgentFire(model, transitionId, fireId)
+            ? "agent external fire requires 'emissions' (structured tokens) or 'summary' (auto-emitted to a sole postset)"
+            : "a successful completion needs a result: 'response' (llm kind) or 'emissions'/'summary' (agent kind)",
+        );
+      }
       const result = await ctx.client.masterApi('POST', `/transitions/${encodeURIComponent(transitionId)}/external/complete`, {
         modelId: model,
         fireId,
@@ -278,18 +297,26 @@ export function registerExternalReaders(server: McpServer, ctx: AppContext): voi
         ...(args.includeAll ? { includeAll: 'true' } : {}),
       });
       const rows: any[] = res?.transitions ?? [];
-      const ready = rows.filter((t) => t.ready);
+      // The ONE "has work for this session" predicate: bound tokens AND actually yours to serve.
+      // `ready` alone also matches MASTER_OWNS_IT lanes a provider-backed master fires itself.
+      const ready = rows.filter((t) => t.ready && t.servable !== false);
       // Lanes master cannot run at all: the ones that quietly go nowhere until a client shows up.
-      const stranded = rows.filter((t) => t.servableReason === 'MASTER_HAS_NO_PROVIDER');
+      // CLI_BINARY_MISSING is stranded the same way — a bash-backed lane whose claude/codex master
+      // cannot reach never fires server-side either.
+      const STRANDED_REASONS = ['MASTER_HAS_NO_PROVIDER', 'CLI_BINARY_MISSING'];
+      const stranded = rows.filter((t) => STRANDED_REASONS.includes(t.servableReason));
       const servable = rows.filter((t) => t.servable === true);
+      const strandedWhy = (t: any) =>
+        t.servableReason === 'CLI_BINARY_MISSING' ? 'missing CLI binary' : 'no LLM provider';
       return {
         ...res,
         ...(stranded.length ? { stranded: stranded.map((t) => t.transitionId) } : {}),
         ...(stranded.length
           ? {
               next:
-                `${stranded.length} lane(s) are stranded — master has no LLM provider, so only this session can run them: ` +
-                `${stranded.map((t) => t.transitionId).join(', ')}. prepare_external_fire {transitionId} to start.`,
+                `${stranded.length} lane(s) are stranded — master cannot run them, so only this session can: ` +
+                `${stranded.map((t) => `${t.transitionId} (${strandedWhy(t)})`).join(', ')}. ` +
+                `prepare_external_fire {transitionId} to start.`,
             }
           : ready.length
             ? { next: `${ready.length} transition(s) have work — prepare_external_fire {transitionId} to start a fire` }
