@@ -106,7 +106,11 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // 2026-08-14: +4KB for docs/leases — the reservation mechanism became teachable after the
   // staging lease-collision incident; a doc that prevents operators deleting in-flight tokens
   // earns its bytes. Growth stays deliberate: raise this only WITH a new doc, never for edits.
-  const PACK_CAP = 126976;
+  // 124K → 126K for the lease-doctrine corrections from the 2026-08-15 adversarial review:
+  // the wedged-vs-slow stop caveat, the never-author-_lock rule, the read-only duplicate-
+  // emission consequence, and honest version pins — each one a teachable falsehood an agent
+  // would otherwise act on.
+  const PACK_CAP = 129024;
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.

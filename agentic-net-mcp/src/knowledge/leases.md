@@ -19,11 +19,14 @@ poller two seconds apart, or by two lanes reading the same place.
 4. **Binding hides foreign-leased tokens.** When a transition binds its presets, tokens leased
    by anyone else are simply invisible to it — not an error, they just do not appear. This is
    why a lane "randomly" sees an empty place that plainly holds tokens.
-5. **A read takes no lease** (since 2.46.1). A `consume:false` preset only observes: it never
+5. **A read takes no lease** (since 2.47.0; the not-blocked-by-foreign-locks half since 2.48). A `consume:false` preset only observes: it never
    consumes, so nothing needs mutual exclusion and it neither takes a lock nor is blocked by
    one. Before this, config-place readers starved each other — an agent's session-length lease
    made a sibling's optional config preset bind nothing, and `${config.data.*}` interpolated
-   null (the staging `cd "null"` incident).
+   null (the staging `cd "null"` incident). ⚠️ 2.47.0: a CONSUMING lane's lock still hides
+   tokens from readers (transparent reads need ≥ 2.48).
+6. **Never author `_lock` yourself** — engine state; a forged one in token data hides the
+   token from every consuming lane (≥ 2.48 strips it from client writes).
 
 ## What this means when YOU act on tokens (MCP client or in-net agent)
 

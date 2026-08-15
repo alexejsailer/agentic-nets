@@ -61,7 +61,8 @@ provider-backed AI lanes, which keep a normal status and wait for you. An agent 
   lease. A second prepare while a fire holds the lease gets `ready:false` — the leased token is
   simply invisible to the new binding (see docs/leases). Nuance: a lane whose presets are ALL
   `consume:false` leases nothing, so concurrent prepares both succeed there by design — reads
-  need no mutual exclusion.
+  need no mutual exclusion. Flip side: if both then COMPLETE, both emissions land — no lease
+  arbitrates a read-only race; avoiding duplicates is on the caller.
 - Completion validates first and is idempotent: retries never emit twice, a rejected (400) body
   never burns the fireId (the lease survives for a corrected retry), and an unknown/expired
   fireId is a 409. A running lane may be taken over (`takenOverFromMaster:true`; master stands
