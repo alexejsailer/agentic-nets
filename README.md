@@ -62,6 +62,93 @@ Watching it is just as direct: the bundled Studio shows the live net, its
 tokens, its event story, and every handoff as it happens. Changing it is another
 sentence, and the change is versioned and inspectable like everything else.
 
+## Observability you can act on, not just look at
+
+Every committed change is an event, not a log line. The data engine records each
+tree mutation with its causal ids, and the master keeps a story journal of
+fires, outcomes, and errors on disk, one file per model per day. Three layers,
+each with a stated durability, and every tool tells you which one it is reading.
+
+That turns the question most systems cannot answer into an ordinary query:
+
+- *"What did this transition do over the last three days, and where did it get
+  stuck?"* `transition_history` joins the master's stories with the structural
+  mutations by exact fire id, and `focus:"failures"` returns the last correlated
+  failure together with the engine's own binding diagnosis.
+- *"Who created this token, who changed it, who consumed it?"* `token_lineage`
+  walks it back through the retained event blocks.
+- *"What is happening right now?"* `events_wait` long-polls the live event line
+  with honest cursors, so a restart appears as a reset rather than a silent gap.
+
+Retention is a setting rather than a side effect: the data engine keeps
+structural history per model (`historyRetentionDays`), and the story journal
+keeps narratives for its own configured window.
+
+**The point of keeping history is what you do with it.** An agent can read it
+back and improve the system that produced it. The domain-neutral Model Steward
+reviews a whole model, its bottlenecks, failures, rework, wait time, and spend,
+then proposes changes that are approval-gated and versioned like any other
+change. Crystallization goes further: reasoning that has proven itself collapses
+into deterministic transitions, so a process gets cheaper, faster, and more
+predictable the longer it runs. A net that has been working for a month should
+not look like the one you started with.
+
+One caveat the docs repeat rather than hide: retention windows are finite, and
+absence of evidence in a layer is not proof that something never ran.
+See [`docs/observability`](agentic-net-mcp/src/knowledge/observability.md).
+
+## Command transitions and executors: real work on real machines
+
+Map, HTTP, LLM, and agent lanes run on the master. A **command** lane is the one
+that leaves the building: it is dispatched to an **executor**, a small service
+that polls for work over an outbound connection only. Nothing has to reach in,
+so an executor can sit behind a firewall or NAT, on a build machine, on your
+laptop, or in another cloud, and still be part of the same net.
+
+- **Pick the machine per lane.** `action.executorId` names one executor; `"*"`
+  offers the work to every executor that polls and the first token reservation
+  wins. Each executor carries its own model allowlist.
+- **Scoped credentials.** Executors authenticate with a dedicated OAuth2 client
+  whose JWT scope permits the polling protocol and nothing else.
+- **Typed results.** Exit code, stdout, stderr, and duration come back as a
+  token, so a failing build routes down an error path instead of disappearing
+  into a log file.
+- **Anything your shell can do becomes a step:** run the test suite, tag a
+  release, call a CLI, or drive an installed Claude Code or Codex session
+  headless as one lane inside a larger process.
+
+This is what makes a net more than an orchestrator of API calls. The same graph
+that reasons about a change can build it, test it, and ship it, with every step
+recorded in the history above.
+See [`docs/commands`](agentic-net-mcp/src/knowledge/commands.md).
+
+## Tools: an HTTP call, a script, a container, or a whole net
+
+Everything a net reaches outside itself lives in one durable tool catalog. The
+same catalog can describe very different things because each entry separates the
+**contract** (what may be called) from the **binding** (how it runs):
+
+| Kind | What it is | Runs on |
+|---|---|---|
+| **HTTP service** | A base URL plus its OpenAPI description, registered once. Agents wrap the operations into ordinary `http` transitions. | Master |
+| **Script** | An executable artifact (`node`, `sh`, `bash`, `python3`) stored once and invoked **by reference**. At fire time the master checks the stored blob still matches its pinned sha256, and the executor verifies it again before running. | Executor |
+| **Docker tool** | A digest-pinned container image. The master never builds one: it validates, pins the digest, catalogs it, and later runs only images the local allowlist permits. | Container |
+| **Tool net** | An entire net published as one callable unit, composing the other three into a reusable capability. | Wherever its lanes run |
+
+Two properties make this more than a plugin list. **Lookup is local-first**: a
+model's own catalog shadows the shared global one, so one workspace can ship its
+own variant of a shared script without disturbing anybody else. And **capability
+flags decide which kinds a persona can even see**: `h` for HTTP, `s` for
+scripts, `d` for containers, `t` for tool nets, each granted separately, so
+"may register a script" never quietly means "may spawn containers".
+
+The ladder is the part worth stealing. Start with a shell one-liner in a command
+lane. Promote it to a registered script once it earns a name. Wrap a container
+when it needs its own runtime. Publish a tool net when the whole pattern becomes
+reusable, and other nets call it by name. The Forge agent can build that last
+step from a plain-language intent, inside the running system.
+See [`docs/tool-catalog`](agentic-net-mcp/src/knowledge/tool-catalog.md).
+
 ## Deployment options, easiest first
 
 The same nets, personas, and packages run in every deployment. Pick the one that
@@ -298,6 +385,9 @@ layer:
 | Build an installable UI over a net | [Net Applications](#net-applications-deploy-a-ui-without-rebuilding-studio) and the [SDK workspace](agentic-net-apps/README.md) |
 | Follow a full application example | [Persona Kanban tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md) |
 | Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
+| Ask what a net did last week, and improve it from that | [Observability you can act on](#observability-you-can-act-on-not-just-look-at) |
+| Run builds, tests, and CLIs on your own machines | [Command transitions and executors](#command-transitions-and-executors-real-work-on-real-machines) |
+| Give agents tools: APIs, scripts, containers, tool nets | [Tools](#tools-an-http-call-a-script-a-container-or-a-whole-net) |
 | Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
 | See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
 | Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
