@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Gateway preserves encoded application query values exactly** (`agentic-net-gateway`). Proxy URI construction no longer double-encodes values such as Persona-derived retry identities containing `:`, which previously changed the idempotency key seen by Master.
+- **The shipped lease doctrine now matches the engine** (`agentic-net-mcp` — `docs/leases`, `docs/external-fire`). 2.47.0's knowledge pack taught clients that "a read takes no lease", full stop; in that release only half of it was true, because a consuming lane's lock still hid the token from `consume:false` readers. The docs now date each half (`≥ 2.48` for lock-transparent reads), warn that on 2.47.0 a reader can still be starved, and add the never-author-`_lock`-yourself rule that the matching engine fix enforces. An MCP client reasoning from the old text would have concluded a starved config preset was impossible and looked for the null elsewhere — which is exactly what happened in the incident that produced the fix.
 
 ## [2.47.0] - 2026-08-14
 
