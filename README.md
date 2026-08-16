@@ -7,34 +7,88 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**One download. No Docker, no API key, no setup. A working AI persona in five
-minutes, powered by the model you already use.**
+**A durable runtime for AI agents, people, and automated work.**
 
-Install [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm),
-connect Claude Code, Codex, or any MCP client from the tray, and say *"create a
-health coach"*, *"give me a research analyst"*, or *"start a safe product
-team"*. Your model does the reasoning; Agentic-Nets gives every persona what a
-chat window cannot: durable memory, typed task and result places, schedules
-that keep working while you sleep, approval gates, and an event-sourced history
-of every decision. All of it is visible live in the bundled Studio.
+## What you can do with it
 
-### Install now
+Agentic-Nets runs personas, teams, and automated processes that keep existing
+after the chat window closes:
+
+- **A specialist that remembers.** A health coach that knows every week of your
+  training, a domain expert that carries your product's real context, a support
+  persona that can still explain the decision it made last month.
+- **A team with real handoffs.** Product manager, architect, developer,
+  reviewer, release guardian: each one a persona with its own tools, context,
+  and authority, passing work through explicit states instead of one long
+  prompt.
+- **Work that continues while you sleep.** Put a lane on a cron or an interval
+  and it keeps firing: collect sources overnight, digest a backlog every
+  morning, probe an endpoint every five minutes and speak up only when it
+  breaks.
+- **Deterministic steps beside AI steps.** Seven transition kinds, so a shell
+  command, an HTTP call, or a plain data transform lives in the same process as
+  the reasoning, and the parts that never needed a model stop paying for one.
+- **Boundaries and approvals you can point at.** Capability flags, tool
+  allowlists, credential scopes, and approval gates decide what a persona may do
+  before it does it, not after.
+- **A history that answers questions later.** Every token, fire, tool call, and
+  emission is event-sourced, so "what did this process actually do over the last
+  three days, and where did it get stuck" is a query rather than a guess.
+- **Whole systems you can reuse.** Publish a persona, a team, a context system,
+  a tool, or a complete application to NetHub and install it into another
+  workspace, dependencies bundled and credentials scrubbed.
+
+## How easy it has become
+
+You do not have to draw a net to get one. Connect the MCP client you already
+use, Claude Code, Codex, Claude Desktop, or Cursor, and say what you want in
+plain language:
+
+> *"Create a health coach that checks in with me every Monday."*
+>
+> *"Start a safe product team for this repository."*
+>
+> *"Give me a research analyst that reads these three sources overnight."*
+
+The client builds the places, transitions, schedules, and personas through MCP,
+tells you what it armed, and the system is running when it finishes answering.
+Watching it is just as direct: the bundled Studio shows the live net, its
+tokens, its event story, and every handoff as it happens. Changing it is another
+sentence, and the change is versioned and inspectable like everything else.
+
+## Deployment options, easiest first
+
+The same nets, personas, and packages run in every deployment. Pick the one that
+fits today and move later without rebuilding anything.
+
+| Deployment | What it is | Best for |
+|---|---|---|
+| **[Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm)** | One installer for macOS, Windows, or Linux. No Docker daemon, no Java or Node install, no API key, no server LLM. | Getting started, and daily local work. |
+| **[Docker stack](#install-in-5-minutes)** | The compose stack from Docker Hub with Studio, a server LLM provider of your choice, and optional monitoring. | Shared machines and production-like setups. |
+| **[Server and cluster](#architecture)** | Multi-master partitioning by model, remote executors that only poll outbound, gateway-scoped OAuth2 clients, Grafana, Prometheus, Tempo, and Loki. | Teams, remote execution, and operations. |
+
+**Desktop Lite is the easy one, and for an unusual reason: you never configure
+an LLM provider at all.** The bundled server LLM stays switched off, and the
+model inside your connected MCP client does the reasoning through external
+fires. The subscription you already pay for is the only provider involved. There
+is no API key to paste, no Ollama process to feed, and no cloud account to
+create. Install the package, connect the client from the tray, ask for what you
+want. Token binding, scheduling, emission, accounting, and the event trail stay
+with the local runtime, so the work is still governed and still replayable. If
+you want a persona to keep going while no client is connected, it can drive an
+installed Claude Code or Codex CLI instead.
 
 1. **[Download the latest release](https://github.com/alexejsailer/agentic-nets/releases/latest)**:
-   one package for macOS, Windows, or Linux.
+   one package per platform.
 2. **Open it.** The tray launcher starts and health-checks the whole stack on
-   your machine: no Docker daemon, no Java or Node install, no API key, no
-   server LLM.
+   your machine.
 3. **Connect your client**: tray → *Connect Claude Code* / *Connect Codex* /
-   *Copy MCP URL + Token*. One paste into your MCP client, then just ask for
-   the persona or team you want.
+   *Copy MCP URL + Token*, one paste, then ask for the persona or team you want.
 
-Details, checksums, and platform notes: [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm).
-Prefer a production-like server deployment? [Install the Docker stack](#install-in-5-minutes).
+Checksums, platform notes, and the full workflow:
+[Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm).
 
----
-
-**Underneath: a durable runtime for AI agents, people, and automated work.**
+## The runtime underneath
 
 Agentic-Nets turns a process into a live, inspectable Petri net. Typed JSON
 tokens hold the current state; transitions run deterministic code, LLMs,
@@ -45,7 +99,7 @@ The platform solves the part that a prompt or chat transcript does not: how
 work keeps running, who may change what, where handoffs go, what happened after
 the model answered, and how the whole process can be reused. A developer agent,
 review team, health coach, research pipeline, or operations process all use the
-same primitives—explicit state, controlled transitions, durable context,
+same primitives: explicit state, controlled transitions, durable context,
 permissions, evidence, and approvals.
 
 Humans can operate that state through Studio or an installable Net Application.
