@@ -452,12 +452,12 @@ version, commits, and staged artifact hashes still match.
 
 ## Scope and limitations
 
-Desktop Lite deliberately omits blobstore, OpenBao, OCI tool registry,
+Desktop Lite includes the single-node blobstore required for NetHub package bodies and installable
+application UI modules. It deliberately omits OpenBao, OCI tool registry,
 Prometheus/Grafana/Tempo, clustering, and remote executor topology. Command
 lanes use the one bundled executor ID, `agentic-net-executor-default`, which is
-eligible for all local models and activates per model on demand. Blob URN
-rendering and knowledge-blob reads therefore degrade, and lanes pinned to
-another executor wait for that executor.
+eligible for all local models and activates per model on demand. Lanes pinned to another executor
+wait for that executor.
 
 The current packages are unsigned. Code signing/notarization and a published
 Windows installer require release credentials and a Windows builder. These are

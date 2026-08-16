@@ -1,0 +1,50 @@
+{
+  "format": "agentic-net-package",
+  "formatVersion": "1.5.0",
+  "scope": "runtime",
+  "kind": "session",
+  "tokenPolicy": "none",
+  "manifest": {
+    "name": "approval-room-runtime",
+    "version": "1.1.0",
+    "description": "Approval requests, decision history, and evidence for Approval Room",
+    "author": "AgenticNetOS",
+    "tags": ["example", "approvals", "separation-of-duty", "personas", "evidence"],
+    "createdAt": "2026-08-15T00:00:00Z",
+    "agenticosVersion": "1.0.0"
+  },
+  "readme": "# Approval Room runtime v1.1\n\nRequests hold current decision state. Decisions and evidence are append-only correlated records. Stable place and net ids make 1.0 → 1.1 → 1.0 upgrades non-destructive.",
+  "nets": [{
+    "netId": "approval-room-main",
+    "net": { "net": {
+      "places": {
+        "p-approval-requests": { "label": "Approval requests", "x": 120, "y": 180 },
+        "p-approval-decisions": { "label": "Decision history", "x": 460, "y": 120 },
+        "p-approval-evidence": { "label": "Supporting evidence", "x": 460, "y": 260 }
+      },
+      "transitions": {
+        "t-approval-audit-link": { "label": "records independent decisions", "x": 290, "y": 120 },
+        "t-approval-evidence-link": { "label": "attaches evidence", "x": 290, "y": 260 }
+      },
+      "arcs": {
+        "a-approval-request-in": { "source": "p-approval-requests", "target": "t-approval-audit-link" },
+        "a-approval-decision-out": { "source": "t-approval-audit-link", "target": "p-approval-decisions" },
+        "a-approval-evidence-in": { "source": "p-approval-requests", "target": "t-approval-evidence-link" },
+        "a-approval-evidence-out": { "source": "t-approval-evidence-link", "target": "p-approval-evidence" }
+      }
+    } },
+    "inscriptions": {
+      "t-approval-audit-link": {
+        "id": "t-approval-audit-link", "kind": "link", "label": "records independent decisions", "relation": "decided-by",
+        "presets": { "request": { "placeId": "p-approval-requests", "host": "application-template@localhost:8080", "consume": false, "optional": true } },
+        "postsets": { "decision": { "placeId": "p-approval-decisions", "host": "application-template@localhost:8080" } }
+      },
+      "t-approval-evidence-link": {
+        "id": "t-approval-evidence-link", "kind": "link", "label": "attaches evidence", "relation": "supported-by",
+        "presets": { "request": { "placeId": "p-approval-requests", "host": "application-template@localhost:8080", "consume": false, "optional": true } },
+        "postsets": { "evidence": { "placeId": "p-approval-evidence", "host": "application-template@localhost:8080" } }
+      }
+    },
+    "tokens": {}
+  }]
+}

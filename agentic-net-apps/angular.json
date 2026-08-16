@@ -1,0 +1,152 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "net-app-sdk": {
+      "projectType": "library",
+      "root": "projects/net-app-sdk",
+      "sourceRoot": "projects/net-app-sdk/src",
+      "prefix": "agenticos",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "options": { "project": "projects/net-app-sdk/ng-package.json" }
+        }
+      }
+    },
+    "net-app-angular": {
+      "projectType": "library",
+      "root": "projects/net-app-angular",
+      "sourceRoot": "projects/net-app-angular/src",
+      "prefix": "agenticos",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "options": { "project": "projects/net-app-angular/ng-package.json" }
+        }
+      }
+    },
+    "hello-net": {
+      "projectType": "application",
+      "root": "examples/hello-net",
+      "sourceRoot": "examples/hello-net/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/hello-net",
+            "index": "examples/hello-net/src/index.html",
+            "browser": "examples/hello-net/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "examples/hello-net/tsconfig.app.json",
+            "styles": [],
+            "assets": []
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "outputHashing": "none",
+              "sourceMap": false,
+              "extractLicenses": false,
+              "budgets": [
+                { "type": "initial", "maximumWarning": "600kB", "maximumError": "1MB" }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "persona-kanban": {
+      "projectType": "application",
+      "root": "examples/kanban",
+      "sourceRoot": "examples/kanban/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/persona-kanban",
+            "index": "examples/kanban/src/index.html",
+            "browser": "examples/kanban/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "examples/kanban/tsconfig.app.json",
+            "styles": [],
+            "assets": []
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "outputHashing": "none",
+              "sourceMap": false,
+              "extractLicenses": false,
+              "budgets": [
+                { "type": "initial", "maximumWarning": "700kB", "maximumError": "1MB" }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "approval-room": {
+      "projectType": "application",
+      "root": "examples/approval-room",
+      "sourceRoot": "examples/approval-room/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/approval-room",
+            "index": "examples/approval-room/src/index.html",
+            "browser": "examples/approval-room/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "examples/approval-room/tsconfig.app.json",
+            "styles": [],
+            "assets": []
+          },
+          "configurations": {
+            "production": {
+              "optimization": true,
+              "outputHashing": "none",
+              "sourceMap": false,
+              "extractLicenses": false,
+              "budgets": [
+                { "type": "initial", "maximumWarning": "700kB", "maximumError": "1MB" }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "net-app-dev-host": {
+      "projectType": "application",
+      "root": "projects/net-app-dev-host",
+      "sourceRoot": "projects/net-app-dev-host/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/net-app-dev-host",
+            "index": "projects/net-app-dev-host/src/index.html",
+            "browser": "projects/net-app-dev-host/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "projects/net-app-dev-host/tsconfig.app.json",
+            "styles": ["projects/net-app-dev-host/src/styles.css"],
+            "assets": []
+          },
+          "configurations": {
+            "production": { "optimization": true, "outputHashing": "all", "sourceMap": false }
+          }
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "options": { "buildTarget": "net-app-dev-host:build" }
+        }
+      }
+    }
+  },
+  "cli": { "analytics": false }
+}

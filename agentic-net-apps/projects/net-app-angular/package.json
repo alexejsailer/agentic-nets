@@ -1,0 +1,10 @@
+{
+  "name": "@agenticos/net-app-angular",
+  "version": "0.1.0",
+  "peerDependencies": {
+    "@angular/core": "^21.0.0",
+    "@angular/elements": "^21.0.0",
+    "@agenticos/net-app-sdk": "^0.1.0"
+  },
+  "sideEffects": true
+}

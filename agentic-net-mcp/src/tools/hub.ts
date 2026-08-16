@@ -24,7 +24,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       description:
         'Publish a versioned, shareable, SELF-CONTAINED artifact. Kinds include "agent" (persona-team session with agent-manifest) and "context" (context-net session with named stores, hierarchy/attachments, and structural kind=link transitions). Any tool dependency travels with the artifact, sha256-pinned. tokens controls exported state; credentials are always scrubbed.',
       inputSchema: {
-        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob', 'agent', 'context']).describe('What to publish'),
+        kind: z.enum(['net', 'session', 'application', 'model', 'toolnet', 'tool', 'catalog', 'blob', 'agent', 'context']).describe('What to publish'),
         name: z.string(),
         version: z.string().describe('Semantic version, e.g. 1.0.0'),
         netId: z.string().optional().describe('Required for kind=net/toolnet'),
@@ -71,7 +71,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       description:
         'Browse published artifacts locally or on a peer. Filter by kind, including agent (persona templates) and context (hierarchical/semantic context-net templates).',
       inputSchema: {
-        kind: z.enum(['net', 'session', 'model', 'toolnet', 'tool', 'catalog', 'blob', 'agent', 'context']).optional(),
+        kind: z.enum(['net', 'session', 'application', 'model', 'toolnet', 'tool', 'catalog', 'blob', 'agent', 'context']).optional(),
         search: z.string().optional(),
         tags: z.string().optional().describe('Comma-separated'),
         remote: z.string().optional().describe('A registered remote to browse instead of local'),
@@ -182,7 +182,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Install a NetHub artifact',
       description:
-        'Install an artifact. kind=agent installs a STOPPED persona-team; kind=context installs a context; an ordinary kind=session carrying applicationManifest installs as application-<name> and exposes semantic stores/actions to Studio and MCP. Application nets do not add a runtime kind.',
+        'Install an artifact. kind=agent installs a STOPPED persona-team; kind=context installs a context; kind=application materializes its session runtime plus verified Studio UI surface and semantic stores/actions.',
       inputSchema: {
         name: z.string(),
         version: z.string().describe('Version or "latest"'),

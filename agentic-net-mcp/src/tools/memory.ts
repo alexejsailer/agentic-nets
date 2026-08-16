@@ -388,7 +388,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         deleted: deleted.length,
         ids: deleted,
         ...(skippedLeased.length
-          ? { skippedLeased, leasedNote: 'held by in-flight fires — stop_transition releases leases cleanly; pass force:true only if you accept breaking the holder\u2019s consumption' }
+          ? { skippedLeased, leasedNote: 'held by in-flight fires — stop_transition releases leases cleanly ONLY for a dead/wedged lane (a slow fire keeps a healthy lease; stopping it mid-fire invites a double-claim); pass force:true only if you accept breaking the holder\u2019s consumption' }
           : {}),
         ...(tokens.length !== ids.length ? { missingIdCount: tokens.length - ids.length } : {}),
         ...(failures.length ? { failures } : {}),

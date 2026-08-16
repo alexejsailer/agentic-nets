@@ -21,6 +21,7 @@ import java.util.Map;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -149,6 +150,44 @@ class MasterProxyRoutingTest {
                 .andExpect(jsonPath("$.source").value("master-2"));
 
         master2.verify(getRequestedFor(urlPathEqualTo("/api/transitions/poll")));
+    }
+
+    @Test
+    @WithMockUser
+    void applicationAssetPath_routesByItsModelSegment() throws Exception {
+        String path = "/api/applications/model-a/application-task-board/assets/entry";
+        master1.stubFor(WireMock.get(urlPathEqualTo(path))
+                .willReturn(okJson("{\"source\":\"master-1\"}")));
+
+        MvcResult result = mockMvc.perform(get(path))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("master-1"));
+        master1.verify(getRequestedFor(urlPathEqualTo(path)));
+        master2.verify(0, getRequestedFor(urlPathEqualTo(path)));
+    }
+
+    @Test
+    @WithMockUser
+    void encodedApplicationIdempotencyKeyIsNotDoubleEncoded() throws Exception {
+        String path = "/api/applications/model-a/application-approval-room/actions/approve";
+        master1.stubFor(WireMock.post(urlPathEqualTo(path))
+                .willReturn(okJson("{\"accepted\":true}")));
+
+        MvcResult result = mockMvc.perform(post(path)
+                        .queryParam("idempotencyKey", "review:APR-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"requestId\":\"APR-1\"}"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accepted").value(true));
+
+        master1.verify(postRequestedFor(urlPathEqualTo(path))
+                .withQueryParam("idempotencyKey", equalTo("review:APR-1")));
     }
 
     // ── Model-based routing via request body ────────────────────────────────

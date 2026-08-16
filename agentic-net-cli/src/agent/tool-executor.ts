@@ -2532,7 +2532,7 @@ export class ToolExecutor {
 
   private async executeApplicationHubSearch(params: Record<string, any>): Promise<ToolResult> {
     try {
-      const query = { kind: 'session', search: params.query, tags: 'application', limit: params.limit ?? 20, offset: 0 };
+      const query = { kind: 'application', search: params.query, limit: params.limit ?? 20, offset: 0 };
       const data = params.source && params.source !== 'local'
         ? await this.masterApi.hubRemoteCatalog(params.source, query)
         : await this.masterApi.hubCatalog(query);
@@ -2596,7 +2596,7 @@ export class ToolExecutor {
         return { success: false, error: `APPLICATION_ACTION placeId does not match the installed manifest (expected ${store?.placeId || 'unresolved'}); call DESCRIBE_APPLICATION again` };
       }
       return { success: true, data: await this.masterApi.applicationAction(
-        this.modelId, params.name, params.action, params.input) };
+        this.modelId, params.name, params.action, params.input, params.idempotencyKey) };
     } catch (err: any) {
       return { success: false, error: `APPLICATION_ACTION failed: ${err.message || err}` };
     }

@@ -12,6 +12,7 @@
  *   them); topic keys are lowercase.
  */
 import applicationsMd from './applications.md';
+import approvalsMd from './approvals.md';
 import architectureMd from './architecture.md';
 import arcqlMd from './arcql.md';
 import commandsMd from './commands.md';
@@ -57,6 +58,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   'model-steward': { title: 'Model Steward: domain-neutral model and process review', text: modelStewardMd },
   personas: { title: 'Persona-first agents, teams, contexts, and learning', text: personasMd },
   applications: { title: 'Net applications: Protocol, Interview, Goals', text: applicationsMd },
+  approvals: { title: 'Approval Room: independent decisions and safe retries', text: approvalsMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
   'real-agents': { title: 'Real agents: personas scheduled on Petri nets', text: realAgentsMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },

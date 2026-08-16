@@ -33,6 +33,31 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'work-persona-kanban',
+    {
+      title: 'Work the Persona Kanban queue',
+      description: 'Discover the installed board, claim one eligible task, and follow its audited lifecycle',
+      argsSchema: {
+        persona: z.string().optional().describe('Stable Persona id used for assignee/actor fields'),
+        application: z.string().optional().describe('Installed app name or session id (default persona-kanban)'),
+      },
+    },
+    ({ persona, application }) => {
+      const worker = persona || 'choose a stable id matching your Persona charter';
+      const app = application || 'persona-kanban';
+      return userMessage(
+        `Work one eligible task from the installed Persona Kanban application "${app}" as ${worker}. ` +
+          `First call application_list and application_describe; read agentProtocol and resolve the cards store role to its current placeId. ` +
+          `Query that place for kind=="kanban-task", status=="ready", archived!="true", selecting only work that is unassigned or assigned to your exact Persona id. ` +
+          `Re-read immediately before application_action claimTask. If none is eligible, report that and stop without manufacturing work. ` +
+          `If one is eligible, claim it with your stable id, do the described work with the tools and boundaries in your charter, addComment with meaningful progress/evidence, ` +
+          `then requestReview with a concise result and verification evidence. Do not self-approve; an independent reviewer calls approveTask. ` +
+          `After every action re-query the card and verify its state. On a blocker, addComment and either updateTask blockedReason or releaseTask so work is not silently held.`,
+      );
+    },
+  );
+
+  server.registerPrompt(
     'capture-session',
     {
       title: 'Capture this session into memory',

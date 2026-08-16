@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-net.org/schemas/application-package.schema.json",
+  "title": "AgenticOS application authoring configuration",
+  "type": "object",
+  "required": ["name", "version", "displayName", "runtimePackage", "ui", "application"],
+  "properties": {
+    "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$" },
+    "displayName": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "author": { "type": "string" },
+    "visibility": { "enum": ["public", "private"] },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "runtimePackage": { "type": "string" },
+    "output": { "type": "string" },
+    "ui": {
+      "type": "object",
+      "required": ["element", "entryFile"],
+      "properties": {
+        "element": { "type": "string", "pattern": "^[a-z][a-z0-9._-]*-[a-z0-9._-]+$" },
+        "entryFile": { "type": "string" },
+        "sdkVersion": { "type": "string" },
+        "isolation": { "const": "trusted-element" }
+      },
+      "additionalProperties": false
+    },
+    "application": {
+      "type": "object",
+      "required": ["scope", "instancePolicy", "stores", "actions", "permissions"],
+      "properties": {
+        "scope": { "const": "model" },
+        "instancePolicy": { "enum": ["singleton", "multiple"] },
+        "surface": { "type": "object" },
+        "stores": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["role", "placeId"],
+            "properties": {
+              "role": { "type": "string" }, "placeId": { "type": "string" },
+              "required": { "type": "boolean" }, "description": { "type": "string" },
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "targetRole"],
+            "properties": {
+              "name": { "type": "string" }, "targetRole": { "type": "string" },
+              "description": { "type": "string" }, "inputSchema": { "type": "object" },
+              "defaults": { "type": "object" },
+              "guard": {
+                "type": "object",
+                "required": ["role", "matchKey"],
+                "properties": {
+                  "role": { "type": "string", "minLength": 1 },
+                  "matchKey": { "type": "string", "minLength": 1 },
+                  "exists": { "type": "boolean" },
+                  "where": { "type": "object" },
+                  "compare": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["left", "operator", "right"],
+                      "properties": {
+                        "left": {
+                          "type": "string",
+                          "pattern": "^\\$(input|target)\\.[A-Za-z_][A-Za-z0-9_-]*$"
+                        },
+                        "operator": { "enum": ["equals", "notEquals", "in", "notIn"] },
+                        "right": {}
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "effects": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["updateRole", "matchKey"],
+                  "properties": {
+                    "updateRole": { "type": "string", "minLength": 1 },
+                    "matchKey": { "type": "string", "minLength": 1 },
+                    "set": { "type": "object" },
+                    "setFromInput": { "type": "object" },
+                    "when": { "type": "object" }
+                  },
+                  "additionalProperties": false,
+                  "anyOf": [
+                    { "required": ["set"] },
+                    { "required": ["setFromInput"] }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "agentProtocol": { "type": "object" },
+        "permissions": {
+          "type": "object",
+          "required": ["readStores", "watchStores", "actions"],
+          "properties": {
+            "readStores": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "watchStores": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "actions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

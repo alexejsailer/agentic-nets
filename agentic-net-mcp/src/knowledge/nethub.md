@@ -9,6 +9,8 @@ search/inspect it, install it — locally or across federated peers. The curated
 
 - **net** — one net: structure + inscriptions.
 - **session** — every net in a session (a whole workflow bundle).
+- **application** — session runtime + semantic manifest + optional verified browser surface.
+  Build/upload with `agentic-net-apps`; `hub_publish` republishes an installed instance.
 - **model** — an entire model; installing creates a NEW model (pass a fresh `targetModelId`) that
   joins your allowlist immediately.
 - **agent** — a persona-team session with an `agent-manifest` (personas, entry inbox/outbox,
@@ -24,7 +26,7 @@ search/inspect it, install it — locally or across federated peers. The curated
 - **catalog** — an entire catalog (a model's local one, or the global `default`).
 - **blob** — raw blobs by URN.
 
-## Agent/context install semantics (instancePolicy, ownership, upgrades)
+## Agent/context/application install semantics (instancePolicy, ownership, upgrades)
 
 - **instancePolicy** in the manifest: `singleton` (one instance per model — a second install to a
   different session is refused) or `multiple` (each install REQUIRES a unique `targetSessionId`,
@@ -49,14 +51,9 @@ search/inspect it, install it — locally or across federated peers. The curated
   models WITHOUT `profile`, or publish per net (0 baked ids; `host` is rewritten on install and
   cross-net references survive when installed in dependency order).
 
-Two canonical domain-boundary examples ship in the local Agent Hub:
-
-- **`safe-product-team`** (`singleton` per model) is a software/product-delivery starter with six bounded
-  personas, typed product/repository and approval schemas, status + Protocol reporting, and no
-  command/repository/release authority by default. It is one template, not the product boundary.
-- **`model-steward`** (`singleton`) is domain-neutral and advisory-only. It reviews any model's
-  current sessions/nets/processes and event evidence, then writes only its own reports/findings/
-  journal and Protocol. It cannot modify or operate the nets it reviews.
+Canonical local templates include `safe-product-team` (six bounded delivery personas with no
+command/release authority by default) and `model-steward` (advisory-only model review that writes
+only its own findings and Protocol).
 
 ## Self-contained packages — the part that makes installs actually run
 

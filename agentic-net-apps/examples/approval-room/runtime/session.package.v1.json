@@ -1,0 +1,48 @@
+{
+  "format": "agentic-net-package",
+  "formatVersion": "1.5.0",
+  "scope": "runtime",
+  "kind": "session",
+  "tokenPolicy": "none",
+  "manifest": {
+    "name": "approval-room-runtime",
+    "version": "1.0.0",
+    "description": "Canonical requests and append-only decisions for Approval Room",
+    "author": "AgenticNetOS",
+    "tags": ["example", "approvals", "separation-of-duty", "personas"],
+    "createdAt": "2026-08-15T00:00:00Z",
+    "agenticosVersion": "1.0.0"
+  },
+  "readme": "# Approval Room runtime v1\n\nRequests hold current decision state. Decisions form the append-only audit trail. The read-only link inscription documents their relationship without consuming or locking request tokens.",
+  "nets": [{
+    "netId": "approval-room-main",
+    "net": { "net": {
+      "places": {
+        "p-approval-requests": { "label": "Approval requests", "x": 140, "y": 180 },
+        "p-approval-decisions": { "label": "Decision history", "x": 500, "y": 180 }
+      },
+      "transitions": {
+        "t-approval-audit-link": { "label": "records independent decisions", "x": 320, "y": 180 }
+      },
+      "arcs": {
+        "a-approval-request-in": { "source": "p-approval-requests", "target": "t-approval-audit-link" },
+        "a-approval-decision-out": { "source": "t-approval-audit-link", "target": "p-approval-decisions" }
+      }
+    } },
+    "inscriptions": {
+      "t-approval-audit-link": {
+        "id": "t-approval-audit-link",
+        "kind": "link",
+        "label": "records independent decisions",
+        "relation": "decided-by",
+        "presets": {
+          "request": { "placeId": "p-approval-requests", "host": "application-template@localhost:8080", "consume": false, "optional": true }
+        },
+        "postsets": {
+          "decision": { "placeId": "p-approval-decisions", "host": "application-template@localhost:8080" }
+        }
+      }
+    },
+    "tokens": {}
+  }]
+}

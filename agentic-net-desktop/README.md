@@ -122,8 +122,9 @@ because jpackage cannot cross-build. Publishing to GitHub Releases:
 - Linux menu entry + icon are installed per-user on the first launch inside a
   desktop session (packages carry no xdg postinst hooks, so headless installs
   stay clean); launch once from `/opt/agenticnetos/bin/AgenticNetOS` after install.
-- No blobstore child yet: blob URN rendering and knowledge-blob reads degrade. Command
-  transitions run on the built-in executor (`agentic-net-executor-default`). It is wildcard-
+- Blobstore runs as a loopback-only child with durable payloads under `~/.agenticos/blobs`, so
+  NetHub applications and their verified UI modules work in Desktop Lite. Command transitions run
+  on the built-in executor (`agentic-net-executor-default`). It is wildcard-
   eligible and activates each model on demand within about 5s; lanes pinned to a second executor
   id stall until phase 2 adds multi-executor support.
 - Server-side LLM is deliberately disabled. AI lanes run through MCP external

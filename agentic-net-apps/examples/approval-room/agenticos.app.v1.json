@@ -1,0 +1,102 @@
+{
+  "$schema": "../../schemas/application-package.schema.json",
+  "name": "approval-room",
+  "version": "1.0.0",
+  "displayName": "Approval Room",
+  "description": "An independent decision inbox for humans and Persona agents, backed by event-sourced net state.",
+  "author": "AgenticNetOS",
+  "visibility": "public",
+  "tags": ["application", "example", "angular", "approvals", "personas", "separation-of-duty"],
+  "runtimePackage": "runtime/session.package.v1.json",
+  "output": "../../dist/packages/approval-room-1.0.0.application.json",
+  "ui": {
+    "element": "agenticos-approval-room-v1",
+    "entryFile": "../../dist/approval-room/browser/main.js",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": { "route": "approval-room", "icon": "badge-check", "defaultView": "inbox" },
+    "stores": [
+      {
+        "role": "requests", "placeId": "p-approval-requests", "required": true,
+        "description": "Canonical approval request state. Select by kind=approval-request, requestId, status, risk, requestedBy, or dueDate.",
+        "schema": { "type": "object", "required": ["kind", "requestId", "title", "status", "risk", "requestedBy", "requestedAt"], "properties": {
+          "kind": { "const": "approval-request" }, "requestId": { "type": "string" }, "title": { "type": "string" },
+          "summary": { "type": "string" }, "status": { "enum": ["pending", "approved", "rejected"] },
+          "risk": { "enum": ["critical", "high", "normal", "low"] }, "requestedBy": { "type": "string" },
+          "requestedAt": { "type": "string" }, "dueDate": { "type": "string" }, "decidedBy": { "type": "string" },
+          "decidedAt": { "type": "string" }, "decisionNote": { "type": "string" }
+        } }
+      },
+      {
+        "role": "decisions", "placeId": "p-approval-decisions", "required": true,
+        "description": "Append-only approval and rejection events correlated by requestId. Never edit or delete this audit trail."
+      }
+    ],
+    "actions": [
+      {
+        "name": "submitRequest", "targetRole": "requests",
+        "description": "Create one canonical approval request. Mint and retain a stable requestId and idempotencyKey for retry.",
+        "defaults": { "kind": "approval-request", "status": "pending", "risk": "normal", "decidedBy": "", "decisionNote": "" },
+        "guard": { "role": "requests", "matchKey": "requestId", "exists": false },
+        "inputSchema": { "type": "object", "required": ["requestId", "title", "requestedBy", "requestedAt"], "properties": {
+          "requestId": { "type": "string" }, "title": { "type": "string" }, "summary": { "type": "string" },
+          "risk": { "enum": ["critical", "high", "normal", "low"] }, "requestedBy": { "type": "string" },
+          "requestedAt": { "type": "string" }, "dueDate": { "type": "string" }
+        } }
+      },
+      {
+        "name": "approve", "targetRole": "decisions",
+        "description": "Approve a pending request. The runtime rejects the requester's own identity and atomically records the event plus current state.",
+        "defaults": { "kind": "approval-decision", "decision": "approved" },
+        "guard": { "role": "requests", "matchKey": "requestId", "where": { "status": ["pending"] }, "compare": [
+          { "left": "$input.actor", "operator": "notEquals", "right": "$target.requestedBy" }
+        ] },
+        "effects": [{ "updateRole": "requests", "matchKey": "requestId", "set": { "status": "approved" },
+          "setFromInput": { "decidedBy": "actor", "decidedAt": "createdAt", "decisionNote": "note" } }],
+        "inputSchema": { "type": "object", "required": ["requestId", "actor", "note"], "properties": {
+          "requestId": { "type": "string" }, "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      },
+      {
+        "name": "reject", "targetRole": "decisions",
+        "description": "Reject a pending request with an independent actor and durable explanation.",
+        "defaults": { "kind": "approval-decision", "decision": "rejected" },
+        "guard": { "role": "requests", "matchKey": "requestId", "where": { "status": ["pending"] }, "compare": [
+          { "left": "$input.actor", "operator": "notEquals", "right": "$target.requestedBy" }
+        ] },
+        "effects": [{ "updateRole": "requests", "matchKey": "requestId", "set": { "status": "rejected" },
+          "setFromInput": { "decidedBy": "actor", "decidedAt": "createdAt", "decisionNote": "note" } }],
+        "inputSchema": { "type": "object", "required": ["requestId", "actor", "note"], "properties": {
+          "requestId": { "type": "string" }, "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      }
+    ],
+    "agentProtocol": {
+      "version": "1.0",
+      "summary": "Use Approval Room as the shared system of record for decisions that require an independent identity. Resolve stores and actions from the installed manifest; never guess place ids.",
+      "taskStoreRole": "requests", "activityStoreRole": "decisions", "requestIdField": "requestId",
+      "readyStatuses": ["pending"], "terminalStatuses": ["approved", "rejected"],
+      "poll": "Query requests for kind=approval-request and status=pending. Exclude records whose requestedBy equals your Persona id before attempting a decision, then rely on the runtime guard as authority.",
+      "workflow": [
+        { "from": "none", "action": "submitRequest", "to": "pending", "meaning": "A stable request is ready for independent review." },
+        { "from": "pending", "action": "approve", "to": "approved", "meaning": "An identity other than the requester accepts it." },
+        { "from": "pending", "action": "reject", "to": "rejected", "meaning": "An identity other than the requester declines it." }
+      ],
+      "rules": [
+        "Never decide a request whose requestedBy equals your stable identity; the runtime enforces this separation of duty.",
+        "Use application actions rather than writing store tokens directly.",
+        "Mint one idempotencyKey per logical action and reuse it only with the exact same action input after timeout, disconnect, or unknown response.",
+        "A repeated response with replayed=true is success, not a second decision.",
+        "After a successful action, re-read requests and correlated decisions to verify state."
+      ]
+    },
+    "permissions": {
+      "readStores": ["requests", "decisions"], "watchStores": ["requests", "decisions"],
+      "actions": ["submitRequest", "approve", "reject"]
+    }
+  }
+}

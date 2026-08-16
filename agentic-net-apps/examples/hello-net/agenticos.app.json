@@ -1,0 +1,44 @@
+{
+  "$schema": "../../schemas/application-package.schema.json",
+  "name": "hello-net",
+  "version": "1.0.0",
+  "displayName": "Hello Net",
+  "description": "A minimal open-source Angular surface backed by an installed Agentic Net.",
+  "author": "AgenticNetOS",
+  "visibility": "public",
+  "tags": ["application", "example", "angular"],
+  "runtimePackage": "runtime/session.package.json",
+  "output": "../../dist/packages/hello-net-1.0.0.application.json",
+  "ui": {
+    "element": "agenticos-hello-net-v1",
+    "entryFile": "../../dist/hello-net/browser/main.js",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": { "route": "hello-net", "icon": "boxes", "defaultView": "tasks" },
+    "stores": [
+      { "role": "tasks", "placeId": "p-tasks", "required": true, "description": "Tasks displayed by the example surface." }
+    ],
+    "actions": [
+      {
+        "name": "addTask",
+        "targetRole": "tasks",
+        "description": "Append a task to the application store.",
+        "defaults": { "kind": "hello-task", "status": "open" },
+        "inputSchema": {
+          "type": "object",
+          "required": ["title"],
+          "properties": { "title": { "type": "string", "description": "Short task title" } }
+        }
+      }
+    ],
+    "permissions": {
+      "readStores": ["tasks"],
+      "watchStores": ["tasks"],
+      "actions": ["addTask"]
+    }
+  }
+}

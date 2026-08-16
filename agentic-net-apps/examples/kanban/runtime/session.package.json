@@ -1,0 +1,52 @@
+{
+  "format": "agentic-net-package",
+  "formatVersion": "1.5.0",
+  "scope": "runtime",
+  "kind": "session",
+  "tokenPolicy": "none",
+  "manifest": {
+    "name": "persona-kanban-runtime",
+    "version": "1.0.0",
+    "description": "Canonical cards and append-only activity for the Persona Kanban application",
+    "author": "AgenticNetOS",
+    "tags": ["example", "kanban", "personas", "tasks"],
+    "createdAt": "2026-08-15T00:00:00Z",
+    "agenticosVersion": "1.0.0"
+  },
+  "readme": "# Persona Kanban runtime\n\nThe cards place is the current, queryable task state. The activity place is its append-only audit trail. Manifest-declared guarded actions are the only supported mutation contract for the public UI and Persona agents.",
+  "nets": [
+    {
+      "netId": "persona-kanban-main",
+      "net": {
+        "net": {
+          "places": {
+            "p-kanban-cards": { "label": "Canonical cards", "x": 140, "y": 180 },
+            "p-kanban-activity": { "label": "Activity and evidence", "x": 500, "y": 180 }
+          },
+          "transitions": {
+            "t-kanban-activity-link": { "label": "records lifecycle events", "x": 320, "y": 180 }
+          },
+          "arcs": {
+            "a-kanban-card-activity": { "source": "p-kanban-cards", "target": "t-kanban-activity-link" },
+            "a-kanban-activity-out": { "source": "t-kanban-activity-link", "target": "p-kanban-activity" }
+          }
+        }
+      },
+      "inscriptions": {
+        "t-kanban-activity-link": {
+          "id": "t-kanban-activity-link",
+          "kind": "link",
+          "label": "records lifecycle events",
+          "relation": "audited-by",
+          "presets": {
+            "card": { "placeId": "p-kanban-cards", "host": "application-template@localhost:8080", "consume": false, "optional": true }
+          },
+          "postsets": {
+            "activity": { "placeId": "p-kanban-activity", "host": "application-template@localhost:8080" }
+          }
+        }
+      },
+      "tokens": {}
+    }
+  ]
+}

@@ -62,15 +62,16 @@ Two layers, one server:
 | **Client-hosted execution** | **`host_transition`** (run an llm/agent transition IN the MCP process on the client side's own LLM — default the local `claude` binary; `watch` polls its inbox, `once` executes now) · **`unhost_transition`** |
 | **External execution** | **`list_external_fires`** · **`set_external`** · **`prepare_external_fire`** · **`complete_external_fire`** · **`abandon_external_fire`** (the connected model itself reasons; master retains binding, emission, accounting, permissions, and idempotency) |
 | **Agent Hub + contexts** | Create models with standard/research/knowledge/development profiles; native tools search, install, configure, start, stop, and inspect versioned agent teams and context systems |
-| **NetHub** | **`hub_publish`** / **`hub_search`** / **`hub_show`** / **`hub_install`** for nine artifact kinds (net, session, model, agent, context, toolnet, tool, catalog, blob) · **`hub_add_remote`** for federation |
+| **NetHub** | **`hub_publish`** / **`hub_search`** / **`hub_show`** / **`hub_install`** for ten artifact kinds (net, session, application, model, agent, context, toolnet, tool, catalog, blob) · **`hub_add_remote`** for federation |
 | **Observability & debugging** | `net_overview` · `query_tokens` · `event_trail` · `events_wait` · `console_tail` · `model_history` · `transition_history` · `token_lineage` · `failure_context` · `service_logs_tail` · **`net_stats`** · **`verify_inscription`** · **`dry_run_transition`** · **`diagnose_transition`** |
 | **Large output** | `inspect_token_size` · `extract_token_content` · `read_blob_text` |
 | **Native catalog** | Full platform parity across structure, tokens, inscriptions, lifecycle, Agent Hub, contexts, application nets, NetHub, credentials, tool catalogs, Docker, HTTP, scripts, sessions, diagnosis, usage, and export. `THINK` / `DONE` / `FAIL` remain agent-loop-only and are intentionally excluded. |
 
 Important capabilities the extra tools unlock:
 
-- **Net-backed applications** are ordinary NetHub `session` packages with an optional manifest
-  mapping semantic roles to places, declaring append actions, and selecting a Studio renderer.
+- **Net-backed applications** are first-class NetHub `application` packages carrying session nets,
+  a manifest that maps semantic roles to places and declares actions, and optionally a verified
+  Angular custom-element surface dynamically mounted by Studio.
   Protocol (`entries`), Interview (`prompts → responses → decisions`), and Goals
   (`goals → progress → outcomes`) are shipped examples—not new runtime kinds or hidden databases.
 

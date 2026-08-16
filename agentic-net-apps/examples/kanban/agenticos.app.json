@@ -1,0 +1,258 @@
+{
+  "$schema": "../../schemas/application-package.schema.json",
+  "name": "persona-kanban",
+  "version": "1.0.0",
+  "displayName": "Persona Kanban",
+  "description": "A shared, event-sourced work board for humans and autonomous Persona agents.",
+  "author": "AgenticNetOS",
+  "visibility": "public",
+  "tags": ["application", "example", "angular", "kanban", "personas", "tasks"],
+  "runtimePackage": "runtime/session.package.json",
+  "output": "../../dist/packages/persona-kanban-1.0.0.application.json",
+  "ui": {
+    "element": "agenticos-persona-kanban-v1",
+    "entryFile": "../../dist/persona-kanban/browser/main.js",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": { "route": "persona-kanban", "icon": "columns-3", "defaultView": "board" },
+    "stores": [
+      {
+        "role": "cards",
+        "placeId": "p-kanban-cards",
+        "required": true,
+        "description": "Canonical task tokens. Query kind=kanban-task, status, assignee, priority, archived, and taskId to select work.",
+        "schema": {
+          "type": "object",
+          "required": ["kind", "taskId", "title", "status", "priority", "createdBy", "createdAt"],
+          "properties": {
+            "kind": { "const": "kanban-task" },
+            "taskId": { "type": "string" },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "status": { "enum": ["backlog", "ready", "in-progress", "review", "done", "archived"] },
+            "priority": { "enum": ["urgent", "high", "normal", "low"] },
+            "assignee": { "type": "string" },
+            "createdBy": { "type": "string" },
+            "labels": { "type": "array", "items": { "type": "string" } },
+            "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+            "dueDate": { "type": "string" },
+            "blockedReason": { "type": "string" },
+            "result": { "type": "string" },
+            "archived": { "type": "boolean" }
+          }
+        }
+      },
+      {
+        "role": "activity",
+        "placeId": "p-kanban-activity",
+        "required": true,
+        "description": "Append-only audit trail for task changes, claims, comments, review hand-offs, completion, reopening, and archival. Correlate with taskId."
+      }
+    ],
+    "actions": [
+      {
+        "name": "createTask",
+        "targetRole": "cards",
+        "description": "Create one canonical task. Persona agents must mint a stable taskId, name themselves in createdBy, and provide acceptanceCriteria when the task has a verifiable outcome.",
+        "defaults": { "kind": "kanban-task", "status": "backlog", "priority": "normal", "assignee": "", "archived": false },
+        "guard": { "role": "cards", "matchKey": "taskId", "exists": false },
+        "inputSchema": {
+          "type": "object",
+          "required": ["taskId", "title", "createdBy"],
+          "properties": {
+            "taskId": { "type": "string", "description": "Stable correlation key, e.g. TASK-42 or a UUID." },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "status": { "enum": ["backlog", "ready"] },
+            "priority": { "enum": ["urgent", "high", "normal", "low"] },
+            "assignee": { "type": "string", "description": "Persona id; leave empty for unassigned work." },
+            "labels": { "type": "array", "items": { "type": "string" } },
+            "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+            "dueDate": { "type": "string", "description": "ISO date YYYY-MM-DD." },
+            "createdBy": { "type": "string" }
+          }
+        }
+      },
+      {
+        "name": "updateTask",
+        "targetRole": "activity",
+        "description": "Update task details and append an audit event. Include only fields that should change.",
+        "defaults": { "kind": "kanban-activity", "event": "updated" },
+        "guard": { "role": "cards", "matchKey": "taskId", "exists": true },
+        "effects": [{
+          "updateRole": "cards",
+          "matchKey": "taskId",
+          "setFromInput": {
+            "title": "title",
+            "description": "description",
+            "priority": "priority",
+            "assignee": "assignee",
+            "labels": "labels",
+            "acceptanceCriteria": "acceptanceCriteria",
+            "dueDate": "dueDate",
+            "blockedReason": "blockedReason",
+            "updatedAt": "createdAt"
+          }
+        }],
+        "inputSchema": {
+          "type": "object",
+          "required": ["taskId", "actor"],
+          "properties": {
+            "taskId": { "type": "string" }, "actor": { "type": "string" },
+            "title": { "type": "string" }, "description": { "type": "string" },
+            "priority": { "enum": ["urgent", "high", "normal", "low"] },
+            "assignee": { "type": "string" }, "labels": { "type": "array" },
+            "acceptanceCriteria": { "type": "array" }, "dueDate": { "type": "string" },
+            "blockedReason": { "type": "string" }, "note": { "type": "string" }
+          }
+        }
+      },
+      {
+        "name": "moveTask",
+        "targetRole": "activity",
+        "description": "Move an existing card between board columns. Agents should prefer the guarded claimTask, requestReview, approveTask, and reopenTask lifecycle actions.",
+        "defaults": { "kind": "kanban-activity", "event": "moved" },
+        "guard": { "role": "cards", "matchKey": "taskId", "exists": true },
+        "effects": [{ "updateRole": "cards", "matchKey": "taskId", "setFromInput": { "status": "status", "updatedAt": "createdAt" } }],
+        "inputSchema": { "type": "object", "required": ["taskId", "status", "actor"], "properties": {
+          "taskId": { "type": "string" }, "status": { "enum": ["backlog", "ready", "in-progress", "review", "done"] },
+          "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      },
+      {
+        "name": "claimTask",
+        "targetRole": "activity",
+        "description": "Claim a ready task for a Persona. Re-read cards immediately before claiming; the guard rejects tasks that are no longer ready.",
+        "defaults": { "kind": "kanban-activity", "event": "claimed" },
+        "guard": { "role": "cards", "matchKey": "taskId", "where": { "status": ["ready"] } },
+        "effects": [{
+          "updateRole": "cards", "matchKey": "taskId",
+          "set": { "status": "in-progress", "blockedReason": "" },
+          "setFromInput": { "assignee": "assignee", "claimedAt": "createdAt", "updatedAt": "createdAt" }
+        }],
+        "inputSchema": { "type": "object", "required": ["taskId", "assignee"], "properties": {
+          "taskId": { "type": "string" }, "assignee": { "type": "string", "description": "Stable Persona id." },
+          "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      },
+      {
+        "name": "releaseTask",
+        "targetRole": "activity",
+        "description": "Release an in-progress task back to ready so another Persona can claim it.",
+        "defaults": { "kind": "kanban-activity", "event": "released" },
+        "guard": { "role": "cards", "matchKey": "taskId", "where": { "status": ["in-progress"] } },
+        "effects": [{
+          "updateRole": "cards", "matchKey": "taskId",
+          "set": { "status": "ready", "assignee": "", "blockedReason": "" },
+          "setFromInput": { "updatedAt": "createdAt" }
+        }],
+        "inputSchema": { "type": "object", "required": ["taskId", "actor"], "properties": {
+          "taskId": { "type": "string" }, "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      },
+      {
+        "name": "requestReview",
+        "targetRole": "activity",
+        "description": "Submit completed work for independent review. Include evidence or a concise result in note.",
+        "defaults": { "kind": "kanban-activity", "event": "review-requested" },
+        "guard": { "role": "cards", "matchKey": "taskId", "where": { "status": ["in-progress"] } },
+        "effects": [{
+          "updateRole": "cards", "matchKey": "taskId", "set": { "status": "review" },
+          "setFromInput": { "reviewer": "reviewer", "result": "note", "updatedAt": "createdAt" }
+        }],
+        "inputSchema": { "type": "object", "required": ["taskId", "actor", "note"], "properties": {
+          "taskId": { "type": "string" }, "actor": { "type": "string" },
+          "reviewer": { "type": "string" }, "note": { "type": "string", "description": "Result and verification evidence." }
+        } }
+      },
+      {
+        "name": "approveTask",
+        "targetRole": "activity",
+        "description": "Approve reviewed work and mark the card done. Reviewer should be independent from the implementing Persona when policy requires it.",
+        "defaults": { "kind": "kanban-activity", "event": "approved" },
+        "guard": { "role": "cards", "matchKey": "taskId", "where": { "status": ["review"] } },
+        "effects": [{
+          "updateRole": "cards", "matchKey": "taskId", "set": { "status": "done" },
+          "setFromInput": { "completedBy": "actor", "completedAt": "createdAt", "result": "note", "updatedAt": "createdAt" }
+        }],
+        "inputSchema": { "type": "object", "required": ["taskId", "actor", "note"], "properties": {
+          "taskId": { "type": "string" }, "actor": { "type": "string" },
+          "note": { "type": "string", "description": "Review verdict and evidence." }
+        } }
+      },
+      {
+        "name": "reopenTask",
+        "targetRole": "activity",
+        "description": "Return a review or done task to ready with a reason and clear its previous claim.",
+        "defaults": { "kind": "kanban-activity", "event": "reopened" },
+        "guard": { "role": "cards", "matchKey": "taskId", "where": { "status": ["review", "done"] } },
+        "effects": [{
+          "updateRole": "cards", "matchKey": "taskId",
+          "set": { "status": "ready", "assignee": "", "completedAt": "" },
+          "setFromInput": { "blockedReason": "note", "updatedAt": "createdAt" }
+        }],
+        "inputSchema": { "type": "object", "required": ["taskId", "actor", "note"], "properties": {
+          "taskId": { "type": "string" }, "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      },
+      {
+        "name": "archiveTask",
+        "targetRole": "activity",
+        "description": "Hide a task from the active board without deleting its canonical token or audit history.",
+        "defaults": { "kind": "kanban-activity", "event": "archived" },
+        "guard": { "role": "cards", "matchKey": "taskId", "exists": true },
+        "effects": [{
+          "updateRole": "cards", "matchKey": "taskId", "set": { "status": "archived", "archived": true },
+          "setFromInput": { "updatedAt": "createdAt" }
+        }],
+        "inputSchema": { "type": "object", "required": ["taskId", "actor"], "properties": {
+          "taskId": { "type": "string" }, "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      },
+      {
+        "name": "addComment",
+        "targetRole": "activity",
+        "description": "Append a durable comment, progress note, blocker, or evidence entry correlated by taskId.",
+        "defaults": { "kind": "kanban-activity", "event": "commented" },
+        "guard": { "role": "cards", "matchKey": "taskId", "exists": true },
+        "inputSchema": { "type": "object", "required": ["taskId", "actor", "note"], "properties": {
+          "taskId": { "type": "string" }, "actor": { "type": "string" }, "note": { "type": "string" }
+        } }
+      }
+    ],
+    "agentProtocol": {
+      "version": "1.0",
+      "summary": "Use this application as the shared task system of record. Discover it by name or tag, resolve stores/actions from the installed manifest, and never guess place ids.",
+      "taskStoreRole": "cards",
+      "activityStoreRole": "activity",
+      "taskIdField": "taskId",
+      "assigneeField": "assignee",
+      "readyStatuses": ["ready"],
+      "terminalStatuses": ["done", "archived"],
+      "poll": "Query the cards store for kind=kanban-task, status=ready, archived!=true, and either an empty assignee or your Persona id. Re-read immediately before claimTask.",
+      "workflow": [
+        { "from": "backlog", "action": "moveTask", "to": "ready", "meaning": "A human or planning Persona has made the task actionable." },
+        { "from": "ready", "action": "claimTask", "to": "in-progress", "meaning": "The worker Persona accepts ownership." },
+        { "from": "in-progress", "action": "requestReview", "to": "review", "meaning": "Work and evidence are ready for independent review." },
+        { "from": "review", "action": "approveTask", "to": "done", "meaning": "The reviewer accepts the result." },
+        { "from": "review|done", "action": "reopenTask", "to": "ready", "meaning": "More work is required." }
+      ],
+      "rules": [
+        "Do not claim a task assigned to another Persona.",
+        "Do not hold a task while waiting indefinitely; comment with the blocker or release it.",
+        "Use addComment for meaningful progress and evidence, not hidden scratch reasoning.",
+        "Use requestReview rather than approveTask when you performed the work.",
+        "Treat a successful action response as acceptance, then re-read cards to verify the resulting state."
+      ]
+    },
+    "permissions": {
+      "readStores": ["cards", "activity"],
+      "watchStores": ["cards", "activity"],
+      "actions": ["createTask", "updateTask", "moveTask", "claimTask", "releaseTask", "requestReview", "approveTask", "reopenTask", "archiveTask", "addComment"]
+    }
+  }
+}

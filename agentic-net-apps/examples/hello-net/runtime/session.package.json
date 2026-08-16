@@ -1,0 +1,29 @@
+{
+  "format": "agentic-net-package",
+  "formatVersion": "1.5.0",
+  "scope": "runtime",
+  "kind": "session",
+  "manifest": {
+    "name": "hello-net-runtime",
+    "version": "1.0.0",
+    "description": "Runtime session for the Hello Net public application",
+    "author": "AgenticNetOS",
+    "tags": ["example"],
+    "createdAt": "2026-08-14T00:00:00Z",
+    "agenticosVersion": "1.0.0"
+  },
+  "nets": [
+    {
+      "netId": "hello-net-main",
+      "net": {
+        "net": {
+          "places": { "p-tasks": { "label": "Tasks", "x": 100, "y": 100 } },
+          "transitions": {},
+          "arcs": {}
+        }
+      },
+      "inscriptions": {},
+      "tokens": {}
+    }
+  ]
+}

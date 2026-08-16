@@ -1,0 +1,6 @@
+{
+  "name": "@agenticos/net-app-sdk",
+  "version": "0.1.0",
+  "peerDependencies": { "rxjs": "^7.8.0" },
+  "sideEffects": false
+}

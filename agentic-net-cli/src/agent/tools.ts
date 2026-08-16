@@ -815,7 +815,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     schema: { type: 'object', properties: {}, required: [] },
   },
   APPLICATION_HUB_SEARCH: {
-    description: 'Search NetHub for ordinary kind=session templates tagged application, such as Protocol, Interview, and Goals.',
+    description: 'Search NetHub for first-class kind=application packages, such as Protocol, Interview, and Goals.',
     schema: { type: 'object', properties: {
       query: { type: 'string' }, source: { type: 'string' }, limit: { type: 'number' },
     }, required: [] },
@@ -841,14 +841,15 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     schema: { type: 'object', properties: {
       name: { type: 'string' }, action: { type: 'string' }, placeId: { type: 'string' },
       input: { type: 'object', description: 'Payload matching the declared action inputSchema' },
+      idempotencyKey: { type: 'string', description: 'Stable retry key; reuse only for identical input' },
     }, required: ['name', 'action', 'placeId', 'input'] },
   },
   HUB_PUBLISH: {
-    description: 'Publish a NetHub artifact (net | session | model | toolnet | tool | catalog | blob | agent | context) as a versioned, shareable package. Context packages carry a context-manifest and structural link transitions.',
+    description: 'Publish a NetHub artifact (net | session | application | model | toolnet | tool | catalog | blob | agent | context) as a versioned, shareable package. Application packages carry a session runtime plus their manifest/UI blobs.',
     schema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', description: 'net | session | model | toolnet | tool | catalog | blob | agent | context (default inferred from source)' },
+        kind: { type: 'string', description: 'net | session | application | model | toolnet | tool | catalog | blob | agent | context (default inferred from source)' },
         name: { type: 'string', description: 'Artifact name' },
         version: { type: 'string', description: 'Semantic version (e.g., 1.0.0)' },
         modelId: { type: 'string', description: 'Source model (defaults to current model)' },
@@ -868,11 +869,11 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   HUB_CATALOG: {
-    description: 'Browse the NetHub catalog. Without remote: local published artifacts. With remote: a peer instance\'s public catalog. Filter by kind (net|session|model|toolnet|tool|catalog|blob), search text, and tags.',
+    description: 'Browse the NetHub catalog. Without remote: local published artifacts. With remote: a peer instance\'s public catalog. Filter by kind (net|session|application|model|toolnet|tool|catalog|blob|agent|context), search text, and tags.',
     schema: {
       type: 'object',
       properties: {
-        kind: { type: 'string', description: 'Filter by kind: net | session | model | toolnet | tool | catalog | blob' },
+        kind: { type: 'string', description: 'Filter by kind: net | session | application | model | toolnet | tool | catalog | blob | agent | context' },
         search: { type: 'string', description: 'Text search across name/description' },
         tags: { type: 'string', description: 'Comma-separated tag filter' },
         remote: { type: 'string', description: 'Name of a registered remote to browse instead of local' },

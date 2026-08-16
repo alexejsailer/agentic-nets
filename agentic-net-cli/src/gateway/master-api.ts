@@ -264,7 +264,7 @@ export class MasterApi {
 
   // ---- NetHub (/api/hub) ----
   async hubPublish(params: {
-    kind?: string; // net | session | model | toolnet | tool | catalog | blob | agent | context
+    kind?: string; // net | session | application | model | toolnet | tool | catalog | blob | agent | context
     name: string;
     version: string;
     description?: string;
@@ -417,9 +417,10 @@ export class MasterApi {
   }
 
   async applicationAction(modelId: string, name: string, action: string,
-                          input: Record<string, any>): Promise<any> {
+                          input: Record<string, any>, idempotencyKey?: string): Promise<any> {
     return this.client.masterApi('POST',
-      `/applications/${modelId}/${encodeURIComponent(name)}/actions/${encodeURIComponent(action)}`, input);
+      `/applications/${modelId}/${encodeURIComponent(name)}/actions/${encodeURIComponent(action)}`, input,
+      idempotencyKey ? { idempotencyKey } : undefined);
   }
 
   // ---- Transition validation ----

@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Open-source Net Application SDK and complete examples** (`agentic-net-apps`). A framework-neutral runtime contract, Angular custom-element helper, mock development host, schemas, pack/publish/verify tools, and examples now let application authors ship real Angular code plus an ordinary net runtime without importing source into the closed Studio. Persona Kanban demonstrates shared work; Approval Room 1.0/1.1 demonstrates runtime-enforced separation of duty, evidence, safe retries, and additive upgrade/rollback.
+- **Reusable real-stack application certification** (`agentic-net-apps/tools`). Scenario-driven certification builds trust from package hashes through publish/install, declared role/action behavior, concurrent conflict, post-commit response loss plus idempotent replay, durable EventBlock/state consistency, upgrade/rollback, singleton discovery, and exact disposable-model cleanup. A blind-Persona test starts the bundled MCP, selects Approval Room only from its discovered `agentProtocol`, and writes a timestamped JSON certificate. A generic Playwright gate opens the actual closed Studio distribution, mounts the declared custom element, checks the constrained bridge, host-width layout, and rendered state, invokes an action, waits for UI refresh, records console cleanliness plus a hashed screenshot, and permits cleanup only for the scenario's disposable model prefix. Approval Room uses container queries so its breakpoints follow the narrower Studio host instead of the browser viewport. Developer docs define L0 package-valid through L3 public-ready; current executable UI is explicitly L2 trusted beta.
+- **Application retry identity on public clients** (`agentic-net-mcp`, `agentic-net-cli`). `application_action`/`APPLICATION_ACTION` accept `idempotencyKey`, advertise it in tool schemas, and teach callers to retain one key for the exact same logical input after an ambiguous response.
+
+### Fixed
+- **Gateway preserves encoded application query values exactly** (`agentic-net-gateway`). Proxy URI construction no longer double-encodes values such as Persona-derived retry identities containing `:`, which previously changed the idempotency key seen by Master.
+
 ## [2.47.0] - 2026-08-14
 
 ### Added

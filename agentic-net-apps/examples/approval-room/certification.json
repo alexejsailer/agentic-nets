@@ -1,0 +1,123 @@
+{
+  "name": "approval-room",
+  "displayName": "Approval Room",
+  "modelPrefix": "approval-cert",
+  "sessionId": "application-approval-room",
+  "report": "../../dist/certification/approval-room-latest.json",
+  "studio": {
+    "application": "application-approval-room",
+    "element": "agenticos-approval-room-v1",
+    "text": ["Approval Room", "SEPARATION OF DUTY"],
+    "interactions": [
+      { "type": "click", "role": "button", "name": "New request", "exact": false },
+      { "type": "fill", "placeholder": "A concise decision to make", "value": "Prove the open application mounts in closed Studio" },
+      { "type": "fill", "placeholder": "Scope, impact, alternatives, and recommendation", "value": "Created through the installed open-source UI during Desktop certification." },
+      { "type": "fill", "role": "textbox", "name": "Requester identity", "value": "studio-certifier" },
+      { "type": "click", "role": "button", "name": "Submit request", "exact": true }
+    ],
+    "verifyStore": {
+      "label": "Studio UI submission reached canonical state",
+      "role": "requests",
+      "where": { "title": "Prove the open application mounts in closed Studio" },
+      "count": 1,
+      "properties": { "status": "pending", "requestedBy": "studio-certifier" }
+    },
+    "textAfterAction": ["Prove the open application mounts in closed Studio", "studio-certifier"],
+    "report": "../../dist/certification/approval-room-studio-latest.json",
+    "screenshot": "../../dist/certification/approval-room-studio.png"
+  },
+  "versions": [
+    { "version": "1.0.0", "file": "../../dist/packages/approval-room-1.0.0.application.json" },
+    { "version": "1.1.0", "file": "../../dist/packages/approval-room-1.1.0.application.json" }
+  ],
+  "steps": [
+    { "type": "install", "version": "1.0.0" },
+    { "type": "descriptor", "version": "1.0.0", "stores": ["requests", "decisions"], "actions": ["submitRequest", "approve", "reject"] },
+    { "type": "asset", "descriptor": { "version": "1.0.0", "stores": ["requests", "decisions"], "actions": ["submitRequest", "approve", "reject"] } },
+
+    { "type": "action", "label": "submit preserved request", "action": "submitRequest", "key": "cert-submit-preserved", "input": {
+      "requestId": "APR-PRESERVED", "title": "Preserve this decision across versions", "summary": "Upgrade and rollback must retain canonical and audit state.",
+      "risk": "high", "requestedBy": "persona-requester", "requestedAt": "2026-08-15T12:00:00Z"
+    }, "body": { "accepted": true, "replayed": false } },
+    { "type": "action", "label": "separation-of-duty rejection", "action": "approve", "key": "cert-self-approve", "expectStatus": 400,
+      "errorContains": "guard rejected comparison", "input": { "requestId": "APR-PRESERVED", "actor": "persona-requester", "note": "I approve my own request." } },
+    { "type": "store", "label": "self-decision changed nothing", "role": "requests", "where": { "requestId": "APR-PRESERVED" }, "count": 1, "properties": { "status": "pending" } },
+    { "type": "store", "label": "self-decision appended no audit", "role": "decisions", "where": { "requestId": "APR-PRESERVED" }, "count": 0 },
+    { "type": "history", "label": "rejected guard committed no event block", "q": "cert-self-approve", "count": 0,
+      "source": "model-owned-event-journal" },
+    { "type": "action", "label": "independent approval", "action": "approve", "key": "cert-independent-approve", "input": {
+      "requestId": "APR-PRESERVED", "actor": "persona-reviewer", "note": "Independent review passed."
+    } },
+    { "type": "store", "label": "approved canonical state", "role": "requests", "where": { "requestId": "APR-PRESERVED" }, "count": 1,
+      "properties": { "status": "approved", "decidedBy": "persona-reviewer" } },
+    { "type": "store", "label": "one approval audit event", "role": "decisions", "where": { "requestId": "APR-PRESERVED" }, "count": 1,
+      "properties": { "decision": "approved", "actor": "persona-reviewer" } },
+    { "type": "history", "label": "approval is one atomic durable commit", "q": "cert-independent-approve", "count": 1,
+      "source": "model-owned-event-journal", "transactionIdsPerBlock": 1,
+      "eventCounts": { "CreateLeafeEvent": 1, "UpdatePropertyEvent": 4 },
+      "events": [
+        { "eventType": "CreateLeafeEvent", "eventData.properties.requestId": "APR-PRESERVED", "eventData.properties.decision": "approved" },
+        { "eventType": "UpdatePropertyEvent", "eventData.properties.key": "status", "eventData.properties.value": "approved" },
+        { "eventType": "UpdatePropertyEvent", "eventData.properties.key": "decidedBy", "eventData.properties.value": "persona-reviewer" }
+      ] },
+
+    { "type": "action", "label": "submit contended request", "action": "submitRequest", "key": "cert-submit-race", "input": {
+      "requestId": "APR-RACE", "title": "Only one concurrent verdict may commit", "risk": "critical",
+      "requestedBy": "persona-planner", "requestedAt": "2026-08-15T12:01:00Z"
+    } },
+    { "type": "parallel", "label": "concurrent approve versus reject", "successes": 1, "allowedFailures": [400, 409], "calls": [
+      { "action": "approve", "key": "cert-race-approve", "input": { "requestId": "APR-RACE", "actor": "persona-reviewer-a", "note": "Approve verdict." } },
+      { "action": "reject", "key": "cert-race-reject", "input": { "requestId": "APR-RACE", "actor": "persona-reviewer-b", "note": "Reject verdict." } }
+    ] },
+    { "type": "store", "label": "one terminal race outcome", "role": "requests", "where": { "requestId": "APR-RACE" }, "count": 1,
+      "properties": { "status": ["approved", "rejected"] } },
+    { "type": "store", "label": "one race audit event", "role": "decisions", "where": { "requestId": "APR-RACE" }, "count": 1 },
+    { "type": "history", "label": "contention produced one request and one verdict commit", "q": "APR-RACE", "count": 2,
+      "source": "model-owned-event-journal", "transactionIdsPerBlock": 1,
+      "eventCounts": { "CreateLeafeEvent": 2, "UpdatePropertyEvent": 4 } },
+
+    { "type": "install", "version": "1.1.0" },
+    { "type": "descriptor", "version": "1.1.0", "stores": ["requests", "decisions", "evidence"],
+      "actions": ["submitRequest", "approve", "reject", "requestChanges", "resubmit", "addEvidence"] },
+    { "type": "store", "label": "v1 canonical state survived upgrade", "role": "requests", "where": { "requestId": "APR-PRESERVED" }, "count": 1,
+      "properties": { "status": "approved", "decidedBy": "persona-reviewer" } },
+    { "type": "store", "label": "v1 audit survived upgrade", "role": "decisions", "where": { "requestId": "APR-PRESERVED" }, "count": 1 },
+    { "type": "action", "label": "submit retry request", "action": "submitRequest", "key": "cert-submit-retry", "input": {
+      "requestId": "APR-RETRY", "title": "Prove ambiguous retry safety", "risk": "normal",
+      "requestedBy": "persona-author", "requestedAt": "2026-08-15T12:02:00Z"
+    } },
+    { "type": "drop-response-action", "label": "ambiguous evidence append", "action": "addEvidence", "key": "cert-evidence-lost-response", "input": {
+      "requestId": "APR-RETRY", "actor": "persona-author", "label": "Certification report", "url": "https://example.invalid/cert", "note": "The client will lose the first response."
+    } },
+    { "type": "store", "label": "ambiguous retry appended once", "role": "evidence", "where": { "requestId": "APR-RETRY" }, "count": 1,
+      "properties": { "label": "Certification report" } },
+    { "type": "history", "label": "ambiguous retry committed exactly once", "q": "cert-evidence-lost-response", "count": 1,
+      "source": "model-owned-event-journal", "transactionIdsPerBlock": 1,
+      "eventCounts": { "CreateLeafeEvent": 1 },
+      "events": [{ "eventType": "CreateLeafeEvent", "eventData.properties.requestId": "APR-RETRY", "eventData.properties.label": "Certification report" }] },
+    { "type": "action", "label": "idempotency key input mismatch", "action": "addEvidence", "key": "cert-evidence-lost-response", "expectStatus": 409,
+      "errorContains": "different input", "input": { "requestId": "APR-RETRY", "actor": "persona-author", "label": "Different evidence" } },
+    { "type": "action", "label": "request changes", "action": "requestChanges", "key": "cert-request-changes", "input": {
+      "requestId": "APR-RETRY", "actor": "persona-reviewer", "note": "Add deployment evidence."
+    } },
+    { "type": "action", "label": "non-requester cannot resubmit", "action": "resubmit", "key": "cert-wrong-resubmit", "expectStatus": 400,
+      "errorContains": "guard rejected comparison", "input": { "requestId": "APR-RETRY", "actor": "persona-reviewer", "note": "Wrong identity." } },
+    { "type": "action", "label": "requester resubmits", "action": "resubmit", "key": "cert-right-resubmit", "input": {
+      "requestId": "APR-RETRY", "actor": "persona-author", "note": "Deployment evidence added."
+    } },
+    { "type": "store", "label": "resubmitted state is pending", "role": "requests", "where": { "requestId": "APR-RETRY" }, "count": 1,
+      "properties": { "status": "pending" } },
+
+    { "type": "install", "version": "1.0.0" },
+    { "type": "descriptor", "version": "1.0.0", "stores": ["requests", "decisions"], "actions": ["submitRequest", "approve", "reject"] },
+    { "type": "store", "label": "canonical state survived rollback", "role": "requests", "where": { "requestId": "APR-RETRY" }, "count": 1,
+      "properties": { "status": "pending" } },
+    { "type": "install", "version": "1.1.0" },
+    { "type": "descriptor", "version": "1.1.0", "stores": ["requests", "decisions", "evidence"],
+      "actions": ["submitRequest", "approve", "reject", "requestChanges", "resubmit", "addEvidence"] },
+    { "type": "store", "label": "v1.1 evidence reappeared after rollback cycle", "role": "evidence", "where": { "requestId": "APR-RETRY" }, "count": 1 },
+    { "type": "asset", "descriptor": { "version": "1.1.0", "stores": ["requests", "decisions", "evidence"],
+      "actions": ["submitRequest", "approve", "reject", "requestChanges", "resubmit", "addEvidence"] } },
+    { "type": "list", "label": "singleton application discovery" }
+  ]
+}

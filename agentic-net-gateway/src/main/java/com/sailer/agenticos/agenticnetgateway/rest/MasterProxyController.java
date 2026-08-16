@@ -24,6 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -81,6 +82,7 @@ public class MasterProxyController {
     /** Canonical Master routes that carry model ownership in the URL itself. */
     private static final List<Pattern> MODEL_PATH_PATTERNS = List.of(
             Pattern.compile("^/api/models/([^/]+)(?:/|$)"),
+            Pattern.compile("^/api/applications/([^/]+)(?:/|$)"),
             Pattern.compile("^/api/event-line/([^/]+)(?:/|$)"),
             Pattern.compile("^/api/proxy/events/([^/]+)(?:/|$)"),
             Pattern.compile("^/api/assistant/universal/([^/]+)(?:/|$)")
@@ -133,7 +135,8 @@ public class MasterProxyController {
         SseEmitter emitter = new SseEmitter(props.getProxyTimeoutSeconds() * 1000L);
         WebClient client = getOrCreateClient(master.url());
 
-        WebClient.RequestHeadersSpec<?> spec = buildWebClientSpec(client, method, uri, body, request);
+        WebClient.RequestHeadersSpec<?> spec = buildWebClientSpec(
+                client, master.url(), method, uri, body, request);
 
         Flux<String> flux = spec
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -366,7 +369,8 @@ public class MasterProxyController {
             String uri, HttpMethod method) {
 
         WebClient client = getOrCreateClient(masterUrl);
-        WebClient.RequestHeadersSpec<?> spec = buildWebClientSpec(client, method, uri, body, request);
+        WebClient.RequestHeadersSpec<?> spec = buildWebClientSpec(
+                client, masterUrl, method, uri, body, request);
 
         return spec
                 .exchangeToMono(response ->
@@ -452,21 +456,26 @@ public class MasterProxyController {
     // ──────────────────────────────────────────────────────────────────────────
 
     private WebClient.RequestHeadersSpec<?> buildWebClientSpec(
-            WebClient client, HttpMethod method, String uri, byte[] body,
+            WebClient client, String baseUrl, HttpMethod method, String uri, byte[] body,
             HttpServletRequest request) {
 
         HttpHeaders forwardHeaders = copyHeaders(request);
+        URI upstreamUri = URI.create(baseUrl.replaceAll("/$", "") + uri);
 
         if (body != null && body.length > 0) {
             String contentType = request.getContentType();
-            var bodySpec = client.method(method).uri(uri);
+            // request.getQueryString() is already encoded. Passing it to uri(String) makes
+            // WebClient treat '%' as new source text and encode it again (%3A -> %253A), which
+            // corrupts opaque query values such as application idempotency keys. URI preserves
+            // the exact path/query bytes accepted by the gateway.
+            var bodySpec = client.method(method).uri(upstreamUri);
             if (contentType != null) {
                 bodySpec.contentType(MediaType.parseMediaType(contentType));
             }
             forwardHeaders.forEach((name, values) -> values.forEach(v -> bodySpec.header(name, v)));
             return bodySpec.bodyValue(body);
         } else {
-            var getSpec = client.method(method).uri(uri);
+            var getSpec = client.method(method).uri(upstreamUri);
             forwardHeaders.forEach((name, values) -> values.forEach(v -> getSpec.header(name, v)));
             return getSpec;
         }

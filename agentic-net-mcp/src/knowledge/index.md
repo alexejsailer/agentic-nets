@@ -41,6 +41,8 @@ inscription by hand, read `inscriptions`.
 - **applications** — Protocol/Interview/Goals as ordinary nets with a manifest: discover roles
   instead of hardcoding places, the two-way Interview contract (ask / respond with intent /
   raise), and how to ask a human WITHOUT holding a transition lease.
+- **approvals** — Approval Room's blind-Persona discovery, separation-of-duty guard, canonical plus
+  audit stores, and idempotency rules for ambiguous responses.
 - **external-fire** — YOU are the LLM: the list/prepare/complete loop, leases, servable verdicts,
   what provider-less mode means for provider-backed llm/agent lanes and CLI-agent exceptions.
 - **real-agents** — personas as scheduled nets; the FIVE reasoning paths (server lane, CLI-backed
@@ -50,7 +52,7 @@ inscription by hand, read `inscriptions`.
   ladder; the autonomy contract.
 - **cost** — the token meter: usage_report ranks per-transition burn; the analyze-rank-retune-watch
   loop; live intervalMs edits; the invisible script-spawned-model-call category.
-- **nethub** — export/import: publish kinds (net/session/model/agent/context/toolnet/tool/catalog/blob),
+- **nethub** — export/import: publish kinds (net/session/application/model/agent/context/toolnet/tool/catalog/blob),
   self-contained packages (dependencies travel sha256-pinned, installed scope-aware), token
   policy + credential scrubbing, federation via remotes.
 - **leases** — who is working on what: the `_lock` CAS+TTL mechanism, why binding hides

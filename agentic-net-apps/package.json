@@ -1,0 +1,51 @@
+{
+  "name": "@agenticos/net-app-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:sdk": "ng build net-app-sdk && ng build net-app-angular",
+    "build:example": "ng build hello-net --configuration production",
+    "build:kanban": "ng build persona-kanban --configuration production",
+    "build:approval": "ng build approval-room --configuration production",
+    "build:dev-host": "ng build net-app-dev-host --configuration production",
+    "build": "npm run build:sdk && npm run build:example && npm run build:kanban && npm run build:approval && npm run build:dev-host",
+    "dev": "ng serve net-app-dev-host",
+    "test:kanban": "node --test examples/kanban/src/kanban-model.spec.ts",
+    "test:approval": "node --test examples/approval-room/src/approval-model.spec.ts",
+    "pull-runtime": "node tools/pull-runtime.mjs",
+    "pack:example": "node tools/pack-application.mjs --config examples/hello-net/agenticos.app.json",
+    "pack:kanban": "node tools/pack-application.mjs --config examples/kanban/agenticos.app.json",
+    "pack:approval:v1": "node tools/pack-application.mjs --config examples/approval-room/agenticos.app.v1.json",
+    "pack:approval": "node tools/pack-application.mjs --config examples/approval-room/agenticos.app.json",
+    "test:kanban-package": "node tools/test-application-package.mjs --config examples/kanban/agenticos.app.json --file dist/packages/persona-kanban-1.0.0.application.json",
+    "test:approval-package:v1": "node tools/test-application-package.mjs --config examples/approval-room/agenticos.app.v1.json --file dist/packages/approval-room-1.0.0.application.json",
+    "test:approval-package": "node tools/test-application-package.mjs --config examples/approval-room/agenticos.app.json --file dist/packages/approval-room-1.1.0.application.json",
+    "certify:approval": "node tools/certify-application.mjs --scenario examples/approval-room/certification.json",
+    "certify:studio": "node tools/certify-studio-mount.mjs --scenario examples/approval-room/certification.json",
+    "certify:persona": "node tools/certify-persona-discovery.mjs",
+    "publish:example": "node tools/publish-application.mjs --file dist/packages/hello-net-1.0.0.application.json",
+    "publish:kanban": "node tools/publish-application.mjs --file dist/packages/persona-kanban-1.0.0.application.json",
+    "publish:approval": "node tools/publish-application.mjs --file dist/packages/approval-room-1.1.0.application.json"
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.18",
+    "@angular/compiler": "^21.2.18",
+    "@angular/core": "^21.2.18",
+    "@angular/elements": "^21.2.18",
+    "@angular/forms": "^21.2.18",
+    "@angular/platform-browser": "^21.2.18",
+    "rxjs": "~7.8.1",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^21.2.19",
+    "@angular/build": "^21.2.19",
+    "@angular/cli": "^21.2.19",
+    "@angular/compiler-cli": "^21.2.18",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@playwright/test": "^1.62.1",
+    "ng-packagr": "^21.2.0",
+    "typescript": "~5.9.0"
+  }
+}

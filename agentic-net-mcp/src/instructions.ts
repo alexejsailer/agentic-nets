@@ -72,9 +72,12 @@ Code/Codex persona lane, or you can configure a server provider."
   probe and refused when unreachable. Feed p-<name>-task; join specialists through shared places
   for a team. capability:"reason" is safe; "execute" (rwxhl---t) may run commands/tool-nets.
   Context playbooks: ATTACH_CONTEXT or typed link transitions — links NEVER fire (docs/personas).
-- Persist knowledge with memory_write/recall/graph/link. Interview and Goals are nets:
+- Persist knowledge with memory_write/recall/graph/link. Interview, Goals, and Persona Kanban are nets:
   discover roles with application_list/describe and write with application_action—never guess place
-  IDs. protocol_write/tail wrap Protocol. For human input, write an Interview prompt + persona
+  IDs. An installed application's agentProtocol is the machine-readable playbook for polling and
+  lifecycle actions. Persona Kanban workers query the resolved cards role, claim only ready eligible
+  work, publish evidence with addComment/requestReview, and never self-approve. protocol_write/tail
+  wrap Protocol. For human input, write an Interview prompt + persona
   checkpoint, end the fire, then resume on response + checkpoint. Never wait in a firing lease.
 - Persist into the MODEL's OWN memory base (shared with the domain-expert persona and the
   Genesis/agent MEMORY_WRITE tool): domain_memory_write / domain_memory_recall — stores in the
@@ -117,7 +120,7 @@ inscription/status/assignment) — use it to clear transitions left STOPPED behi
 net_stats stays honest. Irreversible; re-assign to recreate.
 
 ## NetHub — share and install nets, sessions, whole models
-hub_publish {kind, name, version, tokens} versions a net/session/model; credentials are scrubbed and
+hub_publish {kind, name, version, tokens} versions a net/session/application/model; credentials are scrubbed and
 tokens = none | config | all. hub_search browses local/peer catalogs, hub_show inspects, hub_install
 installs (model artifacts create an allowed NEW model), and hub_add_remote federates public peers.
 Agent packages install STOPPED in agent-<name>: fill required config places, then
@@ -125,7 +128,8 @@ START_AGENT_SESSION; their manifest declares inbox, start plan and required cont
 Context packages install in context-<name>; hub_show exposes stores, scope, hierarchy, attachments
 and maintenance startPlan. Their kind=link transitions never fire. ATTACH_CONTEXT wires declared
 attachments as typed links readable via GET_LINKED_PLACES/memory_graph; START_CONTEXT controls only
-maintenance. Application nets remain kind:"session" with manifest-declared stores/actions/renderers.
+maintenance. Applications are kind:"application" packages carrying session nets, a manifest, and
+optionally a verified browser surface; install materializes their runtime as a session.
 Details: docs/nethub.
 
 ## Two tool layers — curated (lowercase) and native (UPPERCASE)

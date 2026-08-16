@@ -307,9 +307,24 @@ describe('advertised tool surface', () => {
         'spawn-worker',
         'start-safe-product-team',
         'work-dev-team-backlog',
+        'work-persona-kanban',
         'work-external-fires',
       ].sort(),
     );
+  });
+
+  it('Persona Kanban playbook discovers the manifest and preserves review separation', async () => {
+    const client = await connectedClient(makeConfig());
+    const prompt = await client.getPrompt({
+      name: 'work-persona-kanban',
+      arguments: { persona: 'developer-one', application: 'persona-kanban' },
+    });
+    const text = prompt.messages.map((message: any) => message.content.text ?? '').join('\n');
+    expect(text).toMatch(/application_describe/);
+    expect(text).toMatch(/agentProtocol/);
+    expect(text).toMatch(/claimTask/);
+    expect(text).toMatch(/requestReview/);
+    expect(text).toMatch(/Do not self-approve/);
   });
 
   it('Safe Product Team playbook preserves observability and side-effect boundaries', async () => {

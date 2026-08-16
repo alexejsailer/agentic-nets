@@ -85,10 +85,12 @@ it does not silently self-rewrite or remove responsibility from the operator.
    templates: Safe Product Team, Model Steward, Dev Crew, Research Analyst,
    Health Coach, Context Curator, and Crystallizer. Model profiles can compose
    the right resident agents and context systems automatically.
-3. **NetHub packages whole systems.** Publish and install nine artifact kinds:
-   nets, sessions, models, agent teams, context systems, tool nets, individual
-   tools, catalogs, and blobs. Dependencies are bundled and credentials are
-   scrubbed.
+3. **NetHub packages whole systems.** Publish and install ten artifact kinds:
+   nets, sessions, applications, models, agent teams, context systems, tool nets,
+   individual tools, catalogs, and blobs. Dependencies are bundled and credentials
+   are scrubbed. Applications combine an ordinary session runtime with an optional
+   verified UI surface; see the [developer guide](docs/applications/DEVELOPER_GUIDE.md)
+   and the complete [Persona Kanban tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md).
 4. **Governance is enforced at runtime.** Ten positional capability flags
    (`rwxhludcts`), named capability profiles, tool allowlists, resource scopes,
    Vault-backed credentials, a fleet-wide LLM freeze, and an automatic spend
@@ -362,7 +364,7 @@ governed by default.
 | **Execution** | Distributed **executors** that poll egress-only (firewall-friendly, deployable anywhere) and run scoped work in **Docker** |
 | **Governance** | **`rwxhludcts` capability roles**, named profiles, tool allowlists, resource scopes, spend controls, and **Vault** secrets injected only at action time |
 | **Observability** | **Event-sourced history** — replay the log, watch the live event-line, and ask what existed at any decision point |
-| **Reuse & export** | Export **inscriptions / PNML** or use **NetHub** to move nets, sessions, models, agents, contexts, tools, catalogs, and blobs |
+| **Reuse & export** | Export **inscriptions / PNML** or use **NetHub** to move nets, sessions, applications, models, agents, contexts, tools, catalogs, and blobs |
 | **Self-extension** | **Builder / Forge** agents that create new places, transitions, and whole tool-nets *inside the running system* — the harness grows itself |
 
 ### Drive it your way — visual, conversational, or API-first
@@ -400,7 +402,7 @@ same state, emission, audit, and permission pipeline.
 5. **Secrets in the wrong place.** Vault keeps credentials outside tokens and events, scoped per transition and injected only at action time.
 6. **Unsafe execution boundary.** Remote executors poll over egress-only links; command work runs in scoped Docker tool containers.
 7. **Hard to explain why.** Tool calls, results, emissions, and event trails keep provenance attached to the actual work.
-8. **Poor reusability.** NetHub packages nine artifact kinds, their referenced dependencies, and an explicit token policy for installation elsewhere.
+8. **Poor reusability.** NetHub packages ten artifact kinds, their referenced dependencies, and an explicit token policy for installation elsewhere.
 9. **No reflexive model.** Builder agents can create nets, places, arcs, transitions, and inscriptions inside the same runtime.
 
 ## Why this matters for coding agents
@@ -864,6 +866,7 @@ anywhere:
 | **agentic-net-cli** | Command-line agent with multi-provider LLM routing and tool-catalog sync | — |
 | **agentic-net-chat** | Telegram-facing agent with streaming tool-call batches and `/verbose` toggle | — |
 | **agentic-net-mcp** | MCP server: working memory, net workbench, Agent Hub/NetHub, and external execution | stdio / 8091 |
+| **agentic-net-apps** | Public Angular SDK, development host, Hello Net and Persona Kanban examples, tests, and packager for installable NetHub applications | — |
 | **sa-blobstore** | Distributed blob storage for large tokens, artifacts, and knowledge content | 8090 |
 | **agentic-net-tools/** | Tool containers agents start on demand (crawler, echo, reddit, rss, search, secured-api) | dynamic |
 

@@ -97,7 +97,7 @@ export function registerApplicationReaders(server: McpServer, ctx: AppContext): 
     {
       title: 'Describe a net application',
       description:
-        'Inspect one installed application net: stores (role → placeId), JSON-shaped actions, and its Studio renderer. This is the machine-readable playbook personas use to interact without hidden platform conventions.',
+        'Inspect one installed application net: stores (role → placeId), JSON-shaped actions, optional agentProtocol, and its Studio renderer. This is the machine-readable playbook personas use to interact without hidden platform conventions.',
       inputSchema: {
         name: z.string().describe('Application name, e.g. protocol, interview, goals'),
         ...modelParam,
@@ -120,11 +120,13 @@ export function registerApplicationTools(server: McpServer, ctx: AppContext): vo
     {
       title: 'Act through an installed application net',
       description:
-        'Execute a manifest-declared append action on an ordinary application net. Master resolves targetRole to its installed place, validates required input, creates an event-sourced token, and Studio renders the same state. Examples: protocol/append, goals/set, goals/report-progress, and the two-way Interview surface — interview/ask (options as strings or {value,label,description,recommended}, multiSelect, allowFreeText, supersedes, batchId), interview/respond (intent answer|revise|reject, selected, text, notes, revisedQuestion), interview/raise (a question the HUMAN asks you). Poll the interview requests store and re-ask with supersedes when a response carries intent:"revise".',
+        'Execute a manifest-declared action on an ordinary application net. Master resolves targetRole, validates required input and optional correlated-token guards, appends an event-sourced token, and applies declared correlated updates. Studio renders the same state. Examples: protocol/append; goals/set/report-progress; Interview ask/respond/raise; Persona Kanban createTask/claimTask/addComment/requestReview/approveTask. Read agentProtocol before working a task application.',
       inputSchema: {
         name: z.string().describe('Installed application name'),
         action: z.string().describe('Action declared by application_describe'),
         input: z.record(z.any()).describe('Payload matching the action inputSchema'),
+        idempotencyKey: z.string().max(200).optional()
+          .describe('Stable retry key; reuse only for the exact same action input.'),
         ...modelParam,
       },
     },
@@ -133,6 +135,7 @@ export function registerApplicationTools(server: McpServer, ctx: AppContext): vo
         'POST',
         `/applications/${encodeURIComponent(model)}/${encodeURIComponent(args.name)}/actions/${encodeURIComponent(args.action)}`,
         args.input,
+        args.idempotencyKey ? { idempotencyKey: args.idempotencyKey } : undefined,
       ),
     ),
   );
