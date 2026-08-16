@@ -7,7 +7,34 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**A durable runtime for AI agents, people, and automated work.**
+**One download. No Docker, no API key, no setup. A working AI persona in five
+minutes, powered by the model you already use.**
+
+Install [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm),
+connect Claude Code, Codex, or any MCP client from the tray, and say *"create a
+health coach"*, *"give me a research analyst"*, or *"start a safe product
+team"*. Your model does the reasoning; Agentic-Nets gives every persona what a
+chat window cannot: durable memory, typed task and result places, schedules
+that keep working while you sleep, approval gates, and an event-sourced history
+of every decision. All of it is visible live in the bundled Studio.
+
+### Install now
+
+1. **[Download the latest release](https://github.com/alexejsailer/agentic-nets/releases/latest)**:
+   one package for macOS, Windows, or Linux.
+2. **Open it.** The tray launcher starts and health-checks the whole stack on
+   your machine: no Docker daemon, no Java or Node install, no API key, no
+   server LLM.
+3. **Connect your client**: tray → *Connect Claude Code* / *Connect Codex* /
+   *Copy MCP URL + Token*. One paste into your MCP client, then just ask for
+   the persona or team you want.
+
+Details, checksums, and platform notes: [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm).
+Prefer a production-like server deployment? [Install the Docker stack](#install-in-5-minutes).
+
+---
+
+**Underneath: a durable runtime for AI agents, people, and automated work.**
 
 Agentic-Nets turns a process into a live, inspectable Petri net. Typed JSON
 tokens hold the current state; transitions run deterministic code, LLMs,
@@ -35,7 +62,7 @@ The interface changes; the governed net underneath does not.
 | Can I use my own model? | Yes. Run server-side with Claude, OpenAI, or Ollama; host lanes from the CLI/MCP process; or let the connected MCP model execute selected AI transitions through external fires. |
 | What is public in this repo? | Licensed public source for the Net Application SDK, MCP server, desktop launcher, gateway, executor, vault, CLI, chat bot, blobstore, tool containers, deployment, and monitoring. |
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
-| Latest tagged release | [`v2.47.0`](https://github.com/alexejsailer/agentic-nets/releases/tag/v2.47.0). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+| Latest release | Always on the [GitHub Releases page](https://github.com/alexejsailer/agentic-nets/releases/latest). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
 
 ## The mental model
 
@@ -273,26 +300,18 @@ Desktop Lite is loopback-only and is not the recommended production
 deployment. Use the Docker/server deployment for remote access, clustering,
 monitoring, or production lifecycle controls.
 
-**Download the latest release** from
-[GitHub Releases](https://github.com/alexejsailer/agentic-nets/releases/latest).
-The current Desktop Lite packages are:
+**[Download the latest release](https://github.com/alexejsailer/agentic-nets/releases/latest)**.
+Every release page carries one package per platform:
 
-| Platform | Package |
+| Platform | Package on the release page |
 |---|---|
-| macOS, Apple Silicon | [AgenticNetOS 2.47.0 DMG](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-macos-arm64.dmg) |
-| Windows, x64 | [AgenticNetOS 2.47.0 MSI](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-windows-x64.msi) |
-| Debian/Ubuntu, amd64 | [AgenticNetOS 2.47.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-amd64.deb) |
-| Debian/Ubuntu, arm64 | [AgenticNetOS 2.47.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-arm64.deb) |
-| Fedora/RHEL, amd64 | [AgenticNetOS 2.47.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-amd64.rpm) |
-| Fedora/RHEL, arm64 | [AgenticNetOS 2.47.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-arm64.rpm) |
+| macOS, Apple Silicon | `AgenticNetOS-<version>-macos-arm64.dmg` |
+| Windows, x64 | `AgenticNetOS-<version>-windows-x64.msi` |
+| Debian/Ubuntu | `AgenticNetOS-<version>-linux-<arch>.deb` (amd64 / arm64) |
+| Fedora/RHEL | `AgenticNetOS-<version>-linux-<arch>.rpm` (amd64 / arm64) |
 
-Verify the package against
-[`SHA256SUMS.txt`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/SHA256SUMS.txt)
-and its
-[`SHA256SUMS.txt.sig`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/SHA256SUMS.txt.sig).
-The version-specific links above reflect `v2.47.0`; use
-[Releases](https://github.com/alexejsailer/agentic-nets/releases) for newer or
-older versions.
+Verify your download against the release's `SHA256SUMS.txt` and its Ed25519
+signature `SHA256SUMS.txt.sig` (both attached to every release).
 
 Installation notes:
 
