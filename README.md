@@ -7,45 +7,58 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**Design, run, observe, and continuously improve governed autonomous processes
-in any domain.**
+**A durable runtime for AI agents, people, and automated work.**
 
-> Agentic-Nets is a domain-general backend for designing, operating, observing,
-> and continuously improving governed autonomous processes.
+Agentic-Nets turns a process into a live, inspectable Petri net. Typed JSON
+tokens hold the current state; transitions run deterministic code, LLMs,
+personas, commands, or HTTP calls; and every mutation becomes part of an
+event-sourced history.
 
-Any process that can be represented as typed state, transitions, context,
-evidence, and authority boundaries can be modeled, automated, historically
-analyzed, and progressively optimized with Agentic-Nets. Personas are the most
-approachable starting point: create a developer, health coach, analyst, domain
-expert, reviewer, or complete team, then give it durable context, bounded tools,
-explicit handoffs, and a history you can learn from.
+The platform solves the part that a prompt or chat transcript does not: how
+work keeps running, who may change what, where handoffs go, what happened after
+the model answered, and how the whole process can be reused. A developer agent,
+review team, health coach, research pipeline, or operations process all use the
+same primitives—explicit state, controlled transitions, durable context,
+permissions, evidence, and approvals.
 
-Agentic-Nets puts personas, LLM calls, deterministic steps, tools, memory,
-approvals, schedules, and remote execution into formal Petri nets. Places hold
-typed JSON state; transitions do the work; every change leaves an event-sourced
-trail. Observability is part of the runtime model, not an add-on: you can inspect
-what happened, why it happened, which evidence was used, how long it took, and
-where a persona or process should improve.
-
-Use the visual Studio, an MCP client, the CLI, or the Claude Code plugin to
-build one guarded persona, explore small starter patterns, run the Safe Product
-Team example, install a complete team package, or coordinate a network of
-long-running systems. The same runtime mixes server-hosted models, local models,
-connected MCP models, and unattended Claude Code or Codex sessions without
-hiding control flow or history in a chat transcript. Studio's Protocol gives
-the readable team narrative; the event trail preserves the complete evidence
-underneath it.
+Humans can operate that state through Studio or an installable Net Application.
+Agents use the same state and actions through MCP, the CLI, or runtime tools.
+The interface changes; the governed net underneath does not.
 
 ## At a glance
 
 | Question | Answer |
 |---|---|
-| What is it? | A domain-general backend and Petri-net runtime for governed personas, workflows, tools, memory, remote execution, and evidence. |
+| What is it? | A stateful orchestration platform and Petri-net runtime for governed personas, workflows, tools, memory, remote execution, and evidence. |
 | Why does it exist? | To make autonomous processes inspectable, permission-scoped, historically analyzable, continuously improvable, and reusable instead of hidden inside chat state. |
+| What is a Net Application? | A versioned NetHub package containing an executable session plus an optional compiled UI. Install it into a model and Studio discovers it without being rebuilt. |
 | Can I use my own model? | Yes. Run server-side with Claude, OpenAI, or Ollama; host lanes from the CLI/MCP process; or let the connected MCP model execute selected AI transitions through external fires. |
-| What is public in this repo? | Licensed public source for the gateway, executor, vault, CLI, chat bot, MCP server, blobstore, tool containers, deployment, and monitoring. |
+| What is public in this repo? | Licensed public source for the Net Application SDK, MCP server, desktop launcher, gateway, executor, vault, CLI, chat bot, blobstore, tool containers, deployment, and monitoring. |
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
-| Current release | [`v2.42.0`](https://github.com/alexejsailer/agentic-nets/releases/tag/v2.42.0). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+| Latest tagged release | [`v2.47.0`](https://github.com/alexejsailer/agentic-nets/releases/tag/v2.47.0). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+
+## The mental model
+
+```text
+Model (isolated workspace)
+└── Session (one installed or created runtime)
+    └── Net (the executable graph)
+        ├── Places + tokens (typed state)
+        └── Transitions (work and routing)
+
+Net Application = session runtime + manifest + optional compiled UI
+```
+
+| Term | Meaning |
+|---|---|
+| **Model** | An isolated workspace containing sessions, shared resources, policy, and history. |
+| **Session** | A running or installable unit containing one or more nets. |
+| **Net** | The explicit graph that decides when work may run and where its results go. |
+| **Place / token** | A place is a typed state boundary; a token is one JSON value stored there. |
+| **Transition** | A deterministic or AI-powered step that binds inputs, performs work, and emits outputs. |
+| **Persona** | An agent role living inside a net, with durable context, declared tools, and bounded authority. |
+| **NetHub** | The registry for reusable nets, sessions, applications, models, teams, context systems, tools, catalogs, and blobs. |
+| **Net Application** | A human-facing view and action contract over an ordinary session runtime; the net remains the source of truth. |
 
 ## The product in one loop
 
@@ -99,6 +112,74 @@ it does not silently self-rewrite or remove responsibility from the operator.
    curated workflow surface plus an optional native catalog used by in-net agents.
    Desktop Lite defaults to curated; server installs retain both for compatibility.
 
+## Net Applications: deploy a UI without rebuilding Studio
+
+> **Release status:** The SDK, generic Studio host, and certified examples are
+> currently on `main` under [Unreleased](CHANGELOG.md#unreleased). Use matching
+> application-capable runtime and Studio builds; the `v2.47.0` Desktop packages
+> predate this finalized contract.
+
+A Net Application is **not** an Angular module imported into the closed GUI. It
+is an independently built, versioned NetHub artifact with three parts:
+
+- an ordinary session runtime containing nets, inscriptions, permitted initial
+  tokens, and dependencies;
+- a manifest declaring semantic store roles, schema-checked actions, permissions,
+  agent instructions, and UI metadata;
+- an optional self-contained browser module that registers one custom element.
+
+```mermaid
+flowchart LR
+    source["Angular UI + session runtime + manifest"] --> package["Versioned application package"]
+    package --> hub["NetHub"]
+    hub -->|"install into a model"| instance["Application instance"]
+    instance --> runtime["Session, nets, and event-sourced tokens"]
+    instance --> descriptor["Installed UI descriptor"]
+    descriptor --> studio["Studio's generic application host"]
+    human["Human"] --> studio
+    studio --> actions["Declared roles and actions"]
+    agent["Persona or MCP agent"] --> actions
+    actions --> runtime
+```
+
+Publishing adds the reusable definition to NetHub. Installing it verifies the
+package and UI hashes, imports the runtime into the selected model, and records
+the installed descriptor. Studio discovers that descriptor, loads the verified
+module, creates its custom element, and injects a constrained runtime bridge.
+There is no private route change, source-code import, npm build, or Studio image
+rebuild per application.
+
+The UI is only a projection and controller. The event-sourced net is the source
+of truth, so a human in Studio, an MCP-connected agent, and a resident Persona
+agent can see and operate the same work through the same declared contract.
+
+The complete open-source example is **Persona Kanban**. One installation gives
+humans a five-column board while connected and resident agents can discover,
+create, claim, comment on, review, and complete the same tasks. Its canonical
+card state and append-only activity facts live in ordinary net places—there is
+no Kanban-specific backend or database.
+
+Start with:
+
+```bash
+cd agentic-net-apps
+npm install
+npm run build
+npm run pack:kanban
+npm run test:kanban-package
+```
+
+- [Net Application SDK workspace](agentic-net-apps/README.md)
+- [Developer guide: architecture, contract, packaging, deployment, and security](docs/applications/DEVELOPER_GUIDE.md)
+- [Persona Kanban: complete source-to-Desktop tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md)
+- [Application certification levels and real-stack gates](docs/applications/APPLICATION_CERTIFICATION.md)
+
+Executable UI currently uses a same-origin trusted-element model. Treat it as a
+trusted beta: install only reviewed packages from trusted publishers. Public
+marketplace execution still requires publisher signatures and stronger UI
+isolation; the [certification specification](docs/applications/APPLICATION_CERTIFICATION.md)
+tracks that boundary explicitly.
+
 One complete worked example is the **Safe Product Team**: Product
 Manager, Architect, Developer, Reviewer, Release Guardian, and Chronicle over a
 deterministic backlog/review backbone. Repository policy is explicit, release
@@ -131,6 +212,8 @@ layer:
 |---|---|
 | Fastest local creator/operator setup (no Docker) | [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm) |
 | Run the production-like Docker stack | [Install in 5 minutes](#install-in-5-minutes) |
+| Build an installable UI over a net | [Net Applications](#net-applications-deploy-a-ui-without-rebuilding-studio) and the [SDK workspace](agentic-net-apps/README.md) |
+| Follow a full application example | [Persona Kanban tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md) |
 | Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
 | Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
 | See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
@@ -196,18 +279,18 @@ The current Desktop Lite packages are:
 
 | Platform | Package |
 |---|---|
-| macOS, Apple Silicon | [AgenticNetOS 2.42.0 DMG](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-macos-arm64.dmg) |
-| Windows, x64 | [AgenticNetOS 2.42.0 MSI](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-windows-x64.msi) |
-| Debian/Ubuntu, amd64 | [AgenticNetOS 2.42.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-amd64.deb) |
-| Debian/Ubuntu, arm64 | [AgenticNetOS 2.42.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-arm64.deb) |
-| Fedora/RHEL, amd64 | [AgenticNetOS 2.42.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-amd64.rpm) |
-| Fedora/RHEL, arm64 | [AgenticNetOS 2.42.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/AgenticNetOS-2.42.0-linux-arm64.rpm) |
+| macOS, Apple Silicon | [AgenticNetOS 2.47.0 DMG](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-macos-arm64.dmg) |
+| Windows, x64 | [AgenticNetOS 2.47.0 MSI](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-windows-x64.msi) |
+| Debian/Ubuntu, amd64 | [AgenticNetOS 2.47.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-amd64.deb) |
+| Debian/Ubuntu, arm64 | [AgenticNetOS 2.47.0 DEB](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-arm64.deb) |
+| Fedora/RHEL, amd64 | [AgenticNetOS 2.47.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-amd64.rpm) |
+| Fedora/RHEL, arm64 | [AgenticNetOS 2.47.0 RPM](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/AgenticNetOS-2.47.0-linux-arm64.rpm) |
 
 Verify the package against
-[`SHA256SUMS.txt`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/SHA256SUMS.txt)
+[`SHA256SUMS.txt`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/SHA256SUMS.txt)
 and its
-[`SHA256SUMS.txt.sig`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.42.0/SHA256SUMS.txt.sig).
-The version-specific links above reflect `v2.42.0`; use
+[`SHA256SUMS.txt.sig`](https://github.com/alexejsailer/agentic-nets/releases/download/v2.47.0/SHA256SUMS.txt.sig).
+The version-specific links above reflect `v2.47.0`; use
 [Releases](https://github.com/alexejsailer/agentic-nets/releases) for newer or
 older versions.
 
@@ -425,14 +508,15 @@ fragile memory, and missing long-term verification.
 
 ## What's public, what's closed, and who can use it
 
-Agentic-Nets ships as a **hybrid stack** — licensed public components in this
-repo plus closed-source core binaries distributed as Docker Hub images and
-desktop release assets. Read this before deploying.
+Agentic-Nets ships as a **hybrid stack**: licensed public clients, SDKs,
+integration services, deployment code, and desktop packaging live in this
+repository; the state engine, orchestrator, and Studio binaries are distributed
+through Docker Hub and inside Desktop Lite releases. Read this before deploying.
 
 | Layer | What | License | Who can use it |
 |---|---|---|---|
-| **Public components** (source in this repo) | `agentic-net-gateway`, `agentic-net-executor`, `agentic-net-vault`, `agentic-net-cli`, `agentic-net-chat`, `agentic-net-mcp`, `sa-blobstore`, `agentic-net-tools/`, `deployment/`, `monitoring/` | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
-| **Closed source** (Docker Hub images + desktop release assets; no source in this repo) | `agentic-net-node`, `agentic-net-master`, `agentic-net-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
+| **Public components** (source in this repo) | `agentic-net-apps`, `agentic-net-desktop`, `agentic-net-mcp`, gateway, executor, vault, CLI, chat, blobstore, tool containers, deployment, and monitoring | [BSL 1.1](LICENSE.md) | Free for development, testing, personal, educational, and evaluation use. **Commercial production use requires a commercial license.** Converts to Apache 2.0 on 2030-02-22. |
+| **Closed-source core binaries** (Docker Hub images and bundled Desktop Lite payloads) | `agentic-net-node`, `agentic-net-master`, `agentic-net-gui` | [Proprietary EULA](PROPRIETARY-EULA.md) | Free for personal, educational, evaluation, and non-commercial use. **Commercial use requires contacting [alexejsailer@gmail.com](mailto:alexejsailer@gmail.com).** |
 
 Both licenses include a strong **NO WARRANTY / BETA** disclaimer. Nothing here is certified for regulated environments out of the box — you are responsible for your own risk assessment. If you are unsure whether your intended use counts as commercial production, **ask before deploying**.
 
@@ -867,6 +951,7 @@ anywhere:
 | **agentic-net-chat** | Telegram-facing agent with streaming tool-call batches and `/verbose` toggle | — |
 | **agentic-net-mcp** | MCP server: working memory, net workbench, Agent Hub/NetHub, and external execution | stdio / 8091 |
 | **agentic-net-apps** | Public Angular SDK, development host, Hello Net and Persona Kanban examples, tests, and packager for installable NetHub applications | — |
+| **agentic-net-desktop** | Public Desktop Lite launcher, supervisor, local-vault implementation, and installer build scripts | — |
 | **sa-blobstore** | Distributed blob storage for large tokens, artifacts, and knowledge content | 8090 |
 | **agentic-net-tools/** | Tool containers agents start on demand (crawler, echo, reddit, rss, search, secured-api) | dynamic |
 
@@ -899,9 +984,12 @@ agentic-nets/
 ├── CONTRIBUTING.md               # How to contribute
 │
 ├── docs/
+│   ├── applications/             # Net Application guide, tutorials, and certification contract
 │   ├── foundations/              # Figures from the 2012 KIT diploma thesis (see FOUNDATIONS.md)
 │   └── whitepaper/               # The Harness Control System — self-contained HTML whitepaper
 │
+├── agentic-net-apps/             # Angular SDK, development host, examples, and packager
+├── agentic-net-desktop/          # Desktop Lite launcher and installer packaging
 ├── agentic-net-gateway/          # OAuth2 API gateway (Spring Boot)
 ├── agentic-net-executor/         # Command executor (Spring Boot)
 ├── agentic-net-vault/            # Secrets wrapper for OpenBao (Spring Boot)
