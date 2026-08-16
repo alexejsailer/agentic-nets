@@ -9,6 +9,12 @@
 
 **A durable runtime for AI agents, people, and automated work.**
 
+[![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
+
+**[Watch the product preview](https://www.youtube.com/watch?v=orI-u5YT7Go)**:
+personas, nets, and the live Studio in motion, before you read a single line
+about Petri nets.
+
 ## What you can do with it
 
 Agentic-Nets runs personas, teams, and automated processes that keep existing
@@ -274,10 +280,6 @@ risks, bottlenecks, and optimization opportunities without modifying them.
 
 *One net, two execution locations: an external MCP agent hands structured
 findings to a master-run LLM lane.*
-
-[![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
-
-Watch the product preview on YouTube: [agentic-nets preview](https://www.youtube.com/watch?v=orI-u5YT7Go)
 
 If prompt-based agents feel powerful but structurally weak, this is the missing
 layer:
