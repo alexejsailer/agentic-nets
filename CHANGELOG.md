@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.49.0] - 2026-08-17
+
 ### Added
 - **`scheduler_status` reports lanes that fire but never succeed** (`agentic-net-mcp` — `tools/observe`). A new `headline.failingLanes` lists every transition with a non-zero `consecutiveFailures` streak or a `neverSucceeded` flag, worst first, with its last error. Scanned across all transitions rather than only the scheduled subset, because the broken lane is usually the command lane downstream of a healthy tick. Until now a lane could be RUNNING, armed, on cadence and failing every single time, and every view in this tool still described it as healthy — a staging health probe did exactly that 691 times over 39 days.
 
