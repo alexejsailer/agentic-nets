@@ -1331,6 +1331,20 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
               ? 'CLI_BINARY_MISSING'
               : 'MASTER_HAS_NO_PROVIDER',
         }));
+      // A lane that fires on cadence, reports RUNNING and fails EVERY time still reads as healthy
+      // in every other view here. A staging health probe did exactly that 691 times over 39 days.
+      // Scanned across ALL transitions, not just the scheduled subset: the broken lane is often
+      // the command lane downstream of the tick, which carries no schedule of its own.
+      const failingLanes = list
+        .filter((t: any) => Number(t.consecutiveFailures ?? 0) > 0 || t.neverSucceeded === true)
+        .map((t: any) => ({
+          transitionId: t.transitionId,
+          kind: t.kind,
+          consecutiveFailures: Number(t.consecutiveFailures ?? 0),
+          neverSucceeded: t.neverSucceeded === true,
+          lastError: t.lastError,
+        }))
+        .sort((a: any, b: any) => b.consecutiveFailures - a.consecutiveFailures);
       return {
         model,
         observedAt: res?.observedAt,
@@ -1339,12 +1353,14 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           stoppedScheduled,
           invalidSchedules,
           ...(externalScheduled.length ? { externalScheduled } : {}),
+          ...(failingLanes.length ? { failingLanes } : {}),
         },
         fieldGuide: {
           lifecycle: 'a scheduled lane that is STOPPED never fires; start_transition re-arms it',
           telemetry: 'armedAt means registered with the scheduler; lastFiredAt null means literally never dispatched; lastSuccessAt advances only after a successful outcome',
           invalid: 'INVALID_SCHEDULE lanes fail closed and never fire; fix the schedule, then set_schedule/start_transition',
           external: 'an `external` lane is fired by a connected client, never by master — its schedule does NOT run unattended',
+          failing: 'consecutiveFailures counts failures SINCE the last success; neverSucceeded means it has fired but never once succeeded — a lane can be RUNNING, on cadence and completely broken',
         },
         ...(externalScheduled.length
           ? {
