@@ -25,6 +25,7 @@ import nethubMd from './nethub.md';
 import inscriptionsMd from './inscriptions.md';
 import interpolationMd from './interpolation.md';
 import llmMd from './llm.md';
+import mcpServersMd from './mcp-servers.md';
 import modelStewardMd from './model-steward.md';
 import personasMd from './personas.md';
 import realAgentsMd from './real-agents.md';
@@ -60,6 +61,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   applications: { title: 'Net applications: Protocol, Interview, Goals', text: applicationsMd },
   approvals: { title: 'Approval Room: independent decisions and safe retries', text: approvalsMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
+  'mcp-servers': { title: 'Giving an agent transition its own MCP servers', text: mcpServersMd },
   'real-agents': { title: 'Real agents: personas scheduled on Petri nets', text: realAgentsMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },
   cost: { title: 'Watching the meter: token cost', text: costMd },

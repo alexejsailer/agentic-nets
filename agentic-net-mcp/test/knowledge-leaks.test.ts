@@ -110,11 +110,17 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // the wedged-vs-slow stop caveat, the never-author-_lock rule, the read-only duplicate-
   // emission consequence, and honest version pins — each one a teachable falsehood an agent
   // would otherwise act on.
-  const PACK_CAP = 131072;
+  // 128K → 134K for docs/mcp-servers: agent-side MCP is a new ENGINE CAPABILITY (an agent calling
+  // external MCP servers mid-fire), not an edit — the four gates, the self-attach scope surprise
+  // and degrade-never-fail are all things an agent acts wrongly on if it has to guess.
+  const PACK_CAP = 137216;
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.
-  const INSTRUCTIONS_CAP = 17920;
+  // 2026-08-23: +2KB for the agent-side-MCP section. Same bar as rule 12: a new engine capability
+  // the client cannot discover from tool schemas alone (the m flag is invisible in them), kept to
+  // one paragraph that hands off to docs/mcp-servers for everything else.
+  const INSTRUCTIONS_CAP = 19968;
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {
     it(`doc '${topic}' fits the ${PER_DOC_CAP}B cap and is well-formed`, () => {

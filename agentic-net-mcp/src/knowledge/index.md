@@ -55,6 +55,9 @@ inscription by hand, read `inscriptions`.
 - **nethub** — export/import: publish kinds (net/session/application/model/agent/context/toolnet/tool/catalog/blob),
   self-contained packages (dependencies travel sha256-pinned, installed scope-aware), token
   policy + credential scrubbing, federation via remotes.
+- **mcp-servers** — agent transitions calling EXTERNAL MCP servers (including an Agentic-Nets
+  server): the four gates (m flag / declaration / allowTools / vault credential), handing this
+  server to an agent, verifying without spending tokens, degrade-never-fail semantics.
 - **leases** — who is working on what: the `_lock` CAS+TTL mechanism, why binding hides
   foreign-leased tokens while `query_tokens` shows them, external fires as leases, and why
   deleting a leased token breaks the fire that holds it.

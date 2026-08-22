@@ -654,6 +654,8 @@ services:
       GATEWAY_INTERNAL_SECRET: "${GATEWAY_INTERNAL_SECRET:-agenticos-local-internal-secret-change-me}"
       GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS: "${GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_HUB_PUBLIC_CATALOG: "${AGENTICOS_HUB_PUBLIC_CATALOG:-false}"
+      AGENTICOS_SHARE_ENABLED: "${AGENTICOS_SHARE_ENABLED:-false}"
+      AGENTICOS_SHARE_TOKEN_TTL: "${AGENTICOS_SHARE_TOKEN_TTL:-900}"
       GATEWAY_JWT_KEY_DIR: /app/data/jwt
       LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -831,12 +833,19 @@ services:
       AGENTICOS_MCP_TRANSPORT: http
       AGENTICOS_MCP_HTTP_PORT: "8091"
       AGENTICOS_MCP_HTTP_TOKEN: ${AGENTICOS_MCP_HTTP_TOKEN:-}
+      # Where MASTER reaches this server, for handing it to an agent transition (action.mcp).
+      # Not the bind address: master resolves the service name on the backend network.
+      AGENTICOS_MCP_SELF_URL: http://agentic-net-mcp:8091/mcp
     volumes:
       - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MCP_PORT:-8091}:8091"
     networks:
+      # clients: MCP hosts (Claude Code/Desktop, Cursor) reach it from outside.
+      # backend: master reaches it when an AGENT TRANSITION is given this server via action.mcp —
+      # master is backend-only, so without this the self-attach URL resolves to nothing.
       - agenticnetos-clients
+      - agenticnetos-backend
     restart: unless-stopped
     logging: *default-logging
 

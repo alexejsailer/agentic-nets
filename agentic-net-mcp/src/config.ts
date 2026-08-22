@@ -29,6 +29,15 @@ export interface McpConfig {
   /** Bearer token required on the HTTP transport (ignored for stdio). */
   httpToken?: string;
   /**
+   * The URL at which MASTER can reach this server's HTTP transport, for handing this
+   * Agentic-Nets MCP server to an agent transition (`action.mcp`). The bind host is not the
+   * answer: 0.0.0.0 is not routable and a container's loopback is not master's loopback, so
+   * operators set this explicitly when the two do not share a network namespace. Default
+   * http://127.0.0.1:{httpPort}/mcp — correct for the Desktop bundle, where master and this
+   * process run side by side on the same host.
+   */
+  selfUrl?: string;
+  /**
    * LLM provider used when THIS process executes hosted llm/agent transitions
    * (host_transition): 'claude-code' shells out to the local `claude` binary
    * (the user's own subscription — zero server-side LLM setup), or
@@ -122,6 +131,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     httpPort: Number(env.AGENTICOS_MCP_HTTP_PORT ?? '8091'),
     httpHost: env.AGENTICOS_MCP_HTTP_HOST ?? '0.0.0.0',
     httpToken,
+    selfUrl: env.AGENTICOS_MCP_SELF_URL || undefined,
     llmProvider: env.AGENTICOS_LLM_PROVIDER ?? 'claude-code',
     llmModel: env.AGENTICOS_LLM_MODEL || undefined,
     llmTier,

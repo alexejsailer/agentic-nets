@@ -190,6 +190,21 @@ serve it; several and user silent: ASK (executorId; '*' = any). Scheduled person
 via headless Claude — unattended even with llm_health DISABLED — plus Windows setup:
 docs/real-agents.
 
+## Agents that call MCP servers themselves
+An agent transition is not limited to this catalog: it can call EXTERNAL MCP servers while it
+fires, unattended — declared in the inscription as \`action.mcp\`, gated by the 11th role flag \`m\`
+(\`rwxhludctsm\`). MCP says WHAT it can reach; the net says UNDER WHAT RULES. Four gates, all
+required: m flag, declaration (which IS the allowlist), optional per-server allowTools, vault
+credentialKey. A broken server degrades to UNAVAILABLE and never fails the fire — so verify, never
+infer health from success. **That includes an Agentic-Nets server: you can give an agent lane the
+platform you are using.** \`mcp_servers\` says whether THIS server is attachable (http transport
+only), which lanes already carry servers, and — with a transitionId — the catalog MASTER discovers
+with the real credentials, without firing the agent. \`attach_mcp_server {transitionId, self:true,
+allowTools:[...]}\` wires it and puts this server's own token in the vault, so the secret never
+enters your context. Tell the user two things: such an agent acts with the TARGET server's session
+and model allowlist, not the calling net's, and an unrestricted one can author nets — so narrow it
+with allowTools. Recipe and traps: \`agenticnets://docs/mcp-servers\`.
+
 ## Model control — the user owns the switch
 Always be able to answer "what is this consuming and how do I stop it":
 - net_stats = the meter: LLM calls/errors/avgMs per transition, what is RUNNING, what is scheduled,
@@ -232,7 +247,7 @@ first and report what was stopped.
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
 returns agenticnets://docs/{topic} URIs: index · personas · safe-product-team · model-steward ·
 starter-patterns · concepts · architecture · inscriptions · arcql · interpolation · emit ·
-commands · tool-catalog · llm · external-fire · real-agents · scheduling · cost · tokens ·
+commands · tool-catalog · llm · external-fire · mcp-servers · real-agents · scheduling · cost · tokens ·
 troubleshooting · recipes · nethub · security.
 Before hand-writing an inscription read docs/inscriptions; when something is broken read
 docs/troubleshooting; when unsure, search first — the traps in these docs were all found the hard way.`;

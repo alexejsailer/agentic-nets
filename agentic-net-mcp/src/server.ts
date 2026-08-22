@@ -13,6 +13,7 @@ import { registerExternalReaders, registerExternalTools } from './tools/external
 import { registerHostedTools } from './tools/hosted.js';
 import { registerHubTools } from './tools/hub.js';
 import { registerKnowledgeTools } from './tools/knowledge.js';
+import { registerMcpServerTools } from './tools/mcp-servers.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
@@ -60,6 +61,9 @@ export function createServer(ctx: AppContext): McpServer {
   // zero network, zero mutation — so it serves readonly observers too).
   registerObserveTools(server, ctx);
   registerKnowledgeTools(server, ctx);
+  // Agent-side MCP. Registers its read tool in both modes and the attach tool only in rw, so a
+  // readonly observer can still see which lanes carry MCP servers and whether they resolve.
+  registerMcpServerTools(server, ctx);
   registerResources(server, ctx);
   registerPrompts(server, ctx);
 

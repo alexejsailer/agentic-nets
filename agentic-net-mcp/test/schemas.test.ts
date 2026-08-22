@@ -48,6 +48,9 @@ const CURATED = [
   'transition_history',
   'token_lineage',
   'net_stats',
+  // agent-side MCP: the read tool is registered in both modes, the attach tool only in rw
+  'mcp_servers',
+  'attach_mcp_server',
   'list_transitions',
   'list_models',
   'list_executors',
@@ -228,7 +231,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['application_describe', 'application_list', 'domain_memory_recall', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'domain_memory_recall', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
     );
   });
 

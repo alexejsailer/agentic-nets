@@ -155,6 +155,28 @@ export function compileSteps(steps: any[]): { script: string; count: number } {
 }
 
 /**
+ * One external MCP server as declared in an agent's `action.mcp`. Shared by add_transition and
+ * spawn_persona so both builders describe the shape identically — the engine parses one shape,
+ * and a schema that drifts between two builders is a bug report waiting to happen.
+ */
+export const MCP_SERVER_SCHEMA = z.array(
+  z.object({
+    name: z.string().describe('Server name the agent uses in MCP_CALL'),
+    url: z.string().describe('Streamable HTTP endpoint, e.g. http://127.0.0.1:8091/mcp'),
+    auth: z
+      .object({
+        type: z.enum(['bearer', 'header']).optional().describe('bearer (default) sends "<scheme> <credential>" in the header; header sends the raw credential'),
+        credentialKey: z.string().describe('Key into the transition credentials (set_transition_credentials) — NEVER an inline secret'),
+        header: z.string().optional().describe('Header name (default Authorization for bearer; required for type header)'),
+        scheme: z.string().optional().describe('bearer only: scheme prefix (default Bearer)'),
+      })
+      .optional(),
+    allowTools: z.array(z.string()).optional().describe("Restrict which of the server's tools the agent may call (omit = all advertised)"),
+    timeoutMs: z.number().positive().optional(),
+  }),
+);
+
+/**
  * Ready-made persona archetypes for spawn_persona — the platform's "available
  * personas" (developer, reviewer, researcher, operator, universal assistant)
  * expressed as sensible capability/tier/instruction defaults. The specific
@@ -587,18 +609,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
         llmMode: z.enum(['api', 'bash']).optional().describe('agent: api (default) uses the server LLM provider; bash keeps the full agent loop but calls a headless Claude Code/Codex session and works in Desktop Lite with no provider'),
         binary: z.enum(['claude', 'codex']).optional().describe('agent with llmMode:"bash": headless CLI to run (default claude)'),
-        mcp: z.array(z.object({
-          name: z.string().describe('Server name the agent uses in MCP_CALL'),
-          url: z.string().describe('Streamable HTTP endpoint, e.g. http://127.0.0.1:8091/mcp'),
-          auth: z.object({
-            type: z.enum(['bearer', 'header']).optional().describe('bearer (default) sends "<scheme> <credential>" in the header; header sends the raw credential'),
-            credentialKey: z.string().describe('Key into the transition credentials (set_transition_credentials) — NEVER an inline secret'),
-            header: z.string().optional().describe('Header name (default Authorization for bearer; required for type header)'),
-            scheme: z.string().optional().describe('bearer only: scheme prefix (default Bearer)'),
-          }).optional(),
-          allowTools: z.array(z.string()).optional().describe('Restrict which of the server\'s tools the agent may call (omit = all advertised)'),
-          timeoutMs: z.number().positive().optional(),
-        })).optional().describe('agent: external MCP servers the agent may call via MCP_CALL. REQUIRES the m role flag (11-char role, e.g. "rwxh------m"). Discovered tools are advertised in the agent prompt; an unreachable server degrades to UNAVAILABLE without failing fires. Auth ONLY via credentialKey + set_transition_credentials'),
+        mcp: MCP_SERVER_SCHEMA.optional().describe('agent: external MCP servers the agent may call via MCP_CALL. The 11th role flag m is added automatically (declaring servers IS the intent to use them); an explicit 11-slot role denying it is rejected as a contradiction. Discovered tools are advertised in the agent prompt; an unreachable server degrades to UNAVAILABLE without failing fires. Auth ONLY via credentialKey + set_transition_credentials — or use attach_mcp_server on an existing lane, which stores the credential for you'),
         url: z.string().optional().describe('http: target URL (default ${input.data.url}). ${...} interpolates token fields; wrap user input in ${urlencode(...)} for query params'),
         method: z.string().optional().describe('http: default GET'),
         headers: z.record(z.string()).optional().describe('http: request headers; values may use ${...} and ${credentials.KEY}'),
@@ -1501,6 +1512,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           .enum(['auto', 'server', 'claude-code', 'codex', 'connected-client'])
           .optional()
           .describe('Reasoning backend (default auto): server provider; unattended headless Claude Code/Codex on master; or the connected MCP host model via external fires'),
+        mcp: MCP_SERVER_SCHEMA.optional().describe('External MCP servers this persona may call via MCP_CALL. The m role flag is added automatically. Store each server\'s secret with set_transition_credentials under its credentialKey. To give the persona THIS Agentic-Nets server (token handling included), spawn it and then call attach_mcp_server {transitionId:"t-<name>-work", self:true}'),
         ...modelParam,
       },
     },
@@ -1618,6 +1630,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         netModel: model,
         role: roleFlags,
         nl,
+        ...(args.mcp ? { mcp: args.mcp } : {}),
         tier: tier === 'high' ? 'high' : undefined,
         maxIterations: args.maxIterations,
         ...(cliBinary ? { llmMode: 'bash' as const, binary: cliBinary as 'claude' | 'codex' } : {}),

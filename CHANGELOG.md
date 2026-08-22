@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Agent-side MCP is discoverable and wireable through the protocol** (`agentic-net-mcp` — new `tools/mcp-servers`, `knowledge/mcp-servers.md`, `instructions`). Since 2.50.0 an agent transition can call external MCP servers, but nothing in the protocol said so: a client had to already know the feature existed, know this server's URL, and hand-assemble `action.mcp` plus the `m` role flag plus a vault credential. Two tools close that. **`mcp_servers`** (read-only, registered in readonly mode too) reports whether THIS Agentic-Nets server can be handed to an agent transition and at which URL, which lanes in the model already declare servers and whether their role actually grants `MCP_CALL`, and — with a `transitionId` — the catalog **master itself** discovers using the real vault credentials, without firing the agent. **`attach_mcp_server`** wires a server into an existing agent lane: it edits `action.mcp`, widens `action.role` with the `m` flag, stores the credential, and leaves the lane stopped for the changed-inscription rule. `self:true` attaches this Agentic-Nets server and writes its own bearer token straight into the transition's vault entry, so the secret never passes through the client's context. The initialize primer and a new `agenticnets://docs/mcp-servers` teach the four gates (flag, declaration, allowTools, credential), the self-attach scope surprise (an agent acts with the TARGET server's session and model allowlist, not the calling net's), and degrade-never-fail semantics.
+- **`AGENTICOS_MCP_SELF_URL`** (`agentic-net-mcp` — `config`). Pins the URL at which master reaches this server. The bind host cannot answer that question: `0.0.0.0` is not routable and a container's loopback is not master's. Compose now sets it and puts `agentic-net-mcp` on the backend network as well as the clients network, because master is backend-only and could not otherwise resolve the service at all.
+
+### Changed
+- **The `m` flag is granted where a declaration implies it** (`agentic-net-mcp` — `inscriptions`, `spawn_persona`). Passing `mcp` to `add_transition` or `spawn_persona` now widens the role to eleven slots with `m` set, instead of building a lane that discovers its servers, lists them in the prompt, and never offers the agent `MCP_CALL` — a shape that looks completely healthy and reaches nothing. An explicit eleven-slot role that denies the flag alongside a declaration is rejected as a stated contradiction rather than silently resolved either way. `spawn_persona` gains the same `mcp` parameter, sharing one schema with `add_transition` so the two builders cannot drift.
+
 ## [2.50.0] - 2026-08-22
 
 ### Added

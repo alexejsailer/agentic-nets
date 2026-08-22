@@ -479,6 +479,62 @@ export function sanitizeMcp(mcp: Array<Record<string, any>> | undefined): Array<
   });
 }
 
+/**
+ * Widen an agent role so the agent is actually offered MCP_CALL.
+ *
+ * The engine's `m` is the 11th positional slot of `rwxhludctsm` and is deliberately excluded from
+ * every short form and named role. Every accepted role string is a prefix-or-positional form over
+ * that same flag order, so right-padding with '-' to ten slots and appending 'm' preserves the
+ * exact capability set and adds nothing but MCP reach.
+ */
+export function withMcpFlag(role?: string | null): string {
+  const base = (role ?? 'rw').trim().toLowerCase();
+  if (base.length > 11) throw new Error(`role '${role}' is not a valid rwxhludctsm flag string`);
+  if (base.length === 11) return `${base.slice(0, 10)}m`;
+  return `${base.padEnd(10, '-')}m`;
+}
+
+/** True when the role string already carries MCP reach. */
+export function hasMcpFlag(role?: string | null): boolean {
+  const v = (role ?? '').trim().toLowerCase();
+  return v.length === 11 && v.endsWith('m');
+}
+
+/**
+ * Drop MCP reach from a role, leaving every other flag exactly as it was.
+ *
+ * The inverse of {@link withMcpFlag}, for when the last declared server is detached: with nothing
+ * declared the flag grants nothing anyway (the declaration IS the allowlist), so keeping it is
+ * pure residue that reads as "this agent can reach outside" on every surface that shows a role.
+ */
+export function withoutMcpFlag(role?: string | null): string | undefined {
+  const v = (role ?? '').trim().toLowerCase();
+  if (v.length !== 11) return role ?? undefined;
+  return v.slice(0, 10);
+}
+
+/**
+ * The effective role for an agent that declares `action.mcp`.
+ *
+ * Declaring servers without the m flag is the silent-failure shape: discovery runs, the prompt
+ * lists the servers, and MCP_CALL is never in the agent's tool set — the lane looks healthy and
+ * reaches nothing. Passing `mcp` IS the intent to use it, so the flag is granted rather than
+ * demanded. The one case that stays an error is a stated contradiction: an explicit 11-slot role
+ * whose last slot is '-' alongside a declaration, where guessing which half the author meant
+ * would either break the lane or widen capability behind their back.
+ */
+export function resolveAgentRole(role: string | undefined, mcp: unknown): string | undefined {
+  if (!Array.isArray(mcp) || mcp.length === 0) return role;
+  const v = (role ?? '').trim().toLowerCase();
+  if (v.length === 11 && !v.endsWith('m')) {
+    throw new Error(
+      `role '${role}' explicitly denies MCP (slot 11 is '-') but action.mcp declares `
+        + `${mcp.length} server(s). Either drop the declaration or grant the flag: '${withMcpFlag(role)}'.`,
+    );
+  }
+  return withMcpFlag(role);
+}
+
 export function buildHttpInscription(opts: BuildOpts) {
   if (!opts.routes?.length) requireOutputPlace(opts, 'http');
   const postsets: Record<string, any> = postset(opts);
@@ -563,6 +619,9 @@ export function buildCommandInscription(opts: BuildOpts) {
  */
 export function buildAgentInscription(opts: BuildOpts) {
   requireOutputPlace(opts, 'agent');
+  // Resolved once so the root-level copy and action.role can never disagree, and so a declared
+  // MCP server always arrives with the flag that makes it reachable.
+  const agentRole = resolveAgentRole(opts.role, opts.mcp) ?? 'rw--';
   return {
     id: opts.id,
     kind: 'agent',
@@ -572,7 +631,7 @@ export function buildAgentInscription(opts: BuildOpts) {
     // EXCLUSIVELY from action.role (AgentExecutionRequest.getRole()) — a root-only role is
     // silently ignored and the agent runs as the rw-- default. Field report §13: every
     // spawn_persona capability:"execute" worker was secretly running without x/h/l until this.
-    role: opts.role ?? 'rw--',
+    role: agentRole,
     ...schedule(opts),
     presets: {
       input: inputPreset(opts),
@@ -580,7 +639,7 @@ export function buildAgentInscription(opts: BuildOpts) {
     postsets: postset(opts),
     action: {
       type: 'agent',
-      role: opts.role ?? 'rw--',
+      role: agentRole,
       modelId: opts.netModel ?? opts.host.split('@')[0],
       maxIterations: opts.maxIterations ?? 12,
       autoEmit: opts.autoEmit ?? true,

@@ -277,6 +277,13 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   cannot see; rw-only — they travel as POST, readonly registers only `net_stats` from this group);
   **`usage_report`** (the token meter: ranked per-transition burn + burnSplit scheduled-vs-work,
   drill-down per transition; GET ⇒ readonly-safe — the measure→rank→retune→watch loop);
+  **agent-side MCP** `mcp_servers` (read: whether THIS server can be handed to an agent transition
+  and at which URL, which lanes already declare `action.mcp` and whether their role carries the `m`
+  flag, and — with a transitionId — the catalog MASTER discovers with the real vault credentials via
+  `GET /api/agent/tools/mcp/catalog`, WITHOUT firing the agent) / **`attach_mcp_server`** (write:
+  adds the server to `action.mcp`, widens `action.role` with `m`, stores the credential; `self:true`
+  attaches this Agentic-Nets server and writes its own bearer token straight to the vault so the
+  secret never enters the client's context) — see `agenticnets://docs/mcp-servers`;
   **knowledge pack**: 17 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
   loader) served as `agenticnets://docs/{topic}` + searched by **`search_knowledge`** (offline grep,
   registered in readonly too) — includes `tool-catalog` (rwxhludcts flags, global/local-first
@@ -315,11 +322,12 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 | `AGENTICOS_MODELS` | **Required.** Model allowlist (comma-separated); first = default. Single model ⇒ tools expose NO `model` param; multiple ⇒ optional `model` validated per call (`MODEL_NOT_ALLOWED` otherwise) | — (fail-fast) |
 | `AGENTICOS_GATEWAY_URL` | Gateway base (all traffic goes through `/api` + `/node-api`) | `http://localhost:8083` |
 | `AGENTICOS_ADMIN_SECRET` / `AGENTICOS_GATEWAY_SECRET_FILE` | Client secret for the mode's client id | — (required) |
-| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the GET-based read tools (`memory_recall`, `memory_graph`, `domain_memory_recall`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`, `list_transitions`, `list_models`, `list_executors`, `llm_health`, `readiness`, `scheduler_status`, `usage_report`, `search_knowledge`) AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations (the POST-based `diagnose/dry-run/verify` diagnostics are rw-only) | `rw` |
+| `AGENTICOS_MODE` | `rw` \| `readonly` — readonly registers ONLY the GET-based read tools (`memory_recall`, `memory_graph`, `domain_memory_recall`, `net_overview`, `query_tokens`, `event_trail`, `net_stats`, `list_transitions`, `list_models`, `list_executors`, `llm_health`, `mcp_servers`, `readiness`, `scheduler_status`, `usage_report`, `search_knowledge`) AND authenticates as `agenticos-readonly`, so the gateway itself 403s mutations (the POST-based `diagnose/dry-run/verify` diagnostics are rw-only) | `rw` |
 | `AGENTICOS_SESSION` | Session name for MCP-created nets/places | `mcp` |
 | `AGENTICOS_NODE_HOST` | Host injected into inscription presets/postsets (`{model}@{host}`); in-compose: `agentic-net-node:8080` | `localhost:8080` |
 | `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |
 | `AGENTICOS_MCP_HTTP_HOST` | Bind interface for the HTTP transport (desktop bundles set `127.0.0.1`); `GET /health` answers 200 pre-auth for supervisors | `0.0.0.0` |
+| `AGENTICOS_MCP_SELF_URL` | The URL at which **master** reaches this server, so it can be handed to an agent transition via `action.mcp` (`mcp_servers` / `attach_mcp_server {self:true}`). The bind host is not the answer: `0.0.0.0` is not routable and a container's loopback is not master's. Compose sets `http://agentic-net-mcp:8091/mcp` and puts the service on the backend network | `http://127.0.0.1:{port}/mcp` |
 | `AGENTICOS_NATIVE_TOOLS` | `all` registers curated + full native UPPERCASE catalog; `curated` registers the focused lowercase surface only (Desktop Lite default) | `all` |
 
 Compose keys (`deployment/.env`): `AGENTICOS_MCP_MODELS` / `_MODE` / `_SESSION` / `_HTTP_TOKEN`
