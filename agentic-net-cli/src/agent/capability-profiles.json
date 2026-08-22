@@ -14,107 +14,439 @@
       "maxValueLength": 8000,
       "charsPerToken": 4
     },
-    "scopeRank": ["task", "agent", "session", "model"],
+    "scopeRank": [
+      "task",
+      "agent",
+      "session",
+      "model"
+    ],
     "hierarchy": {
-      "readPolicies": ["local-first", "local-only", "parent-first"],
-      "resolutions": ["nearest", "explicit", "merge"],
+      "readPolicies": [
+        "local-first",
+        "local-only",
+        "parent-first"
+      ],
+      "resolutions": [
+        "nearest",
+        "explicit",
+        "merge"
+      ],
       "nearestDepth": 1,
       "mergeDepth": 5,
-      "childToParentRelations": ["part-of", "inherits-context", "parent-context"],
-      "parentToChildRelations": ["contains", "context-inherited-by", "child-context"]
+      "childToParentRelations": [
+        "part-of",
+        "inherits-context",
+        "parent-context"
+      ],
+      "parentToChildRelations": [
+        "contains",
+        "context-inherited-by",
+        "child-context"
+      ]
     },
     "semverCases": [
-      {"constraint": "*", "actual": null, "matches": true},
-      {"constraint": null, "actual": "1.0.0", "matches": true},
-      {"constraint": "^1.0.0", "actual": "1.0.0", "matches": true},
-      {"constraint": "^1.0.0", "actual": "1.1.0", "matches": true},
-      {"constraint": "^1.0.0", "actual": "2.0.0", "matches": false},
-      {"constraint": "^1.2.0", "actual": "1.1.9", "matches": false},
-      {"constraint": "^0.3.0", "actual": "0.3.9", "matches": true},
-      {"constraint": "^0.3.0", "actual": "0.4.0", "matches": false},
-      {"constraint": "^0.0.7", "actual": "0.0.7", "matches": true},
-      {"constraint": "^0.0.7", "actual": "0.0.8", "matches": false},
-      {"constraint": "~1.2.0", "actual": "1.2.9", "matches": true},
-      {"constraint": "~1.2.0", "actual": "1.3.0", "matches": false},
-      {"constraint": "~1.2.4", "actual": "1.2.3", "matches": false},
-      {"constraint": "1.2.3", "actual": "1.2.3", "matches": true},
-      {"constraint": "1.2.3", "actual": "1.2.4", "matches": false},
-      {"constraint": "authored", "actual": "authored", "matches": true},
-      {"constraint": "authored", "actual": "1.0.0", "matches": false},
-      {"constraint": "^1.0.0", "actual": "bootstrapped", "matches": false}
+      {
+        "constraint": "*",
+        "actual": null,
+        "matches": true
+      },
+      {
+        "constraint": null,
+        "actual": "1.0.0",
+        "matches": true
+      },
+      {
+        "constraint": "^1.0.0",
+        "actual": "1.0.0",
+        "matches": true
+      },
+      {
+        "constraint": "^1.0.0",
+        "actual": "1.1.0",
+        "matches": true
+      },
+      {
+        "constraint": "^1.0.0",
+        "actual": "2.0.0",
+        "matches": false
+      },
+      {
+        "constraint": "^1.2.0",
+        "actual": "1.1.9",
+        "matches": false
+      },
+      {
+        "constraint": "^0.3.0",
+        "actual": "0.3.9",
+        "matches": true
+      },
+      {
+        "constraint": "^0.3.0",
+        "actual": "0.4.0",
+        "matches": false
+      },
+      {
+        "constraint": "^0.0.7",
+        "actual": "0.0.7",
+        "matches": true
+      },
+      {
+        "constraint": "^0.0.7",
+        "actual": "0.0.8",
+        "matches": false
+      },
+      {
+        "constraint": "~1.2.0",
+        "actual": "1.2.9",
+        "matches": true
+      },
+      {
+        "constraint": "~1.2.0",
+        "actual": "1.3.0",
+        "matches": false
+      },
+      {
+        "constraint": "~1.2.4",
+        "actual": "1.2.3",
+        "matches": false
+      },
+      {
+        "constraint": "1.2.3",
+        "actual": "1.2.3",
+        "matches": true
+      },
+      {
+        "constraint": "1.2.3",
+        "actual": "1.2.4",
+        "matches": false
+      },
+      {
+        "constraint": "authored",
+        "actual": "authored",
+        "matches": true
+      },
+      {
+        "constraint": "authored",
+        "actual": "1.0.0",
+        "matches": false
+      },
+      {
+        "constraint": "^1.0.0",
+        "actual": "bootstrapped",
+        "matches": false
+      }
     ]
   },
   "toolTargets": {
-    "description": "Exhaustive resource classification for enforcement. Every tool in either runtime's registry MUST appear in exactly one group (pinned by tests both sides). read/write: single place target extracted via placeParams, checked against resourceScopes read/writePlaces and the context capsule's binding/access gates. link: multi-endpoint place writes via linkParams (+ optional context sessionId). contextSession: targets an installed context session. structural: mutation with no pre-determinable place target — denied outright whenever a writePlaces restriction is active (a place-scoped grant does not include structural mutations). ambient: no resource target; only the ambient session scope applies.",
-    "placeParams": ["placeId", "placePath", "place"],
-    "linkParams": ["from", "to", "fromPlaceId", "toPlaceId"],
+    "description": "Exhaustive resource classification for enforcement. Every tool in either runtime's registry MUST appear in exactly one group (pinned by tests both sides). read/write: single place target extracted via placeParams, checked against resourceScopes read/writePlaces and the context capsule's binding/access gates. link: multi-endpoint place writes via linkParams (+ optional context sessionId). contextSession: targets an installed context session. structural: mutation with no pre-determinable place target \u2014 denied outright whenever a writePlaces restriction is active (a place-scoped grant does not include structural mutations). ambient: no resource target; only the ambient session scope applies.",
+    "placeParams": [
+      "placeId",
+      "placePath",
+      "place"
+    ],
+    "linkParams": [
+      "from",
+      "to",
+      "fromPlaceId",
+      "toPlaceId"
+    ],
     "read": [
-      "QUERY_TOKENS", "AWAIT_TOKEN", "DESCRIBE_PLACE", "GET_LINKED_PLACES", "GET_CONTEXT_TREE",
-      "GET_PLACE_INFO", "GET_PLACE_CONNECTIONS", "EXTRACT_TOKEN_CONTENT", "EXTRACT_RAW_DATA",
+      "QUERY_TOKENS",
+      "AWAIT_TOKEN",
+      "DESCRIBE_PLACE",
+      "GET_LINKED_PLACES",
+      "GET_CONTEXT_TREE",
+      "GET_PLACE_INFO",
+      "GET_PLACE_CONNECTIONS",
+      "EXTRACT_TOKEN_CONTENT",
+      "EXTRACT_RAW_DATA",
       "INSPECT_TOKEN_SIZE"
     ],
-    "write": ["CREATE_TOKEN", "DELETE_TOKEN", "CREATE_RUNTIME_PLACE", "APPLICATION_ACTION"],
-    "link": ["LINK_PLACES"],
-    "contextSession": ["CONTEXT_ADD_STORE", "ATTACH_CONTEXT", "START_CONTEXT", "STOP_CONTEXT"],
+    "write": [
+      "CREATE_TOKEN",
+      "DELETE_TOKEN",
+      "CREATE_RUNTIME_PLACE",
+      "APPLICATION_ACTION"
+    ],
+    "link": [
+      "LINK_PLACES"
+    ],
+    "contextSession": [
+      "CONTEXT_ADD_STORE",
+      "ATTACH_CONTEXT",
+      "START_CONTEXT",
+      "STOP_CONTEXT"
+    ],
     "structural": [
-      "SET_INSCRIPTION", "ADAPT_INSCRIPTIONS", "NET_DOCTOR",
-      "CREATE_NET", "DELETE_NET", "CREATE_PLACE", "DELETE_PLACE", "CREATE_ARC", "DELETE_ARC",
-      "CREATE_TRANSITION", "DELETE_TRANSITION", "CREATE_SESSION", "CREATE_MODEL", "CREATE_CONTEXT",
-      "TAG_SESSION", "EMIT_MEMORY", "MEMORY_WRITE",
-      "SET_TRANSITION_CREDENTIALS", "DELETE_TRANSITION_CREDENTIALS",
-      "PACKAGE_PUBLISH", "PACKAGE_INSTALL", "INSTALL_AGENT_TEMPLATE", "INSTALL_CONTEXT_TEMPLATE", "INSTALL_APPLICATION_TEMPLATE",
-      "REGISTER_TOOL_NET", "SCAFFOLD_TOOL_NET", "PROMOTE_TOOL_NET",
-      "TOOL_CATALOG_REGISTER_HTTP", "TOOL_CATALOG_REGISTER_SCRIPT", "TOOL_CATALOG_IMPORT_IMAGE",
-      "WRAP_DOCKER_TOOL", "HUB_PUBLISH", "HUB_INSTALL", "HUB_UNPUBLISH", "HUB_REMOTE_ADD",
-      "HUB_REMOTE_REMOVE", "START_AGENT_SESSION", "STOP_AGENT_SESSION",
-      "DEPLOY_TRANSITION", "START_TRANSITION", "STOP_TRANSITION", "FIRE_ONCE",
-      "EXECUTE_TRANSITION", "EXECUTE_TRANSITION_SMART",
-      "DOCKER_RUN", "DOCKER_STOP", "RUN_COMMAND",
-      "INVOKE_TOOL_NET", "INVOKE_PERSONA", "DELEGATE_TASK"
+      "SET_INSCRIPTION",
+      "ADAPT_INSCRIPTIONS",
+      "NET_DOCTOR",
+      "CREATE_NET",
+      "DELETE_NET",
+      "CREATE_PLACE",
+      "DELETE_PLACE",
+      "CREATE_ARC",
+      "DELETE_ARC",
+      "CREATE_TRANSITION",
+      "DELETE_TRANSITION",
+      "CREATE_SESSION",
+      "CREATE_MODEL",
+      "CREATE_CONTEXT",
+      "TAG_SESSION",
+      "EMIT_MEMORY",
+      "MEMORY_WRITE",
+      "SET_TRANSITION_CREDENTIALS",
+      "DELETE_TRANSITION_CREDENTIALS",
+      "PACKAGE_PUBLISH",
+      "PACKAGE_INSTALL",
+      "INSTALL_AGENT_TEMPLATE",
+      "INSTALL_CONTEXT_TEMPLATE",
+      "INSTALL_APPLICATION_TEMPLATE",
+      "REGISTER_TOOL_NET",
+      "SCAFFOLD_TOOL_NET",
+      "PROMOTE_TOOL_NET",
+      "TOOL_CATALOG_REGISTER_HTTP",
+      "TOOL_CATALOG_REGISTER_SCRIPT",
+      "TOOL_CATALOG_IMPORT_IMAGE",
+      "WRAP_DOCKER_TOOL",
+      "HUB_PUBLISH",
+      "HUB_INSTALL",
+      "HUB_UNPUBLISH",
+      "HUB_REMOTE_ADD",
+      "HUB_REMOTE_REMOVE",
+      "START_AGENT_SESSION",
+      "STOP_AGENT_SESSION",
+      "DEPLOY_TRANSITION",
+      "START_TRANSITION",
+      "STOP_TRANSITION",
+      "FIRE_ONCE",
+      "EXECUTE_TRANSITION",
+      "EXECUTE_TRANSITION_SMART",
+      "DOCKER_RUN",
+      "DOCKER_STOP",
+      "RUN_COMMAND",
+      "INVOKE_TOOL_NET",
+      "INVOKE_PERSONA",
+      "DELEGATE_TASK"
     ],
     "ambient": [
-      "THINK", "DONE", "FAIL", "HTTP_CALL", "COLLECT_RESULTS", "FOCUS_WORKSPACE", "MEMORY_RECALL",
-      "SEARCH_KNOWLEDGE", "OBSERVE_MODEL", "LIST_PLACES", "LIST_ALL_SESSIONS",
-      "LIST_ALL_INSCRIPTIONS", "LIST_SESSION_NETS", "LIST_SESSIONS_BY_TAG", "LIST_AGENT_SESSIONS",
-      "LIST_CONTEXTS", "LIST_APPLICATIONS", "DESCRIBE_APPLICATION", "LIST_EXECUTORS", "LIST_MODELS", "LIST_TOOL_NETS",
-      "LIST_TRANSITION_CREDENTIALS", "GET_TRANSITION", "GET_NET_STRUCTURE", "GET_NET_OVERVIEW",
-      "GET_SESSION_OVERVIEW", "VERIFY_NET", "VERIFY_RUNTIME_BINDINGS", "VERIFY_INSCRIPTION",
-      "EXPORT_PNML", "FIND_NET_NEIGHBORS", "FIND_SHARED_PLACES", "READ_BLOB_TEXT",
-      "READ_BLOB_LINES", "SEARCH_BLOB", "STAT_BLOB", "DRY_RUN_TRANSITION", "DIAGNOSE_TRANSITION",
-      "PACKAGE_SEARCH", "AGENT_HUB_SEARCH", "CONTEXT_HUB_SEARCH", "APPLICATION_HUB_SEARCH", "DESCRIBE_AGENT_TEMPLATE",
+      "THINK",
+      "DONE",
+      "FAIL",
+      "HTTP_CALL",
+      "COLLECT_RESULTS",
+      "FOCUS_WORKSPACE",
+      "MEMORY_RECALL",
+      "SEARCH_KNOWLEDGE",
+      "OBSERVE_MODEL",
+      "LIST_PLACES",
+      "LIST_ALL_SESSIONS",
+      "LIST_ALL_INSCRIPTIONS",
+      "LIST_SESSION_NETS",
+      "LIST_SESSIONS_BY_TAG",
+      "LIST_AGENT_SESSIONS",
+      "LIST_CONTEXTS",
+      "LIST_APPLICATIONS",
+      "DESCRIBE_APPLICATION",
+      "LIST_EXECUTORS",
+      "LIST_MODELS",
+      "LIST_TOOL_NETS",
+      "LIST_TRANSITION_CREDENTIALS",
+      "GET_TRANSITION",
+      "GET_NET_STRUCTURE",
+      "GET_NET_OVERVIEW",
+      "GET_SESSION_OVERVIEW",
+      "VERIFY_NET",
+      "VERIFY_RUNTIME_BINDINGS",
+      "VERIFY_INSCRIPTION",
+      "EXPORT_PNML",
+      "FIND_NET_NEIGHBORS",
+      "FIND_SHARED_PLACES",
+      "READ_BLOB_TEXT",
+      "READ_BLOB_LINES",
+      "SEARCH_BLOB",
+      "STAT_BLOB",
+      "DRY_RUN_TRANSITION",
+      "DIAGNOSE_TRANSITION",
+      "PACKAGE_SEARCH",
+      "AGENT_HUB_SEARCH",
+      "CONTEXT_HUB_SEARCH",
+      "APPLICATION_HUB_SEARCH",
+      "DESCRIBE_AGENT_TEMPLATE",
       "DESCRIBE_APPLICATION_TEMPLATE",
-      "DESCRIBE_CONTEXT_TEMPLATE", "DESCRIBE_TOOL_NET", "TOOLNET_HEALTH", "TOOLNET_CANDIDATES",
-      "TOOL_CATALOG_SEARCH", "TOOL_CATALOG_GET", "REGISTRY_LIST_IMAGES", "REGISTRY_GET_IMAGE_INFO",
-      "DOCKER_LIST", "DOCKER_LOGS", "QUERY_EVENTS", "GET_EVENT_FACETS", "GET_EVENT_TRAIL",
-      "HUB_CATALOG", "HUB_REMOTE_LIST"
+      "DESCRIBE_CONTEXT_TEMPLATE",
+      "DESCRIBE_TOOL_NET",
+      "TOOLNET_HEALTH",
+      "TOOLNET_CANDIDATES",
+      "TOOL_CATALOG_SEARCH",
+      "TOOL_CATALOG_GET",
+      "REGISTRY_LIST_IMAGES",
+      "REGISTRY_GET_IMAGE_INFO",
+      "DOCKER_LIST",
+      "DOCKER_LOGS",
+      "QUERY_EVENTS",
+      "GET_EVENT_FACETS",
+      "GET_EVENT_TRAIL",
+      "HUB_CATALOG",
+      "HUB_REMOTE_LIST"
     ]
   },
   "profiles": {
     "proposal-writer": {
-      "tools": ["THINK", "DONE", "FAIL", "LIST_ALL_INSCRIPTIONS", "GET_TRANSITION", "GET_NET_STRUCTURE", "GET_NET_OVERVIEW", "QUERY_TOKENS", "QUERY_EVENTS", "GET_EVENT_FACETS", "GET_EVENT_TRAIL", "CREATE_TOKEN"],
-      "resources": {"writePlaces": ["p-cryst-proposals", "p-cryst-journal"]}
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "LIST_ALL_INSCRIPTIONS",
+        "GET_TRANSITION",
+        "GET_NET_STRUCTURE",
+        "GET_NET_OVERVIEW",
+        "QUERY_TOKENS",
+        "QUERY_EVENTS",
+        "GET_EVENT_FACETS",
+        "GET_EVENT_TRAIL",
+        "CREATE_TOKEN"
+      ],
+      "resources": {
+        "writePlaces": [
+          "p-cryst-proposals",
+          "p-cryst-journal"
+        ]
+      }
     },
     "model-steward": {
-      "tools": ["THINK", "DONE", "FAIL", "OBSERVE_MODEL", "LIST_ALL_SESSIONS", "GET_SESSION_OVERVIEW", "LIST_SESSION_NETS", "GET_NET_OVERVIEW", "GET_NET_STRUCTURE", "LIST_ALL_INSCRIPTIONS", "GET_TRANSITION", "VERIFY_NET", "VERIFY_RUNTIME_BINDINGS", "VERIFY_INSCRIPTION", "DRY_RUN_TRANSITION", "DIAGNOSE_TRANSITION", "LIST_AGENT_SESSIONS", "LIST_CONTEXTS", "LIST_EXECUTORS", "QUERY_TOKENS", "QUERY_EVENTS", "GET_EVENT_FACETS", "GET_EVENT_TRAIL", "CREATE_TOKEN"],
-      "resources": {"writePlaces": ["p-ms-reports", "p-ms-findings", "p-ms-journal", "p-protocol"]}
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "OBSERVE_MODEL",
+        "LIST_ALL_SESSIONS",
+        "GET_SESSION_OVERVIEW",
+        "LIST_SESSION_NETS",
+        "GET_NET_OVERVIEW",
+        "GET_NET_STRUCTURE",
+        "LIST_ALL_INSCRIPTIONS",
+        "GET_TRANSITION",
+        "VERIFY_NET",
+        "VERIFY_RUNTIME_BINDINGS",
+        "VERIFY_INSCRIPTION",
+        "DRY_RUN_TRANSITION",
+        "DIAGNOSE_TRANSITION",
+        "LIST_AGENT_SESSIONS",
+        "LIST_CONTEXTS",
+        "LIST_EXECUTORS",
+        "QUERY_TOKENS",
+        "QUERY_EVENTS",
+        "GET_EVENT_FACETS",
+        "GET_EVENT_TRAIL",
+        "CREATE_TOKEN"
+      ],
+      "resources": {
+        "writePlaces": [
+          "p-ms-reports",
+          "p-ms-findings",
+          "p-ms-journal",
+          "p-protocol"
+        ]
+      }
     },
     "context-curator": {
-      "tools": ["THINK", "DONE", "FAIL", "LIST_CONTEXTS", "GET_CONTEXT_TREE", "DESCRIBE_PLACE", "GET_LINKED_PLACES", "QUERY_TOKENS", "CREATE_TOKEN", "DELETE_TOKEN", "LINK_PLACES", "CREATE_CONTEXT", "CONTEXT_ADD_STORE", "ATTACH_CONTEXT"]
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "LIST_CONTEXTS",
+        "GET_CONTEXT_TREE",
+        "DESCRIBE_PLACE",
+        "GET_LINKED_PLACES",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "DELETE_TOKEN",
+        "LINK_PLACES",
+        "CREATE_CONTEXT",
+        "CONTEXT_ADD_STORE",
+        "ATTACH_CONTEXT"
+      ]
     },
     "domain-maintainer": {
-      "tools": ["THINK", "DONE", "FAIL", "QUERY_TOKENS", "CREATE_TOKEN", "DELETE_TOKEN"]
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "DELETE_TOKEN"
+      ]
     },
     "domain-indexer": {
-      "tools": ["THINK", "DONE", "FAIL", "LIST_ALL_SESSIONS", "GET_SESSION_OVERVIEW", "LIST_SESSION_NETS", "GET_NET_STRUCTURE", "LIST_CONTEXTS", "GET_CONTEXT_TREE", "QUERY_TOKENS", "CREATE_TOKEN", "QUERY_EVENTS", "GET_EVENT_TRAIL"]
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "LIST_ALL_SESSIONS",
+        "GET_SESSION_OVERVIEW",
+        "LIST_SESSION_NETS",
+        "GET_NET_STRUCTURE",
+        "LIST_CONTEXTS",
+        "GET_CONTEXT_TREE",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "QUERY_EVENTS",
+        "GET_EVENT_TRAIL"
+      ]
     },
     "research-worker": {
-      "tools": ["THINK", "DONE", "FAIL", "QUERY_TOKENS", "CREATE_TOKEN", "LIST_CONTEXTS", "GET_CONTEXT_TREE", "DESCRIBE_PLACE", "HTTP_CALL"]
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "LIST_CONTEXTS",
+        "GET_CONTEXT_TREE",
+        "DESCRIBE_PLACE",
+        "HTTP_CALL"
+      ]
     },
     "token-worker": {
-      "tools": ["THINK", "DONE", "FAIL", "QUERY_TOKENS", "CREATE_TOKEN", "DELETE_TOKEN"]
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "DELETE_TOKEN"
+      ]
     },
     "mailbox-orchestrator": {
-      "tools": ["THINK", "DONE", "FAIL", "QUERY_TOKENS", "CREATE_TOKEN", "DELETE_TOKEN", "AWAIT_TOKEN"]
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "DELETE_TOKEN",
+        "AWAIT_TOKEN"
+      ]
+    },
+    "developer-worker": {
+      "description": "Single Developer persona: recall + result/journal/memory writes, application actions by discovery, and tool-net invocation. No execute/http/docker authority - real commands run only through invoked tool nets on the executor.",
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "QUERY_TOKENS",
+        "EXTRACT_TOKEN_CONTENT",
+        "CREATE_TOKEN",
+        "EMIT_MEMORY",
+        "LIST_APPLICATIONS",
+        "DESCRIBE_APPLICATION",
+        "APPLICATION_ACTION",
+        "LIST_TOOL_NETS",
+        "DESCRIBE_TOOL_NET",
+        "INVOKE_TOOL_NET",
+        "TOOLNET_HEALTH"
+      ]
     }
   }
 }
