@@ -154,6 +154,11 @@ export async function executeTransitionLocally(
   const subTools = new Set(capabilityPolicy.tools);
   subTools.delete('EXECUTE_TRANSITION' as any);
   const subToolSchemas = buildToolSchemas(subTools);
+  const executionToolExecutor = toolExecutor.fork({
+    sessionId: executionSessionId,
+    transitionId,
+    onProgress,
+  });
 
   // 7. Run sub-agent loop
   const inscriptionMaxIterations = typeof inscription.action?.maxIterations === 'number'
@@ -175,7 +180,7 @@ export async function executeTransitionLocally(
   try {
     for await (const event of agentLoop(
       llm,
-      toolExecutor,
+      executionToolExecutor,
       subSystemPrompt,
       SUB_AGENT_USER_MESSAGE,
       subToolSchemas,

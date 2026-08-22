@@ -114,6 +114,7 @@ export class ToolExecutor {
     private sessionId: string,
     helperLlm?: LlmProvider,
     mainLlm?: LlmProvider,
+    private transitionId?: string,
   ) {
     this.masterApi = new MasterApi(client);
     this.nodeApi = new NodeApi(client);
@@ -122,13 +123,18 @@ export class ToolExecutor {
   }
 
   /** Fork an isolated executor (used by chat bridges to avoid cross-session callback races). */
-  fork(opts?: { sessionId?: string; onProgress?: (event: AgentEvent) => void }): ToolExecutor {
+  fork(opts?: {
+    sessionId?: string;
+    onProgress?: (event: AgentEvent) => void;
+    transitionId?: string;
+  }): ToolExecutor {
     const forked = new ToolExecutor(
       this.client,
       this.modelId,
       opts?.sessionId ?? this.sessionId,
       this.helperLlm,
       this.mainLlm,
+      opts?.transitionId ?? this.transitionId,
     );
     forked.onProgress = opts?.onProgress;
     return forked;
@@ -197,6 +203,8 @@ export class ToolExecutor {
           return this.executeSetInscription(params);
         case 'HTTP_CALL':
           return this.executeHttpCall(params);
+        case 'MCP_CALL':
+          return this.executeMcpCall(params);
         case 'LIST_ALL_SESSIONS':
           return this.executeListAllSessions();
         case 'LIST_ALL_INSCRIPTIONS':
@@ -383,6 +391,34 @@ export class ToolExecutor {
           : { success: false, error: resp.error ?? `Tool ${tool} failed` };
       }
       return { success: true, data: resp };
+    } catch (err: any) {
+      return { success: false, error: err?.message ?? String(err) };
+    }
+  }
+
+  /**
+   * Execute MCP inside the transition context that declared the server allowlist.
+   * The master reconstructs credentials and sessions from the persisted inscription;
+   * callers cannot supply an arbitrary MCP URL through this path.
+   */
+  private async executeMcpCall(params: Record<string, any>): Promise<ToolResult> {
+    if (!this.transitionId) {
+      return {
+        success: false,
+        error: 'MCP_CALL requires a transition-scoped executor. Run it from an agent transition with action.mcp.',
+      };
+    }
+    try {
+      const body: Record<string, any> = {
+        modelId: this.modelId,
+        transitionId: this.transitionId,
+        params,
+      };
+      if (this.sessionId) body.sessionId = this.sessionId;
+      const resp: any = await this.masterApi.post('/agent/tools/MCP_CALL/execute', body);
+      return resp?.success
+        ? { success: true, data: resp.result }
+        : { success: false, error: resp?.error ?? 'MCP_CALL failed' };
     } catch (err: any) {
       return { success: false, error: err?.message ?? String(err) };
     }

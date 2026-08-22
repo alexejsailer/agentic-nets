@@ -111,7 +111,8 @@ const SCRIPT_TOOLS = new Set<AgentTool>([
 /**
  * MCP tools (M flag): MCP_CALL against the servers declared in the inscription's
  * action.mcp. The declaration is the allowlist — the flag alone reaches nothing.
- * Executed only by the master engine; the CLI runtime advertises but cannot serve it.
+ * The CLI routes calls through master with the current transition id so master can
+ * reconstruct the same inscription-scoped allowlist and credentials as an internal fire.
  */
 const MCP_TOOLS = new Set<AgentTool>(['MCP_CALL']);
 
@@ -192,6 +193,6 @@ export function parseRole(value: string): AgentRole {
     case 'rwxhludct': return role(true, true, true, true, true, true, true, true, true);
     case 'rwxhludcts': return ALL;
     default:
-      throw new Error(`Invalid role '${value}'. Use canonical rwxhludcts positional flags.`);
+      throw new Error(`Invalid role '${value}'. Use canonical rwxhludctsm positional flags.`);
   }
 }

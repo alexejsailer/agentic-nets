@@ -40,6 +40,7 @@ export type AgentTool =
   | 'DELETE_TRANSITION_CREDENTIALS'
   // External
   | 'HTTP_CALL'
+  | 'MCP_CALL'
   // Discovery
   | 'LIST_ALL_SESSIONS'
   | 'LIST_ALL_INSCRIPTIONS'
