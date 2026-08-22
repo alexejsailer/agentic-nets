@@ -234,6 +234,7 @@
       "DONE",
       "FAIL",
       "HTTP_CALL",
+      "MCP_CALL",
       "COLLECT_RESULTS",
       "FOCUS_WORKSPACE",
       "MEMORY_RECALL",

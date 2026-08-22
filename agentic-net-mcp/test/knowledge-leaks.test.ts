@@ -110,7 +110,7 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // the wedged-vs-slow stop caveat, the never-author-_lock rule, the read-only duplicate-
   // emission consequence, and honest version pins — each one a teachable falsehood an agent
   // would otherwise act on.
-  const PACK_CAP = 129024;
+  const PACK_CAP = 131072;
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.

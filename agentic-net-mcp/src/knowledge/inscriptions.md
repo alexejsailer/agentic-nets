@@ -68,6 +68,11 @@ narrow — a profile tool the role does not grant fails template validation). Tw
 `toolsModel`/`thinkingModel`/`activeTier` pick the LLM per fire. `autoEmit: true` routes the final
 result to the single postset.
 
+External MCP servers: `"mcp":[{"name":"hub","url":"http://localhost:8091/mcp",
+"auth":{"credentialKey":"MCP_TOKEN"},"allowTools":["readiness"]}]` + the `m` role flag
+(`rwxh------m`) gives the agent those servers' tools via MCP_CALL. Auth ONLY via credentialKey
+(set_transition_credentials); an unreachable server degrades, it never fails the fire.
+
 ## link — pure structure edge, never fires
 
 Presets/postsets only (`consume:false, optional:true` preset), no action, never started.

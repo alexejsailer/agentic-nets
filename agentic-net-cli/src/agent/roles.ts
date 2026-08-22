@@ -3,7 +3,8 @@ import { AgentTool } from './tools.js';
 /**
  * Canonical AgenticOS capability flags. The slot order is identical to master:
  * R=read, W=write, X=execute, H=http, L=logs, U=inhabitant/await,
- * D=docker, C=coordinate personas, T=consume tool-nets, S=publish scripts.
+ * D=docker, C=coordinate personas, T=consume tool-nets, S=publish scripts,
+ * M=call external MCP servers declared in the inscription's action.mcp.
  *
  * New security policies should use exact named capability profiles; this compact
  * role remains the backwards-compatible coarse upper bound.
@@ -19,17 +20,23 @@ export interface AgentRole {
   coordinate: boolean;
   tooling: boolean;
   scripts: boolean;
+  mcp: boolean;
 }
 
 const role = (
   read = false, write = false, execute = false, http = false, logs = false,
   user = false, docker = false, coordinate = false, tooling = false, scripts = false,
-): AgentRole => ({ read, write, execute, http, logs, user, docker, coordinate, tooling, scripts });
+  mcp = false,
+): AgentRole => ({ read, write, execute, http, logs, user, docker, coordinate, tooling, scripts, mcp });
 
 export const READ_ONLY = role(true);
 export const READ_WRITE = role(true, true);
 export const READ_WRITE_EXECUTE = role(true, true, true);
-/** Every capability flag enabled (`rwxhludcts`). Mirrors master's AgentRole.ALL. */
+/**
+ * Every capability flag enabled (`rwxhludcts`). Mirrors master's AgentRole.ALL —
+ * which deliberately does NOT include the m (MCP) flag: external MCP reach is
+ * explicit-only via the 11-char positional form (`rwxhludctsm`).
+ */
 export const ALL = role(true, true, true, true, true, true, true, true, true, true);
 /**
  * @deprecated Historical CLI name for the all-flags role. Master's FULL is the
@@ -101,6 +108,13 @@ const SCRIPT_TOOLS = new Set<AgentTool>([
   'TOOL_CATALOG_REGISTER_SCRIPT', 'TOOL_CATALOG_SEARCH', 'TOOL_CATALOG_GET',
 ]);
 
+/**
+ * MCP tools (M flag): MCP_CALL against the servers declared in the inscription's
+ * action.mcp. The declaration is the allowlist — the flag alone reaches nothing.
+ * Executed only by the master engine; the CLI runtime advertises but cannot serve it.
+ */
+const MCP_TOOLS = new Set<AgentTool>(['MCP_CALL']);
+
 const CONTROL_TOOLS = new Set<AgentTool>(['THINK', 'DONE', 'FAIL']);
 
 export function getAvailableTools(r: AgentRole): Set<AgentTool> {
@@ -115,6 +129,7 @@ export function getAvailableTools(r: AgentRole): Set<AgentTool> {
   if (r.coordinate) COORDINATION_TOOLS.forEach(t => tools.add(t));
   if (r.tooling) TOOLING_TOOLS.forEach(t => tools.add(t));
   if (r.scripts) SCRIPT_TOOLS.forEach(t => tools.add(t));
+  if (r.mcp) MCP_TOOLS.forEach(t => tools.add(t));
   return tools;
 }
 
@@ -128,14 +143,15 @@ export function roleToString(r: AgentRole): string {
     r.read ? 'r' : '-', r.write ? 'w' : '-', r.execute ? 'x' : '-',
     r.http ? 'h' : '-', r.logs ? 'l' : '-', r.user ? 'u' : '-',
     r.docker ? 'd' : '-', r.coordinate ? 'c' : '-', r.tooling ? 't' : '-',
-    r.scripts ? 's' : '-',
+    r.scripts ? 's' : '-', r.mcp ? 'm' : '-',
   ];
   let last = 4;
   if (r.user) last = Math.max(last, 5);
   if (r.docker) last = Math.max(last, 6);
   if (r.coordinate) last = Math.max(last, 7);
   if (r.tooling) last = Math.max(last, 8);
-  if (r.scripts) last = 9;
+  if (r.scripts) last = Math.max(last, 9);
+  if (r.mcp) last = 10;
   return chars.slice(0, last + 1).join('');
 }
 
@@ -143,14 +159,14 @@ export function parseRole(value: string): AgentRole {
   if (!value || !value.trim()) return READ_WRITE;
   const v = value.trim().toLowerCase();
 
-  const slots = ['r', 'w', 'x', 'h', 'l', 'u', 'd', 'c', 't', 's'];
-  if (v.length >= 4 && v.length <= 10) {
+  const slots = ['r', 'w', 'x', 'h', 'l', 'u', 'd', 'c', 't', 's', 'm'];
+  if (v.length >= 4 && v.length <= 11) {
     const valid = [...v].every((ch, i) => ch === '-' || ch === slots[i]);
     if (valid) {
       return role(
         v[0] === 'r', v[1] === 'w', v[2] === 'x', v[3] === 'h',
         v[4] === 'l', v[5] === 'u', v[6] === 'd', v[7] === 'c',
-        v[8] === 't', v[9] === 's',
+        v[8] === 't', v[9] === 's', v[10] === 'm',
       );
     }
   }

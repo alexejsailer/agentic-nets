@@ -284,7 +284,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   packages) — content is leak-gated by `test/knowledge-leaks.test.ts` (scans every
   shipped string for credentials/IPs/paths/CI internals; size caps 8KB/doc, 64KB pack, 15KB
   instructions), so curated rewrites of private-repo knowledge can ship safely. ⚠️ agent role
-  strings are the MASTER's positional `rwxhludcts` (INVOKE_TOOL_NET is t-gated, personas c-gated);
+  strings are the MASTER's positional `rwxhludctsm` (INVOKE_TOOL_NET is t-gated, personas c-gated, MCP_CALL m-gated — 11-char positional like `rwxh------m`, paired with the agent `mcp` param on add_transition);
   spawn_persona execute ⇒ `rwxhl---t`.
   The server `instructions` + recipes teach clients: 6-field cron scheduling (nets act overnight —
   always tell the user what you armed), spawning full Claude Code instances via command transitions

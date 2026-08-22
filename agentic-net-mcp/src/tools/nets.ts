@@ -43,7 +43,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   llm: new Set(['prompt', 'llmModel', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
   command: new Set(['executorId']),
-  agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary']),
+  agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp']),
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
   link: new Set(['relation']),
 };
@@ -51,7 +51,7 @@ const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'ou
 const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
   prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
-  llmMode: 'agent', binary: 'agent with llmMode:"bash"',
+  llmMode: 'agent', binary: 'agent with llmMode:"bash"', mcp: 'agent (needs the m role flag, e.g. role:"rwxh------m")',
   executorId: 'command', errorPlace: 'llm/http', routes: 'pass/map/llm/http', emit: 'pass/map/llm/http',
   filter: 'pass/map/llm/http/command/agent (not link — links never bind tokens)',
 };
@@ -538,6 +538,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     autoEmit: z.boolean().optional(),
     llmMode: z.enum(['api', 'bash']).optional(),
     binary: z.enum(['claude', 'codex']).optional(),
+    mcp: z.array(z.record(z.any())).optional(),
     url: z.string().optional(),
     method: z.string().optional(),
     headers: z.record(z.string()).optional(),
@@ -580,12 +581,24 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         y: z.number().optional(),
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
         llmModel: z.string().optional().describe('llm: per-transition model override (e.g. glm-5.2:cloud)'),
-        role: z.string().optional().describe('agent: positional rwxhludcts capability string (r read, w write, x execute, h http, l logs, u user-await, d docker, c coordinate-personas, t tool-nets, s scripts). Default rw--; rwxhl---t = commands + tool-net invocation (INVOKE_TOOL_NET needs t, not x) — see docs/tool-catalog'),
+        role: z.string().optional().describe('agent: positional rwxhludctsm capability string (r read, w write, x execute, h http, l logs, u user-await, d docker, c coordinate-personas, t tool-nets, s scripts, m external MCP servers). Default rw--; rwxhl---t = commands + tool-net invocation (INVOKE_TOOL_NET needs t, not x); the m slot is position 11 and pairs with the mcp param — see docs/tool-catalog'),
         tier: z.string().optional().describe('llm/agent: LLM tier — omit for the worker/base model, "high" for the thinking model (llm also accepts "low"/"medium"; unknown tiers fall back to the EXPENSIVE model, so stick to these)'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
         llmMode: z.enum(['api', 'bash']).optional().describe('agent: api (default) uses the server LLM provider; bash keeps the full agent loop but calls a headless Claude Code/Codex session and works in Desktop Lite with no provider'),
         binary: z.enum(['claude', 'codex']).optional().describe('agent with llmMode:"bash": headless CLI to run (default claude)'),
+        mcp: z.array(z.object({
+          name: z.string().describe('Server name the agent uses in MCP_CALL'),
+          url: z.string().describe('Streamable HTTP endpoint, e.g. http://127.0.0.1:8091/mcp'),
+          auth: z.object({
+            type: z.enum(['bearer', 'header']).optional().describe('bearer (default) sends "<scheme> <credential>" in the header; header sends the raw credential'),
+            credentialKey: z.string().describe('Key into the transition credentials (set_transition_credentials) — NEVER an inline secret'),
+            header: z.string().optional().describe('Header name (default Authorization for bearer; required for type header)'),
+            scheme: z.string().optional().describe('bearer only: scheme prefix (default Bearer)'),
+          }).optional(),
+          allowTools: z.array(z.string()).optional().describe('Restrict which of the server\'s tools the agent may call (omit = all advertised)'),
+          timeoutMs: z.number().positive().optional(),
+        })).optional().describe('agent: external MCP servers the agent may call via MCP_CALL. REQUIRES the m role flag (11-char role, e.g. "rwxh------m"). Discovered tools are advertised in the agent prompt; an unreachable server degrades to UNAVAILABLE without failing fires. Auth ONLY via credentialKey + set_transition_credentials'),
         url: z.string().optional().describe('http: target URL (default ${input.data.url}). ${...} interpolates token fields; wrap user input in ${urlencode(...)} for query params'),
         method: z.string().optional().describe('http: default GET'),
         headers: z.record(z.string()).optional().describe('http: request headers; values may use ${...} and ${credentials.KEY}'),
@@ -795,6 +808,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         autoEmit: args.autoEmit,
         llmMode: args.llmMode,
         binary: args.binary,
+        mcp: args.mcp,
       });
       // Execution-mode inheritance resolves net/session policy from inscription metadata.
       // Keep it on both runtime and designtime copies so re-deploys preserve the scope.

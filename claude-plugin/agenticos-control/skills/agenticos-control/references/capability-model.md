@@ -1,4 +1,4 @@
-# Capability model: `rwxhludcts` + agent tools
+# Capability model: `rwxhludctsm` + agent tools
 
 In-net agents (and personas) get a **role** = ten independent capability flags. The role gates which of the
 agent tools are available. When you drive a persona or author an `agent`/`llm` transition, you pick a role.
@@ -20,11 +20,12 @@ validation loudly).
 | **c** | coordinate | invoke/delegate to personas + collect results |
 | **t** | tooling | discover/describe/invoke the tool-net library (use, not author) |
 | **s** | scripts | register executable script artifacts in the tool catalog |
+| **m** | mcp | MCP_CALL against external MCP servers declared in the inscription's `action.mcp` (explicit-only 11th slot, e.g. `rwxh------m`) |
 
 Named roles (canonical flag string): `READ_ONLY r----`, `READ_WRITE rw---`, `READ_WRITE_EXECUTE rwx--`,
 `FULL rwxh-`, `FULL_WITH_LOGS rwxhl`, `INHABITANT rwxhlu`, `INHABITANT_WITH_DOCKER rwxhlud`,
 `COORDINATOR rwxhludc`, `TOOL_BUILDER rwxhlud-ts` (the Forge role). All ten = `rwxhludcts` (the Universal
-Assistant and Persona). `THINK / DONE / FAIL` control tools are always available.
+Assistant and Persona); `m` is never included implicitly — declare it positionally. `THINK / DONE / FAIL` control tools are always available.
 
 ## Tool groups (representative members)
 

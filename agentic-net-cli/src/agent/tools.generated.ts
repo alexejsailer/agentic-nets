@@ -8,6 +8,7 @@ import type { ToolDef } from './tools.js';
 
 type GeneratedToolName =
   | "CREATE_MODEL"
+  | "MCP_CALL"
   | "LIST_MODELS"
   | "MEMORY_WRITE"
   | "GET_SESSION_OVERVIEW"
@@ -51,6 +52,19 @@ export const GENERATED_TOOL_DEFINITIONS: Record<GeneratedToolName, ToolDef> = {
         profile: { type: "string", description: "Optional product composition installed after the model-root context. Defaults to standard." }
       },
       required: ["modelId"],
+    },
+  },
+  MCP_CALL: {
+    description: "Call a tool on an external MCP server declared in this transition's action.mcp.",
+    schema: {
+      type: 'object',
+      properties: {
+        server: { type: "string", description: "Declared server name from action.mcp" },
+        tool: { type: "string", description: "Tool name from the server's advertised catalog" },
+        args: { type: "object", description: "Arguments matching the tool's input schema" },
+        timeoutMs: { type: "number", description: "Optional per-call timeout override" }
+      },
+      required: ["server", "tool"],
     },
   },
   LIST_MODELS: {

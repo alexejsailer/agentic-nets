@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.49.0] - 2026-08-17
+### Added
+- **Agent transitions can declare external MCP servers** (`agentic-net-mcp` — `add_transition`/`add_transitions` gain an agent-kind `mcp` param; `agentic-net-cli` — role model). Declare `mcp: [{name, url, auth?: {credentialKey}, allowTools?, timeoutMs?}]` on an agent lane and pair it with the new **`m` capability flag** — the role string grows to 11 positional slots (`rwxhludctsm`; `rwxh------m` = full agent + MCP, `r---------m` = read-only + MCP) — and the agent calls those servers' tools via the engine's new `MCP_CALL`. The builder rejects inline secrets at authoring time with the `set_transition_credentials` recipe (the engine ignores them and publish would redact them, so an inline token is a silent 401 trap); auth is `credentialKey`-only. The CLI's `parseRole`/`roleToString` and tool-target catalog understand the new slot; knowledge docs (`inscriptions`, `tool-catalog`) document the block and the flag. Requires a master with the MCP client (see `core/CHANGELOG.md`).
 
 ### Added
 - **`scheduler_status` reports lanes that fire but never succeed** (`agentic-net-mcp` — `tools/observe`). A new `headline.failingLanes` lists every transition with a non-zero `consecutiveFailures` streak or a `neverSucceeded` flag, worst first, with its last error. Scanned across all transitions rather than only the scheduled subset, because the broken lane is usually the command lane downstream of a healthy tick. Until now a lane could be RUNNING, armed, on cadence and failing every single time, and every view in this tool still described it as healthy — a staging health probe did exactly that 691 times over 39 days.

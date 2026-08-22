@@ -6,14 +6,14 @@ in a `p-tool-catalog` place; large material (OpenAPI docs, script bodies) lives 
 behind immutable URNs. Every entry separates the **contract** (what can be called) from the
 **binding** (how it runs) — that split is what lets one catalog describe very different tools.
 
-## The capability string: rwxhludcts
+## The capability string: rwxhludctsm
 
 Agent roles read like a file-permission string, parsed POSITIONALLY (each slot is its letter or
 `-`): **r** read · **w** write · **x** execute (run/fire transitions) · **h** http · **l** logs
 (event queries) · **u** user (await-token inhabitant) · **d** docker · **c** coordinate (invoke/
-delegate personas) · **t** tool-nets · **s** scripts. Valid forms: exact prefixes (`rw`, `rwxhl`,
-`rwxhludcts`) or explicit positional strings with gaps (`rw------t`, `rwxhl---t`) — `rwt` is NOT
-valid (positions are fixed). Subtlety: tool-net AUTHORING (register/scaffold/promote) lives under
+delegate personas) · **t** tool-nets · **s** scripts · **m** external MCP servers declared in `action.mcp`. Valid forms: exact prefixes (`rw`, `rwxhl`,
+`rwxhludcts`) or explicit positional strings with gaps (`rw------t`, `rwxhl---t`, `rwxh------m`) — `rwt` is NOT
+valid (positions are fixed). The `m` slot (position 11) is explicit-only. Subtlety: tool-net AUTHORING (register/scaffold/promote) lives under
 **w**, while tool-net INVOKING (list/describe/invoke) is gated by **t** — a persona told to
 "invoke tool-nets" needs the t flag, not just x.
 

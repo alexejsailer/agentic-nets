@@ -99,6 +99,10 @@ export interface BuildOpts {
   llmMode?: 'api' | 'bash';
   /** agent bash backend (default claude when llmMode=bash). */
   binary?: 'claude' | 'codex';
+  /** agent — external MCP servers the agent may call via MCP_CALL (requires the m role flag,
+   *  e.g. role:"rwxh------m"). Entries {name, url, auth?: {type?, credentialKey, header?, scheme?},
+   *  allowTools?, timeoutMs?}; auth ONLY via credentialKey + set_transition_credentials. */
+  mcp?: Array<Record<string, any>>;
 }
 
 /**
@@ -435,6 +439,46 @@ export function normalizeAuth(auth: Record<string, any> | undefined): Record<str
   return auth;
 }
 
+/**
+ * Validate the agent's `action.mcp` server declarations and REJECT inline secrets before
+ * anything is written. The master ignores inline auth fields at runtime and CredentialScrubber
+ * redacts them on publish — so an inline token would produce an artifact that installs and then
+ * 401s with no clue. Throwing here (with the credentialKey recipe) turns that silent trap into
+ * an immediate, actionable error at authoring time.
+ */
+export function sanitizeMcp(mcp: Array<Record<string, any>> | undefined): Array<Record<string, any>> | undefined {
+  if (!mcp) return undefined;
+  if (!Array.isArray(mcp)) {
+    throw new Error('mcp must be an array of server declarations [{name, url, auth?, allowTools?, timeoutMs?}]');
+  }
+  const inlineSecretKeys = ['token', 'apikey', 'api_key', 'api-key', 'password', 'secret', 'bearer', 'authorization', 'value'];
+  return mcp.map((server, i) => {
+    if (!server || typeof server !== 'object') {
+      throw new Error(`mcp[${i}] must be an object`);
+    }
+    if (!server.name || !server.url) {
+      throw new Error(`mcp[${i}] needs both name and url`);
+    }
+    if (!/^https?:\/\//.test(String(server.url))) {
+      throw new Error(`mcp[${i}] url must be http(s), got '${server.url}'`);
+    }
+    const auth = server.auth;
+    if (auth) {
+      if (!auth.credentialKey) {
+        throw new Error(`mcp[${i}] ("${server.name}") auth needs credentialKey — store the secret with `
+          + `set_transition_credentials {credentials: {KEY: value}} and reference it as auth.credentialKey:"KEY". `
+          + 'Inline secrets are ignored at runtime and redacted on publish.');
+      }
+      const inline = Object.keys(auth).find(k => inlineSecretKeys.includes(k.toLowerCase()));
+      if (inline) {
+        throw new Error(`mcp[${i}] ("${server.name}") auth carries an inline secret field '${inline}' — remove it; `
+          + 'only auth.credentialKey + set_transition_credentials is supported.');
+      }
+    }
+    return server;
+  });
+}
+
 export function buildHttpInscription(opts: BuildOpts) {
   if (!opts.routes?.length) requireOutputPlace(opts, 'http');
   const postsets: Record<string, any> = postset(opts);
@@ -547,6 +591,7 @@ export function buildAgentInscription(opts: BuildOpts) {
       ...(opts.tier ? { tier: opts.tier } : {}),
       ...(opts.llmMode ? { llmMode: opts.llmMode } : {}),
       ...(opts.binary ? { binary: opts.binary } : {}),
+      ...(opts.mcp ? { mcp: sanitizeMcp(opts.mcp) } : {}),
       timeoutMs: opts.timeoutMs ?? 240000,
     },
     mode: opts.mode ?? 'SINGLE',

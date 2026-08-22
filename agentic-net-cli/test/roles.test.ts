@@ -14,10 +14,21 @@ describe('parseRole', () => {
   });
 
   it('round-trips canonical roles through roleToString', () => {
-    for (const value of ['r----', 'rw---', 'rwxh-', 'rwxhl', 'rw--l', 'rwxhludcts', 'r-------t-', 'r--------s']) {
+    for (const value of ['r----', 'rw---', 'rwxh-', 'rwxhl', 'rw--l', 'rwxhludcts', 'r-------t-', 'r--------s',
+      'r---------m', 'rwxh------m', 'rwxhludctsm']) {
       const parsed = parseRole(value);
       expect(parseRole(roleToString(parsed))).toEqual(parsed);
     }
+  });
+
+  it('parses the 11-char m (MCP) positional slot, off for shorter forms', () => {
+    const mcpOnly = parseRole('r---------m');
+    expect(mcpOnly.mcp).toBe(true);
+    expect(mcpOnly.http).toBe(false);
+    expect(getAvailableTools(mcpOnly).has('MCP_CALL')).toBe(true);
+    expect(parseRole('rwxhludcts').mcp).toBe(false);
+    expect(getAvailableTools(parseRole('rwxhludcts')).has('MCP_CALL')).toBe(false);
+    expect(roleToString(parseRole('rwxh------m'))).toBe('rwxh------m');
   });
 
   it('parses short-form roles', () => {
@@ -42,9 +53,12 @@ describe('parseRole', () => {
 });
 
 describe('ALL / FULL', () => {
-  it('keeps FULL as a deprecated alias of ALL (every flag set)', () => {
+  it('keeps FULL as a deprecated alias of ALL (every flag set except explicit-only m)', () => {
     expect(FULL).toBe(ALL);
-    expect(Object.values(ALL).every(Boolean)).toBe(true);
+    const { mcp, ...rest } = ALL;
+    expect(Object.values(rest).every(Boolean)).toBe(true);
+    // External MCP reach is explicit-only: ALL mirrors master and does NOT include m.
+    expect(mcp).toBe(false);
   });
 
   it('grants strictly more tools than READ_WRITE', () => {
