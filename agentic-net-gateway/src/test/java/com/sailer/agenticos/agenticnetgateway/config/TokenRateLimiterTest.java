@@ -48,6 +48,12 @@ class TokenRateLimiterTest {
     void shouldNotFilter_onlyAppliesToTokenPost() {
         TokenRateLimiter limiter = new TokenRateLimiter(props(10, null));
         assertThat(limiter.shouldNotFilter(tokenRequest("1.2.3.4", null))).isFalse();
+        MockHttpServletRequest share = new MockHttpServletRequest("POST", "/oauth2/share");
+        share.setRequestURI("/oauth2/share");
+        assertThat(limiter.shouldNotFilter(share)).isFalse();
+        MockHttpServletRequest capabilityInPath = new MockHttpServletRequest("POST", "/oauth2/share/secret");
+        capabilityInPath.setRequestURI("/oauth2/share/secret");
+        assertThat(limiter.shouldNotFilter(capabilityInPath)).isTrue();
         MockHttpServletRequest get = new MockHttpServletRequest("GET", "/oauth2/token");
         get.setRequestURI("/oauth2/token");
         assertThat(limiter.shouldNotFilter(get)).isTrue();

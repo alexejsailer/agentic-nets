@@ -200,6 +200,8 @@ public final class Main {
             "AGENTICOS_KNOWLEDGE_SEED_BLOBS_ENABLED", "false",
             "AGENTICNET_USAGE_PERSIST_FILE",
                 config.runDir("master").resolve("usage-fires.jsonl").toAbsolutePath().toString()));
+        // Same secret the gateway holds: master's /internal/** endpoints fail closed without it.
+        masterEnv.put("GATEWAY_INTERNAL_SECRET", config.internalSecret());
         masterEnv.putAll(llmEnv(config));
         if (config.settingFlag("docker.enabled")) {
             masterEnv.put("AGENTICOS_DOCKER_ENABLED", "true");
@@ -225,7 +227,12 @@ public final class Main {
                 "GATEWAY_TOKEN_TTL", "86400",
                 "MASTER_URL", "http://127.0.0.1:" + DesktopConfig.MASTER_PORT,
                 "NODE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT,
-                "VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT)),
+                "VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT,
+                // Shared with master below so the share-link exchange can resolve a link.
+                "GATEWAY_INTERNAL_SECRET", config.internalSecret(),
+                // Read-only net share links. OFF unless the user turns it on: a shared link is
+                // reachable by anyone who receives it, which is not a default worth assuming.
+                "AGENTICOS_SHARE_ENABLED", String.valueOf(config.settingFlag("share.enabled")))),
             config.runDir("gateway"),
             "http://127.0.0.1:" + DesktopConfig.GATEWAY_PORT + "/api/health/ping",
             60));

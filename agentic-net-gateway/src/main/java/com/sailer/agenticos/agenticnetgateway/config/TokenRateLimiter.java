@@ -22,8 +22,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Simple in-memory IP-based rate limiter for the token endpoint.
+ * Simple in-memory IP-based rate limiter for the credential-bearing endpoints.
  * Uses a sliding window of 1 minute per IP address.
+ *
+ * <p>Covers {@code POST /oauth2/token} and {@code POST /oauth2/share}. The share exchange is
+ * included because it is the one anonymous route in the gateway: without a limit it would be a
+ * free brute-force oracle against link uuids and an unthrottled amplification path into
+ * master.</p>
  */
 @Component
 public class TokenRateLimiter extends OncePerRequestFilter {
@@ -46,8 +51,14 @@ public class TokenRateLimiter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !("POST".equalsIgnoreCase(request.getMethod())
-                && "/oauth2/token".equals(request.getRequestURI()));
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+        String uri = request.getRequestURI();
+        if (uri == null) {
+            return true;
+        }
+        return !("/oauth2/token".equals(uri) || "/oauth2/share".equals(uri));
     }
 
     @Override

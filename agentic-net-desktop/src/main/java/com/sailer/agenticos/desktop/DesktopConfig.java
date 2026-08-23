@@ -231,6 +231,31 @@ public final class DesktopConfig {
         }
     }
 
+    /**
+     * Shared secret for gateway→master internal calls — generated once, stored 0600.
+     *
+     * <p>Desktop runs everything on loopback, so this is not about network trust: master's
+     * internal endpoints fail closed when the secret is unset, which would otherwise leave the
+     * read-only share-link exchange permanently 503 on a Desktop install.</p>
+     */
+    public String internalSecret() {
+        Path file = desktopDir.resolve("internal-secret");
+        try {
+            if (Files.exists(file)) {
+                restrictFilePermissions(file);
+                return Files.readString(file).trim();
+            }
+            byte[] bytes = new byte[24];
+            new SecureRandom().nextBytes(bytes);
+            String secret = HexFormat.of().formatHex(bytes);
+            Files.writeString(file, secret);
+            restrictFilePermissions(file);
+            return secret;
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read/create internal secret at " + file, e);
+        }
+    }
+
     public String adminSecret() throws IOException {
         return Files.readString(adminSecretFile()).trim();
     }

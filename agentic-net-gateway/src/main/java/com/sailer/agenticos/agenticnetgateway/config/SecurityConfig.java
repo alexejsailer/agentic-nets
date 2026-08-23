@@ -25,6 +25,8 @@ import java.util.List;
  *   /api/health/**          — Service health checks
  *   GET /api/hub/public/**  — NetHub public catalog (ONLY when gateway.hub.public-catalog=true)
  *   GET /api/packages/**    — Package browsing (ONLY when gateway.hub.public-catalog=true)
+ *   POST /oauth2/share      — Read-only net share-link exchange (ONLY when gateway.share-enabled=true).
+ *                             Trades a link uuid for a share-scoped JWT; opens nothing under /api.
  *   /internal/masters/**    — Shared-secret protected master registry
  *
  * With gateway.hub.public-catalog=false (the default), NOTHING under /api is anonymous:
@@ -46,19 +48,29 @@ public class SecurityConfig {
     private final TokenRateLimiter tokenRateLimiter;
     private final ReadonlyEnforcementFilter readonlyEnforcementFilter;
     private final ExecutorScopeEnforcementFilter executorScopeEnforcementFilter;
+    private final ShareScopeEnforcementFilter shareScopeEnforcementFilter;
     private final List<String> allowedOriginPatterns;
     private final boolean hubPublicCatalog;
+    private final boolean shareEnabled;
 
     public SecurityConfig(TokenRateLimiter tokenRateLimiter,
                           ReadonlyEnforcementFilter readonlyEnforcementFilter,
                           ExecutorScopeEnforcementFilter executorScopeEnforcementFilter,
+                          ShareScopeEnforcementFilter shareScopeEnforcementFilter,
                           @Value("${gateway.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String allowedOriginPatterns,
-                          @Value("${gateway.hub.public-catalog:false}") boolean hubPublicCatalog) {
+                          @Value("${gateway.hub.public-catalog:false}") boolean hubPublicCatalog,
+                          // NOTE the kebab key: this binds to GatewayProperties.shareEnabled too,
+                          // so the filter chain and ShareExchangeController cannot disagree.
+                          // (gateway.hub.public-catalog above does NOT bind to its GatewayProperties
+                          // field — that getter is dead. Do not copy that shape.)
+                          @Value("${gateway.share-enabled:false}") boolean shareEnabled) {
         this.tokenRateLimiter = tokenRateLimiter;
         this.readonlyEnforcementFilter = readonlyEnforcementFilter;
         this.executorScopeEnforcementFilter = executorScopeEnforcementFilter;
+        this.shareScopeEnforcementFilter = shareScopeEnforcementFilter;
         this.allowedOriginPatterns = parseCsv(allowedOriginPatterns);
         this.hubPublicCatalog = hubPublicCatalog;
+        this.shareEnabled = shareEnabled;
     }
 
     @Bean
@@ -67,6 +79,7 @@ public class SecurityConfig {
                 .addFilterBefore(tokenRateLimiter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(readonlyEnforcementFilter, BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(executorScopeEnforcementFilter, ReadonlyEnforcementFilter.class)
+                .addFilterAfter(shareScopeEnforcementFilter, ExecutorScopeEnforcementFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
@@ -80,6 +93,17 @@ public class SecurityConfig {
                         if (hubPublicCatalog) {
                             auth.requestMatchers(HttpMethod.GET, "/api/hub/public/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/api/packages/**").permitAll();
+                        }
+                        // Opt-in read-only net share links. Only the EXCHANGE is anonymous: it
+                        // trades the link uuid for a share-scoped JWT, after which
+                        // ShareScopeEnforcementFilter constrains every call. Nothing under
+                        // /api/** is opened up. OFF by default.
+                        if (shareEnabled) {
+                            auth.requestMatchers(HttpMethod.POST, "/oauth2/share").permitAll();
+                        } else {
+                            // Keep management in lockstep with exchange. Otherwise an operator
+                            // can create a stored link that is guaranteed to be dead on arrival.
+                            auth.requestMatchers("/api/shares", "/api/shares/**").denyAll();
                         }
                         auth
                         // All other /api/** endpoints require JWT authentication

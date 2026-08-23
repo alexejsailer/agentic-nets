@@ -33,6 +33,16 @@ public class GatewayProperties {
      * package-registry GET browse — the "public hub" opt-in. Default OFF: no token ⇒ nothing.
      */
     private boolean hubPublicCatalog = false;
+    /**
+     * When true, expose the share-link exchange anonymously (POST /oauth2/share) so a
+     * read-only net link works without an account. Default OFF: no token ⇒ nothing.
+     */
+    private boolean shareEnabled = false;
+    /**
+     * Lifetime of the share-scoped JWT minted by the exchange. Short by design: the link may live
+     * for weeks, but each token it issues is disposable and the page re-exchanges silently.
+     */
+    private int shareTokenTtlSeconds = 900;
 
     public String getMasterUrl() {
         return masterUrl;
@@ -184,5 +194,21 @@ public class GatewayProperties {
 
     public void setHubPublicCatalog(boolean hubPublicCatalog) {
         this.hubPublicCatalog = hubPublicCatalog;
+    }
+
+    public boolean isShareEnabled() {
+        return shareEnabled;
+    }
+
+    public void setShareEnabled(boolean shareEnabled) {
+        this.shareEnabled = shareEnabled;
+    }
+
+    public int getShareTokenTtlSeconds() {
+        return shareTokenTtlSeconds;
+    }
+
+    public void setShareTokenTtlSeconds(int shareTokenTtlSeconds) {
+        this.shareTokenTtlSeconds = shareTokenTtlSeconds;
     }
 }
