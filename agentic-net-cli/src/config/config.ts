@@ -92,10 +92,10 @@ const DEFAULT_PROFILE: ProfileConfig = {
   },
   ollama: {
     base_url: 'http://localhost:11434',
-    model: 'deepseek-v4-pro:cloud',
-    high_model: 'deepseek-v4-pro:cloud',
-    medium_model: 'deepseek-v4-pro:cloud',
-    low_model: 'deepseek-v4-flash:cloud',
+    model: 'glm-5.2:cloud',
+    high_model: 'kimi-k3:cloud',
+    medium_model: 'glm-5.2:cloud',
+    low_model: 'glm-5.2:cloud',
   },
   openai: {
     api_key: '${OPENAI_API_KEY}',

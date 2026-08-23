@@ -326,6 +326,10 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-5.2:cloud}
+      # Per-transition tier routing: an inscription's action.tier=low|medium|high resolves here.
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-glm-5.2:cloud}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-glm-5.2:cloud}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k3:cloud}
       # Dynamic post-THINK routing for agent sessions (2.17.0): the inference right after a
       # successful THINK tool call runs on this model. Blank = routing off.
       OLLAMA_THINKING_MODEL: ${OLLAMA_THINKING_MODEL:-kimi-k3:cloud}

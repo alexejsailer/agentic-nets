@@ -66,7 +66,8 @@ public final class DesktopConfig {
                 llm.provider=disabled
                 ollama.base.url=http://127.0.0.1:11434
                 ollama.model=glm-5.2:cloud
-                # Optional per-tier model routing (blank = master defaults)
+                # Optional per-tier model routing. Blank = the master's own defaults:
+                # glm-5.2:cloud for base/low/medium, kimi-k3:cloud for high + post-THINK.
                 ollama.low.model=
                 ollama.medium.model=
                 ollama.high.model=

@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Ollama defaults aligned across every compose, the CLI and the desktop seed** (`deployment/docker-compose*.yml`, `agentic-net-cli` — `config/config.ts`, `agentic-net-desktop` — `DesktopConfig`). One lineup now: `glm-5.2:cloud` for base/low/medium, `kimi-k3:cloud` for high and post-THINK. The CLI's ollama profile still defaulted to the retired `deepseek-v4-pro:cloud`, so a `agentic-net-cli` run with no explicit model silently used a different model than the master it talked to. Every master service block in the composes now declares all five values rather than `OLLAMA_MODEL` alone. Overrides via `OLLAMA_*` behave as before, and a blank tier still falls back to the base model.
+
 ### Fixed
 - **The share exchange relays "temporarily unavailable" instead of "unknown link"** (`agentic-net-gateway` — `ShareExchangeController`). Unknown, expired and revoked links all surface from master as 404 and are meant to be indistinguishable, so the exchange collapsed every failure to 404 — including master's new `503`, which means the share store could not be read this second rather than that the link is finished. That 503 now passes through as `503 share_unavailable` with `retryable: true`, so the shared page retries rather than telling a visitor their working link was revoked. It still carries nothing about whether the link exists, so it leaks nothing. Needs the matching master change (see `core/CHANGELOG.md`).
 
