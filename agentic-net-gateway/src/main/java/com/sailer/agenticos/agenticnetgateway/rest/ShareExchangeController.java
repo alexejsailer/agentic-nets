@@ -5,6 +5,7 @@ import com.sailer.agenticos.agenticnetgateway.config.ProxyWebClients;
 import com.sailer.agenticos.agenticnetgateway.service.MasterRegistryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -97,9 +99,22 @@ public class ShareExchangeController {
                 .bodyToMono(new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {})
                 .timeout(Duration.ofSeconds(props.getTimeoutSeconds()))
                 .map(this::mintToken)
-                // Unknown, expired and revoked all surface from master as 404. Anything else
-                // (master down, malformed record) must not leak either, so it collapses here too.
+                // Unknown, expired and revoked all surface from master as 404 — deliberately
+                // indistinguishable, so a caller cannot probe which. Anything else (master down,
+                // malformed record) must not leak either, so it collapses here too.
+                //
+                // The one case that must NOT collapse is master's 503: it means the share store
+                // could not be read this second, not that the link is finished. Relaying it lets
+                // the page retry rather than telling a visitor their working link is revoked.
+                // It still carries nothing about whether the link exists, so it leaks nothing.
                 .onErrorResume(e -> {
+                    if (e instanceof WebClientResponseException http
+                            && http.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE) {
+                        logger.info("Share exchange temporarily unavailable — asking the caller to retry");
+                        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .body(Map.<String, Object>of("error", "share_unavailable",
+                                        "retryable", true)));
+                    }
                     logger.info("Share exchange refused for a link: {}", e.getMessage());
                     return Mono.just(notFound());
                 });
