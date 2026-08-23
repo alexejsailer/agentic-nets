@@ -9,11 +9,17 @@
 
 **A durable runtime for AI agents, people, and automated work.**
 
-[![Watch the Agentic-Nets preview video](https://img.youtube.com/vi/orI-u5YT7Go/hqdefault.jpg)](https://www.youtube.com/watch?v=orI-u5YT7Go)
+Agentic-Nets is a governed runtime for stateful, permission-scoped AI agents.
+Agents, LLM calls, deterministic steps, shell commands, tools, memory, and
+approvals all live in formal Petri nets: places hold typed JSON state,
+transitions do the work, and every change leaves an event-sourced trail you can
+query later. Drive it from the visual Studio, an MCP client, or the CLI.
 
-**[Watch the product preview](https://www.youtube.com/watch?v=orI-u5YT7Go)**:
-personas, nets, and the live Studio in motion, before you read a single line
-about Petri nets.
+[![Watch an AI agile team ship a real change](https://img.youtube.com/vi/VBomzW-xqfc/hqdefault.jpg)](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94)
+
+**[Watch an AI agile team ship a real change](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94)**
+— a Studio tour of a Safe Product Team taking a request through to a merged
+commit. Part of the [Agentic-Nets playlist](https://www.youtube.com/playlist?list=PLQirdTX_nt94).
 
 ## What you can do with it
 
@@ -34,6 +40,11 @@ after the chat window closes:
 - **Deterministic steps beside AI steps.** Seven transition kinds, so a shell
   command, an HTTP call, or a plain data transform lives in the same process as
   the reasoning, and the parts that never needed a model stop paying for one.
+- **Agents that reach your other tools.** An agent transition can call external
+  MCP servers itself, declared in the inscription and gated by a capability
+  flag, so a persona uses your issue tracker or search index while it fires,
+  unattended. The declaration is the allowlist, credentials come from the vault,
+  and an unreachable server degrades instead of breaking the run.
 - **Boundaries and approvals you can point at.** Capability flags, tool
   allowlists, credential scopes, and approval gates decide what a persona may do
   before it does it, not after.
@@ -279,7 +290,7 @@ it does not silently self-rewrite or remove responsibility from the operator.
    verified UI surface; see the [developer guide](docs/applications/DEVELOPER_GUIDE.md)
    and the complete [Persona Kanban tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md).
 4. **Governance is enforced at runtime.** Ten positional capability flags
-   (`rwxhludcts`), named capability profiles, tool allowlists, resource scopes,
+   (`rwxhludctsm`), named capability profiles, tool allowlists, resource scopes,
    Vault-backed credentials, a fleet-wide LLM freeze, and an automatic spend
    breaker bound what an agent can do.
 5. **One MCP server exposes the platform.** `@agenticnets/mcp` provides a focused
@@ -290,7 +301,7 @@ it does not silently self-rewrite or remove responsibility from the operator.
 
 > **Release status:** The SDK, generic Studio host, and certified examples are
 > currently on `main` under [Unreleased](CHANGELOG.md#unreleased). Use matching
-> application-capable runtime and Studio builds; the `v2.47.0` Desktop packages
+> application-capable runtime and Studio builds; Desktop packages from before `v2.48.0`
 > predate this finalized contract.
 
 A Net Application is **not** an Angular module imported into the closed GUI. It
@@ -610,7 +621,7 @@ governed by default.
 | **Agents** | **`agent` transitions**, built-in assistant personas, and versioned **Agent Hub** teams installed as complete sessions |
 | **Memory & state** | **Places + tokens**, typed context systems, and bounded context capsules queryable with **ArcQL** |
 | **Execution** | Distributed **executors** that poll egress-only (firewall-friendly, deployable anywhere) and run scoped work in **Docker** |
-| **Governance** | **`rwxhludcts` capability roles**, named profiles, tool allowlists, resource scopes, spend controls, and **Vault** secrets injected only at action time |
+| **Governance** | **`rwxhludctsm` capability roles**, named profiles, tool allowlists, resource scopes, spend controls, and **Vault** secrets injected only at action time |
 | **Observability** | **Event-sourced history** — replay the log, watch the live event-line, and ask what existed at any decision point |
 | **Reuse & export** | Export **inscriptions / PNML** or use **NetHub** to move nets, sessions, applications, models, agents, contexts, tools, catalogs, and blobs |
 | **Self-extension** | **Builder / Forge** agents that create new places, transitions, and whole tool-nets *inside the running system* — the harness grows itself |
@@ -646,7 +657,7 @@ same state, emission, audit, and permission pipeline.
 1. **Invisible state.** Every intermediate value is a token in a typed place, queryable with ArcQL while the net runs.
 2. **Vanishing memory.** Memory is structured state. Agents read and write lessons through places and `EMIT_MEMORY`.
 3. **Weak observability.** State is event-sourced. Replay the log, inspect reductions, and ask what existed at decision time.
-4. **No permission model.** The `rwxhludcts` role ceiling, capability profiles, allowlists, and scopes gate tools at dispatch, not only in the prompt.
+4. **No permission model.** The `rwxhludctsm` role ceiling, capability profiles, allowlists, and scopes gate tools at dispatch, not only in the prompt.
 5. **Secrets in the wrong place.** Vault keeps credentials outside tokens and events, scoped per transition and injected only at action time.
 6. **Unsafe execution boundary.** Remote executors poll over egress-only links; command work runs in scoped Docker tool containers.
 7. **Hard to explain why.** Tool calls, results, emissions, and event trails keep provenance attached to the actual work.
@@ -1012,7 +1023,7 @@ evidence behind the cadence:
 |  | Prompt-with-tools frameworks | Agentic-Nets |
 |---|---|---|
 | **What can this agent see?** | Whatever you paste into context | Only the tokens in its inbound places |
-| **What can this agent do?** | Whatever tools you register | Only tools allowed by its `rwxhludcts` role ceiling, capability profile, allowlist, and resource scopes |
+| **What can this agent do?** | Whatever tools you register | Only tools allowed by its `rwxhludctsm` role ceiling, capability profile, allowlist, and resource scopes |
 | **Where do its outputs go?** | Back to you, mixed with reasoning | Typed tokens in declared outbound places |
 | **What did it actually do?** | Chat transcript | Token trail with full provenance |
 | **How does it get cheaper?** | It doesn't | Crystallization — agent steps collapse into deterministic transitions |
@@ -1075,7 +1086,7 @@ permissions, and outputs are explicit.
 
 ### Agent roles on the wire
 
-Every agent runs under the positional **capability role** `rwxhludcts`. The
+Every agent runs under the positional **capability role** `rwxhludctsm`. The
 role is the coarse ceiling; a named capability profile, an explicit tool
 allowlist, and resource scopes can narrow it for a particular fire.
 
@@ -1091,6 +1102,7 @@ allowlist, and resource scopes can narrow it for a particular fire.
 | `c` | Coordinate | Invoke personas, delegate tasks, and collect results |
 | `t` | Tool nets | Discover, inspect, and invoke reusable capability nets |
 | `s` | Scripts | Register executable script artifacts in the tool catalog |
+| `m` | MCP | Call tools on the external MCP servers declared in the transition's `action.mcp` |
 
 A role-less agent defaults to lean read/write access, not full power. The
 runtime refuses calls outside the effective grant.
@@ -1203,7 +1215,7 @@ Dual-license model:
 - **Commercial licensing**: alexejsailer@gmail.com
 - **Website & blog**: https://alexejsailer.com
 - **Hosted docs**: https://agentic-nets.com
-- **Video walkthroughs (YouTube)**: [Agentic-Nets playlist](https://www.youtube.com/playlist?list=PLW1ujxCEmjT0h9JgrUbMuxM2Pv2gsWnFb)
+- **Video walkthroughs (YouTube)**: [Agentic-Nets playlist](https://www.youtube.com/playlist?list=PLQirdTX_nt94)
 - **Issues**: https://github.com/alexejsailer/agentic-nets/issues
 - **Contributing**: see [CONTRIBUTING.md](CONTRIBUTING.md)
 
