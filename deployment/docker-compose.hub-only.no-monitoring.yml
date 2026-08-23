@@ -172,15 +172,15 @@ services:
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-5.2:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.7-code:cloud}
       # Per-transition tier routing: an inscription's action.tier=low|medium|high resolves here.
-      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-glm-5.2:cloud}
-      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-glm-5.2:cloud}
-      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k3:cloud}
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-kimi-k2.7-code:cloud}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-kimi-k2.7-code:cloud}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k2.7-code:cloud}
       # Dynamic post-THINK routing: the inference right after a successful THINK tool call
       # runs on this model. NOT a tier - blank means routing OFF, it never falls back
       # to OLLAMA_MODEL.
-      OLLAMA_THINKING_MODEL: ${OLLAMA_THINKING_MODEL:-kimi-k3:cloud}
+      OLLAMA_THINKING_MODEL: ${OLLAMA_THINKING_MODEL:-glm-5.2:cloud}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_HIGH_MODEL: ${OPENAI_HIGH_MODEL:-gpt-5.4}
       OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
@@ -587,10 +587,10 @@ services:
       OPENAI_MEDIUM_MODEL: ${OPENAI_MEDIUM_MODEL:-gpt-5.4-mini}
       OPENAI_LOW_MODEL: ${OPENAI_LOW_MODEL:-gpt-5.4-nano}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-glm-5.2:cloud}
-      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k3:cloud}
-      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-glm-5.2:cloud}
-      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-glm-5.2:cloud}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-kimi-k2.7-code:cloud}
+      OLLAMA_HIGH_MODEL: ${OLLAMA_HIGH_MODEL:-kimi-k2.7-code:cloud}
+      OLLAMA_MEDIUM_MODEL: ${OLLAMA_MEDIUM_MODEL:-kimi-k2.7-code:cloud}
+      OLLAMA_LOW_MODEL: ${OLLAMA_LOW_MODEL:-kimi-k2.7-code:cloud}
     volumes:
       - ./data/gateway/jwt/admin-secret:/app/gateway-data/jwt/admin-secret:ro
       - ./data/logs/chat:/app/logs

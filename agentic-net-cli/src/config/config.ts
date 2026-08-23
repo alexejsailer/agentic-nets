@@ -92,10 +92,10 @@ const DEFAULT_PROFILE: ProfileConfig = {
   },
   ollama: {
     base_url: 'http://localhost:11434',
-    model: 'glm-5.2:cloud',
-    high_model: 'kimi-k3:cloud',
-    medium_model: 'glm-5.2:cloud',
-    low_model: 'glm-5.2:cloud',
+    model: 'kimi-k2.7-code:cloud',
+    high_model: 'kimi-k2.7-code:cloud',
+    medium_model: 'kimi-k2.7-code:cloud',
+    low_model: 'kimi-k2.7-code:cloud',
   },
   openai: {
     api_key: '${OPENAI_API_KEY}',

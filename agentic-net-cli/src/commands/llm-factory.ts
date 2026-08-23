@@ -73,7 +73,7 @@ export function createLlmProvider(name: string, profile: ProfileConfig, tier?: M
       });
     }
     case 'ollama': {
-      const model = resolveModelForTier(effectiveTier, profile.ollama, 'glm-5.2:cloud');
+      const model = resolveModelForTier(effectiveTier, profile.ollama, 'kimi-k2.7-code:cloud');
       return new OllamaProvider(
         profile.ollama?.base_url || 'http://localhost:11434',
         model,

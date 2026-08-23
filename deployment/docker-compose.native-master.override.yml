@@ -20,7 +20,7 @@
 #   cd ../../core/agentic-net-master && ./mvnw package -DskipTests
 #   AGENTIC_NET_NODE_BASE_URL=http://localhost:8080/api \
 #   AGENTICOS_VAULT_URL=http://localhost:8085 \
-#   OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=glm-5.2:cloud LLM_PROVIDER=ollama \
+#   OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=kimi-k2.7-code:cloud LLM_PROVIDER=ollama \
 #   MASTER_GATEWAY_REGISTRATION=true \
 #   MASTER_GATEWAY_URL=http://localhost:8083 \
 #   MASTER_SELF_URL=http://host.docker.internal:8082 \

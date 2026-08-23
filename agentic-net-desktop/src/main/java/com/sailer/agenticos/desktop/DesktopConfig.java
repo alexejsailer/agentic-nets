@@ -65,9 +65,9 @@ public final class DesktopConfig {
                 # Optional advanced values: ollama, claude (needs anthropic.api.key).
                 llm.provider=disabled
                 ollama.base.url=http://127.0.0.1:11434
-                ollama.model=glm-5.2:cloud
+                ollama.model=kimi-k2.7-code:cloud
                 # Optional per-tier model routing. Blank = the master's own defaults:
-                # glm-5.2:cloud for base/low/medium, kimi-k3:cloud for high + post-THINK.
+                # kimi-k2.7-code:cloud for base/low/medium/high, glm-5.2:cloud for post-THINK.
                 ollama.low.model=
                 ollama.medium.model=
                 ollama.high.model=

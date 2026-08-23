@@ -296,7 +296,7 @@ public final class Main {
             return env;
         }
         env.put("OLLAMA_BASE_URL", config.setting("ollama.base.url", "http://127.0.0.1:11434"));
-        env.put("OLLAMA_MODEL", config.setting("ollama.model", "glm-5.2:cloud"));
+        env.put("OLLAMA_MODEL", config.setting("ollama.model", "kimi-k2.7-code:cloud"));
         putIfConfigured(env, config, "ollama.low.model", "OLLAMA_LOW_MODEL");
         putIfConfigured(env, config, "ollama.medium.model", "OLLAMA_MEDIUM_MODEL");
         putIfConfigured(env, config, "ollama.high.model", "OLLAMA_HIGH_MODEL");
