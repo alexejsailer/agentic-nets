@@ -10,6 +10,15 @@ each quarter, the entries below get moved into a new `changelogs/CHANGELOG-YYYY-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.52.1] - 2026-08-23
+
+### Changed
+- **Default Ollama lineup is now `kimi-k2.7-code` on every tier, with `glm-5.2` reserved for post-THINK** (`deployment/.env.template`, `deployment/docker-compose*.yml`, `agentic-net-cli` — `config/config.ts` and `commands/llm-factory.ts`, `agentic-net-desktop` — `DesktopConfig`, `Main`). Supersedes the split shipped hours earlier in 2.52.0 (`glm-5.2` for base/low/medium, `kimi-k3` for high and post-THINK), which was chosen on an activated-parameter estimate of relative cost. Measured billing inverted it: on one week's real usage `kimi-k3` cost roughly ten times per request what `kimi-k2.7-code` did, and the smaller-looking `qwen3.5` was more expensive than the larger `kimi-k2.7-code` — activated parameter count does not predict what an Ollama Cloud request is billed at. Post-THINK deliberately stays a **different family** from the worker tiers, so the one inference after a THINK is not the worker re-reading itself in its own voice. Overrides via `OLLAMA_*` behave exactly as before, and a blank `OLLAMA_THINKING_MODEL` still means post-THINK routing is OFF rather than falling back to the base model.
+- **`list_models` now states what each model state means** (`agentic-net-mcp` — `tools/observe.ts`). The tool returned a `state` field that clients routinely misread. Its description now spells out ACTIVE / INACTIVE / CATALOGED and, in particular, that a CATALOGED model's version and element counts are reported as `0` by the catalog fallback no matter how much history is on disk — so a client cannot conclude from a listing that such a model is empty or disposable.
+
+### Added
+- **`agenticnets://docs/model-lifecycle` — the layer above transitions** (`agentic-net-mcp` — new `knowledge/model-lifecycle.md`, registered in `knowledge/index.ts` and `knowledge/index.md`). A transition only runs if its model is ACTIVE, and nothing in the knowledge pack covered how a model gets into or out of that state. Documents the four verbs (`activate`, `deactivate`, `load`, `unload`), the fact that `activate` and `deactivate` each reject unless the model is in the exact opposite state (so a CATALOGED model cannot be activated — that is a `load`), and two behaviours that are invisible from the API responses alone: **`unload` on its own silently reverses itself**, because master caches node's ACTIVE-model list for about ten seconds and its next poll makes node lazily re-create the model, with both calls reporting success; and a CATALOGED model reporting version `0` with no transitions may hold a large event history. The working sequence is deactivate, wait 15s, unload, then re-verify after 30s. Also notes that activating a model hands master everything marked running or starting, so an uninspected model can begin spending tokens within seconds.
+
 ## [2.52.0] - 2026-08-23
 
 ### Added
