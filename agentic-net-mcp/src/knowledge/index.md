@@ -63,6 +63,9 @@ inscription by hand, read `inscriptions`.
   deleting a leased token breaks the fire that holds it.
 - **tokens** — stringified properties (parse, sometimes twice); size discipline; client-side
   truncation caution; config tokens; design-time `tokens: 0` ≠ live state.
+- **model-lifecycle** — active vs inactive vs cataloged: the four verbs and which ones reject
+  each other, why a bare unload silently reverses itself, why a CATALOGED model reports zeros
+  that do not mean empty, and what starts firing the moment you activate.
 - **troubleshooting** — the playbooks: stuck lane, queued-no-output, scheduled-but-silent, dead
   LLM lane, new-model checklist, provenance.
 - **recipes** — end-to-end patterns: working memory, dev-team pipeline, watchers, crystallization,

@@ -759,7 +759,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'List models on the stack',
       description:
-        "All models node knows about (id, name, state) with an `allowed` flag showing which ones THIS connection may target, and `allowedVia` showing WHY: env (AGENTICOS_MODELS), persisted (created here in an earlier session and remembered), or session (granted by create_model during this connection, ends when it closes). Models outside the allowlist are visible but not targetable.",
+        "All models node knows about (id, name, state) with an `allowed` flag showing which ones THIS connection may target, and `allowedVia` showing WHY: env (AGENTICOS_MODELS), persisted (created here in an earlier session and remembered), or session (granted by create_model during this connection, ends when it closes). Models outside the allowlist are visible but not targetable. STATE MATTERS BEFORE YOU READ ANYTHING ELSE: ACTIVE = loaded and firing; INACTIVE = loaded and readable but not firing; CATALOGED = on disk, NOT in memory, and its version/element counts are reported as 0 by the catalog fallback no matter how much data it holds — never conclude a CATALOGED model is empty or disposable, load it first. See agenticnets://docs/model-lifecycle for the verbs and the unload race.",
       inputSchema: {},
     },
     wrapTool(scope, config.mode, { name: 'list_models', mutates: false }, async () => {

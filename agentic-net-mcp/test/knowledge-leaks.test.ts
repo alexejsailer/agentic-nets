@@ -113,7 +113,13 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // 128K → 134K for docs/mcp-servers: agent-side MCP is a new ENGINE CAPABILITY (an agent calling
   // external MCP servers mid-fire), not an edit — the four gates, the self-attach scope surprise
   // and degrade-never-fail are all things an agent acts wrongly on if it has to guess.
-  const PACK_CAP = 137216;
+  // 134K → 138K for docs/model-lifecycle: the layer ABOVE transitions, and the one place where
+  // the platform's own API lies by omission — `unload` returns CATALOGED and master's ~10s
+  // ACTIVE-list cache silently re-creates the model a second later, both calls reporting
+  // success. Paired with the CATALOGED-reports-zeros fallback (a model holding a large history
+  // reads as version 0 / 0 elements), this is the failure class that gets real work deleted.
+  // Doc was cut from 4.7K to 3.3K before this raise — same defend-per-edit bar as rule 12.
+  const PACK_CAP = 141312;
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.
