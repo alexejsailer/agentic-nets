@@ -10,9 +10,13 @@ each quarter, the entries below get moved into a new `changelogs/CHANGELOG-YYYY-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.52.0] - 2026-08-23
+
+### Added
+- **`OPENAI_COMPATIBLE_*` configuration for the new generic provider** (`deployment/.env.template`). `LLM_PROVIDER=openai-compatible` points master at any endpoint speaking the OpenAI chat-completions format — Groq, DeepSeek, Mistral, xAI, Together, a LiteLLM proxy, or a self-hosted vLLM / LM Studio / llama.cpp server — without a per-vendor provider (the implementation is in `core/CHANGELOG.md`). The template carries example endpoints and spells out that `OPENAI_COMPATIBLE_BASE_URL` is required: there is deliberately no default, so a misconfigured deployment fails at startup rather than quietly calling OpenAI. The `LLM_PROVIDER` list now also mentions `openrouter`, which was already supported but undocumented here.
 
 ### Changed
+- **`AGENTICOS_MODEL_TIER` is documented as what it now does** (`deployment/.env.template`). It decides which tier work runs on when it does not name one itself, and as of this release that includes agent transitions with no `action.tier` — previously they ignored it and always ran the high model (see `core/CHANGELOG.md` for the behaviour change and how to keep the old default).
 - **Ollama defaults aligned across every compose, the CLI and the desktop seed** (`deployment/docker-compose*.yml`, `agentic-net-cli` — `config/config.ts`, `agentic-net-desktop` — `DesktopConfig`). One lineup now: `glm-5.2:cloud` for base/low/medium, `kimi-k3:cloud` for high and post-THINK. The CLI's ollama profile still defaulted to the retired `deepseek-v4-pro:cloud`, so a `agentic-net-cli` run with no explicit model silently used a different model than the master it talked to. Every master service block in the composes now declares all five values rather than `OLLAMA_MODEL` alone. Overrides via `OLLAMA_*` behave as before, and a blank tier still falls back to the base model.
 
 ### Fixed
