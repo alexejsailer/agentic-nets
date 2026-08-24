@@ -18,6 +18,7 @@ import arcqlMd from './arcql.md';
 import commandsMd from './commands.md';
 import conceptsMd from './concepts.md';
 import costMd from './cost.md';
+import crystallizationMd from './crystallization.md';
 import emitMd from './emit.md';
 import externalFireMd from './external-fire.md';
 import indexMd from './index.md';
@@ -67,6 +68,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   'real-agents': { title: 'Real agents: personas scheduled on Petri nets', text: realAgentsMd },
   scheduling: { title: 'Scheduling: nets that run unattended', text: schedulingMd },
   cost: { title: 'Watching the meter: token cost', text: costMd },
+  crystallization: { title: 'Crystallization: when a lane should stop being an agent', text: crystallizationMd },
   nethub: { title: 'NetHub: export, import, self-contained packages', text: nethubMd },
   tokens: { title: 'Token shapes, stringification, size', text: tokensMd },
   leases: { title: 'Token leases — visibility vs availability', text: leasesMd },

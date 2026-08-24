@@ -63,6 +63,10 @@ inscription by hand, read `inscriptions`.
   deleting a leased token breaks the fire that holds it.
 - **tokens** — stringified properties (parse, sometimes twice); size discipline; client-side
   truncation caution; config tokens; design-time `tokens: 0` ≠ live state.
+- **crystallization** — when a lane should stop being an agent: reading `iterationCount ==
+  maxIterations` as "cut off, not finished", the prompt-huge/completion-tiny signature, replacing
+  a counting agent with one batch call, and the traps in the deterministic rewrite (lease
+  contention, one payload per map, `len(preset)` miscounting at 0 and 1).
 - **model-lifecycle** — active vs inactive vs cataloged: the four verbs and which ones reject
   each other, why a bare unload silently reverses itself, why a CATALOGED model reports zeros
   that do not mean empty, and what starts firing the moment you activate.

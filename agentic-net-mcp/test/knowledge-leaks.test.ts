@@ -119,7 +119,12 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // success. Paired with the CATALOGED-reports-zeros fallback (a model holding a large history
   // reads as version 0 / 0 elements), this is the failure class that gets real work deleted.
   // Doc was cut from 4.7K to 3.3K before this raise — same defend-per-edit bar as rule 12.
-  const PACK_CAP = 141312;
+  // 138K → 145K for docs/crystallization: the platform's central cost curve had no doc. A client
+  // that cannot read `iterationCount == maxIterations` as "cut off, not finished" will keep an
+  // agent on work that costs 821k tokens per fire and produces nothing — measured, then replaced
+  // with one batch call at 0 tokens. Carries the traps that cost real debugging in the rewrite
+  // (lease contention between two readers, one payload per map, len(preset) wrong at 0 and 1).
+  const PACK_CAP = 145408;
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.
