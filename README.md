@@ -15,6 +15,22 @@ approvals all live in formal Petri nets: places hold typed JSON state,
 transitions do the work, and every change leaves an event-sourced trail you can
 query later. Drive it from the visual Studio, an MCP client, or the CLI.
 
+Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
+Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
+variant where places hold structured documents and transitions are guarded by
+inscriptions — the same architecture, re-cast 14 years later for AI agents. The
+lineage, and a concept-by-concept map from the thesis to this runtime, is in
+**[FOUNDATIONS.md](https://github.com/alexejsailer/agentic-nets/blob/main/FOUNDATIONS.md)**.
+
+> ### ⬇ Try it now: [download the latest desktop release](https://github.com/alexejsailer/agentic-nets/releases/latest)
+>
+> One installer for **macOS**, **Windows**, or **Linux** — `.dmg`, `.msi`, `.deb`, `.rpm`.
+> **Desktop Lite** needs no Docker daemon, no Java or Node install, no API key, and no
+> server LLM: it bundles every service and its own runtimes, and the reasoning comes from
+> the MCP client you already use (Claude Code, Codex, Claude Desktop, Cursor). Install,
+> connect from the tray, and ask for the persona or team you want.
+> Details and checksums: [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm).
+
 [![Watch an AI agile team ship a real change](https://img.youtube.com/vi/VBomzW-xqfc/hqdefault.jpg)](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94)
 
 **[Watch an AI agile team ship a real change](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94)**
