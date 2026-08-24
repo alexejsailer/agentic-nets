@@ -10,6 +10,11 @@ each quarter, the entries below get moved into a new `changelogs/CHANGELOG-YYYY-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.53.0] - 2026-08-24
+
+### Added
+- **`agenticnets://docs/crystallization` — when a lane should stop being an agent** (`agentic-net-mcp` — new `knowledge/crystallization.md`, registered in the pack and index). The platform's central cost curve had no doc. Covers reading `iterationCount == maxIterations` as "cut off, not finished" (cap exhaustion is reported as success, so a saturated lane and a finished one look identical in the metrics), the prompt-huge/completion-tiny signature of an agent paying to re-read rather than to think, and replacing a counting agent with one `children/count/batch` call — a measured lane went from 821k tokens per fire producing nothing to 0 tokens and 5ms. Carries the traps that cost real debugging in the rewrite: fan out a private copy per consumer because two readers contend on one token's lease, a `map` emits one payload so two output shapes need two lanes, response keys containing slashes do resolve in templates, and `${len(preset)}` miscounts at exactly 0 and 1 tokens. Plus the two agent-session cost laws: history grows quadratically, and one budget must never both destroy and rebuild.
+
 ## [2.52.1] - 2026-08-23
 
 ### Changed
