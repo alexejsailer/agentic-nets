@@ -448,6 +448,38 @@
         "INVOKE_TOOL_NET",
         "TOOLNET_HEALTH"
       ]
+    },
+    "net-builder": {
+      "tools": [
+        "THINK",
+        "DONE",
+        "FAIL",
+        "QUERY_TOKENS",
+        "CREATE_TOKEN",
+        "LIST_ALL_SESSIONS",
+        "LIST_SESSION_NETS",
+        "GET_NET_STRUCTURE",
+        "GET_LINKED_PLACES",
+        "OBSERVE_MODEL",
+        "GET_EVENT_TRAIL",
+        "CREATE_SESSION",
+        "CREATE_NET",
+        "CREATE_PLACE",
+        "CREATE_TRANSITION",
+        "CREATE_ARC",
+        "SET_INSCRIPTION",
+        "CREATE_RUNTIME_PLACE",
+        "VERIFY_NET",
+        "VERIFY_INSCRIPTION",
+        "DEPLOY_TRANSITION",
+        "START_TRANSITION",
+        "FIRE_ONCE",
+        "EXECUTE_TRANSITION_SMART",
+        "SEARCH_KNOWLEDGE",
+        "READ_BLOB_TEXT",
+        "LIST_TOOL_NETS",
+        "AWAIT_TOKEN"
+      ]
     }
   }
 }

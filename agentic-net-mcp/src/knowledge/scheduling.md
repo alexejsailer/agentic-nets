@@ -8,8 +8,20 @@ A `schedule` on any non-link transition makes it tick server-side with nobody co
   zone id; unset means the server zone. `scheduler_status` always echoes the effective zone and a
   local next-fire string.
 
+**Interval is SPACING; cron + `graceMs` is PHASE.** `intervalMs` means "at least this long since
+the last fire", not a clock. In a token loop a lane is usually starved, so its interval elapses
+while it waits and it fires the moment a token arrives — chain several and the slowest interval
+paces them all (measured: three lanes labelled "60s" ran red 0.5s / green 1.0s / yellow 70s).
+When a step must happen AT a time, use cron with a grace window:
+`{"type":"cron","cron":"40 * * * * *","graceMs":5000}`. Without `graceMs` a tick that passes while
+the input is empty stays claimable FOREVER: the lane fires late, that late fire re-anchors it, and
+it stays off-phase every cycle after — and restarting the transition does NOT clear it. With
+`graceMs` the missed tick is skipped and the lane self-heals onto phase within one cycle. Omit it
+when late work should still run (catch-up); set it when being on time matters more.
+
 Schedules fail closed. Unknown/malformed types, non-positive intervals, invalid cron, missing
-fields, or an invalid timezone never fire and report `INVALID_SCHEDULE` plus `invalidReason`.
+fields, an invalid timezone, or a non-positive `graceMs` never fire and report `INVALID_SCHEDULE`
+plus `invalidReason`.
 
 `set_schedule` retrofits a schedule onto an existing transition (and handles the restart —
 assigning an inscription stops the transition). Without a schedule, a running transition fires
