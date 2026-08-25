@@ -10,6 +10,14 @@ each quarter, the entries below get moved into a new `changelogs/CHANGELOG-YYYY-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.54.0] - 2026-08-25
+
+### Added
+- **`net-builder` capability profile in the CLI catalog** (`agentic-net-cli` — `capability-profiles.json`). Verbatim mirror of the master-owned catalog; the parity gate requires the two copies be byte-identical. See `core/CHANGELOG.md` for why the profile exists.
+
+### Changed
+- **`agenticnets://docs/scheduling` teaches phase versus spacing** (`agentic-net-mcp`). `intervalMs` is a minimum gap, not a clock: chain several interval lanes in a token ring and the slowest paces them all while the fast ones collapse to sub-second dwell (measured: three lanes labelled "60s" ran 0.5s / 1.0s / 70s). Cron plus the new `graceMs` is how a step happens AT a time, and the doc spells out the trap it closes — without `graceMs`, a tick that passes while the input is empty stays claimable forever, so the lane fires late, re-anchors, and stays off-phase every cycle, and restarting it does not help.
+
 ## [2.53.0] - 2026-08-24
 
 ### Added
