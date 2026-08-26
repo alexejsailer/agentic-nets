@@ -70,7 +70,9 @@ SEPARATE layers. Building with native CREATE_TRANSITION/SET_INSCRIPTION/CREATE_R
 without CREATE_PLACE + CREATE_ARC leaves floating transitions on an empty canvas — invisible
 structure a human cannot review is a defect. Prefer the curated \`add_place\`/\`add_transition\`
 (both layers, auto-layout), and ALWAYS finish a build by running \`layout_net\` (add_transitions
-runs it for you): 200px grid, spine folds serpentine every 10 elements, config/hub places on a
+runs the free grid engine for you; layout_net itself defaults to the SEMANTIC engine — the
+platform LLM lays out the concrete net from its labels and arcs, grid as fallback): 200px grid,
+spine folds serpentine every 10 elements, config/hub places on a
 band between the rows they serve, audit/output sinks on their own bottom row, no arc spanning
 more than ~3 columns. Deleting a runtime transition leaves a ghost designtime shape — remove it
 (DELETE /api/designtime/nets/{netId}/transitions/{id}). EXPORT_PNML is the acceptance test.

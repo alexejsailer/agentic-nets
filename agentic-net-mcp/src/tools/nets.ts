@@ -922,7 +922,8 @@ async function relayoutNet(
   model: string,
   netId: string,
   sessionId: string,
-): Promise<{ netId: string; sessionId: string; moved: number; elements: number; note?: string }> {
+  engine: 'auto' | 'llm' | 'grid' = 'grid',
+): Promise<{ netId: string; sessionId: string; engine: string; moved: number; elements: number; note?: string }> {
   const res: any = await ctx.executorFor(model).execute('GET_NET_STRUCTURE', { netId, sessionId });
   if (res?.success === false) throw new Error(String(res.error ?? 'GET_NET_STRUCTURE failed'));
   const d: any = res?.data ?? res ?? {};
@@ -940,7 +941,50 @@ async function relayoutNet(
     const id = String(el.placeId ?? el.transitionId ?? el.id);
     if (Number.isFinite(el.x) && Number.isFinite(el.y)) current.set(id, { x: Number(el.x), y: Number(el.y) });
   }
-  const moves = serpentineLayout(elements, graph, current);
+
+  // Engine choice. The platform has a SEMANTIC layout engine (master POST /api/llm/layout): the
+  // LLM sees ids, types, LABELS and edges of the concrete net, so it can group branches, expose
+  // cycles and respect meaning in ways the deterministic grid cannot. It costs one provider call
+  // and needs a healthy provider, so: explicit layout_net defaults to auto (LLM first, grid
+  // fallback), while the add_transitions AUTO-run always passes 'grid' — no automated step spends
+  // LLM quota without being asked.
+  let moves: Map<string, { x: number; y: number }> | undefined;
+  let used = 'grid';
+  let note: string | undefined;
+  if (engine !== 'grid') {
+    try {
+      const labelOf = new Map<string, string>();
+      for (const p2 of places) labelOf.set(String(p2.placeId ?? p2.id), String(p2.label ?? ''));
+      for (const t2 of transitions) labelOf.set(String(t2.transitionId ?? t2.id), String(t2.label ?? ''));
+      const resp: any = await ctx.client.masterApi('POST', '/llm/layout', {
+        nodes: elements.map((e) => ({ id: e.id, type: e.type, label: labelOf.get(e.id) ?? '' })),
+        edges: graph.map((a) => ({ source: a.source, target: a.target })),
+      });
+      const positions: any[] = resp?.layout?.positions ?? [];
+      const byId = new Map<string, { x: number; y: number }>();
+      for (const pos of positions) {
+        if (pos?.id != null && Number.isFinite(Number(pos.x)) && Number.isFinite(Number(pos.y))) {
+          byId.set(String(pos.id), { x: Math.round(Number(pos.x)), y: Math.round(Number(pos.y)) });
+        }
+      }
+      // The LLM layout is only trusted COMPLETE: a partial answer would scatter the missing
+      // elements at stale positions, which is worse than the grid.
+      if (resp?.success !== false && byId.size === elements.length) {
+        moves = new Map([...byId].filter(([id, p2]) => {
+          const cur = current.get(id);
+          return !(cur && cur.x === p2.x && cur.y === p2.y);
+        }));
+        used = 'llm';
+      } else {
+        note = `llm layout unavailable or incomplete (${byId.size}/${elements.length} positions) — used the deterministic grid`;
+      }
+    } catch (e: any) {
+      note = `llm layout failed (${String(e?.message ?? e).slice(0, 100)}) — used the deterministic grid`;
+    }
+    if (!moves && engine === 'llm') throw new Error(note ?? 'llm layout failed');
+  }
+  if (!moves) moves = serpentineLayout(elements, graph, current);
+
   for (const [id, p] of moves) {
     const kind = placeIds.has(id) ? 'places' : 'transitions';
     await ctx.client.masterApi(
@@ -949,7 +993,7 @@ async function relayoutNet(
       { modelId: model, sessionId, x: p.x, y: p.y },
     );
   }
-  return { netId, sessionId, moved: moves.size, elements: elements.length };
+  return { netId, sessionId, engine: used, moved: moves.size, elements: elements.length, ...(note ? { note } : {}) };
 }
 
   server.registerTool(
@@ -957,15 +1001,19 @@ async function relayoutNet(
     {
       title: 'Auto-layout a net for the editor',
       description:
-        'Recompute a clean designtime layout for an existing net from its arc graph: the flow spine runs left-to-right on a 200px grid and folds serpentine every 10 elements; config/hub places land on a band between the rows they serve; audit/output sinks get their own bottom row. Run this after building or restructuring a net — a net a human cannot read in the editor is not finished. Only elements whose position changes are touched; labels and structure are never modified.',
+        'Recompute a clean designtime layout for an existing net. Default engine "auto" asks the platform\u2019s SEMANTIC layout engine first (master /api/llm/layout — the LLM reasons over the CONCRETE net: ids, labels and arcs, so it groups branches, exposes cycles and respects meaning) and falls back to the deterministic serpentine grid (200px pitch, spine folds every 10 elements, config/hub places banded between the rows they serve, sinks on their own bottom row) when no provider is available or the answer is incomplete. "grid" is free and deterministic; "llm" insists on the semantic engine and errors without it. Run this after building or restructuring a net — a net a human cannot read in the editor is not finished. Only positions change; labels and structure are never modified.',
       inputSchema: {
         netId: z.string(),
         sessionId: z.string().optional().describe(`Session holding the net (default: ${config.session})`),
+        engine: z
+          .enum(['auto', 'llm', 'grid'])
+          .optional()
+          .describe('auto (default): semantic LLM layout with grid fallback. llm: semantic only, error without a provider. grid: deterministic serpentine, zero LLM cost.'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'layout_net', mutates: true }, async (model, args) => {
-      return relayoutNet(ctx, model, String(args.netId), String(args.sessionId ?? config.session));
+      return relayoutNet(ctx, model, String(args.netId), String(args.sessionId ?? config.session), (args.engine as any) ?? 'auto');
     }),
   );
 
@@ -1003,7 +1051,7 @@ async function relayoutNet(
       // a layout failure must never fail the build itself.
       let layout: any;
       try {
-        if (succeeded > 0) layout = await relayoutNet(ctx, model, String(args.netId), config.session);
+        if (succeeded > 0) layout = await relayoutNet(ctx, model, String(args.netId), config.session, 'grid');
       } catch (e: any) {
         layout = { error: String(e?.message ?? e), note: 'run layout_net manually' };
       }
