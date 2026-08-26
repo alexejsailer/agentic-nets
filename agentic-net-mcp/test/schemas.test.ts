@@ -86,6 +86,7 @@ const CURATED = [
   'delete_transition',
   'delete_net',
   'delete_tokens',
+  'clear_place',
   'add_tokens',
   'count_tokens',
   'set_schedule',

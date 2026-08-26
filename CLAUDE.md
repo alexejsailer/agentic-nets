@@ -226,7 +226,11 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   memory layer `memory_write` / `memory_recall` / `memory_link` / `memory_graph`;
   net-building `deploy_template`, `create_net`, `add_place`, `add_transition` / `add_transitions`
   (kind-aware pre-wired inscriptions: map/llm/http/command/**agent**/link), `delete_tokens` (bounded
-  ArcQL query+delete), `set_schedule`, `fire_once` (preserveRunning smoke test), `start/stop_transition`,
+  ArcQL query+delete — filtered, but 100/call and one round trip per token) / **`clear_place`**
+  (whole-place reset in ONE batch via master `POST /runtime/places/{id}/tokens/deleteAll`; place id
+  and arcs survive, lease-guarded with `force`, optional `expectCount` interlock — measured 5000
+  tokens in 0.3s vs ~500/min through the per-token path),
+  `set_schedule`, `fire_once` (preserveRunning smoke test), `start/stop_transition`,
   `create_persona`, **`spawn_persona`** (complete self-driving agent-persona net — charter + task inbox +
   started `agent` transition + output; run several in parallel), `scaffold_tool_net`, `invoke_tool_net`,
   **`crystallize_session`** (record a session's summary + steps to memory AND bake the steps into a

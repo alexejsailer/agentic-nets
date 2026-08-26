@@ -396,6 +396,83 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+  server.registerTool(
+    'clear_place',
+    {
+      title: 'Empty a place in one call',
+      description:
+        'Delete EVERY token in a place in ONE batch — the whole-place counterpart to delete_tokens, which is filtered but capped at 100 per call and deletes one token per round trip. Use this to reset a runaway sink; use delete_tokens when you need an ArcQL filter. The place itself survives (same id, same identity, empty) — arcs, inscriptions and in-flight emissions are untouched. Refuses while any token is LEASED by an in-flight fire unless force:true (docs/leases); pass expectCount to make the clear fail closed if the place does not hold exactly that many tokens.',
+      inputSchema: {
+        place: z.string().describe('Runtime place id (e.g. p-fj-shipped)'),
+        force: z
+          .boolean()
+          .optional()
+          .describe('Clear even while tokens are leased by in-flight fires (default false — deleting a leased token breaks the holder’s consumption)'),
+        expectCount: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .describe('Safety interlock: only clear if the place holds exactly this many tokens (count_tokens first). Omit to clear whatever is there.'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'clear_place', mutates: true, destructive: true }, async (model, args) => {
+      const placeId = resolveMemoryPlace(args.place);
+
+      // Lease pre-flight. A leased token is held by an IN-FLIGHT fire: deleting it does not stop
+      // that work, it makes the fire's consumption fail afterwards. deleteAll on the master has no
+      // lease awareness at all, so the guard has to live here — same contract as delete_tokens.
+      // maxValueLength must stay generous: `_lock` is a JSON string and a truncated one parses as
+      // "no lease", which would turn the guard into a rubber stamp.
+      const scan = await ctx.executorFor(model).execute('QUERY_TOKENS', {
+        placePath: placePath(placeId),
+        query: 'FROM $',
+        maxValueLength: 400,
+      });
+      if (!scan.success) throw new Error(scan.error ?? 'QUERY_TOKENS failed');
+      const scanRaw: any = scan.data ?? {};
+      const present: any[] = Array.isArray(scanRaw) ? scanRaw : (scanRaw.results ?? scanRaw.tokens ?? []);
+      const leased = present
+        .map((t: any) => ({ t, lease: leaseOf(t) }))
+        .filter((x) => x.lease != null)
+        .map((x) => ({
+          id: String(x.t?._meta?.id ?? x.t?.id ?? x.t?.tokenId ?? 'unknown'),
+          owner: x.lease!.owner,
+          expiresInMs: x.lease!.expiresInMs,
+        }));
+
+      if (typeof args.expectCount === 'number' && present.length !== args.expectCount) {
+        throw new Error(
+          `expectCount ${args.expectCount} does not match the ${present.length} token(s) in ${placeId} — refusing to clear`,
+        );
+      }
+      if (leased.length && args.force !== true) {
+        throw new Error(
+          `${leased.length} token(s) in ${placeId} are leased by in-flight fires (${[...new Set(leased.map((l) => l.owner))].join(', ')}). ` +
+            'Wait for the fire, stop the lane, or pass force:true to clear anyway — see docs/leases.',
+        );
+      }
+
+      // ONE call: master resolves the place, builds a deleteLeaf event per token and commits them
+      // in a single node transaction (POST /api/runtime/places/{id}/tokens/deleteAll). Measured at
+      // ~5000 tokens in 0.3s, versus ~500/min through the per-token DELETE_TOKEN path.
+      const res: any = await ctx.client.masterApi(
+        'POST',
+        `/runtime/places/${encodeURIComponent(placeId)}/tokens/deleteAll`,
+        undefined,
+        { modelId: model },
+      );
+      const deletedCount = Number(res?.deletedCount ?? 0);
+      return {
+        place: placeId,
+        deletedCount,
+        placeRetained: true,
+        ...(leased.length ? { forcedOverLeases: leased } : {}),
+      };
+    }),
+  );
+
   // --- Domain memory: the model's OWN durable memory base, in its domain context ---
   // Same idea as memory_write/recall, but targeting the model-shared memory base the master's
   // MEMORY_WRITE and the domain-expert persona use, so a memory written from any of them is
