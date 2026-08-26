@@ -17,6 +17,7 @@ import { registerMcpServerTools } from './tools/mcp-servers.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
 import { registerObserveTools } from './tools/observe.js';
+import { registerCapabilityTools } from './tools/capabilities.js';
 import { registerProtocolReaders, registerProtocolTools } from './tools/protocol.js';
 import { registerApplicationReaders, registerApplicationTools } from './tools/applications.js';
 import { registerResources } from './resources.js';
@@ -61,6 +62,9 @@ export function createServer(ctx: AppContext): McpServer {
   // zero network, zero mutation — so it serves readonly observers too).
   registerObserveTools(server, ctx);
   registerKnowledgeTools(server, ctx);
+  // Capability delegation: find_capabilities registers in BOTH modes (read-only registry
+  // lookup); delegate only in rw (it writes a task token). The registrar self-guards.
+  registerCapabilityTools(server, ctx);
   // Agent-side MCP. Registers its read tool in both modes and the attach tool only in rw, so a
   // readonly observer can still see which lanes carry MCP servers and whether they resolve.
   registerMcpServerTools(server, ctx);

@@ -87,6 +87,9 @@ const CURATED = [
   'delete_net',
   'delete_tokens',
   'clear_place',
+  'layout_net',
+  'find_capabilities',
+  'delegate',
   'add_tokens',
   'count_tokens',
   'set_schedule',
@@ -139,7 +142,11 @@ describe('advertised tool surface', () => {
     const native = names.filter((n) => n === n.toUpperCase() && /_|^[A-Z]+$/.test(n));
     expect(native.length).toBeGreaterThanOrEqual(60); // 65 catalog − 3 loop-only ≥ 62
     expect(names.length).toBe(CURATED.length + native.length); // no strays
+    // Capability tools keep `model` even single-model: omitting it targets the system registry
+    // in `default`, so the param is how a caller escapes the connection's own model.
+    const modelKeepers = new Set(['find_capabilities', 'delegate']);
     for (const t of tools) {
+      if (modelKeepers.has(t.name)) continue;
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).not.toContain('model');
     }
   });
@@ -232,7 +239,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['application_describe', 'application_list', 'domain_memory_recall', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'domain_memory_recall', 'find_capabilities', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
     );
   });
 

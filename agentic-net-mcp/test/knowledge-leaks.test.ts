@@ -124,14 +124,14 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // agent on work that costs 821k tokens per fire and produces nothing — measured, then replaced
   // with one batch call at 0 tokens. Carries the traps that cost real debugging in the rewrite
   // (lease contention between two readers, one payload per map, len(preset) wrong at 0 and 1).
-  const PACK_CAP = 145408;
+  const PACK_CAP = 152576; // +7KB 2026-08-26: the delegation topic (capability packs) joined the pack
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.
   // 2026-08-23: +2KB for the agent-side-MCP section. Same bar as rule 12: a new engine capability
   // the client cannot discover from tool schemas alone (the m flag is invisible in them), kept to
   // one paragraph that hands off to docs/mcp-servers for everything else.
-  const INSTRUCTIONS_CAP = 19968;
+  const INSTRUCTIONS_CAP = 22528; // +2.5KB 2026-08-26: delegate-first + designtime/layout invariants became protocol behaviour
 
   for (const [topic, doc] of Object.entries(KNOWLEDGE)) {
     it(`doc '${topic}' fits the ${PER_DOC_CAP}B cap and is well-formed`, () => {

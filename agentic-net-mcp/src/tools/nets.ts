@@ -16,7 +16,7 @@ import {
   validateCron,
 } from '../inscriptions.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
-import { NetLayout } from '../layout.js';
+import { NetLayout, serpentineLayout, type NetElement, type NetArc } from '../layout.js';
 import { clampValues, isLlmHealthReady } from './observe.js';
 import { TemplateExecutor } from '../templates/executor.js';
 import { TEMPLATES } from '../templates/index.js';
@@ -910,6 +910,65 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     })),
   );
 
+
+/**
+ * Whole-net relayout: read the designtime structure, compute a serpentine grid from the arc
+ * graph, and PUT only the elements whose position changes. The general demand behind it: a net
+ * is not done when tokens flow — it is done when the editor shows it. Exported for reuse and
+ * auto-run at the end of add_transitions.
+ */
+async function relayoutNet(
+  ctx: AppContext,
+  model: string,
+  netId: string,
+  sessionId: string,
+): Promise<{ netId: string; sessionId: string; moved: number; elements: number; note?: string }> {
+  const res: any = await ctx.executorFor(model).execute('GET_NET_STRUCTURE', { netId, sessionId });
+  if (res?.success === false) throw new Error(String(res.error ?? 'GET_NET_STRUCTURE failed'));
+  const d: any = res?.data ?? res ?? {};
+  const places: any[] = d.places ?? [];
+  const transitions: any[] = d.transitions ?? [];
+  const arcs: any[] = d.arcs ?? [];
+  const elements: NetElement[] = [
+    ...places.map((p) => ({ id: String(p.placeId ?? p.id), type: 'place' as const })),
+    ...transitions.map((t) => ({ id: String(t.transitionId ?? t.id), type: 'transition' as const })),
+  ];
+  const placeIds = new Set(places.map((p) => String(p.placeId ?? p.id)));
+  const graph: NetArc[] = arcs.map((a) => ({ source: String(a.sourceId), target: String(a.targetId) }));
+  const current = new Map<string, { x: number; y: number }>();
+  for (const el of [...places, ...transitions]) {
+    const id = String(el.placeId ?? el.transitionId ?? el.id);
+    if (Number.isFinite(el.x) && Number.isFinite(el.y)) current.set(id, { x: Number(el.x), y: Number(el.y) });
+  }
+  const moves = serpentineLayout(elements, graph, current);
+  for (const [id, p] of moves) {
+    const kind = placeIds.has(id) ? 'places' : 'transitions';
+    await ctx.client.masterApi(
+      'PUT',
+      `/designtime/nets/${encodeURIComponent(netId)}/${kind}/${encodeURIComponent(id)}`,
+      { modelId: model, sessionId, x: p.x, y: p.y },
+    );
+  }
+  return { netId, sessionId, moved: moves.size, elements: elements.length };
+}
+
+  server.registerTool(
+    'layout_net',
+    {
+      title: 'Auto-layout a net for the editor',
+      description:
+        'Recompute a clean designtime layout for an existing net from its arc graph: the flow spine runs left-to-right on a 200px grid and folds serpentine every 10 elements; config/hub places land on a band between the rows they serve; audit/output sinks get their own bottom row. Run this after building or restructuring a net — a net a human cannot read in the editor is not finished. Only elements whose position changes are touched; labels and structure are never modified.',
+      inputSchema: {
+        netId: z.string(),
+        sessionId: z.string().optional().describe(`Session holding the net (default: ${config.session})`),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'layout_net', mutates: true }, async (model, args) => {
+      return relayoutNet(ctx, model, String(args.netId), String(args.sessionId ?? config.session));
+    }),
+  );
+
   server.registerTool(
     'add_transitions',
     {
@@ -939,6 +998,15 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         );
       }
       const succeeded = results.filter((r) => r.ok).length;
+      // Layout is a general invariant, not an afterthought: after a batch build the net gets an
+      // automatic serpentine relayout so the editor view matches what was built. Best-effort —
+      // a layout failure must never fail the build itself.
+      let layout: any;
+      try {
+        if (succeeded > 0) layout = await relayoutNet(ctx, model, String(args.netId), config.session);
+      } catch (e: any) {
+        layout = { error: String(e?.message ?? e), note: 'run layout_net manually' };
+      }
       return {
         netId: args.netId,
         requested: results.length,
@@ -946,6 +1014,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         failed: results.length - succeeded,
         partialSuccess: succeeded > 0 && succeeded < results.length,
         results,
+        ...(layout ? { layout } : {}),
       };
     }),
   );

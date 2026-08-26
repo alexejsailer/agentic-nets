@@ -18,6 +18,7 @@ import arcqlMd from './arcql.md';
 import commandsMd from './commands.md';
 import conceptsMd from './concepts.md';
 import costMd from './cost.md';
+import delegationMd from './delegation.md';
 import crystallizationMd from './crystallization.md';
 import emitMd from './emit.md';
 import externalFireMd from './external-fire.md';
@@ -61,6 +62,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   'model-lifecycle': { title: 'Model lifecycle: active, inactive, cataloged', text: modelLifecycleMd },
   'model-steward': { title: 'Model Steward: domain-neutral model and process review', text: modelStewardMd },
   personas: { title: 'Persona-first agents, teams, contexts, and learning', text: personasMd },
+  delegation: { title: 'Capability packs: delegate, don\u2019t hand-roll', text: delegationMd },
   applications: { title: 'Net applications: Protocol, Interview, Goals', text: applicationsMd },
   approvals: { title: 'Approval Room: independent decisions and safe retries', text: approvalsMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },
