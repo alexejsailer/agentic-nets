@@ -7,7 +7,7 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-[![Why AI agents need a process runtime](https://img.youtube.com/vi/VWm4OCwWnZM/hqdefault.jpg)](https://www.youtube.com/watch?v=VWm4OCwWnZM)
+[![Why AI agents need a process runtime](.github/images/intro-video-slide.jpg)](https://www.youtube.com/watch?v=VWm4OCwWnZM)
 
 **[Why AI agents need a process runtime: Agentic-Nets explained](https://www.youtube.com/watch?v=VWm4OCwWnZM)**,
 the idea in one video.
