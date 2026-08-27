@@ -20,9 +20,18 @@ cheaper and more predictable the longer it operates. The intelligence comes
 from any model you already use, even just the MCP client you connect, or from
 no model at all. Drive it from the visual Studio, an MCP client, or the CLI.
 
-*In one sentence: a governed, event-sourced operating runtime for persistent,
-evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
-unpacks what that means.*
+The mental model is a team, not a script. A software team does not start when
+a ticket arrives and disappear when the ticket closes: it remembers earlier
+decisions, holds responsibilities, uses tools, reacts to incidents, and
+improves its own process. Agentic-Nets models processes exactly that way, as
+live structures (formal Petri nets) that are both the description of the
+process and the running process itself.
+
+*In one sentence: workflow engines execute runs; Agentic-Nets operates
+evolving systems. Formally: a governed, event-sourced operating runtime for
+persistent, evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
+unpacks what that means, and [Chapter 1: What Agentic-Nets Is](docs/book/chapter-01-what-agentic-nets-is.md)
+tells it in full.*
 
 ## The product in ten plain sentences
 
@@ -50,6 +59,20 @@ Each sentence is one idea, and each idea is a pillar of the architecture:
 10. **Apps are views, not silos.** A Kanban board, a goal tracker, and a
     monitor are projections over the same living process, not separate
     applications with their own databases.
+
+Three principles sit behind all ten:
+
+> **Agentic-Nets owns the process. AI supplies intelligence to the process.**
+> The intelligence is replaceable: Claude today, a local model tomorrow, no
+> model at all once a step has crystallized. The process is persistent.
+
+> **Use AI where uncertainty requires intelligence. Use deterministic
+> execution everywhere else.** The objective is not to maximize LLM usage; it
+> is to spend intelligence only where it creates value.
+
+> **A process learns from its own execution and evolves, through approved
+> changes, while it continues to operate.** The event history is the
+> evidence; nothing rewrites itself silently.
 
 Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
 Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
