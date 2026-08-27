@@ -7,6 +7,11 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
+[![Why AI agents need a process runtime](https://img.youtube.com/vi/VWm4OCwWnZM/hqdefault.jpg)](https://www.youtube.com/watch?v=VWm4OCwWnZM)
+
+**[Why AI agents need a process runtime: Agentic-Nets explained](https://www.youtube.com/watch?v=VWm4OCwWnZM)**,
+the idea in one video.
+
 **Build processes that keep running: AI agents, automation, and people working
 on the same live state, under rules you set.**
 
@@ -19,60 +24,6 @@ thing often enough, you replace it with plain automation, so the process gets
 cheaper and more predictable the longer it operates. The intelligence comes
 from any model you already use, even just the MCP client you connect, or from
 no model at all. Drive it from the visual Studio, an MCP client, or the CLI.
-
-The mental model is a team, not a script. A software team does not start when
-a ticket arrives and disappear when the ticket closes: it remembers earlier
-decisions, holds responsibilities, uses tools, reacts to incidents, and
-improves its own process. Agentic-Nets models processes exactly that way, as
-live structures (formal Petri nets) that are both the description of the
-process and the running process itself.
-
-*In one sentence: workflow engines execute runs; Agentic-Nets operates
-evolving systems. Formally: a governed, event-sourced operating runtime for
-persistent, evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
-unpacks what that means, and [Chapter 1: What Agentic-Nets Is](docs/book/chapter-01-what-agentic-nets-is.md)
-tells it in full.*
-
-## The product in ten plain sentences
-
-Each sentence is one idea, and each idea is a pillar of the architecture:
-
-1. **No runs.** A process here does not start and finish; it stays alive and
-   keeps working until you retire it.
-2. **Visible state.** Work sits in places you can see and query, not inside a
-   chat log or a hidden queue.
-3. **Durable AI teammates.** A persona keeps its context, tools, and
-   responsibilities for months, not for one prompt.
-4. **Equal steps.** A shell command, an HTTP call, a data transform, and an AI
-   decision are peers in the same net.
-5. **Rules before actions.** Permissions, budgets, credentials, and approvals
-   bound what every agent may do, before it does it.
-6. **Change it while it runs.** Add a place, swap a step, or attach a tool
-   without stopping the system or redeploying it.
-7. **A history that answers.** Every token, fire, and decision is recorded, so
-   "what happened and why" is a query, not a guess.
-8. **AI that makes itself cheaper.** When an AI step keeps making the same
-   decision, you crystallize it into plain automation and stop paying for
-   tokens.
-9. **Intelligence is supplied, not built in.** Use a server LLM, a local
-   model, the MCP client you already have, or no model at all.
-10. **Apps are views, not silos.** A Kanban board, a goal tracker, and a
-    monitor are projections over the same living process, not separate
-    applications with their own databases.
-
-Three principles sit behind all ten:
-
-> **Agentic-Nets owns the process. AI supplies intelligence to the process.**
-> The intelligence is replaceable: Claude today, a local model tomorrow, no
-> model at all once a step has crystallized. The process is persistent.
-
-> **Use AI where uncertainty requires intelligence. Use deterministic
-> execution everywhere else.** The objective is not to maximize LLM usage; it
-> is to spend intelligence only where it creates value.
-
-> **A process learns from its own execution and evolves, through approved
-> changes, while it continues to operate.** The event history is the
-> evidence; nothing rewrites itself silently.
 
 Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
 Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
@@ -306,6 +257,60 @@ The interface changes; the governed net underneath does not.
 | What is public in this repo? | Licensed public source for the Net Application SDK, MCP server, desktop launcher, gateway, executor, vault, CLI, chat bot, blobstore, tool containers, deployment, and monitoring. |
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
 | Latest release | Always on the [GitHub Releases page](https://github.com/alexejsailer/agentic-nets/releases/latest). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
+
+## The product in ten plain sentences
+
+The mental model is a team, not a script. A software team does not start when
+a ticket arrives and disappear when the ticket closes: it remembers earlier
+decisions, holds responsibilities, uses tools, reacts to incidents, and
+improves its own process. Agentic-Nets models processes exactly that way, as
+live structures (formal Petri nets) that are both the description of the
+process and the running process itself.
+
+*In one sentence: workflow engines execute runs; Agentic-Nets operates
+evolving systems. Formally: a governed, event-sourced operating runtime for
+persistent, evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
+below unpacks what that means, and [Chapter 1: What Agentic-Nets Is](docs/book/chapter-01-what-agentic-nets-is.md)
+tells it in full.*
+
+Each sentence is one idea, and each idea is a pillar of the architecture:
+
+1. **No runs.** A process here does not start and finish; it stays alive and
+   keeps working until you retire it.
+2. **Visible state.** Work sits in places you can see and query, not inside a
+   chat log or a hidden queue.
+3. **Durable AI teammates.** A persona keeps its context, tools, and
+   responsibilities for months, not for one prompt.
+4. **Equal steps.** A shell command, an HTTP call, a data transform, and an AI
+   decision are peers in the same net.
+5. **Rules before actions.** Permissions, budgets, credentials, and approvals
+   bound what every agent may do, before it does it.
+6. **Change it while it runs.** Add a place, swap a step, or attach a tool
+   without stopping the system or redeploying it.
+7. **A history that answers.** Every token, fire, and decision is recorded, so
+   "what happened and why" is a query, not a guess.
+8. **AI that makes itself cheaper.** When an AI step keeps making the same
+   decision, you crystallize it into plain automation and stop paying for
+   tokens.
+9. **Intelligence is supplied, not built in.** Use a server LLM, a local
+   model, the MCP client you already have, or no model at all.
+10. **Apps are views, not silos.** A Kanban board, a goal tracker, and a
+    monitor are projections over the same living process, not separate
+    applications with their own databases.
+
+Three principles sit behind all ten:
+
+> **Agentic-Nets owns the process. AI supplies intelligence to the process.**
+> The intelligence is replaceable: Claude today, a local model tomorrow, no
+> model at all once a step has crystallized. The process is persistent.
+
+> **Use AI where uncertainty requires intelligence. Use deterministic
+> execution everywhere else.** The objective is not to maximize LLM usage; it
+> is to spend intelligence only where it creates value.
+
+> **A process learns from its own execution and evolves, through approved
+> changes, while it continues to operate.** The event history is the
+> evidence; nothing rewrites itself silently.
 
 ## The architecture: an operating environment, not an execution engine
 
