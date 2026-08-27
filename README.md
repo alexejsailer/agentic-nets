@@ -24,6 +24,33 @@ no model at all. Drive it from the visual Studio, an MCP client, or the CLI.
 evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
 unpacks what that means.*
 
+## The product in ten plain sentences
+
+Each sentence is one idea, and each idea is a pillar of the architecture:
+
+1. **No runs.** A process here does not start and finish; it stays alive and
+   keeps working until you retire it.
+2. **Visible state.** Work sits in places you can see and query, not inside a
+   chat log or a hidden queue.
+3. **Durable AI teammates.** A persona keeps its context, tools, and
+   responsibilities for months, not for one prompt.
+4. **Equal steps.** A shell command, an HTTP call, a data transform, and an AI
+   decision are peers in the same net.
+5. **Rules before actions.** Permissions, budgets, credentials, and approvals
+   bound what every agent may do, before it does it.
+6. **Change it while it runs.** Add a place, swap a step, or attach a tool
+   without stopping the system or redeploying it.
+7. **A history that answers.** Every token, fire, and decision is recorded, so
+   "what happened and why" is a query, not a guess.
+8. **AI that makes itself cheaper.** When an AI step keeps making the same
+   decision, you crystallize it into plain automation and stop paying for
+   tokens.
+9. **Intelligence is supplied, not built in.** Use a server LLM, a local
+   model, the MCP client you already have, or no model at all.
+10. **Apps are views, not silos.** A Kanban board, a goal tracker, and a
+    monitor are projections over the same living process, not separate
+    applications with their own databases.
+
 Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
 Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
 variant where places hold structured documents and transitions are guarded by
