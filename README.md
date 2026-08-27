@@ -7,17 +7,18 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**An event-sourced runtime for long-living intelligent processes.**
+**A governed, event-sourced operating runtime for persistent, evolving processes.**
 
-Agentic-Nets does not run workflows to completion; it keeps processes alive.
-A net stays running: its state persists as tokens in places, its structure can
-be changed while it operates, and deterministic steps, shell commands, HTTP
-calls, and AI reasoning are equal execution mechanisms inside the same formal
-Petri net, each behind explicit capability boundaries. Every change leaves an
-event-sourced trail you can query later, and a process evolves over time from
-exploratory agent reasoning into cheap, deterministic structure. The runtime
-owns the process; intelligence is supplied to it, by any model or none. Drive
-it from the visual Studio, an MCP client, or the CLI.
+Workflow engines execute runs. Agentic-Nets operates evolving systems: it hosts
+cooperating process nets, persona nets, tool nets, applications, and shared
+state inside explicit policy boundaries. Deterministic automation, external
+systems, remote execution, and AI are interchangeable execution mechanisms in
+the same formal Petri net, and the structure can be changed while the system
+operates. The runtime preserves causal history, so operating structures can be
+observed, analyzed, extended, and, through approved crystallization, made
+progressively more deterministic. The runtime owns the process; intelligence
+is supplied to it, by any model or none. Drive it from the visual Studio, an
+MCP client, or the CLI.
 
 Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
 Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
@@ -34,6 +35,16 @@ lineage, and a concept-by-concept map from the thesis to this runtime, is in
 > the MCP client you already use (Claude Code, Codex, Claude Desktop, Cursor). Install,
 > connect from the tray, and ask for the persona or team you want.
 > Details and checksums: [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm).
+
+> ### 👀 Or just look first: live nets, no install, no login
+>
+> These read-only share links open real nets running on the public demo
+> instance, rendered in the same Studio editor operators use. The link is the
+> credential; you can watch, not touch:
+>
+> - [01 · Token Flow Basics](https://agentic-nets.com/#/shared-net/f2663810-bcce-4ed2-9507-40f77b3be04c): place, token, and transition in one minute
+> - [02 · The Seven Transition Types](https://agentic-nets.com/#/shared-net/c1b98b10-c521-4b33-9318-7e68114fa3ec): pass, map, http, llm, agent, command, and link side by side
+> - [12 · Crystallization: AI first, then free](https://agentic-nets.com/#/shared-net/c989eac2-b6ef-4b35-a107-6ac3ef26d469): the falling-cost argument as a running net
 
 [![Watch an AI agile team ship a real change](https://img.youtube.com/vi/VBomzW-xqfc/hqdefault.jpg)](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94)
 
@@ -234,7 +245,7 @@ The interface changes; the governed net underneath does not.
 
 | Question | Answer |
 |---|---|
-| What is it? | An event-sourced Petri-net runtime for long-living processes: governed personas, live nets you can modify while they run, tools, memory, remote execution, and evidence. |
+| What is it? | A governed, event-sourced operating runtime for persistent processes: cooperating process, persona, and tool nets over shared state, modifiable while they run, with applications as projections on top. |
 | Why does it exist? | To make autonomous processes inspectable, permission-scoped, historically analyzable, continuously improvable, and reusable instead of hidden inside chat state. |
 | What is a Net Application? | A versioned NetHub package containing an executable session plus an optional compiled UI. Install it into a model and Studio discovers it without being rebuilt. |
 | Can I use my own model? | Yes. Run server-side with Claude, OpenAI, or Ollama; host lanes from the CLI/MCP process; or let the connected MCP model execute selected AI transitions through external fires. |
@@ -242,7 +253,94 @@ The interface changes; the governed net underneath does not.
 | What is closed source? | The node, master, and Studio GUI runtime images used by the full stack. They ship from Docker Hub under the Proprietary EULA. |
 | Latest release | Always on the [GitHub Releases page](https://github.com/alexejsailer/agentic-nets/releases/latest). Beta: suitable for evaluation, local experiments, and early adopters comfortable with a fast-moving stack. |
 
-## The mental model
+## The architecture: an operating environment, not an execution engine
+
+The "system" that Agentic-Nets operates is a concrete thing. A governed model
+runtime hosts cooperating live nets over shared state; applications project
+that runtime for humans; every execution mechanism binds underneath; history
+feeds an approval-gated improvement loop; NetHub distributes the results.
+
+```mermaid
+flowchart TB
+    subgraph surfaces["Control surfaces and applications"]
+        studio["Studio"]
+        apps["Net Applications<br/>Kanban · Goals · Interview · Protocol"]
+        clients["MCP · CLI · REST API"]
+    end
+
+    subgraph runtime["Governed model runtime"]
+        policy["Policy envelope<br/>capabilities · approvals · Vault · budgets"]
+
+        subgraph structures["Sessions and cooperating live nets"]
+            personas["Persona nets<br/>Developer · SRE · Analyst · PM"]
+            processes["Process nets"]
+            tools["Tool nets"]
+        end
+
+        state["Shared and linked state<br/>places · typed tokens · durable context"]
+    end
+
+    subgraph execution["Execution bindings"]
+        deterministic["Deterministic<br/>pass · map · link"]
+        systems["External systems<br/>HTTP · commands · remote executors"]
+        intelligence["Intelligence<br/>server LLM · external MCP model · agent"]
+    end
+
+    history["Causal event history<br/>state reconstruction · provenance · measurements"]
+    improvement["Observe → analyze → propose → approve → version → crystallize"]
+    nethub["NetHub<br/>package · distribute · install"]
+
+    surfaces <--> runtime
+    policy --- structures
+    personas <--> state
+    processes <--> state
+    tools <--> state
+    structures --> execution
+    execution --> state
+    state --> history
+    structures --> history
+    history --> improvement
+    improvement -. "approved changes" .-> structures
+    nethub <--> runtime
+```
+
+Nine properties make this an operating environment rather than an execution
+engine, and they are what the phrase "kind of an OS" actually means here:
+
+1. **Applications are projections, not the system of record.** Kanban, Goals,
+   Interview, Protocol, and monitoring are different views over the same live
+   runtime. There is no per-app `UI -> business logic -> database` stack; the
+   net remains the source of truth and several applications can look at, or
+   act on, different aspects of the same running system.
+2. **The runtime hosts organizations, not single workflows.** A model contains
+   sessions; sessions contain process nets, persona nets, and tool nets that
+   cooperate through shared or explicitly linked places.
+3. **Personas are durable actors.** A Developer, SRE, Analyst, or PM is not a
+   prompt invocation. It holds persistent context, declared tools,
+   responsibilities, and bounded authority inside the runtime, for months if
+   needed.
+4. **Transitions are capabilities, not merely steps.** The same net binds
+   deterministic transformations, HTTP services, remote command execution, and
+   AI judgment as interchangeable execution mechanisms.
+5. **The runtime and the intelligence are separate.** Agentic-Nets owns state,
+   process, permissions, history, execution, and deployment. Models supply
+   reasoning where it is required; fully deterministic paths need no model at
+   all, so the runtime can operate with zero configured LLMs.
+6. **A policy envelope wraps the whole runtime.** Capability flags, approvals,
+   Vault credentials, scopes, budgets, and executor boundaries are not one
+   layer in the stack; they surround everything the runtime does.
+7. **History exists for evolution, not only audit.** Event sourcing supports
+   state reconstruction, causal analysis, comparison, and bottleneck
+   discovery, which is what makes evidence-based improvement possible.
+8. **Crystallization is a controlled feedback loop.** Observe, analyze,
+   propose, approve, version, verify, crystallize. Repeatedly successful AI
+   reasoning becomes cheaper deterministic structure through approved changes;
+   the platform never silently rewrites itself.
+9. **NetHub is the distribution plane.** Nets, personas, tools, applications,
+   and complete operating structures install as versioned packages, so a
+   domain gets an operating environment rather than a from-scratch build.
+
+Containment, for orientation:
 
 ```text
 Model (isolated workspace)
