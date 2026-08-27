@@ -41,6 +41,60 @@ lineage, and a concept-by-concept map from the thesis to this runtime, is in
 > connect from the tray, and ask for the persona or team you want.
 > Details and checksums: [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm).
 
+## Start here
+
+| Goal | Link |
+|---|---|
+| Fastest local creator/operator setup (no Docker) | [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm) |
+| Run the production-like Docker stack | [Install in 5 minutes](#install-in-5-minutes) |
+| Build an installable UI over a net | [Net Applications](#net-applications-deploy-a-ui-without-rebuilding-studio) and the [SDK workspace](agentic-net-apps/README.md) |
+| Follow a full application example | [Persona Kanban tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md) |
+| Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
+| Ask what a net did last week, and improve it from that | [Observability you can act on](#observability-you-can-act-on-not-just-look-at) |
+| Run builds, tests, and CLIs on your own machines | [Command transitions and executors](#command-transitions-and-executors-real-work-on-real-machines) |
+| Give agents tools: APIs, scripts, containers, tool nets | [Tools](#tools-an-http-call-a-script-a-container-or-a-whole-net) |
+| Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
+| See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
+| Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
+| Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Read the whitepaper — the harness control system, complete domain automation | [docs/whitepaper/the-harness-control-system.html](docs/whitepaper/the-harness-control-system.html) ([view rendered](https://raw.githack.com/alexejsailer/agentic-nets/main/docs/whitepaper/the-harness-control-system.html)) |
+| Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
+| Connect any MCP client | [MCP server](agentic-net-mcp/README.md) |
+| Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
+| Ask questions or discuss use cases | [GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions) or [forum.agentic-nets.com](https://forum.agentic-nets.com) |
+| Report a security issue | [SECURITY.md](SECURITY.md) |
+
+> **Licensing note.** Agentic-Nets is a hybrid stack. Public components in this
+> repository are licensed under BSL 1.1 and convert to Apache 2.0 on
+> 2030-02-22. The orchestration core ships as closed-source Docker Hub images
+> and desktop release assets under the Proprietary EULA. See
+> [licensing](#licensing) before production use.
+
+## Quick local run
+
+This starts the lightweight local stack from Docker Hub. Use the longer install
+section if you want monitoring, local public-service builds, Ollama cloud-model
+login details, or troubleshooting notes.
+
+```bash
+git clone https://github.com/alexejsailer/agentic-nets.git
+cd agentic-nets/deployment
+
+cp .env.template .env
+# Optional for master-run llm/agent lanes: choose one server provider.
+# LLM_PROVIDER=claude + ANTHROPIC_API_KEY=...
+# LLM_PROVIDER=openai + OPENAI_API_KEY=...
+# LLM_PROVIDER=ollama for the bundled Ollama container
+#
+# You can instead leave AI lanes stopped/external and let a connected MCP
+# model execute them. See "Connect over MCP" below.
+
+docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
+
+cat data/gateway/jwt/admin-secret
+open http://localhost:4200
+```
+
 > ### 👀 Or just look first: live nets, no install, no login
 >
 > These read-only share links open real nets running on the public demo
@@ -563,60 +617,6 @@ layer:
 - **Nets talk to nets.** Teams, tools, approvals, memory, and pipelines become explicit handoffs.
 - **Everything stays inspectable.** Tokens, tool calls, events, and emissions remain queryable and replayable.
 - **The same model scales up.** Build one guarded developer agent or a whole product runtime with the same primitives.
-
-## Start here
-
-| Goal | Link |
-|---|---|
-| Fastest local creator/operator setup (no Docker) | [Desktop Lite](#desktop-lite-macos--windows--linux--no-docker-or-server-llm) |
-| Run the production-like Docker stack | [Install in 5 minutes](#install-in-5-minutes) |
-| Build an installable UI over a net | [Net Applications](#net-applications-deploy-a-ui-without-rebuilding-studio) and the [SDK workspace](agentic-net-apps/README.md) |
-| Follow a full application example | [Persona Kanban tutorial](docs/applications/PERSONA_KANBAN_TUTORIAL.md) |
-| Bring your own model through MCP | [Connect over MCP](#or-connect-over-mcp--working-memory-agent-hub-and-external-execution) |
-| Ask what a net did last week, and improve it from that | [Observability you can act on](#observability-you-can-act-on-not-just-look-at) |
-| Run builds, tests, and CLIs on your own machines | [Command transitions and executors](#command-transitions-and-executors-real-work-on-real-machines) |
-| Give agents tools: APIs, scripts, containers, tool nets | [Tools](#tools-an-http-call-a-script-a-container-or-a-whole-net) |
-| Follow the release velocity | [CHANGELOG.md](CHANGELOG.md) and [release tags](https://github.com/alexejsailer/agentic-nets/tags) |
-| See live systems already running on Agentic-Nets | [See it running in production](#see-it-running-in-production) |
-| Watch the live `safe-teams` net | [Public read-only live demo](#public-read-only-live-demo) |
-| Understand the core model | [What makes this different](#what-makes-this-different) and [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Read the whitepaper — the harness control system, complete domain automation | [docs/whitepaper/the-harness-control-system.html](docs/whitepaper/the-harness-control-system.html) ([view rendered](https://raw.githack.com/alexejsailer/agentic-nets/main/docs/whitepaper/the-harness-control-system.html)) |
-| Drive a stack from Claude Code | [Drive it from Claude Code](#drive-it-from-claude-code) |
-| Connect any MCP client | [MCP server](agentic-net-mcp/README.md) |
-| Contribute to the public repo | [CONTRIBUTING.md](CONTRIBUTING.md) and [issues](https://github.com/alexejsailer/agentic-nets/issues) |
-| Ask questions or discuss use cases | [GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions) or [forum.agentic-nets.com](https://forum.agentic-nets.com) |
-| Report a security issue | [SECURITY.md](SECURITY.md) |
-
-> **Licensing note.** Agentic-Nets is a hybrid stack. Public components in this
-> repository are licensed under BSL 1.1 and convert to Apache 2.0 on
-> 2030-02-22. The orchestration core ships as closed-source Docker Hub images
-> and desktop release assets under the Proprietary EULA. See
-> [licensing](#licensing) before production use.
-
-## Quick local run
-
-This starts the lightweight local stack from Docker Hub. Use the longer install
-section if you want monitoring, local public-service builds, Ollama cloud-model
-login details, or troubleshooting notes.
-
-```bash
-git clone https://github.com/alexejsailer/agentic-nets.git
-cd agentic-nets/deployment
-
-cp .env.template .env
-# Optional for master-run llm/agent lanes: choose one server provider.
-# LLM_PROVIDER=claude + ANTHROPIC_API_KEY=...
-# LLM_PROVIDER=openai + OPENAI_API_KEY=...
-# LLM_PROVIDER=ollama for the bundled Ollama container
-#
-# You can instead leave AI lanes stopped/external and let a connected MCP
-# model execute them. See "Connect over MCP" below.
-
-docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
-
-cat data/gateway/jwt/admin-secret
-open http://localhost:4200
-```
 
 ## Desktop Lite (macOS + Windows + Linux) — no Docker or server LLM
 
