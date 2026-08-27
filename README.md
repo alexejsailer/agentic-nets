@@ -7,13 +7,17 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**A durable runtime for AI agents, people, and automated work.**
+**An event-sourced runtime for long-living intelligent processes.**
 
-Agentic-Nets is a governed runtime for stateful, permission-scoped AI agents.
-Agents, LLM calls, deterministic steps, shell commands, tools, memory, and
-approvals all live in formal Petri nets: places hold typed JSON state,
-transitions do the work, and every change leaves an event-sourced trail you can
-query later. Drive it from the visual Studio, an MCP client, or the CLI.
+Agentic-Nets does not run workflows to completion; it keeps processes alive.
+A net stays running: its state persists as tokens in places, its structure can
+be changed while it operates, and deterministic steps, shell commands, HTTP
+calls, and AI reasoning are equal execution mechanisms inside the same formal
+Petri net, each behind explicit capability boundaries. Every change leaves an
+event-sourced trail you can query later, and a process evolves over time from
+exploratory agent reasoning into cheap, deterministic structure. The runtime
+owns the process; intelligence is supplied to it, by any model or none. Drive
+it from the visual Studio, an MCP client, or the CLI.
 
 Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
 Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
@@ -230,7 +234,7 @@ The interface changes; the governed net underneath does not.
 
 | Question | Answer |
 |---|---|
-| What is it? | A stateful orchestration platform and Petri-net runtime for governed personas, workflows, tools, memory, remote execution, and evidence. |
+| What is it? | An event-sourced Petri-net runtime for long-living processes: governed personas, live nets you can modify while they run, tools, memory, remote execution, and evidence. |
 | Why does it exist? | To make autonomous processes inspectable, permission-scoped, historically analyzable, continuously improvable, and reusable instead of hidden inside chat state. |
 | What is a Net Application? | A versioned NetHub package containing an executable session plus an optional compiled UI. Install it into a model and Studio discovers it without being rebuilt. |
 | Can I use my own model? | Yes. Run server-side with Claude, OpenAI, or Ollama; host lanes from the CLI/MCP process; or let the connected MCP model execute selected AI transitions through external fires. |
@@ -271,7 +275,7 @@ Design -> Run -> Observe -> Review -> Propose change -> Approve -> Version
 | Stage | What Agentic-Nets provides |
 |---|---|
 | Design | Named personas and teams, typed places, seven transition types, durable context, policies, links, tools, and authority boundaries. |
-| Run | Deterministic workflows plus AI judgment from a server LLM, a connected MCP model, an unattended Claude Code/Codex session, or ordinary commands and APIs. |
+| Run | Deterministic execution plus AI judgment from a server LLM, a connected MCP model, an unattended Claude Code/Codex session, or ordinary commands and APIs. |
 | Observe | An immutable event trail, token state, transition timing, tool evidence, structured status, and a readable Protocol narrative. |
 | Review | Model-wide inspection through the domain-neutral Model Steward, with bottlenecks, failures, rework, cost, wait time, and risk made visible. |
 | Improve | Approval-gated, versioned changes to personas, prompts, context, nets, tools, and policies, followed by evidence-based comparison. |
