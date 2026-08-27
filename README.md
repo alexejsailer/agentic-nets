@@ -7,18 +7,22 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**A governed, event-sourced operating runtime for persistent, evolving processes.**
+**Build processes that keep running: AI agents, automation, and people working
+on the same live state, under rules you set.**
 
-Workflow engines execute runs. Agentic-Nets operates evolving systems: it hosts
-cooperating process nets, persona nets, tool nets, applications, and shared
-state inside explicit policy boundaries. Deterministic automation, external
-systems, remote execution, and AI are interchangeable execution mechanisms in
-the same formal Petri net, and the structure can be changed while the system
-operates. The runtime preserves causal history, so operating structures can be
-observed, analyzed, extended, and, through approved crystallization, made
-progressively more deterministic. The runtime owns the process; intelligence
-is supplied to it, by any model or none. Drive it from the visual Studio, an
-MCP client, or the CLI.
+Most automation tools run a workflow and finish. Agentic-Nets keeps the whole
+process alive. Work waits where you can see it, AI agents and deterministic
+steps act on it side by side, and people approve the decisions that matter.
+You can watch the process live, change its structure while it runs, and query
+the history of everything it ever did. And when an AI step has done the same
+thing often enough, you replace it with plain automation, so the process gets
+cheaper and more predictable the longer it operates. The intelligence comes
+from any model you already use, even just the MCP client you connect, or from
+no model at all. Drive it from the visual Studio, an MCP client, or the CLI.
+
+*In one sentence: a governed, event-sourced operating runtime for persistent,
+evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
+unpacks what that means.*
 
 Roots: Agentic-Nets is the modern descendant of a 2012 diploma thesis at the
 Karlsruhe Institute of Technology (KIT) on **XML-Netze**, a higher-order Petri-net
