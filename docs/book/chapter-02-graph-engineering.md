@@ -111,6 +111,16 @@ Verify              trust the check, not the deploy log
 [Done]
 ```
 
+This exact lane runs live on the public demo instance, built from the same
+seven verbs it teaches and shared read-only. The link is the credential; no
+install, no login:
+
+[![The hardened lane, live in the Studio editor](hardened-lane-live.jpeg)](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)
+
+**[Open the Hardened Lane net](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)**,
+with story tokens waiting in Intake, one mid-rework with its attempt counter,
+and one verified in Done.
+
 The idioms behind it, each learned from a real failure:
 
 - **The complement pair.** Route with conditions that partition all outcomes
@@ -210,6 +220,8 @@ and the role is not reserved for humans.
 
 ## See It Practiced
 
+- [The Hardened Lane, live](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68):
+  this chapter's example net running read-only on the public demo instance.
 - [The Harness Control System](../whitepaper/the-harness-control-system.html):
   the whitepaper this chapter compresses, with the control loop in full.
 - [Watch an AI agile team ship a real change](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94):
