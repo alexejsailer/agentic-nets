@@ -119,7 +119,11 @@ install, no login:
 
 **[Open the Hardened Lane net](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)**,
 with story tokens waiting in Intake, one mid-rework with its attempt counter,
-and one verified in Done.
+and one verified in Done. Look at the badges: the Work step is a real
+**agent** transition, read-only capabilities, a six-iteration cap, and a
+reply that auto-emits into the QA gate's input place, while every other step
+is a deterministic map. One intelligent step, harnessed on all sides, is the
+whole point.
 
 The idioms behind it, each learned from a real failure:
 
