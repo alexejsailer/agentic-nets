@@ -324,8 +324,10 @@ process and the running process itself.
 *In one sentence: workflow engines execute runs; Agentic-Nets operates
 evolving systems. Formally: a governed, event-sourced operating runtime for
 persistent, evolving processes. The [architecture section](#the-architecture-an-operating-environment-not-an-execution-engine)
-below unpacks what that means, and [Chapter 1: What Agentic-Nets Is](docs/book/chapter-01-what-agentic-nets-is.md)
-tells it in full.*
+below unpacks what that means. The book tells it in full:
+[Chapter 1: What Agentic-Nets Is](docs/book/chapter-01-what-agentic-nets-is.md)
+and [Chapter 2: Graph Engineering](docs/book/chapter-02-graph-engineering.md),
+the discipline of building the harness as a live graph.*
 
 Each sentence is one idea, and each idea is a pillar of the architecture:
 
