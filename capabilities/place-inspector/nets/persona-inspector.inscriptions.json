@@ -1,0 +1,547 @@
+[
+  {
+    "action": {
+      "autoEmit": false,
+      "maxIterations": 6,
+      "modelId": "default",
+      "nl": "You are the Place Inspector's intake. Your ONLY job is to read one request and write ONE intent token. You never call HTTP, count or report numbers - a deterministic pipeline does all of that after you, and it measures the real values itself. Do not try to be helpful beyond this step.\n\nTHE REQUEST\n- requestId: ${task.data.requestId}\n- request:   ${task.data.request}\n- targetModel hint (may be empty): ${task.data.targetModel}\n- place hint (may be empty):       ${task.data.place}\n\nFOR CONTEXT ONLY (the pipeline enforces it, you do not):\n- allowedModels:   ${policy.data.allowedModels}\n- protectedPlaces: ${policy.data.protectedPlaces}\n\nDECIDE\n- targetModel: the model id named in the request. Use the hint if given.\n- place: the runtime place id named in the request, e.g. p-fj-shipped. Use the hint if given. NEVER invent or guess a place id. If the request does not name one, leave it empty.\n- strategy: exactly one of\n    count   - the request asks how many tokens a place holds\n    sample  - the request asks what is inside a place (contents, examples, a peek)\n    unknown - you cannot tell, or model/place is missing, or the request asks for anything else (deleting, writing, modifying - this pack only reads)\n- note: one short sentence saying what you understood. This is the only prose you write.\n\nTHEN write exactly ONE token with CREATE_TOKEN to root/workspace/places/p-inspector-intent, flat string fields ONLY:\nrequestId, targetModel, place, strategy, note.\nrequestId MUST equal the incoming requestId. Then DONE.\n\nDo not write to any other place. Do not write more than one intent token. If you are unsure, strategy is unknown - an honest unknown is correct, a guessed place id is not.",
+      "requireWritesTo": [
+        "p-inspector-intent"
+      ],
+      "role": "rw",
+      "sessionId": "agent-place-inspector",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "description": "The ONLY judgement step. Turns one natural-language request into a structured intent token. It cannot call HTTP, count or sample - a deterministic pipeline does that.",
+    "emit": [],
+    "id": "t-inspector-parse",
+    "kind": "agent",
+    "label": "Inspector: understand the request, decide the strategy, and stop",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "intent": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-intent"
+      }
+    },
+    "presets": {
+      "policy": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-inspector-policy",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      },
+      "task": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-inspector-task",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      }
+    },
+    "role": "rw"
+  },
+  {
+    "action": {
+      "template": {
+        "note": "${default(input.data.note, \"\")}",
+        "place": "${input.data.place}",
+        "probe": "${input.data.targetModel} ${input.data.place}",
+        "requestId": "${input.data.requestId}",
+        "strategy": "${input.data.strategy}",
+        "targetModel": "${input.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "checked"
+      }
+    ],
+    "id": "t-insp-probe",
+    "kind": "map",
+    "label": "Build the policy probe string",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "checked": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-checked"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-inspector-intent",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "allowedModels": "${policy.data.allowedModels}",
+        "checkedAt": "${now()}",
+        "count": "",
+        "message": "Refused by the policy gate: the target model must be in allowedModels and the place must not match protectedPlaces. Nothing was read.",
+        "note": "${input.data.note}",
+        "place": "${input.data.place}",
+        "protectedPlaces": "${policy.data.protectedPlaces}",
+        "requestId": "${input.data.requestId}",
+        "status": "refused",
+        "strategy": "${input.data.strategy}",
+        "targetModel": "${input.data.targetModel}",
+        "verdict": "${default(match(input.data.probe, policy.data.gateRegex), \"DENY\")}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "go",
+        "when": "verdict != 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "refused",
+        "when": "verdict == 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "answer",
+        "when": "verdict == 'DENY'"
+      }
+    ],
+    "id": "t-insp-gate",
+    "kind": "map",
+    "label": "Policy gate - reading another model's tokens is disclosure",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-output"
+      },
+      "go": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-routed"
+      },
+      "refused": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-refused"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-checked",
+        "take": "FIRST"
+      },
+      "policy": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-inspector-policy",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "count": "",
+        "message": "This request needs a strategy that has no lane in this pack. Nothing was read. Implemented today: count (how many tokens) and sample (a peek at contents).",
+        "note": "${input.data.note}",
+        "place": "${input.data.place}",
+        "requestId": "${input.data.requestId}",
+        "route": "${default(match(input.data.strategy, \"^(count|sample)$\"), \"UNSUPPORTED\")}",
+        "routedAt": "${now()}",
+        "status": "unsupported",
+        "strategy": "${input.data.strategy}",
+        "targetModel": "${input.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "goCount",
+        "when": "route == 'count'"
+      },
+      {
+        "from": "@response",
+        "to": "ctx",
+        "when": "route == 'count'"
+      },
+      {
+        "from": "@response",
+        "to": "goSample",
+        "when": "route == 'sample'"
+      },
+      {
+        "from": "@response",
+        "to": "ctx",
+        "when": "route == 'sample'"
+      },
+      {
+        "from": "@response",
+        "to": "answer",
+        "when": "route == 'UNSUPPORTED'"
+      },
+      {
+        "from": "@response",
+        "to": "journal",
+        "when": "route == 'UNSUPPORTED'"
+      }
+    ],
+    "id": "t-insp-dispatch",
+    "kind": "map",
+    "label": "Route by strategy - only implemented strategies proceed",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-output"
+      },
+      "ctx": {
+        "capacity": 1,
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-ctx"
+      },
+      "goCount": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-go-count"
+      },
+      "goSample": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-go-sample"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-journal"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-routed",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "method": "GET",
+      "timeoutMs": 60000,
+      "type": "http",
+      "url": "http://agentic-net-master:8082/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=1"
+    },
+    "emit": [
+      {
+        "from": "@response.json",
+        "to": "raw",
+        "when": "success"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
+    "id": "t-insp-count",
+    "kind": "http",
+    "label": "Count: GET the real total, size=1",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "err": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-fail"
+      },
+      "raw": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-raw-count"
+      }
+    },
+    "presets": {
+      "go": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-go-count",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "count": "${raw.data.page.totalElements}",
+        "message": "Place ${ctx.data.place} in ${ctx.data.targetModel} holds ${raw.data.page.totalElements} tokens. The count is measured by the pipeline, not reported by the model.",
+        "note": "${ctx.data.note}",
+        "observedAt": "${now()}",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "status": "done",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "answer"
+      },
+      {
+        "from": "@response",
+        "to": "journal"
+      }
+    ],
+    "id": "t-insp-count-report",
+    "kind": "map",
+    "label": "Compose the count reply from measured values only",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-output"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-journal"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-ctx",
+        "take": "FIRST"
+      },
+      "raw": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-raw-count",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "method": "GET",
+      "timeoutMs": 60000,
+      "type": "http",
+      "url": "http://agentic-net-master:8082/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=3"
+    },
+    "emit": [
+      {
+        "from": "@response.json",
+        "to": "raw",
+        "when": "success"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
+    "id": "t-insp-sample",
+    "kind": "http",
+    "label": "Sample: GET the real total plus up to 3 tokens",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "err": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-fail"
+      },
+      "raw": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-insp-raw-sample"
+      }
+    },
+    "presets": {
+      "go": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-go-sample",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "count": "${raw.data.page.totalElements}",
+        "message": "A peek at ${ctx.data.place} in ${ctx.data.targetModel}: ${raw.data.page.totalElements} tokens total, up to 3 sampled. Values are read by the pipeline, never authored by the model.",
+        "note": "${ctx.data.note}",
+        "observedAt": "${now()}",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "sample1": "${default(raw.data.tokens[0].data, \"\")}",
+        "sample2": "${default(raw.data.tokens[1].data, \"\")}",
+        "sample3": "${default(raw.data.tokens[2].data, \"\")}",
+        "status": "done",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "answer"
+      },
+      {
+        "from": "@response",
+        "to": "journal"
+      }
+    ],
+    "id": "t-insp-sample-report",
+    "kind": "map",
+    "label": "Count plus tiny sample only (never the whole token array)",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-output"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-journal"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-ctx",
+        "take": "FIRST"
+      },
+      "raw": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-raw-sample",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "count": "",
+        "failedAt": "${now()}",
+        "message": "A master API call in the inspector pipeline failed; the request was abandoned at that point. Check p-insp-fail for the raw error before retrying.",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "status": "failed",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "answer"
+      },
+      {
+        "from": "@response",
+        "to": "journal"
+      }
+    ],
+    "id": "t-insp-fail-report",
+    "kind": "map",
+    "label": "An API failure is reported as failed, never as success",
+    "metadata": {
+      "netId": "persona-inspector",
+      "sessionId": "agent-place-inspector"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-output"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-inspector-journal"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-ctx",
+        "take": "FIRST"
+      },
+      "fail": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-insp-fail",
+        "take": "FIRST"
+      }
+    }
+  }
+]

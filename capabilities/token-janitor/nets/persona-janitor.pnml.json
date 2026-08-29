@@ -1,0 +1,436 @@
+{
+  "net": {
+    "arcs": {
+      "a-1787779614584": {
+        "id": "a-1787779614584",
+        "source": "p-janitor-task",
+        "target": "t-janitor-parse",
+        "weight": 1
+      },
+      "a-1787779615956": {
+        "id": "a-1787779615956",
+        "source": "p-janitor-policy",
+        "target": "t-janitor-parse",
+        "weight": 1
+      },
+      "a-1787779617431": {
+        "id": "a-1787779617431",
+        "source": "t-janitor-parse",
+        "target": "p-janitor-intent",
+        "weight": 1
+      },
+      "a-1787779618782": {
+        "id": "a-1787779618782",
+        "source": "p-janitor-intent",
+        "target": "t-jan-probe",
+        "weight": 1
+      },
+      "a-1787779619599": {
+        "id": "a-1787779619599",
+        "source": "t-jan-probe",
+        "target": "p-jan-checked",
+        "weight": 1
+      },
+      "a-1787779625362": {
+        "id": "a-1787779625362",
+        "source": "p-jan-checked",
+        "target": "t-jan-gate",
+        "weight": 1
+      },
+      "a-1787779627093": {
+        "id": "a-1787779627093",
+        "source": "p-janitor-policy",
+        "target": "t-jan-gate",
+        "weight": 1
+      },
+      "a-1787779628500": {
+        "id": "a-1787779628500",
+        "source": "t-jan-gate",
+        "target": "p-jan-go1",
+        "weight": 1
+      },
+      "a-1787779629910": {
+        "id": "a-1787779629910",
+        "source": "t-jan-gate",
+        "target": "p-jan-ctx",
+        "weight": 1
+      },
+      "a-1787779630432": {
+        "id": "a-1787779630432",
+        "source": "t-jan-gate",
+        "target": "p-janitor-refused",
+        "weight": 1
+      },
+      "a-1787779634985": {
+        "id": "a-1787779634985",
+        "source": "t-jan-gate",
+        "target": "p-janitor-output",
+        "weight": 1
+      },
+      "a-1787779636397": {
+        "id": "a-1787779636397",
+        "source": "p-jan-go1",
+        "target": "t-jan-preva",
+        "weight": 1
+      },
+      "a-1787779637813": {
+        "id": "a-1787779637813",
+        "source": "t-jan-preva",
+        "target": "p-jan-preva-raw",
+        "weight": 1
+      },
+      "a-1787779639219": {
+        "id": "a-1787779639219",
+        "source": "t-jan-preva",
+        "target": "p-jan-fail",
+        "weight": 1
+      },
+      "a-1787779639713": {
+        "id": "a-1787779639713",
+        "source": "p-jan-preva-raw",
+        "target": "t-jan-preva-join",
+        "weight": 1
+      },
+      "a-1787779644406": {
+        "id": "a-1787779644406",
+        "source": "p-jan-ctx",
+        "target": "t-jan-preva-join",
+        "weight": 1
+      },
+      "a-1787779645997": {
+        "id": "a-1787779645997",
+        "source": "t-jan-preva-join",
+        "target": "p-jan-dispatch",
+        "weight": 1
+      },
+      "a-1787779647328": {
+        "id": "a-1787779647328",
+        "source": "t-jan-preva-join",
+        "target": "p-janitor-output",
+        "weight": 1
+      },
+      "a-1787779647982": {
+        "id": "a-1787779647982",
+        "source": "t-jan-preva-join",
+        "target": "p-janitor-journal",
+        "weight": 1
+      },
+      "a-1787779649119": {
+        "id": "a-1787779649119",
+        "source": "p-jan-dispatch",
+        "target": "t-jan-dispatch",
+        "weight": 1
+      },
+      "a-1787779655162": {
+        "id": "a-1787779655162",
+        "source": "t-jan-dispatch",
+        "target": "p-jan-ctx",
+        "weight": 1
+      },
+      "a-1787779656654": {
+        "id": "a-1787779656654",
+        "source": "t-jan-dispatch",
+        "target": "p-janitor-output",
+        "weight": 1
+      },
+      "a-1787779658080": {
+        "id": "a-1787779658080",
+        "source": "t-jan-dispatch",
+        "target": "p-janitor-journal",
+        "weight": 1
+      },
+      "a-1787779658474": {
+        "id": "a-1787779658474",
+        "source": "p-jan-go2",
+        "target": "t-jan-clear",
+        "weight": 1
+      },
+      "a-1787779662693": {
+        "id": "a-1787779662693",
+        "source": "t-jan-clear",
+        "target": "p-jan-clear-raw",
+        "weight": 1
+      },
+      "a-1787779664125": {
+        "id": "a-1787779664125",
+        "source": "t-jan-clear",
+        "target": "p-jan-fail",
+        "weight": 1
+      },
+      "a-1787779665516": {
+        "id": "a-1787779665516",
+        "source": "p-jan-clear-raw",
+        "target": "t-jan-clear-join",
+        "weight": 1
+      },
+      "a-1787779666956": {
+        "id": "a-1787779666956",
+        "source": "p-jan-ctx",
+        "target": "t-jan-clear-join",
+        "weight": 1
+      },
+      "a-1787779667759": {
+        "id": "a-1787779667759",
+        "source": "t-jan-clear-join",
+        "target": "p-jan-go3",
+        "weight": 1
+      },
+      "a-1787779693408": {
+        "id": "a-1787779693408",
+        "source": "p-jan-go3",
+        "target": "t-jan-prevb",
+        "weight": 1
+      },
+      "a-1787779694066": {
+        "id": "a-1787779694066",
+        "source": "t-jan-prevb",
+        "target": "p-jan-prevb-raw",
+        "weight": 1
+      },
+      "a-1787779695480": {
+        "id": "a-1787779695480",
+        "source": "t-jan-prevb",
+        "target": "p-jan-fail",
+        "weight": 1
+      },
+      "a-1787779696902": {
+        "id": "a-1787779696902",
+        "source": "p-jan-prevb-raw",
+        "target": "t-jan-report",
+        "weight": 1
+      },
+      "a-1787779697825": {
+        "id": "a-1787779697825",
+        "source": "p-jan-ctx",
+        "target": "t-jan-report",
+        "weight": 1
+      },
+      "a-1787779702778": {
+        "id": "a-1787779702778",
+        "source": "t-jan-report",
+        "target": "p-janitor-output",
+        "weight": 1
+      },
+      "a-1787779704183": {
+        "id": "a-1787779704183",
+        "source": "t-jan-report",
+        "target": "p-janitor-journal",
+        "weight": 1
+      },
+      "a-1787779705609": {
+        "id": "a-1787779705609",
+        "source": "p-jan-fail",
+        "target": "t-jan-fail-report",
+        "weight": 1
+      },
+      "a-1787779707002": {
+        "id": "a-1787779707002",
+        "source": "p-jan-ctx",
+        "target": "t-jan-fail-report",
+        "weight": 1
+      },
+      "a-1787779707525": {
+        "id": "a-1787779707525",
+        "source": "t-jan-fail-report",
+        "target": "p-janitor-output",
+        "weight": 1
+      },
+      "a-1787779711666": {
+        "id": "a-1787779711666",
+        "source": "t-jan-fail-report",
+        "target": "p-janitor-journal",
+        "weight": 1
+      },
+      "a-1787779950232": {
+        "id": "a-1787779950232",
+        "source": "t-jan-clear-join",
+        "target": "p-jan-ctx",
+        "weight": 1
+      }
+    },
+    "description": "",
+    "id": "persona-janitor",
+    "places": {
+      "p-jan-checked": {
+        "id": "p-jan-checked",
+        "label": "Probe built",
+        "tokens": 0,
+        "x": 900,
+        "y": 100
+      },
+      "p-jan-clear-raw": {
+        "id": "p-jan-clear-raw",
+        "label": "deleteAll response",
+        "tokens": 0,
+        "x": 1100,
+        "y": 380
+      },
+      "p-jan-ctx": {
+        "id": "p-jan-ctx",
+        "label": "Request context (single-flight)",
+        "tokens": 0,
+        "x": 1000,
+        "y": 240
+      },
+      "p-jan-dispatch": {
+        "id": "p-jan-dispatch",
+        "label": "BEFORE recorded",
+        "tokens": 0,
+        "x": 1900,
+        "y": 380
+      },
+      "p-jan-fail": {
+        "id": "p-jan-fail",
+        "label": "API failures",
+        "tokens": 0,
+        "x": 1100,
+        "y": 620
+      },
+      "p-jan-go1": {
+        "id": "p-jan-go1",
+        "label": "Approved → preview",
+        "tokens": 0,
+        "x": 1300,
+        "y": 100
+      },
+      "p-jan-go2": {
+        "id": "p-jan-go2",
+        "label": "Routed → clear",
+        "tokens": 0,
+        "x": 1500,
+        "y": 380
+      },
+      "p-jan-go3": {
+        "id": "p-jan-go3",
+        "label": "DELETED recorded",
+        "tokens": 0,
+        "x": 700,
+        "y": 380
+      },
+      "p-jan-preva-raw": {
+        "id": "p-jan-preva-raw",
+        "label": "Preview A response",
+        "tokens": 0,
+        "x": 1700,
+        "y": 100
+      },
+      "p-jan-prevb-raw": {
+        "id": "p-jan-prevb-raw",
+        "label": "Preview B response",
+        "tokens": 0,
+        "x": 300,
+        "y": 380
+      },
+      "p-janitor-intent": {
+        "id": "p-janitor-intent",
+        "label": "Intent (agent output)",
+        "tokens": 0,
+        "x": 500,
+        "y": 100
+      },
+      "p-janitor-journal": {
+        "id": "p-janitor-journal",
+        "label": "Journal (audit)",
+        "tokens": 0,
+        "x": 700,
+        "y": 620
+      },
+      "p-janitor-output": {
+        "id": "p-janitor-output",
+        "label": "Reply (entry outbox)",
+        "tokens": 0,
+        "x": 300,
+        "y": 620
+      },
+      "p-janitor-policy": {
+        "id": "p-janitor-policy",
+        "label": "Policy (config, consume:false)",
+        "tokens": 0,
+        "x": 700,
+        "y": 240
+      },
+      "p-janitor-refused": {
+        "id": "p-janitor-refused",
+        "label": "Refused (audit)",
+        "tokens": 0,
+        "x": 1300,
+        "y": 240
+      },
+      "p-janitor-task": {
+        "id": "p-janitor-task",
+        "label": "Task inbox (NL entry)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-jan-clear": {
+        "id": "t-jan-clear",
+        "label": "Execute clear-place",
+        "x": 1300,
+        "y": 380
+      },
+      "t-jan-clear-join": {
+        "id": "t-jan-clear-join",
+        "label": "Record DELETED (from the API)",
+        "x": 900,
+        "y": 380
+      },
+      "t-jan-dispatch": {
+        "id": "t-jan-dispatch",
+        "label": "Route by strategy",
+        "x": 1700,
+        "y": 380
+      },
+      "t-jan-fail-report": {
+        "id": "t-jan-fail-report",
+        "label": "Report an API failure honestly",
+        "x": 1300,
+        "y": 620
+      },
+      "t-jan-gate": {
+        "id": "t-jan-gate",
+        "label": "Policy gate",
+        "x": 1100,
+        "y": 100
+      },
+      "t-jan-preva": {
+        "id": "t-jan-preva",
+        "label": "Preview A (count before)",
+        "x": 1500,
+        "y": 100
+      },
+      "t-jan-preva-join": {
+        "id": "t-jan-preva-join",
+        "label": "Record BEFORE (from the API, not the model)",
+        "x": 1900,
+        "y": 100
+      },
+      "t-jan-prevb": {
+        "id": "t-jan-prevb",
+        "label": "Preview B (count after)",
+        "x": 500,
+        "y": 380
+      },
+      "t-jan-probe": {
+        "id": "t-jan-probe",
+        "label": "Build policy probe",
+        "x": 700,
+        "y": 100
+      },
+      "t-jan-report": {
+        "id": "t-jan-report",
+        "label": "Compose the reply from measured values",
+        "x": 100,
+        "y": 380
+      },
+      "t-janitor-parse": {
+        "id": "t-janitor-parse",
+        "label": "Janitor (agent): NL to intent ONLY",
+        "x": 300,
+        "y": 100
+      }
+    }
+  }
+}

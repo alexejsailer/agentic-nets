@@ -1,0 +1,170 @@
+{
+  "net": {
+    "arcs": {
+      "a-1787774788512": {
+        "id": "a-1787774788512",
+        "source": "p-janitor-policy",
+        "target": "t-jt-clear-gate",
+        "weight": 1
+      },
+      "a-1787774789909": {
+        "id": "a-1787774789909",
+        "source": "t-jt-clear-gate",
+        "target": "p-jt-clear-go",
+        "weight": 1
+      },
+      "a-1787774791328": {
+        "id": "a-1787774791328",
+        "source": "t-jt-clear-gate",
+        "target": "p-janitor-refused",
+        "weight": 1
+      },
+      "a-1787774792143": {
+        "id": "a-1787774792143",
+        "source": "p-jt-clear-go",
+        "target": "t-jt-clear-run",
+        "weight": 1
+      },
+      "a-1787779857272": {
+        "id": "a-1787779857272",
+        "source": "p-jt-clear-in",
+        "target": "t-jt-clear-probe",
+        "weight": 1
+      },
+      "a-1787779858684": {
+        "id": "a-1787779858684",
+        "source": "t-jt-clear-probe",
+        "target": "p-jt-clear-checked",
+        "weight": 1
+      },
+      "a-1787779860093": {
+        "id": "a-1787779860093",
+        "source": "p-jt-clear-checked",
+        "target": "t-jt-clear-gate",
+        "weight": 1
+      },
+      "a-1787779861058": {
+        "id": "a-1787779861058",
+        "source": "t-jt-clear-gate",
+        "target": "p-jt-clear-pending",
+        "weight": 1
+      },
+      "a-1787779865861": {
+        "id": "a-1787779865861",
+        "source": "t-jt-clear-gate",
+        "target": "p-jt-clear-out",
+        "weight": 1
+      },
+      "a-1787779867380": {
+        "id": "a-1787779867380",
+        "source": "t-jt-clear-run",
+        "target": "p-jt-clear-raw",
+        "weight": 1
+      },
+      "a-1787779868690": {
+        "id": "a-1787779868690",
+        "source": "p-jt-clear-raw",
+        "target": "t-jt-clear-shape",
+        "weight": 1
+      },
+      "a-1787779870208": {
+        "id": "a-1787779870208",
+        "source": "p-jt-clear-pending",
+        "target": "t-jt-clear-shape",
+        "weight": 1
+      },
+      "a-1787779870633": {
+        "id": "a-1787779870633",
+        "source": "t-jt-clear-shape",
+        "target": "p-jt-clear-out",
+        "weight": 1
+      }
+    },
+    "description": "",
+    "id": "tool-clear-place",
+    "places": {
+      "p-janitor-policy": {
+        "id": "p-janitor-policy",
+        "label": "Policy (config, read-only)",
+        "tokens": 0,
+        "x": 500,
+        "y": 240
+      },
+      "p-janitor-refused": {
+        "id": "p-janitor-refused",
+        "label": "Refused by policy gate",
+        "tokens": 0,
+        "x": 500,
+        "y": 450
+      },
+      "p-jt-clear-checked": {
+        "id": "p-jt-clear-checked",
+        "label": "Probe built",
+        "tokens": 0,
+        "x": 300,
+        "y": 100
+      },
+      "p-jt-clear-go": {
+        "id": "p-jt-clear-go",
+        "label": "Policy-approved",
+        "tokens": 0,
+        "x": 700,
+        "y": 100
+      },
+      "p-jt-clear-in": {
+        "id": "p-jt-clear-in",
+        "label": "Request (targetModel + place)",
+        "tokens": 0,
+        "x": 100,
+        "y": 240
+      },
+      "p-jt-clear-out": {
+        "id": "p-jt-clear-out",
+        "label": "Result (deletedCount)",
+        "tokens": 0,
+        "x": 1100,
+        "y": 450
+      },
+      "p-jt-clear-pending": {
+        "id": "p-jt-clear-pending",
+        "label": "Pending (correlation)",
+        "tokens": 0,
+        "x": 900,
+        "y": 100
+      },
+      "p-jt-clear-raw": {
+        "id": "p-jt-clear-raw",
+        "label": "API response",
+        "tokens": 0,
+        "x": 1300,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-jt-clear-gate": {
+        "id": "t-jt-clear-gate",
+        "label": "Policy gate",
+        "x": 500,
+        "y": 100
+      },
+      "t-jt-clear-probe": {
+        "id": "t-jt-clear-probe",
+        "label": "Build policy probe string",
+        "x": 100,
+        "y": 100
+      },
+      "t-jt-clear-run": {
+        "id": "t-jt-clear-run",
+        "label": "POST tokens/deleteAll",
+        "x": 1100,
+        "y": 100
+      },
+      "t-jt-clear-shape": {
+        "id": "t-jt-clear-shape",
+        "label": "Shape + re-correlate",
+        "x": 1500,
+        "y": 100
+      }
+    }
+  }
+}

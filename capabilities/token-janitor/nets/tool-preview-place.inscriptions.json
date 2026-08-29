@@ -1,0 +1,225 @@
+[
+  {
+    "action": {
+      "template": {
+        "_correlationId": "${input.data._correlationId}",
+        "allowedModels": "${policy.data.allowedModels}",
+        "checkedAt": "${now()}",
+        "place": "${input.data.place}",
+        "refusedReason": "Policy gate refused: preview reads tokens, so it honours the same allowlist as deletion. Nothing was read.",
+        "requestId": "${input.data.requestId}",
+        "targetModel": "${input.data.targetModel}",
+        "tool": "preview-place",
+        "verdict": "${default(match(input.data.probe, policy.data.gateRegex), \"DENY\")}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "go",
+        "when": "verdict != 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "pending",
+        "when": "verdict != 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "refused",
+        "when": "verdict == 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "answer",
+        "when": "verdict == 'DENY'"
+      }
+    ],
+    "id": "t-jt-prev-gate",
+    "kind": "map",
+    "label": "Policy gate (reading another model's tokens is disclosure)",
+    "metadata": {
+      "netId": "tool-preview-place",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jt-prev-out"
+      },
+      "go": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jt-prev-go"
+      },
+      "pending": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jt-prev-pending"
+      },
+      "refused": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-refused"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jt-prev-checked",
+        "take": "FIRST"
+      },
+      "policy": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-janitor-policy",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "_correlationId": "${default(input.data._correlationId, input.data.requestId)}",
+        "place": "${input.data.place}",
+        "probe": "${input.data.targetModel} ${input.data.place}",
+        "requestId": "${input.data.requestId}",
+        "targetModel": "${input.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "checked"
+      }
+    ],
+    "id": "t-jt-prev-probe",
+    "kind": "map",
+    "label": "Build the policy probe string",
+    "metadata": {
+      "netId": "tool-preview-place",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "checked": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jt-prev-checked"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jt-prev-in",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "method": "GET",
+      "timeoutMs": 60000,
+      "type": "http",
+      "url": "http://agentic-net-master:8082/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=5"
+    },
+    "emit": [
+      {
+        "from": "@response.json",
+        "to": "raw",
+        "when": "success"
+      },
+      {
+        "from": "@response",
+        "to": "raw",
+        "when": "error"
+      }
+    ],
+    "id": "t-jt-prev-run",
+    "kind": "http",
+    "label": "GET /api/runtime/places/{place}/tokens (count + 5 sample)",
+    "metadata": {
+      "netId": "tool-preview-place",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "raw": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jt-prev-raw"
+      }
+    },
+    "presets": {
+      "go": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jt-prev-go",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "_correlationId": "${default(pending.data._correlationId, pending.data.requestId)}",
+        "error": "${default(raw.data.error, \"\")}",
+        "observedAt": "${now()}",
+        "place": "${pending.data.place}",
+        "requestId": "${pending.data.requestId}",
+        "sample1": "${raw.data.tokens[0].data}",
+        "sample2": "${raw.data.tokens[1].data}",
+        "targetModel": "${pending.data.targetModel}",
+        "tokenCount": "${raw.data.page.totalElements}",
+        "tool": "preview-place"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
+    "id": "t-jt-prev-shape",
+    "kind": "map",
+    "label": "Count + tiny sample only (never the whole token array)",
+    "metadata": {
+      "netId": "tool-preview-place",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jt-prev-out"
+      }
+    },
+    "presets": {
+      "pending": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jt-prev-pending",
+        "take": "FIRST"
+      },
+      "raw": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jt-prev-raw",
+        "take": "FIRST"
+      }
+    }
+  }
+]

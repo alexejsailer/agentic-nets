@@ -1,0 +1,88 @@
+{
+  "configuration": {
+    "places": [
+      {
+        "description": "allowedModels + gateRegex enforced by the gate transition. Must hold exactly one token before arming.",
+        "placeId": "p-inspector-policy",
+        "required": true
+      }
+    ]
+  },
+  "description": "Ask in natural language what a place holds. An agent reads the request and picks a strategy (count or sample); a DETERMINISTIC pipeline then calls the master API and composes the reply, so every number and sample is a measured fact the model cannot author. Read-only by construction. Policy-gated: reading another model's tokens is disclosure, so out-of-scope targets are refused before anything is read.",
+  "displayName": "Place Inspector",
+  "domain": "observability",
+  "entry": {
+    "correlationField": "requestId",
+    "howToUse": "Write ONE token to p-inspector-task with flat string fields {requestId, request} and optionally {targetModel, place}. Then await a token in p-inspector-output whose requestId equals yours. The reply carries status (done|refused|unsupported|failed), strategy (count|sample), count, up to sample1..sample3 and a one-line message. All values are measured by the pipeline.",
+    "inboxPlaceId": "p-inspector-task",
+    "inputSchema": {
+      "properties": {
+        "place": {
+          "description": "Optional if the request text names it",
+          "type": "string"
+        },
+        "request": {
+          "description": "Plain English, e.g. how many tokens are in p-fj-shipped in academy",
+          "type": "string"
+        },
+        "requestId": {
+          "description": "Your correlation id, echoed on the reply",
+          "type": "string"
+        },
+        "targetModel": {
+          "description": "Optional if the request text names it",
+          "type": "string"
+        }
+      },
+      "required": ["requestId", "request"],
+      "type": "object"
+    },
+    "outboxPlaceId": "p-inspector-output"
+  },
+  "instancePolicy": "singleton",
+  "manifestVersion": "1.0",
+  "name": "place-inspector",
+  "observability": {
+    "failurePlaceId": "p-insp-fail",
+    "journalPlaceId": "p-inspector-journal",
+    "refusedPlaceId": "p-inspector-refused"
+  },
+  "patterns": [
+    "decide-then-measure",
+    "policy-gate",
+    "deterministic-reporting",
+    "multi-strategy-dispatch"
+  ],
+  "personas": [
+    {
+      "capabilities": "rw",
+      "description": "Reads one request and writes one structured intent. It has rw only: it cannot call HTTP, sample, count or report numbers.",
+      "name": "inspector",
+      "netId": "persona-inspector",
+      "teamRole": "orchestrator",
+      "tier": "medium",
+      "transitionId": "t-inspector-parse"
+    }
+  ],
+  "requirements": {
+    "executor": false,
+    "llm": true
+  },
+  "startPlan": [
+    "t-insp-probe",
+    "t-insp-gate",
+    "t-insp-dispatch",
+    "t-insp-count",
+    "t-insp-count-report",
+    "t-insp-sample",
+    "t-insp-sample-report",
+    "t-insp-fail-report",
+    "t-inspector-parse"
+  ],
+  "tags": [
+    "observability",
+    "inspection",
+    "read-only",
+    "capability-pack"
+  ]
+}

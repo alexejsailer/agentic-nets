@@ -55,7 +55,8 @@
     "./gateway/master-api": "./src/gateway/master-api.ts",
     "./gateway/node-api": "./src/gateway/node-api.ts",
     "./agent/transition-executor": "./src/agent/transition-executor.ts",
-    "./llm/claude-code": "./src/llm/claude-code.ts"
+    "./llm/claude-code": "./src/llm/claude-code.ts",
+    "./net/compile": "./src/net/compile.ts"
   },
   "files": [
     "dist",

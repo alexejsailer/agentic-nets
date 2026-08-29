@@ -1,0 +1,679 @@
+[
+  {
+    "action": {
+      "method": "POST",
+      "timeoutMs": 300000,
+      "type": "http",
+      "url": "http://agentic-net-master:8082/api/runtime/places/${urlencode(go.data.place)}/tokens/deleteAll?modelId=${urlencode(go.data.targetModel)}"
+    },
+    "emit": [
+      {
+        "from": "@response.json",
+        "to": "raw",
+        "when": "success"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
+    "id": "t-jan-clear",
+    "kind": "http",
+    "label": "Execute: POST tokens/deleteAll (one commit)",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "err": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-fail"
+      },
+      "raw": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-clear-raw"
+      }
+    },
+    "presets": {
+      "go": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-go2",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "before": "${ctx.data.before}",
+        "deleted": "${raw.data.deletedCount}",
+        "executedAt": "${now()}",
+        "note": "${ctx.data.note}",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "go"
+      },
+      {
+        "from": "@response",
+        "to": "ctx"
+      }
+    ],
+    "id": "t-jan-clear-join",
+    "kind": "map",
+    "label": "Record DELETED from the API response",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "ctx": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-ctx"
+      },
+      "go": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-go3"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-ctx",
+        "take": "FIRST"
+      },
+      "raw": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-clear-raw",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "after": "${input.data.before}",
+        "before": "${input.data.before}",
+        "deleted": "0",
+        "filter": "${input.data.filter}",
+        "keepN": "${input.data.keepN}",
+        "message": "This request needs a strategy that has no tool net yet in this pack. Nothing was deleted. Implemented today: clear-place (empty the whole place).",
+        "note": "${input.data.note}",
+        "place": "${input.data.place}",
+        "requestId": "${input.data.requestId}",
+        "routedAt": "${now()}",
+        "status": "unsupported",
+        "strategy": "${input.data.strategy}",
+        "targetModel": "${input.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "go",
+        "when": "strategy == 'clear-place'"
+      },
+      {
+        "from": "@response",
+        "to": "ctx",
+        "when": "strategy == 'clear-place'"
+      },
+      {
+        "from": "@response",
+        "to": "answer",
+        "when": "strategy != 'clear-place'"
+      },
+      {
+        "from": "@response",
+        "to": "journal",
+        "when": "strategy != 'clear-place'"
+      }
+    ],
+    "id": "t-jan-dispatch",
+    "kind": "map",
+    "label": "Route by strategy — only implemented strategies proceed",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-output"
+      },
+      "ctx": {
+        "capacity": 1,
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-ctx"
+      },
+      "go": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-go2"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-journal"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-dispatch",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "after": "",
+        "before": "${default(ctx.data.before, \"\")}",
+        "deleted": "${default(ctx.data.deleted, \"0\")}",
+        "failedAt": "${now()}",
+        "message": "A master API call in the janitor pipeline failed; the request was abandoned at that point. Check p-jan-fail for the raw error before retrying.",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "status": "failed",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "answer"
+      },
+      {
+        "from": "@response",
+        "to": "journal"
+      }
+    ],
+    "id": "t-jan-fail-report",
+    "kind": "map",
+    "label": "An API failure is reported as failed, never as success",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-output"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-journal"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-ctx",
+        "take": "FIRST"
+      },
+      "fail": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-fail",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "after": "",
+        "allowedModels": "${policy.data.allowedModels}",
+        "before": "",
+        "checkedAt": "${now()}",
+        "deleted": "0",
+        "filter": "${input.data.filter}",
+        "keepN": "${input.data.keepN}",
+        "message": "Refused by the policy gate: the target model must be in allowedModels and the place must not match protectedPlaces (an empty or unknown place is also refused). Nothing was read or deleted.",
+        "note": "${input.data.note}",
+        "place": "${input.data.place}",
+        "protectedPlaces": "${policy.data.protectedPlaces}",
+        "requestId": "${input.data.requestId}",
+        "status": "refused",
+        "strategy": "${input.data.strategy}",
+        "targetModel": "${input.data.targetModel}",
+        "verdict": "${default(match(input.data.probe, policy.data.gateRegex), \"DENY\")}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "go",
+        "when": "verdict != 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "ctx",
+        "when": "verdict != 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "refused",
+        "when": "verdict == 'DENY'"
+      },
+      {
+        "from": "@response",
+        "to": "answer",
+        "when": "verdict == 'DENY'"
+      }
+    ],
+    "id": "t-jan-gate",
+    "kind": "map",
+    "label": "Policy gate — one regex enforces model allowlist AND protected places",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-output"
+      },
+      "ctx": {
+        "capacity": 1,
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-ctx"
+      },
+      "go": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-go1"
+      },
+      "refused": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-refused"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-checked",
+        "take": "FIRST"
+      },
+      "policy": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-janitor-policy",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "method": "GET",
+      "timeoutMs": 60000,
+      "type": "http",
+      "url": "http://agentic-net-master:8082/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=2"
+    },
+    "emit": [
+      {
+        "from": "@response.json",
+        "to": "raw",
+        "when": "success"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
+    "id": "t-jan-preva",
+    "kind": "http",
+    "label": "Preview A: GET the real count before anything is touched",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "err": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-fail"
+      },
+      "raw": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-preva-raw"
+      }
+    },
+    "presets": {
+      "go": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-go1",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "after": "${raw.data.page.totalElements}",
+        "before": "${raw.data.page.totalElements}",
+        "deleted": "0",
+        "filter": "${ctx.data.filter}",
+        "keepN": "${ctx.data.keepN}",
+        "message": "The place was already empty, so nothing was deleted.",
+        "note": "${ctx.data.note}",
+        "observedAt": "${now()}",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "route": "${default(match(raw.data.page.totalElements, \"^0$\"), \"GO\")}",
+        "sample1": "${default(raw.data.tokens[0].data, \"\")}",
+        "status": "nothing-to-do",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "dispatch",
+        "when": "route == 'GO'"
+      },
+      {
+        "from": "@response",
+        "to": "answer",
+        "when": "route == '0'"
+      },
+      {
+        "from": "@response",
+        "to": "journal",
+        "when": "route == '0'"
+      }
+    ],
+    "id": "t-jan-preva-join",
+    "kind": "map",
+    "label": "Record BEFORE from the API response — the model never authors this number",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-output"
+      },
+      "dispatch": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-dispatch"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-journal"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-ctx",
+        "take": "FIRST"
+      },
+      "raw": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-preva-raw",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "method": "GET",
+      "timeoutMs": 60000,
+      "type": "http",
+      "url": "http://agentic-net-master:8082/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=1"
+    },
+    "emit": [
+      {
+        "from": "@response.json",
+        "to": "raw",
+        "when": "success"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
+    "id": "t-jan-prevb",
+    "kind": "http",
+    "label": "Preview B: GET the real count after the deletion",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "err": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-fail"
+      },
+      "raw": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-prevb-raw"
+      }
+    },
+    "presets": {
+      "go": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-go3",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "filter": "${default(input.data.filter, \"\")}",
+        "keepN": "${default(input.data.keepN, \"\")}",
+        "note": "${default(input.data.note, \"\")}",
+        "place": "${input.data.place}",
+        "probe": "${input.data.targetModel} ${input.data.place}",
+        "requestId": "${input.data.requestId}",
+        "strategy": "${input.data.strategy}",
+        "targetModel": "${input.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "checked"
+      }
+    ],
+    "id": "t-jan-probe",
+    "kind": "map",
+    "label": "Build the policy probe string",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "checked": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-jan-checked"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-janitor-intent",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "after": "${raw.data.page.totalElements}",
+        "before": "${ctx.data.before}",
+        "deleted": "${ctx.data.deleted}",
+        "finishedAt": "${now()}",
+        "message": "Deleted ${ctx.data.deleted} of ${ctx.data.before} tokens from ${ctx.data.place} in ${ctx.data.targetModel}; the place now holds ${raw.data.page.totalElements}. Counts are measured by the pipeline, not reported by the model.",
+        "note": "${ctx.data.note}",
+        "place": "${ctx.data.place}",
+        "requestId": "${ctx.data.requestId}",
+        "status": "done",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "answer"
+      },
+      {
+        "from": "@response",
+        "to": "journal"
+      }
+    ],
+    "id": "t-jan-report",
+    "kind": "map",
+    "label": "Compose the reply from measured values only",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "answer": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-output"
+      },
+      "journal": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-journal"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-ctx",
+        "take": "FIRST"
+      },
+      "raw": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-jan-prevb-raw",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "autoEmit": false,
+      "maxIterations": 6,
+      "modelId": "default",
+      "nl": "You are the Token Janitor's intake. Your ONLY job is to read one request and write ONE intent token. You do not preview, delete, verify or report counts - a deterministic pipeline does all of that after you, and it measures the real numbers itself. Do not try to be helpful beyond this step.\n\nTHE REQUEST\n- requestId: ${task.data.requestId}\n- request:   ${task.data.request}\n- targetModel hint (may be empty): ${task.data.targetModel}\n- place hint (may be empty):       ${task.data.place}\n\nFOR CONTEXT ONLY (the pipeline enforces it, you do not):\n- allowedModels:   ${policy.data.allowedModels}\n- protectedPlaces: ${policy.data.protectedPlaces}\n\nDECIDE\n- targetModel: the model id named in the request. Use the hint if given.\n- place: the runtime place id named in the request, e.g. p-fj-shipped. Use the hint if given. NEVER invent or guess a place id. If the request does not name one, leave it empty.\n- strategy: exactly one of\n    clear-place     - every token in the place should go\n    filtered-delete - only tokens matching a predicate should go\n    trim-place      - keep the newest N, delete the rest\n    delete-place    - the place itself should cease to exist\n    unknown         - you cannot tell, or model/place is missing\n- filter: the predicate in plain words, only for filtered-delete, else empty.\n- keepN: the number to keep, only for trim-place, else empty.\n- note: one short sentence saying what you understood. This is the only prose you write.\n\nTHEN write exactly ONE token with CREATE_TOKEN to root/workspace/places/p-janitor-intent, flat string fields ONLY:\nrequestId, targetModel, place, strategy, filter, keepN, note.\nrequestId MUST equal the incoming requestId. Then DONE.\n\nDo not write to any other place. Do not write more than one intent token. If you are unsure, strategy is unknown - an honest unknown is correct, a guessed place id is not.",
+      "requireWritesTo": [
+        "p-janitor-intent"
+      ],
+      "role": "rw",
+      "sessionId": "agent-token-janitor",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "description": "The ONLY judgement step. Turns one natural-language request into a structured intent token. It cannot preview, delete, or report numbers — a deterministic pipeline does that.",
+    "emit": [],
+    "id": "t-janitor-parse",
+    "kind": "agent",
+    "label": "Janitor: understand the request, decide the strategy, and stop",
+    "metadata": {
+      "netId": "persona-janitor",
+      "sessionId": "agent-token-janitor"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "intent": {
+        "host": "default@agentic-net-node:8080",
+        "placeId": "p-janitor-intent"
+      }
+    },
+    "presets": {
+      "policy": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-janitor-policy",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      },
+      "task": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "default@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-janitor-task",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      }
+    },
+    "role": "rw"
+  }
+]

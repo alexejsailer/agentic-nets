@@ -1,0 +1,102 @@
+{
+  "configuration": {
+    "places": [
+      {
+        "description": "allowedModels + gateRegex enforced by the gate transition. Must hold exactly one token before arming.",
+        "placeId": "p-janitor-policy",
+        "required": true
+      }
+    ]
+  },
+  "description": "Delegate token deletion in natural language. An agent reads the request and decides the strategy; a DETERMINISTIC pipeline then measures the place, executes, re-measures and composes the reply, so before/deleted/after are measured facts the model cannot author. Policy-gated: a target model outside the allowlist or a protected place is refused by a gate transition before anything is even read.",
+  "displayName": "Token Janitor",
+  "domain": "platform-maintenance",
+  "entry": {
+    "correlationField": "requestId",
+    "howToUse": "Write ONE token to p-janitor-task with flat string fields {requestId, request} and optionally {targetModel, place}. Then await a token in p-janitor-output whose requestId equals yours. The reply carries status (done|refused|nothing-to-do|unsupported|failed), strategy, before, deleted, after and a one-line message. Counts are measured by the pipeline.",
+    "inboxPlaceId": "p-janitor-task",
+    "inputSchema": {
+      "properties": {
+        "place": {
+          "description": "Optional if the request text names it",
+          "type": "string"
+        },
+        "request": {
+          "description": "Plain English, e.g. empty p-fj-shipped in academy",
+          "type": "string"
+        },
+        "requestId": {
+          "description": "Your correlation id, echoed on the reply",
+          "type": "string"
+        },
+        "targetModel": {
+          "description": "Optional if the request text names it",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestId",
+        "request"
+      ],
+      "type": "object"
+    },
+    "outboxPlaceId": "p-janitor-output"
+  },
+  "instancePolicy": "singleton",
+  "manifestVersion": "1.0",
+  "name": "token-janitor",
+  "observability": {
+    "failurePlaceId": "p-jan-fail",
+    "journalPlaceId": "p-janitor-journal",
+    "refusedPlaceId": "p-janitor-refused"
+  },
+  "patterns": [
+    "decide-then-measure",
+    "policy-gate",
+    "deterministic-reporting",
+    "capability-link-graph"
+  ],
+  "personas": [
+    {
+      "capabilities": "rw",
+      "description": "Reads one request and writes one structured intent. It has rw only: it cannot preview, call HTTP, invoke tool nets or delete anything.",
+      "name": "janitor",
+      "netId": "persona-janitor",
+      "teamRole": "orchestrator",
+      "tier": "medium",
+      "transitionId": "t-janitor-parse"
+    }
+  ],
+  "requirements": {
+    "executor": false,
+    "llm": true
+  },
+  "startPlan": [
+    "t-jan-probe",
+    "t-jan-gate",
+    "t-jan-preva",
+    "t-jan-preva-join",
+    "t-jan-dispatch",
+    "t-jan-clear",
+    "t-jan-clear-join",
+    "t-jan-prevb",
+    "t-jan-report",
+    "t-jan-fail-report",
+    "t-jt-prev-probe",
+    "t-jt-prev-gate",
+    "t-jt-prev-run",
+    "t-jt-prev-shape",
+    "t-jt-clear-probe",
+    "t-jt-clear-gate",
+    "t-jt-clear-run",
+    "t-jt-clear-shape",
+    "t-janitor-parse"
+  ],
+  "tags": [
+    "maintenance",
+    "deletion",
+    "retention",
+    "janitor",
+    "capability-pack"
+  ]
+}

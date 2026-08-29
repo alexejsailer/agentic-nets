@@ -1,0 +1,11 @@
+[
+  {
+    "allowedModels": "academy,net-lab",
+    "gateInput": "<targetModel> <place> — one anchored regex enforcing BOTH the model allowlist and the protected-place denylist. Group 1 is the model, so a match yields a non-DENY verdict.",
+    "gateRegex": "^(academy|net-lab) (?!p-janitor-)(?!p-jt-)(?!p-mem-)(?!.*-charter$)(?!.*-config$)(?!.*-policy$).+$",
+    "kind": "policy",
+    "maxFilteredDelete": "2000",
+    "note": "Widen deliberately. Enforced by a gate transition, not by the charter — a direct invoke_tool_net cannot bypass it.",
+    "protectedPlaces": "p-janitor-*, p-jt-*, p-mem-*, *-charter, *-config, *-policy"
+  }
+]

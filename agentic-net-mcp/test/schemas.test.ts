@@ -80,6 +80,8 @@ const CURATED = [
   // net building
   'deploy_template',
   'create_net',
+  'install_net',
+  'uninstall_net',
   'add_place',
   'add_transition',
   'add_transitions',

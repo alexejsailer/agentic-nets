@@ -16,6 +16,7 @@ import { registerKnowledgeTools } from './tools/knowledge.js';
 import { registerMcpServerTools } from './tools/mcp-servers.js';
 import { registerMemoryTools } from './tools/memory.js';
 import { registerNetTools } from './tools/nets.js';
+import { registerPackTools } from './tools/packs.js';
 import { registerObserveTools } from './tools/observe.js';
 import { registerCapabilityTools } from './tools/capabilities.js';
 import { registerProtocolReaders, registerProtocolTools } from './tools/protocol.js';
@@ -85,6 +86,7 @@ export function createServer(ctx: AppContext): McpServer {
     registerProtocolTools(server, ctx);
     registerApplicationTools(server, ctx);
     registerNetTools(server, ctx);
+    registerPackTools(server, ctx);
     // Invoke the platform agents (builder/operator/persona/...) — same agent loop as the GUI.
     registerAgentTools(server, ctx);
     // NetHub — publish/discover/install artifacts across instances.

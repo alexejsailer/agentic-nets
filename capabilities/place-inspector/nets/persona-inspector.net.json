@@ -1,0 +1,201 @@
+{
+  "net": "persona-inspector",
+  "session": "agent-place-inspector",
+  "places": {
+    "p-inspector-task": "Task inbox (NL entry)",
+    "p-inspector-intent": "Intent (agent output)",
+    "p-insp-checked": "Probe built",
+    "p-inspector-policy": "Policy (config, consume:false)",
+    "p-insp-routed": "Approved -> dispatch",
+    "p-inspector-refused": "Refused (audit)",
+    "p-insp-ctx": "Request context (single-flight)",
+    "p-insp-go-count": "Routed -> count",
+    "p-insp-go-sample": "Routed -> sample",
+    "p-insp-raw-count": "Count response",
+    "p-insp-raw-sample": "Sample response",
+    "p-insp-fail": "API failures",
+    "p-inspector-output": "Reply (entry outbox)",
+    "p-inspector-journal": "Journal (audit)"
+  },
+  "transitions": [
+    {
+      "id": "t-inspector-parse",
+      "kind": "agent",
+      "label": "Inspector: understand the request, decide the strategy, and stop",
+      "description": "The ONLY judgement step. Turns one natural-language request into a structured intent token. It cannot call HTTP, count or sample - a deterministic pipeline does that.",
+      "reads": {
+        "task": { "place": "p-inspector-task", "ttl": 900000 },
+        "policy": { "place": "p-inspector-policy", "consume": false, "ttl": 900000 }
+      },
+      "writes": { "intent": "p-inspector-intent" },
+      "agent": {
+        "role": "rw",
+        "tier": "medium",
+        "maxIterations": 6,
+        "requireWritesTo": ["p-inspector-intent"],
+        "charter": "charters/inspector-parse.md"
+      }
+    },
+    {
+      "id": "t-insp-probe",
+      "kind": "map",
+      "label": "Build the policy probe string",
+      "reads": { "input": "p-inspector-intent" },
+      "writes": { "checked": "p-insp-checked" },
+      "template": {
+        "probe": "${input.data.targetModel} ${input.data.place}",
+        "requestId": "${input.data.requestId}",
+        "targetModel": "${input.data.targetModel}",
+        "place": "${input.data.place}",
+        "strategy": "${input.data.strategy}",
+        "note": "${default(input.data.note, \"\")}"
+      }
+    },
+    {
+      "id": "t-insp-gate",
+      "kind": "map",
+      "label": "Policy gate - reading another model's tokens is disclosure",
+      "reads": {
+        "input": "p-insp-checked",
+        "policy": { "place": "p-inspector-policy", "consume": false }
+      },
+      "writes": {
+        "go": "p-insp-routed",
+        "refused": "p-inspector-refused",
+        "answer": "p-inspector-output"
+      },
+      "template": {
+        "requestId": "${input.data.requestId}",
+        "targetModel": "${input.data.targetModel}",
+        "place": "${input.data.place}",
+        "strategy": "${input.data.strategy}",
+        "note": "${input.data.note}",
+        "verdict": "${default(match(input.data.probe, policy.data.gateRegex), \"DENY\")}",
+        "status": "refused",
+        "count": "",
+        "allowedModels": "${policy.data.allowedModels}",
+        "protectedPlaces": "${policy.data.protectedPlaces}",
+        "message": "Refused by the policy gate: the target model must be in allowedModels and the place must not match protectedPlaces. Nothing was read.",
+        "checkedAt": "${now()}"
+      },
+      "emit": [
+        { "to": "go", "when": "verdict != 'DENY'" },
+        { "to": "refused", "when": "verdict == 'DENY'" },
+        { "to": "answer", "when": "verdict == 'DENY'" }
+      ]
+    },
+    {
+      "id": "t-insp-dispatch",
+      "kind": "map",
+      "label": "Route by strategy - only implemented strategies proceed",
+      "reads": { "input": "p-insp-routed" },
+      "writes": {
+        "goCount": "p-insp-go-count",
+        "goSample": "p-insp-go-sample",
+        "ctx": { "place": "p-insp-ctx", "capacity": 1 },
+        "answer": "p-inspector-output",
+        "journal": "p-inspector-journal"
+      },
+      "template": {
+        "requestId": "${input.data.requestId}",
+        "targetModel": "${input.data.targetModel}",
+        "place": "${input.data.place}",
+        "strategy": "${input.data.strategy}",
+        "note": "${input.data.note}",
+        "route": "${default(match(input.data.strategy, \"^(count|sample)$\"), \"UNSUPPORTED\")}",
+        "status": "unsupported",
+        "count": "",
+        "message": "This request needs a strategy that has no lane in this pack. Nothing was read. Implemented today: count (how many tokens) and sample (a peek at contents).",
+        "routedAt": "${now()}"
+      },
+      "emit": [
+        { "to": "goCount", "when": "route == 'count'" },
+        { "to": "ctx", "when": "route == 'count'" },
+        { "to": "goSample", "when": "route == 'sample'" },
+        { "to": "ctx", "when": "route == 'sample'" },
+        { "to": "answer", "when": "route == 'UNSUPPORTED'" },
+        { "to": "journal", "when": "route == 'UNSUPPORTED'" }
+      ]
+    },
+    {
+      "id": "t-insp-count",
+      "kind": "http",
+      "label": "Count: GET the real total, size=1",
+      "reads": { "go": "p-insp-go-count" },
+      "writes": { "raw": "p-insp-raw-count", "err": "p-insp-fail" },
+      "http": {
+        "method": "GET",
+        "url": "${master}/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=1",
+        "timeoutMs": 60000
+      }
+    },
+    {
+      "id": "t-insp-count-report",
+      "kind": "map",
+      "label": "Compose the count reply from measured values only",
+      "reads": { "raw": "p-insp-raw-count", "ctx": "p-insp-ctx" },
+      "writes": { "answer": "p-inspector-output", "journal": "p-inspector-journal" },
+      "template": {
+        "requestId": "${ctx.data.requestId}",
+        "status": "done",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}",
+        "place": "${ctx.data.place}",
+        "count": "${raw.data.page.totalElements}",
+        "note": "${ctx.data.note}",
+        "message": "Place ${ctx.data.place} in ${ctx.data.targetModel} holds ${raw.data.page.totalElements} tokens. The count is measured by the pipeline, not reported by the model.",
+        "observedAt": "${now()}"
+      }
+    },
+    {
+      "id": "t-insp-sample",
+      "kind": "http",
+      "label": "Sample: GET the real total plus up to 3 tokens",
+      "reads": { "go": "p-insp-go-sample" },
+      "writes": { "raw": "p-insp-raw-sample", "err": "p-insp-fail" },
+      "http": {
+        "method": "GET",
+        "url": "${master}/api/runtime/places/${urlencode(go.data.place)}/tokens?modelId=${urlencode(go.data.targetModel)}&page=0&size=3",
+        "timeoutMs": 60000
+      }
+    },
+    {
+      "id": "t-insp-sample-report",
+      "kind": "map",
+      "label": "Count plus tiny sample only (never the whole token array)",
+      "reads": { "raw": "p-insp-raw-sample", "ctx": "p-insp-ctx" },
+      "writes": { "answer": "p-inspector-output", "journal": "p-inspector-journal" },
+      "template": {
+        "requestId": "${ctx.data.requestId}",
+        "status": "done",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}",
+        "place": "${ctx.data.place}",
+        "count": "${raw.data.page.totalElements}",
+        "sample1": "${default(raw.data.tokens[0].data, \"\")}",
+        "sample2": "${default(raw.data.tokens[1].data, \"\")}",
+        "sample3": "${default(raw.data.tokens[2].data, \"\")}",
+        "note": "${ctx.data.note}",
+        "message": "A peek at ${ctx.data.place} in ${ctx.data.targetModel}: ${raw.data.page.totalElements} tokens total, up to 3 sampled. Values are read by the pipeline, never authored by the model.",
+        "observedAt": "${now()}"
+      }
+    },
+    {
+      "id": "t-insp-fail-report",
+      "kind": "map",
+      "label": "An API failure is reported as failed, never as success",
+      "reads": { "fail": "p-insp-fail", "ctx": "p-insp-ctx" },
+      "writes": { "answer": "p-inspector-output", "journal": "p-inspector-journal" },
+      "template": {
+        "requestId": "${ctx.data.requestId}",
+        "status": "failed",
+        "strategy": "${ctx.data.strategy}",
+        "targetModel": "${ctx.data.targetModel}",
+        "place": "${ctx.data.place}",
+        "count": "",
+        "message": "A master API call in the inspector pipeline failed; the request was abandoned at that point. Check p-insp-fail for the raw error before retrying.",
+        "failedAt": "${now()}"
+      }
+    }
+  ]
+}

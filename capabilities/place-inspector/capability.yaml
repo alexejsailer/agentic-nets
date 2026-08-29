@@ -1,0 +1,56 @@
+apiVersion: agentic-nets.com/capability/v1
+name: place-inspector
+version: 1.0.0
+displayName: Place Inspector
+domain: observability
+description: >-
+  Ask in natural language what a place holds. An agent reads the request and picks a strategy
+  (count or sample); a DETERMINISTIC pipeline then calls the master API and composes the reply,
+  so every number and sample is a measured fact the model cannot author. Read-only by
+  construction: the pack has no deletion or write lane at all. Policy-gated: reading another
+  model's tokens is disclosure, so the same allowlist/denylist gate as the janitor refuses
+  out-of-scope targets before anything is read.
+tags: [agents, capability-pack, observability, read-only]
+engineMin: "2.55.0"
+
+entry:
+  inbox: p-inspector-task
+  outbox: p-inspector-output
+  correlationField: requestId
+  statuses: [done, refused, unsupported, failed]
+  taskFields:
+    required: [requestId, request]
+    optional: [targetModel, place]
+  resultFields: [status, strategy, count, sample1, sample2, sample3, message]
+
+nets:
+  - name: persona-inspector
+    pnml: nets/persona-inspector.pnml.json
+    inscriptions: nets/persona-inspector.inscriptions.json
+    role: front-door
+  # Single-net pack: the front door carries the agent, the gate, the two strategy
+  # lanes (count / sample) and the failure lane. manifest.runtime.json is the
+  # registry contract; both consumed by tools/pack.mjs.
+
+config:
+  - key: allowedModels
+    default: ["academy", "net-lab"]
+    description: >-
+      Models this pack may read from. Reading is disclosure; the policy gate refuses any
+      request targeting a model outside this list before anything is read.
+  - key: protectedPlaces
+    default: ["p-inspector-*", "p-insp-*", "*-charter", "*-config", "*-policy"]
+    description: >-
+      Place patterns the pack must never read, regardless of model (its own state included).
+
+credentials: []
+
+tiers:
+  - transition: t-inspector-parse
+    tier: medium          # decision-only: picks count/sample/unknown, never produces numbers
+
+install:
+  targetModelDefault: default
+  sessionId: agent-place-inspector
+
+verify: verify/smoke.json

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "t-link-handles-preview-janitor-capabilities-jt-prev-in",
+    "kind": "link",
+    "label": "preview-place: count + sample before deciding",
+    "postsets": {
+      "to": {
+        "host": "default@localhost:8080",
+        "placeId": "p-jt-prev-in"
+      }
+    },
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@localhost:8080",
+        "optional": true,
+        "placeId": "p-janitor-capabilities"
+      }
+    },
+    "relation": "handles-preview",
+    "relationSpec": {
+      "directionality": "directed",
+      "hierarchical": false,
+      "name": "handles-preview",
+      "symmetric": false,
+      "transitive": false
+    }
+  },
+  {
+    "id": "t-link-handles-whole-place-wipe-janitor-capabilities-jt-clear-in",
+    "kind": "link",
+    "label": "clear-place: empty an entire place in one commit",
+    "postsets": {
+      "to": {
+        "host": "default@localhost:8080",
+        "placeId": "p-jt-clear-in"
+      }
+    },
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "default@localhost:8080",
+        "optional": true,
+        "placeId": "p-janitor-capabilities"
+      }
+    },
+    "relation": "handles-whole-place-wipe",
+    "relationSpec": {
+      "directionality": "directed",
+      "hierarchical": false,
+      "name": "handles-whole-place-wipe",
+      "symmetric": false,
+      "transitive": false
+    }
+  }
+]

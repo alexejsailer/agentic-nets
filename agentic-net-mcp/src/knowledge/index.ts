@@ -24,6 +24,7 @@ import emitMd from './emit.md';
 import externalFireMd from './external-fire.md';
 import indexMd from './index.md';
 import nethubMd from './nethub.md';
+import netSourceMd from './net-source.md';
 import inscriptionsMd from './inscriptions.md';
 import interpolationMd from './interpolation.md';
 import llmMd from './llm.md';
@@ -72,6 +73,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   cost: { title: 'Watching the meter: token cost', text: costMd },
   crystallization: { title: 'Crystallization: when a lane should stop being an agent', text: crystallizationMd },
   nethub: { title: 'NetHub: export, import, self-contained packages', text: nethubMd },
+  'net-source': { title: 'Compact net source: design upfront, install in one call', text: netSourceMd },
   tokens: { title: 'Token shapes, stringification, size', text: tokensMd },
   leases: { title: 'Token leases — visibility vs availability', text: leasesMd },
   observability: { title: 'Observability layers, retention, the 3-day query', text: observabilityMd },

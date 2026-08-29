@@ -1,0 +1,368 @@
+{
+  "net": {
+    "arcs": {
+      "a-persona-inspector-01": {
+        "id": "a-persona-inspector-01",
+        "source": "p-inspector-task",
+        "target": "t-inspector-parse",
+        "weight": 1
+      },
+      "a-persona-inspector-02": {
+        "id": "a-persona-inspector-02",
+        "source": "p-inspector-policy",
+        "target": "t-inspector-parse",
+        "weight": 1
+      },
+      "a-persona-inspector-03": {
+        "id": "a-persona-inspector-03",
+        "source": "t-inspector-parse",
+        "target": "p-inspector-intent",
+        "weight": 1
+      },
+      "a-persona-inspector-04": {
+        "id": "a-persona-inspector-04",
+        "source": "p-inspector-intent",
+        "target": "t-insp-probe",
+        "weight": 1
+      },
+      "a-persona-inspector-05": {
+        "id": "a-persona-inspector-05",
+        "source": "t-insp-probe",
+        "target": "p-insp-checked",
+        "weight": 1
+      },
+      "a-persona-inspector-06": {
+        "id": "a-persona-inspector-06",
+        "source": "p-insp-checked",
+        "target": "t-insp-gate",
+        "weight": 1
+      },
+      "a-persona-inspector-07": {
+        "id": "a-persona-inspector-07",
+        "source": "p-inspector-policy",
+        "target": "t-insp-gate",
+        "weight": 1
+      },
+      "a-persona-inspector-08": {
+        "id": "a-persona-inspector-08",
+        "source": "t-insp-gate",
+        "target": "p-insp-routed",
+        "weight": 1
+      },
+      "a-persona-inspector-09": {
+        "id": "a-persona-inspector-09",
+        "source": "t-insp-gate",
+        "target": "p-inspector-refused",
+        "weight": 1
+      },
+      "a-persona-inspector-10": {
+        "id": "a-persona-inspector-10",
+        "source": "t-insp-gate",
+        "target": "p-inspector-output",
+        "weight": 1
+      },
+      "a-persona-inspector-11": {
+        "id": "a-persona-inspector-11",
+        "source": "p-insp-routed",
+        "target": "t-insp-dispatch",
+        "weight": 1
+      },
+      "a-persona-inspector-12": {
+        "id": "a-persona-inspector-12",
+        "source": "t-insp-dispatch",
+        "target": "p-insp-go-count",
+        "weight": 1
+      },
+      "a-persona-inspector-13": {
+        "id": "a-persona-inspector-13",
+        "source": "t-insp-dispatch",
+        "target": "p-insp-go-sample",
+        "weight": 1
+      },
+      "a-persona-inspector-14": {
+        "id": "a-persona-inspector-14",
+        "source": "t-insp-dispatch",
+        "target": "p-insp-ctx",
+        "weight": 1
+      },
+      "a-persona-inspector-15": {
+        "id": "a-persona-inspector-15",
+        "source": "t-insp-dispatch",
+        "target": "p-inspector-output",
+        "weight": 1
+      },
+      "a-persona-inspector-16": {
+        "id": "a-persona-inspector-16",
+        "source": "t-insp-dispatch",
+        "target": "p-inspector-journal",
+        "weight": 1
+      },
+      "a-persona-inspector-17": {
+        "id": "a-persona-inspector-17",
+        "source": "p-insp-go-count",
+        "target": "t-insp-count",
+        "weight": 1
+      },
+      "a-persona-inspector-18": {
+        "id": "a-persona-inspector-18",
+        "source": "t-insp-count",
+        "target": "p-insp-raw-count",
+        "weight": 1
+      },
+      "a-persona-inspector-19": {
+        "id": "a-persona-inspector-19",
+        "source": "t-insp-count",
+        "target": "p-insp-fail",
+        "weight": 1
+      },
+      "a-persona-inspector-20": {
+        "id": "a-persona-inspector-20",
+        "source": "p-insp-raw-count",
+        "target": "t-insp-count-report",
+        "weight": 1
+      },
+      "a-persona-inspector-21": {
+        "id": "a-persona-inspector-21",
+        "source": "p-insp-ctx",
+        "target": "t-insp-count-report",
+        "weight": 1
+      },
+      "a-persona-inspector-22": {
+        "id": "a-persona-inspector-22",
+        "source": "t-insp-count-report",
+        "target": "p-inspector-output",
+        "weight": 1
+      },
+      "a-persona-inspector-23": {
+        "id": "a-persona-inspector-23",
+        "source": "t-insp-count-report",
+        "target": "p-inspector-journal",
+        "weight": 1
+      },
+      "a-persona-inspector-24": {
+        "id": "a-persona-inspector-24",
+        "source": "p-insp-go-sample",
+        "target": "t-insp-sample",
+        "weight": 1
+      },
+      "a-persona-inspector-25": {
+        "id": "a-persona-inspector-25",
+        "source": "t-insp-sample",
+        "target": "p-insp-raw-sample",
+        "weight": 1
+      },
+      "a-persona-inspector-26": {
+        "id": "a-persona-inspector-26",
+        "source": "t-insp-sample",
+        "target": "p-insp-fail",
+        "weight": 1
+      },
+      "a-persona-inspector-27": {
+        "id": "a-persona-inspector-27",
+        "source": "p-insp-raw-sample",
+        "target": "t-insp-sample-report",
+        "weight": 1
+      },
+      "a-persona-inspector-28": {
+        "id": "a-persona-inspector-28",
+        "source": "p-insp-ctx",
+        "target": "t-insp-sample-report",
+        "weight": 1
+      },
+      "a-persona-inspector-29": {
+        "id": "a-persona-inspector-29",
+        "source": "t-insp-sample-report",
+        "target": "p-inspector-output",
+        "weight": 1
+      },
+      "a-persona-inspector-30": {
+        "id": "a-persona-inspector-30",
+        "source": "t-insp-sample-report",
+        "target": "p-inspector-journal",
+        "weight": 1
+      },
+      "a-persona-inspector-31": {
+        "id": "a-persona-inspector-31",
+        "source": "p-insp-fail",
+        "target": "t-insp-fail-report",
+        "weight": 1
+      },
+      "a-persona-inspector-32": {
+        "id": "a-persona-inspector-32",
+        "source": "p-insp-ctx",
+        "target": "t-insp-fail-report",
+        "weight": 1
+      },
+      "a-persona-inspector-33": {
+        "id": "a-persona-inspector-33",
+        "source": "t-insp-fail-report",
+        "target": "p-inspector-output",
+        "weight": 1
+      },
+      "a-persona-inspector-34": {
+        "id": "a-persona-inspector-34",
+        "source": "t-insp-fail-report",
+        "target": "p-inspector-journal",
+        "weight": 1
+      }
+    },
+    "description": "",
+    "id": "persona-inspector",
+    "places": {
+      "p-insp-checked": {
+        "id": "p-insp-checked",
+        "label": "Probe built",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-insp-ctx": {
+        "id": "p-insp-ctx",
+        "label": "Request context (single-flight)",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      },
+      "p-insp-fail": {
+        "id": "p-insp-fail",
+        "label": "API failures",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-insp-go-count": {
+        "id": "p-insp-go-count",
+        "label": "Routed -> count",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-insp-go-sample": {
+        "id": "p-insp-go-sample",
+        "label": "Routed -> sample",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-insp-raw-count": {
+        "id": "p-insp-raw-count",
+        "label": "Count response",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-insp-raw-sample": {
+        "id": "p-insp-raw-sample",
+        "label": "Sample response",
+        "tokens": 0,
+        "x": 760,
+        "y": 610
+      },
+      "p-insp-routed": {
+        "id": "p-insp-routed",
+        "label": "Approved -> dispatch",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-inspector-intent": {
+        "id": "p-inspector-intent",
+        "label": "Intent (agent output)",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      },
+      "p-inspector-journal": {
+        "id": "p-inspector-journal",
+        "label": "Journal (audit)",
+        "tokens": 0,
+        "x": 540,
+        "y": 440
+      },
+      "p-inspector-output": {
+        "id": "p-inspector-output",
+        "label": "Reply (entry outbox)",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-inspector-policy": {
+        "id": "p-inspector-policy",
+        "label": "Policy (config, consume:false)",
+        "tokens": 0,
+        "x": 320,
+        "y": 100
+      },
+      "p-inspector-refused": {
+        "id": "p-inspector-refused",
+        "label": "Refused (audit)",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-inspector-task": {
+        "id": "p-inspector-task",
+        "label": "Task inbox (NL entry)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-insp-count": {
+        "id": "t-insp-count",
+        "label": "Count: GET the real total, size=1",
+        "x": 760,
+        "y": 440
+      },
+      "t-insp-count-report": {
+        "id": "t-insp-count-report",
+        "label": "Compose the count reply from measured values only",
+        "x": 1200,
+        "y": 610
+      },
+      "t-insp-dispatch": {
+        "id": "t-insp-dispatch",
+        "label": "Route by strategy - only implemented strategies proceed",
+        "x": 320,
+        "y": 270
+      },
+      "t-insp-fail-report": {
+        "id": "t-insp-fail-report",
+        "label": "An API failure is reported as failed, never as success",
+        "x": 320,
+        "y": 610
+      },
+      "t-insp-gate": {
+        "id": "t-insp-gate",
+        "label": "Policy gate - reading another model's tokens is disclosure",
+        "x": 1200,
+        "y": 270
+      },
+      "t-insp-probe": {
+        "id": "t-insp-probe",
+        "label": "Build the policy probe string",
+        "x": 980,
+        "y": 100
+      },
+      "t-insp-sample": {
+        "id": "t-insp-sample",
+        "label": "Sample: GET the real total plus up to 3 tokens",
+        "x": 980,
+        "y": 610
+      },
+      "t-insp-sample-report": {
+        "id": "t-insp-sample-report",
+        "label": "Count plus tiny sample only (never the whole token array)",
+        "x": 540,
+        "y": 610
+      },
+      "t-inspector-parse": {
+        "id": "t-inspector-parse",
+        "label": "Inspector: understand the request, decide the strategy, and stop",
+        "x": 540,
+        "y": 100
+      }
+    }
+  }
+}

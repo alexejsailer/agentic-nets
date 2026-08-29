@@ -1,0 +1,68 @@
+{
+  "vars": {
+    "targetModel": "academy",
+    "demoPlace": "p-smoke-demo"
+  },
+  "cases": [
+    {
+      "name": "clear-happy-path",
+      "seed": {
+        "model": "${targetModel}",
+        "place": "${demoPlace}",
+        "tokens": [
+          { "text": "smoke seed 1", "kind": "e2e-smoke" },
+          { "text": "smoke seed 2", "kind": "e2e-smoke" },
+          { "text": "smoke seed 3", "kind": "e2e-smoke" },
+          { "text": "smoke seed 4", "kind": "e2e-smoke" },
+          { "text": "smoke seed 5", "kind": "e2e-smoke" }
+        ]
+      },
+      "inject": {
+        "place": "p-janitor-task",
+        "token": { "requestId": "${caseId}", "request": "clear all tokens from ${demoPlace} in ${targetModel}" }
+      },
+      "await": { "place": "p-janitor-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "done", "strategy": "clear-place", "after": "0" },
+      "timeoutSec": 180
+    },
+    {
+      "name": "empty-place-nothing-to-do",
+      "inject": {
+        "place": "p-janitor-task",
+        "token": { "requestId": "${caseId}", "request": "clear all tokens from ${demoPlace} in ${targetModel}" }
+      },
+      "await": { "place": "p-janitor-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "nothing-to-do", "deleted": "0", "after": "0" },
+      "timeoutSec": 120
+    },
+    {
+      "name": "policy-refusal-model",
+      "inject": {
+        "place": "p-janitor-task",
+        "token": { "requestId": "${caseId}", "request": "clear all tokens from p-anything",
+                   "targetModel": "safe-teams", "place": "p-anything" }
+      },
+      "await": { "place": "p-janitor-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "refused", "verdict": "DENY", "deleted": "0" },
+      "timeoutSec": 60
+    },
+    {
+      "name": "unsupported-strategy-preview",
+      "seed": {
+        "model": "${targetModel}",
+        "place": "${demoPlace}",
+        "tokens": [
+          { "text": "preview seed 1", "kind": "e2e-smoke" },
+          { "text": "preview seed 2", "kind": "e2e-smoke" }
+        ]
+      },
+      "inject": {
+        "place": "p-janitor-task",
+        "token": { "requestId": "${caseId}", "request": "preview what is in ${demoPlace} in ${targetModel}" }
+      },
+      "await": { "place": "p-janitor-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "unsupported", "deleted": "0" },
+      "timeoutSec": 120
+    }
+  ]
+}

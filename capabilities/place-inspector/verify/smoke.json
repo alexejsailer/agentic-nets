@@ -1,0 +1,67 @@
+{
+  "vars": {
+    "targetModel": "academy",
+    "countPlace": "p-smoke-count",
+    "samplePlace": "p-smoke-sample"
+  },
+  "cases": [
+    {
+      "name": "count-happy-path",
+      "seed": {
+        "model": "${targetModel}",
+        "place": "${countPlace}",
+        "tokens": [
+          { "text": "count seed 1", "kind": "e2e-smoke" },
+          { "text": "count seed 2", "kind": "e2e-smoke" },
+          { "text": "count seed 3", "kind": "e2e-smoke" }
+        ]
+      },
+      "inject": {
+        "place": "p-inspector-task",
+        "token": { "requestId": "${caseId}", "request": "how many tokens are in ${countPlace} in ${targetModel}" }
+      },
+      "await": { "place": "p-inspector-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "done", "strategy": "count", "count": "*" },
+      "timeoutSec": 180
+    },
+    {
+      "name": "sample-happy-path",
+      "seed": {
+        "model": "${targetModel}",
+        "place": "${samplePlace}",
+        "tokens": [
+          { "text": "an apple token", "kind": "e2e-smoke" },
+          { "text": "a banana token", "kind": "e2e-smoke" }
+        ]
+      },
+      "inject": {
+        "place": "p-inspector-task",
+        "token": { "requestId": "${caseId}", "request": "show me what is inside ${samplePlace} in ${targetModel}" }
+      },
+      "await": { "place": "p-inspector-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "done", "strategy": "sample", "count": "*", "sample1": "*" },
+      "timeoutSec": 180
+    },
+    {
+      "name": "policy-refusal-model",
+      "inject": {
+        "place": "p-inspector-task",
+        "token": { "requestId": "${caseId}", "request": "count the tokens in p-whatever",
+                   "targetModel": "safe-teams", "place": "p-whatever" }
+      },
+      "await": { "place": "p-inspector-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "refused", "verdict": "DENY", "count": "" },
+      "timeoutSec": 120
+    },
+    {
+      "name": "unsupported-write-request",
+      "inject": {
+        "place": "p-inspector-task",
+        "token": { "requestId": "${caseId}", "request": "delete all tokens from ${countPlace} in ${targetModel}" }
+      },
+      "await": { "place": "p-inspector-output", "where": "requestId == \"${caseId}\"" },
+      "expect": { "status": "unsupported", "count": "" },
+      "timeoutSec": 120
+    }
+  ]
+}

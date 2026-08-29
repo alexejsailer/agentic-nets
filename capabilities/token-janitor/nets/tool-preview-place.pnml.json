@@ -1,0 +1,170 @@
+{
+  "net": {
+    "arcs": {
+      "a-1787779876245": {
+        "id": "a-1787779876245",
+        "source": "p-jt-prev-in",
+        "target": "t-jt-prev-probe",
+        "weight": 1
+      },
+      "a-1787779877556": {
+        "id": "a-1787779877556",
+        "source": "t-jt-prev-probe",
+        "target": "p-jt-prev-checked",
+        "weight": 1
+      },
+      "a-1787779878927": {
+        "id": "a-1787779878927",
+        "source": "p-jt-prev-checked",
+        "target": "t-jt-prev-gate",
+        "weight": 1
+      },
+      "a-1787779880370": {
+        "id": "a-1787779880370",
+        "source": "p-janitor-policy",
+        "target": "t-jt-prev-gate",
+        "weight": 1
+      },
+      "a-1787779880802": {
+        "id": "a-1787779880802",
+        "source": "t-jt-prev-gate",
+        "target": "p-jt-prev-go",
+        "weight": 1
+      },
+      "a-1787779885268": {
+        "id": "a-1787779885268",
+        "source": "t-jt-prev-gate",
+        "target": "p-jt-prev-pending",
+        "weight": 1
+      },
+      "a-1787779886676": {
+        "id": "a-1787779886676",
+        "source": "t-jt-prev-gate",
+        "target": "p-janitor-refused",
+        "weight": 1
+      },
+      "a-1787779888089": {
+        "id": "a-1787779888089",
+        "source": "t-jt-prev-gate",
+        "target": "p-jt-prev-out",
+        "weight": 1
+      },
+      "a-1787779889504": {
+        "id": "a-1787779889504",
+        "source": "p-jt-prev-go",
+        "target": "t-jt-prev-run",
+        "weight": 1
+      },
+      "a-1787779890325": {
+        "id": "a-1787779890325",
+        "source": "t-jt-prev-run",
+        "target": "p-jt-prev-raw",
+        "weight": 1
+      },
+      "a-1787779951499": {
+        "id": "a-1787779951499",
+        "source": "p-jt-prev-raw",
+        "target": "t-jt-prev-shape",
+        "weight": 1
+      },
+      "a-1787779952911": {
+        "id": "a-1787779952911",
+        "source": "p-jt-prev-pending",
+        "target": "t-jt-prev-shape",
+        "weight": 1
+      },
+      "a-1787779953499": {
+        "id": "a-1787779953499",
+        "source": "t-jt-prev-shape",
+        "target": "p-jt-prev-out",
+        "weight": 1
+      }
+    },
+    "description": "",
+    "id": "tool-preview-place",
+    "places": {
+      "p-janitor-policy": {
+        "id": "p-janitor-policy",
+        "label": "Policy (config, read-only)",
+        "tokens": 0,
+        "x": 790,
+        "y": 150
+      },
+      "p-janitor-refused": {
+        "id": "p-janitor-refused",
+        "label": "Refused (audit)",
+        "tokens": 0,
+        "x": 850,
+        "y": 690
+      },
+      "p-jt-prev-checked": {
+        "id": "p-jt-prev-checked",
+        "label": "Probe built",
+        "tokens": 0,
+        "x": 590,
+        "y": 330
+      },
+      "p-jt-prev-go": {
+        "id": "p-jt-prev-go",
+        "label": "Policy-approved",
+        "tokens": 0,
+        "x": 1070,
+        "y": 330
+      },
+      "p-jt-prev-in": {
+        "id": "p-jt-prev-in",
+        "label": "Request",
+        "tokens": 0,
+        "x": 150,
+        "y": 330
+      },
+      "p-jt-prev-out": {
+        "id": "p-jt-prev-out",
+        "label": "Result (count + sample)",
+        "tokens": 0,
+        "x": 1950,
+        "y": 510
+      },
+      "p-jt-prev-pending": {
+        "id": "p-jt-prev-pending",
+        "label": "Pending (correlation)",
+        "tokens": 0,
+        "x": 1070,
+        "y": 510
+      },
+      "p-jt-prev-raw": {
+        "id": "p-jt-prev-raw",
+        "label": "API response",
+        "tokens": 0,
+        "x": 1510,
+        "y": 330
+      }
+    },
+    "transitions": {
+      "t-jt-prev-gate": {
+        "id": "t-jt-prev-gate",
+        "label": "Policy gate",
+        "x": 850,
+        "y": 330
+      },
+      "t-jt-prev-probe": {
+        "id": "t-jt-prev-probe",
+        "label": "Build policy probe string",
+        "x": 370,
+        "y": 330
+      },
+      "t-jt-prev-run": {
+        "id": "t-jt-prev-run",
+        "label": "GET tokens (count + sample)",
+        "x": 1290,
+        "y": 330
+      },
+      "t-jt-prev-shape": {
+        "id": "t-jt-prev-shape",
+        "label": "Shape + re-correlate",
+        "x": 1730,
+        "y": 510
+      }
+    }
+  }
+}

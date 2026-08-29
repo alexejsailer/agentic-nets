@@ -1,0 +1,63 @@
+apiVersion: agentic-nets.com/capability/v1
+name: token-janitor
+version: 1.0.0
+displayName: Token Janitor
+domain: platform-maintenance
+description: >-
+  Delegate token deletion in natural language. An agent reads the request and decides the
+  strategy; a DETERMINISTIC pipeline then measures the place, executes, re-measures and composes
+  the reply, so before/deleted/after are measured facts the model cannot author. Policy-gated: a
+  target model outside the allowlist or a protected place is refused by a gate transition before
+  anything is even read.
+tags: [agents, capability-pack, maintenance, tokens]
+engineMin: "2.55.0"
+
+entry:
+  inbox: p-janitor-task
+  outbox: p-janitor-output
+  correlationField: requestId
+  statuses: [done, refused, nothing-to-do, unsupported, failed]
+  taskFields:
+    required: [requestId, request]
+    optional: [targetModel, place]
+  resultFields: [status, strategy, before, deleted, after, message]
+
+nets:
+  - name: persona-janitor
+    pnml: nets/persona-janitor.pnml.json
+    inscriptions: nets/persona-janitor.inscriptions.json
+    role: front-door
+  - name: tool-preview-place
+    pnml: nets/tool-preview-place.pnml.json
+    inscriptions: nets/tool-preview-place.inscriptions.json
+    role: tool
+  - name: tool-clear-place
+    pnml: nets/tool-clear-place.pnml.json
+    inscriptions: nets/tool-clear-place.inscriptions.json
+    role: tool
+  # Session-level typed links (capability routing edges) live in
+  # nets/session-links.inscriptions.json; the runtime registry contract in
+  # manifest.runtime.json. Both produced/consumed by tools/pack.mjs.
+
+config:
+  - key: allowedModels
+    default: ["net-lab"]
+    description: >-
+      Models this pack may operate on. The policy gate refuses any request targeting a model
+      outside this list, before anything is read.
+  - key: protectedPlaces
+    default: []
+    description: >-
+      Place names the pack must never touch, regardless of model. Refused at the gate.
+
+credentials: []
+
+tiers:
+  - transition: t-janitor-decide
+    tier: worker          # decision-only: picks a strategy, never produces counts
+
+install:
+  targetModelDefault: default
+  sessionId: agent-token-janitor
+
+verify: verify/smoke.json

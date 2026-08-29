@@ -1,0 +1,18 @@
+[
+  {
+    "net": "tool-preview-place",
+    "purpose": "Count and sample the tokens in one place without modifying anything",
+    "whenToUse": "The request asks what is in a place, how many tokens, or wants a dry run before deleting",
+    "inputPlace": "p-preview-task",
+    "outputPlace": "p-preview-done",
+    "cost": "deterministic, no LLM"
+  },
+  {
+    "net": "tool-clear-place",
+    "purpose": "Bulk-delete every token in one place, emitting measured before/deleted/after counts",
+    "whenToUse": "The request asks to empty, clear, or clean out one named place",
+    "inputPlace": "p-clear-task",
+    "outputPlace": "p-clear-done",
+    "cost": "deterministic, no LLM; destructive - gated by allowedModels/protectedPlaces"
+  }
+]
