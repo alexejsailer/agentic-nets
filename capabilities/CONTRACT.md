@@ -296,7 +296,7 @@ forces a clean replace after explicit confirmation.
 | `pack build` | compact `nets/*.net.json` -> compiled pair (offline, no connection) | **IMPLEMENTED v0** |
 | `pack export` | running session -> directory | **IMPLEMENTED v0** (`capabilities/tools/pack.mjs export`) |
 | `pack install` | directory -> a session in ANY `--model` (id remap via `--suffix`; hosts + agent modelId normalized to the target) | **IMPLEMENTED v0** |
-| `pack uninstall` | stop + deregister transitions, delete nets, untag session (runtime places/tokens remain) | **IMPLEMENTED v0** |
+| `pack uninstall` | stop + deregister transitions, delete nets, untag session (runtime places/tokens remain) | **IMPLEMENTED v0** — idempotent: already-absent elements are tolerated and reported, never fatal |
 | `pack verify` | installed pack -> smoke verdict | **IMPLEMENTED v0** (`capabilities/tools/pack.mjs verify`, runs D2) |
 | `hub_publish` | directory -> NetHub | LIVE (pack layout support PROPOSED) |
 | `hub_install` | NetHub or git -> session | LIVE for NetHub, PROPOSED for git |
@@ -314,6 +314,15 @@ of every MCP client, the CLI, and — via `attach_mcp_server {self:true}` + the 
 in-net agent personas (builder/forge), with no additional engine surface. Proven on staging
 2026-08-29: uninstall_net + install_net cycled place-inspector, find_capabilities rediscovered
 it, smoke 4/4.
+
+**Teardown removes the pack from the registry.** A dismantled pack must stop being advertised:
+`uninstall_net` removes the discovery tags by default (`untag: []` opts out), because a listed
+entry contract whose transitions no longer exist is a lie — `delegate` refuses it as `stopped`
+and its "start it first" advice is unfollowable. Teardown is also idempotent: elements already
+gone are counted (`alreadyAbsent`) rather than fatal, so a half-finished uninstall can always
+be completed by re-running it. Verified against staging 2026-08-30, alongside suffixed copies
+(full id remap, original untouched) and cross-model injection (hosts + agent `modelId`
+normalized to the target model).
 
 The v0 implementation speaks to any installation through its MCP HTTP endpoint
 (`AGENTICOS_MCP_URL` + `AGENTICOS_MCP_TOKEN`), so the same commands work against staging,

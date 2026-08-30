@@ -212,15 +212,20 @@ export function registerPackTools(server: McpServer, ctx: AppContext): void {
       title: 'Uninstall a net installed from a compact source',
       description:
         'Reverse of install_net: stops + deregisters the net\'s transitions, deletes the net, and ' +
-        'optionally removes the session tags. Deliberately conservative: runtime places, their ' +
-        'tokens, the session node and the agent-manifest leaf all REMAIN (a re-install replaces ' +
-        'the manifest and skips still-seeded config places). Pass the same source (+suffix) the ' +
-        'net was installed from.',
+        'removes the discovery tags so the dismantled pack stops being advertised by ' +
+        'find_capabilities (its transitions are GONE, so a listed entry contract would be a lie — ' +
+        'pass untag:[] to keep it listed deliberately). Deliberately conservative otherwise: ' +
+        'runtime places, their tokens, the session node and the agent-manifest leaf all REMAIN, so ' +
+        'a re-install is an upgrade rather than a reset. Pass the same source (+suffix) the net was ' +
+        'installed from.',
       inputSchema: {
         source: z.record(z.any()).describe('The compact net source the install used'),
         session: z.string().optional().describe('Session id (default: agent-<netId>)'),
         suffix: z.string().optional(),
-        untag: z.array(z.string()).optional().describe('Tags to remove from the session (e.g. discovery tags)'),
+        untag: z
+          .array(z.string())
+          .optional()
+          .describe("Tags to remove (default ['agents','capability-pack'] — the discovery tags). Pass [] to leave tags untouched."),
         ...(scope.multiModel ? { model: z.string().optional().describe('Target model') } : {}),
       },
     },
@@ -234,23 +239,47 @@ export function registerPackTools(server: McpServer, ctx: AppContext): void {
         const compiled = remap(structural, ownedIds(structural), suffix);
         const session = `${args.session ?? (args.source as CompactNetSource).session ?? `agent-${(args.source as CompactNetSource).net}`}`;
         const ex = ctx.executorFor(model);
+        // Teardown must be IDEMPOTENT: an element already gone (partial earlier uninstall,
+        // manual cleanup, a crash mid-run) must not abort the rest — otherwise a half-removed
+        // pack can never be cleaned up, and the untag below would be unreachable.
+        const tolerate = async (tool: string, params: Record<string, unknown>) => {
+          try {
+            const res: any = await ex.execute(tool as any, params);
+            return res?.success !== false;
+          } catch {
+            return false;
+          }
+        };
         const removed: string[] = [];
+        const alreadyGone: string[] = [];
         for (const i of compiled.inscriptions as any[]) {
-          await ex.execute('STOP_TRANSITION' as any, { transitionId: i.id });
-          await ex.execute('DELETE_TRANSITION' as any, { transitionId: i.id });
-          removed.push(i.id);
+          await tolerate('STOP_TRANSITION', { transitionId: i.id });
+          (await tolerate('DELETE_TRANSITION', { transitionId: i.id }) ? removed : alreadyGone).push(i.id);
         }
-        await ex.execute('DELETE_NET' as any, {
+        const netDeleted = await tolerate('DELETE_NET', {
           netId: compiled.net.id,
           sessionId: session,
           deleteTransitions: true,
         });
-        if (args.untag?.length) {
-          await ex.execute('TAG_SESSION' as any, { sessionId: session, tags: args.untag, mode: 'remove' });
+        // Default to removing the discovery tags: a pack whose transitions were just deleted must
+        // not keep advertising an entry contract nothing can serve (delegate would refuse it, and
+        // its "start it first" advice would be unfollowable). untag:[] opts out deliberately.
+        const untag = args.untag ?? ['agents', 'capability-pack'];
+        if (untag.length) {
+          await tolerate('TAG_SESSION', { sessionId: session, tags: untag, mode: 'remove' });
         }
         return {
-          uninstalled: { netId: compiled.net.id, session, transitionsRemoved: removed.length },
-          note: 'Runtime places, tokens, the session node and the agent-manifest leaf remain by design.',
+          uninstalled: {
+            netId: compiled.net.id,
+            session,
+            transitionsRemoved: removed.length,
+            ...(alreadyGone.length ? { alreadyAbsent: alreadyGone.length } : {}),
+            netDeleted,
+            untagged: untag,
+          },
+          note:
+            'Runtime places, tokens, the session node and the agent-manifest leaf remain by design ' +
+            '(re-install = upgrade, not reset).',
         };
       },
     ),

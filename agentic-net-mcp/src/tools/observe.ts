@@ -231,9 +231,43 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     wrapTool(scope, config.mode, { name: 'net_overview', mutates: false }, async (model, args) => {
       const executor = ctx.executorFor(model);
       if (args.netId) {
-        const res = await executor.execute('GET_NET_OVERVIEW', { netId: args.netId, sessionId: args.sessionId ?? config.session });
+        const sessionForNet = args.sessionId ?? config.session;
+        const res = await executor.execute('GET_NET_OVERVIEW', { netId: args.netId, sessionId: sessionForNet });
         if (!res.success) throw new Error(res.error ?? 'overview failed');
-        return res.data;
+        const ov: any = res.data ?? {};
+        // A netId that does not exist comes back as a plausible ZERO-SHELL (0 places / 0
+        // transitions / 0 arcs) — indistinguishable from a freshly created empty net, so a
+        // typo reads as "the net exists and is empty" and sends the caller hunting for
+        // vanished elements. Only in that ambiguous case, confirm against the session's net
+        // list and turn a miss into a real error (same stance as add_place's referential check).
+        const looksEmpty =
+          (ov.placeCount ?? 0) === 0 && (ov.transitionCount ?? 0) === 0 && (ov.arcCount ?? 0) === 0;
+        if (looksEmpty) {
+          const known = await executor.execute('LIST_SESSION_NETS', { sessionId: sessionForNet }).catch(() => null);
+          // A SUCCESSFUL listing is authoritative even when it is empty (a session with no nets
+          // cannot contain this one). Only a FAILED listing leaves the question open.
+          const listed = known?.success === true;
+          const raw: any = listed ? known!.data : null;
+          const netIds: string[] = (Array.isArray(raw) ? raw : raw?.nets ?? [])
+            .map((n: any) => (typeof n === 'string' ? n : n?.netId ?? n?.name))
+            .filter(Boolean);
+          if (listed && !netIds.includes(String(args.netId))) {
+            throw new Error(
+              `Net '${args.netId}' does not exist in session '${sessionForNet}' of model '${model}' ` +
+                `(the empty overview it would otherwise return is a placeholder, not a real net). ` +
+                `Nets in this session: ${netIds.length ? netIds.join(', ') : '(none)'}. Check the id for a ` +
+                `typo, pass the right sessionId, or call net_overview without netId to list sessions.`,
+            );
+          }
+          return {
+            ...ov,
+            empty: true,
+            note: listed
+              ? 'This net exists in the session but has no places, transitions or arcs yet.'
+              : 'Zero elements — could not confirm the net exists (its session listing failed), so treat this as unverified.',
+          };
+        }
+        return ov;
       }
       const sessionId = args.sessionId ?? config.session;
       const [ovRes, sessRes] = await Promise.all([
