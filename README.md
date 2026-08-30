@@ -16,10 +16,18 @@ deterministic automation, and people work on the same visible state. The
 runtime owns the process, permissions, execution, and history; intelligence
 can come from a server model, a local model, or the MCP client you already use.
 
+> Governed multi-agent runtime for Petri-net workflows, scoped agent
+> permissions, durable state, and replayable execution.
+
 **[Try a live net—no install or login](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)** ·
 **[Download Desktop Lite](https://github.com/alexejsailer/agentic-nets/releases/latest)** ·
 **[Watch the 8-minute guided tour](https://youtu.be/hgW11A_7vWY)** ·
 **[Read the documentation](docs/README.md)**
+
+[![Why AI agents need a process runtime](.github/images/intro-video-slide.jpg)](https://www.youtube.com/watch?v=VWm4OCwWnZM)
+
+**[Why AI agents need a process runtime: Agentic-Nets explained](https://www.youtube.com/watch?v=VWm4OCwWnZM)**,
+the idea in one video.
 
 [![The Hardened Lane running in Agentic-Nets Studio](docs/book/hardened-lane-live.jpeg)](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)
 
