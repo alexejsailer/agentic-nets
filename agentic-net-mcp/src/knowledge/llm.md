@@ -14,6 +14,9 @@ uses its local Claude Code/Codex CLI and can run it without a server provider.
 llm/agent fires fail until fixed (a cloud model that is not authenticated on the
 provider host is the classic case).
 
+Use `llm_groups` before setting `group`; it lists valid provider/tier lineups. Without a groups file
+the field is ignored for compatibility; with one, an unknown name fails loudly.
+
 ## kind:llm — the gotchas
 
 - **tier** (`"low" | "medium" | "high"`): resolved to a per-tier model on masters ≥ 2.28. On OLDER

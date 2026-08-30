@@ -274,6 +274,19 @@ public final class Main {
 
     static Map<String, String> llmEnv(DesktopConfig config) {
         Map<String, String> env = new LinkedHashMap<>();
+        if (java.nio.file.Files.isRegularFile(config.llmGroupsFile())) {
+            env.put("LLM_GROUPS_FILE", config.llmGroupsFile().toAbsolutePath().toString());
+        }
+        // Generic named provider instances live in desktop.properties while the groups JSON keeps
+        // only lineup names. llm.providers.glm4.base-url -> LLM_PROVIDERS_GLM4_BASE_URL.
+        config.settingsWithPrefix("llm.providers.").forEach((key, value) -> {
+            String remainder = key.substring("llm.providers.".length());
+            int dot = remainder.indexOf('.');
+            if (dot <= 0 || dot == remainder.length() - 1) return;
+            String instance = envPart(remainder.substring(0, dot));
+            String field = envPart(remainder.substring(dot + 1));
+            env.put("LLM_PROVIDERS_" + instance + "_" + field, value);
+        });
         String provider = config.setting("llm.provider", "disabled").toLowerCase(Locale.ROOT);
         String anthropicKey = config.setting("anthropic.api.key", "");
         if ("claude".equals(provider) && anthropicKey.isEmpty()) {
@@ -305,6 +318,13 @@ public final class Main {
             env.put("ANTHROPIC_API_KEY", anthropicKey);
         }
         return env;
+    }
+
+    private static String envPart(String value) {
+        return value.replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+            .replaceAll("[^A-Za-z0-9]+", "_")
+            .replaceAll("^_+|_+$", "")
+            .toUpperCase(Locale.ROOT);
     }
 
     /** Desktop's one local executor is eligible for every model and activates new assignments fast. */

@@ -96,6 +96,14 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
     expect(ins.action.tier).toBeUndefined();
   });
 
+  it('threads a named model group into agent actions', () => {
+    const ins: any = buildAgentInscription({
+      id: 't-grouped', host: 'm@h', inputPlace: 'p-in', outputPlace: 'p-out', group: 'glm-cluster', tier: 'high',
+    });
+    expect(ins.action.group).toBe('glm-cluster');
+    expect(ins.action.tier).toBe('high');
+  });
+
   it('can preserve the agent loop while reasoning through a headless Codex session', () => {
     const ins: any = buildAgentInscription({
       id: 't-codex', host: 'm@h', inputPlace: 'p-task', outputPlace: 'p-result',
@@ -122,6 +130,24 @@ describe('agent inscription (spawn_persona / add_transition kind:agent)', () => 
     // a NON-scheduled http lane still consumes its input (one-shot queue processing)
     const oneShot: any = buildInscription('http', { id: 't-h2', host: 'm@h', inputPlace: 'p-q', outputPlace: 'p-raw', url: '${input.data.url}' });
     expect(oneShot.presets.input.consume).toBe(true);
+  });
+});
+
+describe('model groups (add_transition group)', () => {
+  it('threads group into llm actions and keeps an explicit model override', () => {
+    const ins: any = buildInscription('llm', {
+      id: 't-grouped-llm', host: 'm@h', inputPlace: 'p-in', outputPlace: 'p-out',
+      group: 'ollama-1', tier: 'low', llmModel: 'exact-model',
+    });
+    expect(ins.action.group).toBe('ollama-1');
+    expect(ins.action.tier).toBe('low');
+    expect(ins.action.model).toBe('exact-model');
+  });
+
+  it('rejects group on transition kinds that cannot use an LLM provider', () => {
+    expect(() => validateKindArgs('map', {
+      kind: 'map', netId: 'n', transitionId: 't', inputPlace: 'p-in', outputPlace: 'p-out', group: 'g',
+    })).toThrow(/group \(applies to kind llm\/agent\)/);
   });
 });
 

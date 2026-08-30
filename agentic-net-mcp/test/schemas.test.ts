@@ -55,6 +55,7 @@ const CURATED = [
   'list_models',
   'list_executors',
   'llm_health',
+  'llm_groups',
   'readiness',
   'scheduler_status',
   'usage_report',
@@ -187,6 +188,7 @@ describe('advertised tool surface', () => {
     expect(props('add_transition')).toMatchObject({
       timezone: expect.any(Object),
       batchSize: expect.any(Object),
+      group: expect.any(Object),
       llmMode: expect.any(Object),
       binary: expect.any(Object),
     });
@@ -203,7 +205,7 @@ describe('advertised tool surface', () => {
     // Model-AGNOSTIC tools have no model param by design: list_models surveys
     // the whole stack; create_model takes the NEW id; hub_search/hub_add_remote
     // are cross-instance, not model-scoped.
-    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_show', 'hub_add_remote', 'llm_health', 'search_knowledge']);
+    const modelAgnostic = new Set(['list_models', 'create_model', 'hub_search', 'hub_show', 'hub_add_remote', 'llm_health', 'llm_groups', 'search_knowledge']);
     for (const t of tools) {
       if (modelAgnostic.has(t.name)) continue;
       expect(Object.keys((t.inputSchema as any)?.properties ?? {}), t.name).toContain('model');
@@ -241,7 +243,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['application_describe', 'application_list', 'domain_memory_recall', 'find_capabilities', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'domain_memory_recall', 'find_capabilities', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
     );
   });
 

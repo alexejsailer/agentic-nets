@@ -70,6 +70,35 @@ class DesktopLiteConfigTest {
     }
 
     @Test
+    void groupsFileAndNamedProviderSettingsArePassedToMaster() throws Exception {
+        String previousHome = System.getProperty("user.home");
+        try {
+            System.setProperty("user.home", tempDir.toString());
+            Path desktopDir = tempDir.resolve(".agenticos/desktop");
+            Files.createDirectories(desktopDir);
+            Files.writeString(desktopDir.resolve("desktop.properties"), """
+                llm.provider=disabled
+                llm.providers.glm4.type=ollama
+                llm.providers.glm4.base-url=http://127.0.0.1:11434
+                llm.providers.glm4.model=glm-4.6
+                """);
+            Files.writeString(tempDir.resolve(".agenticos/llm-groups.json"), """
+                {"groups":{"local-fast":{"provider":"glm4","low":"glm-4.6"}}}
+                """);
+
+            DesktopConfig config = new DesktopConfig(tempDir.resolve("app"));
+            Map<String, String> env = Main.llmEnv(config);
+
+            assertEquals(config.llmGroupsFile().toAbsolutePath().toString(), env.get("LLM_GROUPS_FILE"));
+            assertEquals("ollama", env.get("LLM_PROVIDERS_GLM4_TYPE"));
+            assertEquals("http://127.0.0.1:11434", env.get("LLM_PROVIDERS_GLM4_BASE_URL"));
+            assertEquals("glm-4.6", env.get("LLM_PROVIDERS_GLM4_MODEL"));
+        } finally {
+            System.setProperty("user.home", previousHome);
+        }
+    }
+
+    @Test
     void bundledExecutorCanActivateCommandLanesInEveryModelQuickly() {
         Map<String, String> env = Main.executorEnv();
 

@@ -892,6 +892,19 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerTool(
+    'llm_groups',
+    {
+      title: 'LLM model groups and provider lineups',
+      description:
+        "List the server-side model groups that llm/agent transitions may select with action.group (or add_transition group). Each group reports its provider, low/medium/high/thinking lineup, default tier, and provider health. configured:false means LLM_GROUPS_FILE is unset and group annotations are ignored for backward compatibility. GET-based and readonly-safe.",
+      inputSchema: {},
+    },
+    wrapTool(scope, config.mode, { name: 'llm_groups', mutates: false }, async () => {
+      return ctx.client.masterApi('GET', '/llm/groups');
+    }),
+  );
+
+  server.registerTool(
     'readiness',
     {
       title: 'Readiness — the whole dependency chain, one read-only call',

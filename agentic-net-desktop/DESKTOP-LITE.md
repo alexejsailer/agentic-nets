@@ -373,6 +373,39 @@ llm.provider=claude
 anthropic.api.key=...
 ```
 
+### Named model groups
+
+Desktop automatically enables model groups when this file exists:
+
+```text
+~/.agenticos/llm-groups.json
+```
+
+The JSON maps names to provider lineups; Studio → Settings and the MCP `llm_groups` tool show what
+master loaded. An llm/agent inscription selects one with `action.group`. A minimal file that uses
+the provider above is:
+
+```json
+{
+  "groups": {
+    "local-fast": {
+      "provider": "default",
+      "low": "llama3.2",
+      "medium": "llama3.2",
+      "high": "llama3.2",
+      "defaultTier": "medium"
+    }
+  }
+}
+```
+
+For a second endpoint, keep its credentials out of the JSON and add properties such as
+`llm.providers.glm4.type`, `llm.providers.glm4.base-url`, and `llm.providers.glm4.model` to
+`desktop.properties`; the group's `provider` is then `"glm4"`. Restart Services after changing
+either file. Invalid JSON, unknown provider names, or incomplete referenced providers deliberately
+stop master at boot rather than silently using a different model. Delete/rename the groups file to
+return to the original single-lineup behavior.
+
 Then choose **Restart Services** in the tray. A Claude selection with no key
 falls back to the disabled state. Docker-backed tool execution is also off by
 default and remains an advanced opt-in (`docker.enabled=true`).

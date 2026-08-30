@@ -40,17 +40,17 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   // pass is routing and nothing else: no action to configure, so emit/routes ARE its whole surface.
   pass: new Set(['emit', 'routes']),
   map: new Set(['template', 'emit', 'routes']),
-  llm: new Set(['prompt', 'llmModel', 'tier', 'emit', 'routes', 'errorPlace']),
+  llm: new Set(['prompt', 'llmModel', 'group', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
   command: new Set(['executorId']),
-  agent: new Set(['prompt', 'role', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp']),
+  agent: new Set(['prompt', 'role', 'group', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp']),
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
   link: new Set(['relation']),
 };
 const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'relation', 'x', 'y', 'start', 'model']);
 const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
-  prompt: 'llm/agent', llmModel: 'llm', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
+  prompt: 'llm/agent', llmModel: 'llm', group: 'llm/agent', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
   llmMode: 'agent', binary: 'agent with llmMode:"bash"', mcp: 'agent (needs the m role flag, e.g. role:"rwxh------m")',
   executorId: 'command', errorPlace: 'llm/http', routes: 'pass/map/llm/http', emit: 'pass/map/llm/http',
   filter: 'pass/map/llm/http/command/agent (not link — links never bind tokens)',
@@ -554,6 +554,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     y: z.number().optional(),
     prompt: z.string().optional(),
     llmModel: z.string().optional(),
+    group: z.string().optional(),
     role: z.string().optional(),
     tier: z.string().optional(),
     maxIterations: z.number().optional(),
@@ -603,6 +604,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         y: z.number().optional(),
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
         llmModel: z.string().optional().describe('llm: per-transition model override (e.g. glm-5.2:cloud)'),
+        group: z.string().optional().describe('llm/agent: named server-side model group. The group chooses the provider and tier lineup; inspect valid names with llm_groups. An explicit llmModel still wins inside that group'),
         role: z.string().optional().describe('agent: positional rwxhludctsm capability string (r read, w write, x execute, h http, l logs, u user-await, d docker, c coordinate-personas, t tool-nets, s scripts, m external MCP servers). Default rw--; rwxhl---t = commands + tool-net invocation (INVOKE_TOOL_NET needs t, not x); the m slot is position 11 and pairs with the mcp param — see docs/tool-catalog'),
         tier: z.string().optional().describe('llm/agent: LLM tier — omit for the worker/base model, "high" for the thinking model (llm also accepts "low"/"medium"; unknown tiers fall back to the EXPENSIVE model, so stick to these)'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
@@ -791,6 +793,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         filter: args.filter,
         prompt: args.prompt,
         llmModel: args.llmModel,
+        group: args.group,
         url: args.url,
         method: args.method,
         headers: args.headers,

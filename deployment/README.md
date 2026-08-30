@@ -14,7 +14,7 @@ Closed-source images (`agenticnetos-node`, `agenticnetos-master`, `agenticnetos-
 
 ## Prerequisites
 
-- Docker Desktop or Docker Engine with Compose v2.
+- Docker Desktop or Docker Engine with Compose 2.24+.
 - At least 8 GB free RAM for the full stack; 4 GB is usually enough for the no-monitoring stack.
 - Apple Silicon Macs can run the current Docker Hub images through Docker Desktop's `linux/amd64` emulation. Docker may print platform-mismatch warnings on first start; they are expected unless multi-arch images have been published for your release.
 - One LLM backend:
@@ -164,6 +164,38 @@ LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 ```
 
+### Named model groups
+
+Model groups let individual llm/agent transitions select a named provider plus low/medium/high/
+thinking lineup with `action.group`, while unannotated lanes keep the active `LLM_PROVIDER`.
+The groups JSON contains no credentials.
+
+```bash
+cp config/llm-groups.example.json config/llm-groups.json
+```
+
+Then set the container path in `.env` and restart master:
+
+```env
+LLM_GROUPS_FILE=/app/config/llm-groups.json
+```
+
+The shipped example uses the active provider (`"provider":"default"`). For a second endpoint,
+copy `config/llm-providers.env.example` to the gitignored `config/llm-providers.env`, fill its
+`LLM_PROVIDERS_<NAME>_*` values, and reference that lowercase name from the groups JSON. Supported
+instance types are `ollama`, `openai`, `openrouter`, `openai-compatible`, and `claude`. Compose loads
+the provider env file only into master; it remains separate from the lineup file.
+
+```bash
+docker compose -f docker-compose.hub-only.yml up -d --force-recreate agentic-net-master
+```
+
+Studio → Settings and the MCP `llm_groups` tool (using the connection's existing credentials) show
+the loaded groups and provider health. A
+missing/malformed file, unknown provider reference, or incomplete referenced provider fails master
+startup rather than silently running a different model. Editing either file requires a master
+restart.
+
 ## Environment Reference
 
 | Variable | Required | Default | Purpose |
@@ -173,6 +205,7 @@ OPENAI_API_KEY=sk-...
 | `AGENTICNETOS_BIND_ADDRESS` | Yes | `127.0.0.1` | Host interface for published ports. Use `0.0.0.0` only intentionally. |
 | `LLM_PROVIDER` | Yes | `ollama` | Active LLM backend: `ollama`, `claude`, `openai`, `claude-code`, `codex`. |
 | `AGENTICOS_MODEL_TIER` | No | `medium` | Tier used by CLI/chat model routing. |
+| `LLM_GROUPS_FILE` | No | empty | Container path to the optional groups JSON (normally `/app/config/llm-groups.json`). Empty preserves single-lineup behavior. |
 | `ANTHROPIC_API_KEY` | Claude only | empty | Anthropic API key. |
 | `OPENAI_API_KEY` | OpenAI only | empty | OpenAI API key. |
 | `OLLAMA_BASE_URL` | Ollama only | `http://ollama:11434` | Ollama endpoint reachable from containers. Points at the bundled `agenticnetos-ollama` service. Override for host-Ollama (Docker Desktop: `http://host.docker.internal:11434`; Linux: `http://172.17.0.1:11434`). |

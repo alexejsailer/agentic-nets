@@ -74,6 +74,12 @@ public final class DesktopConfig {
                 ollama.thinking.model=
                 anthropic.api.key=
 
+                # Optional named model groups. Create ~/.agenticos/llm-groups.json to enable it.
+                # Provider endpoints/credentials stay here, outside the groups JSON, for example:
+                # llm.providers.glm4.type=ollama
+                # llm.providers.glm4.base-url=http://127.0.0.1:11434
+                # llm.providers.glm4.model=glm-4.6
+
                 # Model allowlist for the MCP endpoint (comma-separated, first = default)
                 mcp.models=default
                 mcp.session=desktop
@@ -127,6 +133,17 @@ public final class DesktopConfig {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    /** Non-blank settings under a prefix, used for generic named LLM provider instances. */
+    public java.util.Map<String, String> settingsWithPrefix(String prefix) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        settings.stringPropertyNames().stream().sorted().forEach(key -> {
+            if (!key.startsWith(prefix)) return;
+            String value = settings.getProperty(key);
+            if (value != null && !value.isBlank()) out.put(key, value.trim());
+        });
+        return out;
+    }
+
     public boolean settingFlag(String key) {
         return Boolean.parseBoolean(setting(key, "false"));
     }
@@ -138,6 +155,8 @@ public final class DesktopConfig {
 
     public Path appDir() { return appDir; }
     public Path dataDir() { return dataDir; }
+    /** Optional model-groups file shared with native development and preserved across upgrades. */
+    public Path llmGroupsFile() { return dataDir.resolve("llm-groups.json"); }
     public Path desktopDir() { return desktopDir; }
     public Path logsDir() { return desktopDir.resolve("logs"); }
     public Path runDir(String service) { return desktopDir.resolve("run").resolve(service); }

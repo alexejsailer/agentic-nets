@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MCP authors named LLM groups without guessing** (`agentic-net-mcp`). `add_transition`/`add_transitions` accept `group` for llm and agent lanes and persist it as `action.group`; kind validation rejects the parameter everywhere else. New read-only `llm_groups` calls master's group endpoint and reports whether configuration exists, the default group, each provider/tier/thinking lineup, and provider health. The bundled llm/inscription knowledge and README explain precedence: an explicit model still wins but runs on the group's provider, a bare tier without a group stays on the active provider, and an unknown configured group fails the fire.
+- **Desktop Lite automatically loads `~/.agenticos/llm-groups.json`** (`agentic-net-desktop`). The file remains optional and upgrade-persistent. Extra endpoints/credentials stay in `desktop.properties` as generic `llm.providers.<name>.*` entries, which the launcher maps to master's `LLM_PROVIDERS_<NAME>_*` environment contract. Studio's Desktop card shows the expected file path, and the operator guide plus in-app manual cover configuration and restart behavior.
+- **Docker deployments support group files and arbitrary named provider instances** (`deployment`). Every master mounts `deployment/config`, accepts `LLM_GROUPS_FILE`, and loads an optional gitignored `config/llm-providers.env`. Tracked examples and `.env.template` keep credentials out of the groups JSON and preserve single-lineup behavior until explicitly enabled.
+
 ## [2.55.0] - 2026-08-27
 
 ### Added

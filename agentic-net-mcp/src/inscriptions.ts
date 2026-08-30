@@ -66,6 +66,8 @@ export interface BuildOpts {
   /** llm */
   prompt?: string;
   llmModel?: string;
+  /** llm/agent: named server-side provider/model lineup from LLM_GROUPS_FILE. */
+  group?: string;
   /** http */
   url?: string;
   method?: string;
@@ -392,6 +394,7 @@ export function buildLlmInscription(opts: BuildOpts) {
       type: 'llm',
       nl: opts.prompt ?? '${input.data.prompt}',
       ...(opts.llmModel ? { model: opts.llmModel } : {}),
+      ...(opts.group ? { group: opts.group } : {}),
       // Master ≥ 2.28 resolves action.tier via LlmTierResolver (explicit model
       // wins). Forwarding it here is what makes `tier` on kind:llm real — a
       // dropped tier silently hands the caller the EXPENSIVE base model.
@@ -647,6 +650,7 @@ export function buildAgentInscription(opts: BuildOpts) {
         opts.nl ??
         opts.prompt ??
         'Process the bound input token and produce a concise, self-contained result token. Input: ${input.data}',
+      ...(opts.group ? { group: opts.group } : {}),
       ...(opts.tier ? { tier: opts.tier } : {}),
       ...(opts.llmMode ? { llmMode: opts.llmMode } : {}),
       ...(opts.binary ? { binary: opts.binary } : {}),

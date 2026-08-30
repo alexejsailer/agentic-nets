@@ -151,6 +151,9 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+    env_file:
+      - path: ./config/llm-providers.env
+        required: false
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       MASTER_ID: master-1
@@ -164,6 +167,7 @@ services:
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_GROUPS_FILE: ${LLM_GROUPS_FILE:-}
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
@@ -195,6 +199,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/logs/master-1:/app/logs
+      - ./config:/app/config:ro
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MASTER_PORT:-8082}:8082"
     networks:
@@ -230,6 +235,9 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+    env_file:
+      - path: ./config/llm-providers.env
+        required: false
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       MASTER_ID: master-2
@@ -243,6 +251,7 @@ services:
       AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
       AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_SETTINGS_KEY:-}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_GROUPS_FILE: ${LLM_GROUPS_FILE:-}
       AGENTICOS_MODEL_TIER: ${AGENTICOS_MODEL_TIER:-medium}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
@@ -274,6 +283,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/logs/master-2:/app/logs
+      - ./config:/app/config:ro
     ports:
       - "${AGENTICNETOS_BIND_ADDRESS:-127.0.0.1}:${AGENTIC_NET_MASTER_2_PORT:-8087}:8082"
     networks:

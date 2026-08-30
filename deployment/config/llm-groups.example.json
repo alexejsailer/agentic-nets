@@ -1,0 +1,12 @@
+{
+  "groups": {
+    "ollama-balanced": {
+      "provider": "default",
+      "low": "kimi-k2.7-code:cloud",
+      "medium": "kimi-k2.7-code:cloud",
+      "high": "glm-5.2:cloud",
+      "thinking": "glm-5.2:cloud",
+      "defaultTier": "medium"
+    }
+  }
+}

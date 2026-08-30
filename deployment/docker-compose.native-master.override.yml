@@ -21,12 +21,16 @@
 #   AGENTIC_NET_NODE_BASE_URL=http://localhost:8080/api \
 #   AGENTICOS_VAULT_URL=http://localhost:8085 \
 #   OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=kimi-k2.7-code:cloud LLM_PROVIDER=ollama \
+#   LLM_GROUPS_FILE="$HOME/.agenticos/llm-groups.json" \
 #   MASTER_GATEWAY_REGISTRATION=true \
 #   MASTER_GATEWAY_URL=http://localhost:8083 \
 #   MASTER_SELF_URL=http://host.docker.internal:8082 \
 #   GATEWAY_INTERNAL_SECRET=agenticos-local-internal-secret-change-me \
 #   OTEL_SDK_DISABLED=true LOG_PATH=/tmp \
 #   java -jar target/agentic-net-master-0.0.1-SNAPSHOT.jar
+#
+# The LLM_GROUPS_FILE line is optional. Named providers referenced by that file are ordinary
+# LLM_PROVIDERS_<NAME>_* environment variables on this native process.
 #
 # To go back to the all-Docker stack: re-run step 2 WITHOUT this override file, then
 # `docker compose ... start agentic-net-master`.

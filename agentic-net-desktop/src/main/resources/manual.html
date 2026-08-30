@@ -603,6 +603,15 @@ CLI's account. Server lanes use the configured provider. <code>usage_report</cod
 calls and estimates bash-mode agent usage; a command that launches its own model is outside that
 meter, so include that cost in the persona's journal if it matters.</p>
 
+<div class="note">
+  <strong>Several server lineups on one Desktop.</strong> Create
+  <code>~/.agenticos/llm-groups.json</code>, restart services, then choose a returned name with an
+  llm/agent inscription's <code>action.group</code>. Studio Settings and MCP
+  <code>llm_groups</code> show the loaded groups and provider health. Extra provider endpoints stay
+  in <code>desktop.properties</code> as <code>llm.providers.&lt;name&gt;.*</code>; keys do not belong in
+  the groups JSON. A bad file stops master loudly instead of falling through to the wrong model.
+</div>
+
 <p>One hard requirement either way: the machine has to be awake with the app running. Desktop Lite
 is a local runtime, not a cloud service. Turn on <strong>Start at Login</strong> if you want it
 always there.</p>
@@ -706,6 +715,7 @@ that edition mainly changes where services, providers, and executors run.</p>
     <tr><td><code>~/.agenticos/models/</code></td><td>Your nets, places and tokens: the actual work</td></tr>
     <tr><td><code>~/.agenticos/vault/</code></td><td>Encrypted transition credentials</td></tr>
     <tr><td><code>~/.agenticos/desktop/desktop.properties</code></td><td>Advanced settings, including the LLM provider</td></tr>
+    <tr><td><code>~/.agenticos/llm-groups.json</code></td><td>Optional named provider/model lineups for llm and agent transitions</td></tr>
     <tr><td><code>~/.agenticos/desktop/mcp-token</code></td><td>This installation's MCP bearer token</td></tr>
     <tr><td><code>~/.agenticos/desktop/logs/</code></td><td>One log per service</td></tr>
   </tbody>

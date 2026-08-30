@@ -54,3 +54,5 @@ deployment/docker-compose.cartographer.override.yml
 deployment/docker-compose.executor-local.override.yml
 deployment/docker-compose.mac-host-ollama.override.yml
 deployment/docker-compose.tailscale.override.yml
+deployment/config/llm-groups.json
+deployment/config/llm-providers.env

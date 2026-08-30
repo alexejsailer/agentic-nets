@@ -35,7 +35,7 @@ as success. Fields like `query`/`params`/`extract` are silently ignored — buil
 into `url`. Via `add_transition` all of this is available directly (headers/body/auth/retry/emit/
 errorPlace) — always wrap user input in `${urlencode(...)}`.
 
-## llm — one AI inference (action allows type, nl|prompt, system, model, tier, timeoutMs)
+## llm — one AI inference (action allows type, nl|prompt, system, model, group, tier, timeoutMs)
 
 ```json
 "action":{"type":"llm","prompt":"Classify: ${input.data.text}. Return JSON {\"category\":...}",

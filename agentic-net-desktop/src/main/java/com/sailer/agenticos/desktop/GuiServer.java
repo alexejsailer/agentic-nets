@@ -194,7 +194,8 @@ public final class GuiServer {
              "lowModel":"%s","mediumModel":"%s","highModel":"%s","thinkingModel":"%s",
              "anthropicKeyMasked":"%s",
              "openrouterModel":"%s","openrouterLowModel":"%s","openrouterMediumModel":"%s",
-             "openrouterHighModel":"%s","openrouterThinkingModel":"%s","openrouterKeyMasked":"%s"}
+             "openrouterHighModel":"%s","openrouterThinkingModel":"%s","openrouterKeyMasked":"%s",
+             "llmGroupsFile":"%s","llmGroupsFilePresent":%s}
             """.formatted(
                 desktopConfig.setting("llm.provider", "disabled"),
                 desktopConfig.setting("ollama.base.url", ""),
@@ -209,7 +210,9 @@ public final class GuiServer {
                 desktopConfig.setting("openrouter.medium.model", ""),
                 desktopConfig.setting("openrouter.high.model", ""),
                 desktopConfig.setting("openrouter.thinking.model", ""),
-                orMasked);
+                orMasked,
+                jsonEscape(desktopConfig.llmGroupsFile().toAbsolutePath().toString()),
+                Files.isRegularFile(desktopConfig.llmGroupsFile()));
     }
 
     /** Returns an error message, or null when the settings were applied. */
@@ -264,6 +267,10 @@ public final class GuiServer {
             .compile("\"" + java.util.regex.Pattern.quote(field) + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
             .matcher(body);
         return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\").trim() : "";
+    }
+
+    private static String jsonEscape(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private void sendJson(HttpExchange exchange, int status, String json) throws IOException {
