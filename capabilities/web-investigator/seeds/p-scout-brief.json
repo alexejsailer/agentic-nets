@@ -14,6 +14,7 @@
     "maxDepth": "3",
     "brandNewDays": "7",
     "recentDays": "90",
-    "sameHostOnly": "false"
+    "sameHostOnly": "false",
+    "searchProvider": "brave"
   }
 ]

@@ -70,6 +70,19 @@ token in `p-scout-brief` and the whole net retargets without touching a lane:
 Seed work by writing URL tokens into `p-scout-frontier`:
 `{url, depth: 0, attempt: 0, briefId, queuedAt}`.
 
+**To crawl wider than your seeds reach**, add a search key and write queries into
+`p-scout-queries` (`{query, maxResults}`). Hits enter the frontier at depth 0 and go through
+exactly the same dedupe, host filters and depth budget as discovered links:
+
+```
+set_transition_credentials {transitionId: "t-scout-search",
+                            credentials: {SEARCH_API_KEY: "..."}}
+```
+
+Provider comes from `brief.searchProvider` — `brave`, `tavily` or `serper`. Without a key the
+net still runs on seeds plus link-following; the search lane fails loudly rather than
+returning zero hits, because "no credential" and "no results" must not look alike.
+
 Read the analysis from `p-scout-digest`. Re-run `t-scout-taxonomy-cmd` → `t-scout-taxonomy` any
 time to refresh it over everything filed so far.
 

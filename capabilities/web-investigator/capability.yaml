@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.1.0
+version: 1.2.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -41,6 +41,13 @@ scripts:
       compute the recency label and relevance score, classify listing-vs-article, store full text
       in the blobstore, classify failures, and queue newly discovered URLs (deduped, depth-capped,
       injection-guarded).
+  - id: scout-search
+    runtime: python3
+    file: assets/scout-search.py
+    description: >-
+      Widen the crawl beyond link-following by querying a search API (brave | tavily | serper,
+      whichever key is present). Hits enter the frontier at depth 0 through the same dedupe,
+      host filters and injection guard as discovered links.
   - id: scout-taxonomy
     runtime: python3
     file: assets/scout-taxonomy.py
@@ -58,7 +65,15 @@ config:
       classifier must choose from, scoring terms, host allow/deny lists, depth and recency
       windows. Ships as a REPLACE-ME template on purpose: the pack carries no domain.
 
-credentials: []
+credentials:
+  - key: SEARCH_API_KEY
+    transition: t-scout-search
+    required: false
+    description: >-
+      Search API key for the OPTIONAL widening lane. Without it the net still works on seeds
+      plus link-following; the search lane fails loudly rather than looking like a search that
+      found nothing. Set with set_transition_credentials — never in a token, since places are
+      event-sourced. Provider is chosen by brief.searchProvider (brave | tavily | serper).
 
 tiers:
   - transition: t-scout-categorize

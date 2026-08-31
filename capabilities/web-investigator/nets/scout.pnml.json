@@ -175,6 +175,54 @@
         "target": "t-scout-route",
         "weight": 1
       },
+      "a-t-scout-search-cmd-in": {
+        "id": "a-t-scout-search-cmd-in",
+        "source": "p-scout-queries",
+        "target": "t-scout-search-cmd",
+        "weight": 1
+      },
+      "a-t-scout-search-cmd-out": {
+        "id": "a-t-scout-search-cmd-out",
+        "source": "t-scout-search-cmd",
+        "target": "p-scout-search-cmd",
+        "weight": 1
+      },
+      "a-t-scout-search-in": {
+        "id": "a-t-scout-search-in",
+        "source": "p-scout-search-cmd",
+        "target": "t-scout-search",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-err": {
+        "id": "a-t-scout-search-lift-err",
+        "source": "t-scout-search-lift",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-in": {
+        "id": "a-t-scout-search-lift-in",
+        "source": "p-scout-search-raw",
+        "target": "t-scout-search-lift",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-out": {
+        "id": "a-t-scout-search-lift-out",
+        "source": "t-scout-search-lift",
+        "target": "p-scout-frontier",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-tel": {
+        "id": "a-t-scout-search-lift-tel",
+        "source": "t-scout-search-lift",
+        "target": "p-scout-telemetry",
+        "weight": 1
+      },
+      "a-t-scout-search-out": {
+        "id": "a-t-scout-search-out",
+        "source": "t-scout-search",
+        "target": "p-scout-search-raw",
+        "weight": 1
+      },
       "a-t-scout-taxonomy-cmd-in": {
         "id": "a-t-scout-taxonomy-cmd-in",
         "source": "p-scout-brief",
@@ -301,6 +349,13 @@
         "x": 900,
         "y": 700
       },
+      "p-scout-queries": {
+        "id": "p-scout-queries",
+        "label": "Search queries (widen the crawl)",
+        "tokens": 0,
+        "x": 100,
+        "y": 500
+      },
       "p-scout-raw": {
         "id": "p-scout-raw",
         "label": "Raw command results (pre-lift)",
@@ -320,6 +375,20 @@
         "label": "Rejected (below minScore, kept for tuning)",
         "tokens": 0,
         "x": 700,
+        "y": 500
+      },
+      "p-scout-search-cmd": {
+        "id": "p-scout-search-cmd",
+        "label": "Search CommandTokens",
+        "tokens": 0,
+        "x": 300,
+        "y": 500
+      },
+      "p-scout-search-raw": {
+        "id": "p-scout-search-raw",
+        "label": "Raw search results (pre-lift)",
+        "tokens": 0,
+        "x": 500,
         "y": 500
       },
       "p-scout-taxonomy": {
@@ -416,6 +485,24 @@
         "label": "Route by publication recency",
         "x": 1100,
         "y": 660
+      },
+      "t-scout-search": {
+        "id": "t-scout-search",
+        "label": "Run search on executor",
+        "x": 500,
+        "y": 1220
+      },
+      "t-scout-search-cmd": {
+        "id": "t-scout-search-cmd",
+        "label": "Build search CommandToken",
+        "x": 300,
+        "y": 1400
+      },
+      "t-scout-search-lift": {
+        "id": "t-scout-search-lift",
+        "label": "Lift search result, fan hits into frontier",
+        "x": 700,
+        "y": 500
       },
       "t-scout-taxonomy": {
         "id": "t-scout-taxonomy",

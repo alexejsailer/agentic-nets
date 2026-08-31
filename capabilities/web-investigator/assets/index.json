@@ -14,6 +14,13 @@
     "runtime": "python3"
   },
   {
+    "description": "Widen the crawl via a search API (brave|tavily|serper, whichever key is present). Emits frontierCandidates at depth 0, deduped against the registry and filtered by the brief's denyHosts. Key via $SEARCH_API_KEY, never in a token.",
+    "file": "scout-search.py",
+    "id": "scout-search",
+    "name": "Scout Search",
+    "runtime": "python3"
+  },
+  {
     "description": "Deterministic rollup: per-category counts with recency split, per-competitor coverage, and explicit coverage gaps. Produces the facts token the digest agent interprets.",
     "file": "scout-taxonomy.py",
     "id": "scout-taxonomy",
