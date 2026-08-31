@@ -116,7 +116,7 @@ const CURATED = [
   'abandon_external_fire',
   'create_persona',
   'spawn_persona',
-  'scaffold_tool_net', 'test_script',
+  'scaffold_tool_net', 'test_script', 'sync_net',
   'invoke_tool_net',
   'invoke_agent',
   'start_domain_expert',

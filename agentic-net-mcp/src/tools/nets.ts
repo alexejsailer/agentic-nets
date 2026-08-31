@@ -225,7 +225,111 @@ export const PERSONA_PRESETS: Record<
   },
 };
 
+/**
+ * sync_net — reconcile the designtime canvas with runtime, deliberately as a STEP rather
+ * than a side effect.
+ *
+ * The two layers are separate on purpose: PNML is what a human draws, inscriptions are what
+ * the engine runs, and you can legitimately hold one without the other mid-build. Coupling
+ * every runtime mutation to the canvas would erase that. What was missing is not automatic
+ * coupling but a way to SEE the divergence and close it when the work is done — otherwise
+ * the drift is invisible until something else trips over it (a reviewing agent reading a
+ * shape that cannot fire, a pack exporting arcs to nothing).
+ *
+ * Reports by default; `apply:true` performs the removals.
+ */
+function registerSyncNet(server: McpServer, ctx: AppContext): void {
+  const { scope, config } = ctx;
+  if (config.mode === 'readonly') return;
+  const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
+    ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
+    : {};
+
+  server.registerTool(
+    'sync_net',
+    {
+      title: 'Reconcile canvas with runtime',
+      description:
+        'Compare a net\'s designtime canvas against its runtime transitions and report the drift: shapes with no runtime behind them (the canvas showing something that cannot fire), and arcs whose endpoints no longer exist. ' +
+        'Runtime transitions with no shape are reported too, but never auto-drawn — placing an element means choosing coordinates, which is a layout decision, not a cleanup. ' +
+        'Read-only by default; pass apply:true to remove the stale shapes and dangling arcs. Run it when a net is finished, or when the editor and net_stats disagree.',
+      inputSchema: {
+        netId: z.string(),
+        sessionId: z.string().optional().describe('Defaults to this connection\'s session'),
+        apply: z.boolean().optional().describe('Default false (report only). true removes stale shapes and dangling arcs.'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'sync_net', mutates: true }, async (model, args) => {
+      const exec = ctx.executorFor(model);
+      const sessionId = args.sessionId ?? ctx.config.session;
+      const run = async (tool: string, params: Record<string, unknown>) => {
+        const res = await exec.execute(tool as any, params);
+        if (!res.success) throw new Error(`${tool}: ${res.error ?? 'failed'}`);
+        return res.data as any;
+      };
+
+      const pnml = await run('EXPORT_PNML', { netId: args.netId, sessionId, model });
+      const net = pnml?.net ?? pnml;
+      const shapes: Record<string, any> = net?.transitions ?? {};
+      const places: Record<string, any> = net?.places ?? {};
+      const arcs: Record<string, any> = net?.arcs ?? {};
+
+      const listed = await run('LIST_ALL_INSCRIPTIONS', { limit: 500, model });
+      const runtimeIds = new Set<string>(
+        (listed?.transitions ?? []).map((t: any) => t.transitionId ?? t.id).filter(Boolean),
+      );
+
+      const elementIds = new Set([...Object.keys(places), ...Object.keys(shapes)]);
+      const staleShapes = Object.keys(shapes).filter((t) => !runtimeIds.has(t));
+      const danglingArcs = Object.entries(arcs)
+        .filter(([, a]: [string, any]) => !elementIds.has(a?.source) || !elementIds.has(a?.target))
+        .map(([id]) => id);
+      // Reported, never auto-created: drawing it would mean inventing coordinates.
+      const undrawn = [...runtimeIds].filter((t) => !(t in shapes));
+
+      const drift = staleShapes.length + danglingArcs.length;
+      if (!args.apply) {
+        return {
+          netId: args.netId, applied: false, inSync: drift === 0 && undrawn.length === 0,
+          staleShapes, danglingArcs, runtimeWithoutShape: undrawn,
+          summary: drift === 0
+            ? (undrawn.length ? `${undrawn.length} runtime transition(s) have no shape — draw them with add_transition or accept the split` : 'canvas and runtime agree')
+            : `${staleShapes.length} stale shape(s) and ${danglingArcs.length} dangling arc(s) — re-run with apply:true to remove them`,
+        };
+      }
+
+      const removedArcs: string[] = [];
+      const removedShapes: string[] = [];
+      // Straight to the DESIGNTIME endpoints. The native DELETE_TRANSITION is the RUNTIME
+      // delete — for a stale shape the runtime half is already gone, so it fails and cleans
+      // nothing. These are the only calls that touch the canvas layer.
+      const q = { modelId: model, sessionId };
+      // Arcs first: removing a shape while an arc still points at it would briefly widen the
+      // very inconsistency this is closing.
+      for (const arcId of danglingArcs) {
+        try {
+          await ctx.client.masterApi('DELETE', `/designtime/nets/${args.netId}/arcs/${arcId}`, undefined, q);
+          removedArcs.push(arcId);
+        } catch { /* already gone is success for a cleanup */ }
+      }
+      for (const t of staleShapes) {
+        try {
+          await ctx.client.masterApi('DELETE', `/designtime/nets/${args.netId}/transitions/${t}`, undefined, q);
+          removedShapes.push(t);
+        } catch { /* ditto */ }
+      }
+      return {
+        netId: args.netId, applied: true, removedShapes, removedArcs,
+        runtimeWithoutShape: undrawn,
+        summary: `removed ${removedShapes.length} stale shape(s) and ${removedArcs.length} dangling arc(s)`,
+      };
+    }),
+  );
+}
+
 export function registerNetTools(server: McpServer, ctx: AppContext): void {
+  registerSyncNet(server, ctx);
   const { scope, config } = ctx;
   const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
   // The allowlist is MUTABLE at runtime (create_model / hub_install call grantModel), but a tool

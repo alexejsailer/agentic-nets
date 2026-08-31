@@ -267,6 +267,41 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
               : 'Zero elements — could not confirm the net exists (its session listing failed), so treat this as unverified.',
           };
         }
+        // Drift notice. The two layers are separate by design — PNML is what a human draws,
+        // inscriptions are what the engine runs — so a mismatch is not automatically an error.
+        // But it stays invisible until something else trips over it: a reviewing agent reading
+        // a shape that cannot fire, a pack exporting arcs to nothing. Surfacing it on the
+        // cheapest read anyone already makes is what turns silent drift into a decision.
+        //
+        // Scoped by inscription metadata.netId — a model-wide count would false-positive on
+        // every multi-net model, and a notice that cries wolf is worse than none.
+        try {
+          const listed = await executor.execute('LIST_ALL_INSCRIPTIONS', { limit: 500, includeContent: true });
+          if (listed.success) {
+            const rows: any[] = (listed.data as any)?.transitions ?? [];
+            const runtimeInThisNet = rows.filter((r) => {
+              let ins = r?.inscription;
+              if (typeof ins === 'string') { try { ins = JSON.parse(ins); } catch { return false; } }
+              return ins?.metadata?.netId === args.netId;
+            }).length;
+            const shapes = ov.transitionCount ?? 0;
+            if (shapes > runtimeInThisNet) {
+              return {
+                ...ov,
+                canvasDrift: {
+                  shapes,
+                  runtimeTransitions: runtimeInThisNet,
+                  note:
+                    `${shapes - runtimeInThisNet} shape(s) on this canvas have no runtime transition behind them — ` +
+                    `the editor is showing elements that cannot fire. Run sync_net {netId:"${args.netId}"} for the ` +
+                    `detail, or sync_net {netId:"${args.netId}", apply:true} to remove them.`,
+                },
+              };
+            }
+          }
+        } catch {
+          // A drift check must never break the overview it is annotating.
+        }
         return ov;
       }
       const sessionId = args.sessionId ?? config.session;
