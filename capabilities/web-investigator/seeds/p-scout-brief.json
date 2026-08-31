@@ -1,0 +1,19 @@
+[
+  {
+    "active": "true",
+    "briefId": "b-example",
+    "topic": "REPLACE ME — what you are investigating, in one line",
+    "description": "REPLACE ME — what the analysis should tell you. Handed to the digest agent verbatim, so write it as the assignment you want answered.",
+    "domainHint": "REPLACE ME — vocabulary that helps the classifier: product names, brands, jargon, adjacent terms.",
+    "categories": "  category-one        what belongs here\n  category-two        what belongs here\n  category-three      what belongs here\n  unrelated           not about this topic",
+    "mustInclude": "[\"REPLACE\", \"ME\"]",
+    "mustExclude": "[\"casino\", \"crypto airdrop\"]",
+    "denyHosts": "[]",
+    "allowHosts": "[]",
+    "minScore": "30",
+    "maxDepth": "3",
+    "brandNewDays": "7",
+    "recentDays": "90",
+    "sameHostOnly": "false"
+  }
+]

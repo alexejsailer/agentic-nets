@@ -1,0 +1,11 @@
+{
+  "name": "web-investigator",
+  "displayName": "Web Investigator",
+  "domain": "research",
+  "description": "Crawl a set of seed sources, date and score every page deterministically, categorise the articles that survive a free relevance gate, group findings by publication recency, and produce a landscape analysis whose every number is measured rather than authored.",
+  "entry": {
+    "inbox": "p-scout-brief",
+    "outbox": "p-scout-digest",
+    "correlationField": "briefId"
+  }
+}

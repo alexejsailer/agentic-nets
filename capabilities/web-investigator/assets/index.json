@@ -1,0 +1,23 @@
+[
+  {
+    "description": "Classify listing pages vs articles; gate on one literal verdict; date metrics over articles only.",
+    "file": "scout-fetch.py",
+    "id": "scout-fetch",
+    "name": "Scout Fetch",
+    "runtime": "python3"
+  },
+  {
+    "description": "Classify listing pages vs articles; gate on one literal verdict; date metrics over articles only.",
+    "file": "scout-health.py",
+    "id": "scout-health",
+    "name": "Scout Health",
+    "runtime": "python3"
+  },
+  {
+    "description": "Deterministic rollup: per-category counts with recency split, per-competitor coverage, and explicit coverage gaps. Produces the facts token the digest agent interprets.",
+    "file": "scout-taxonomy.py",
+    "id": "scout-taxonomy",
+    "name": "Scout Taxonomy",
+    "runtime": "python3"
+  }
+]

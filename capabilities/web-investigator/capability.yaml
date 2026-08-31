@@ -1,0 +1,71 @@
+apiVersion: agentic-nets.com/capability/v1
+name: web-investigator
+version: 1.0.0
+displayName: Web Investigator
+domain: research
+description: >-
+  Point it at seed URLs and a brief; it crawls, dates, scores, categorises and analyses.
+  Deterministic scripts on the executor do the fetching, date extraction, relevance scoring,
+  dedupe, link discovery and every count; ONE narrow agent lane classifies each surviving
+  article and one more writes the analysis. The split is the point: the agent decides, the
+  pipeline measures, so no figure in the output is model-authored.
+tags: [agents, capability-pack, research, crawler, competitive-analysis]
+engineMin: "2.56.0"
+
+entry:
+  inbox: p-scout-brief
+  outbox: p-scout-digest
+  correlationField: briefId
+  statuses: [landscape-analysis]
+  taskFields:
+    required: [briefId, topic, description, categories, mustInclude]
+    optional: [domainHint, mustExclude, denyHosts, allowHosts, minScore, maxDepth, brandNewDays, recentDays, sameHostOnly]
+  resultFields: [ownedAngles, freshness, gaps, recommendations, totalFindings]
+
+nets:
+  - name: scout
+    pnml: nets/scout.pnml.json
+    inscriptions: nets/scout.inscriptions.json
+    role: front-door
+
+# Command lanes invoke these by reference (args.toolId); the installer registers them into the
+# target model's LOCAL catalog before wiring the nets, because a toolId resolves per-model.
+scripts:
+  - id: scout-fetch
+    runtime: python3
+    file: assets/scout-fetch.py
+    description: >-
+      Fetch one URL with conditional GET, extract title/text/links, detect the publication date,
+      compute the recency label and relevance score, classify listing-vs-article, store full text
+      in the blobstore, classify failures, and queue newly discovered URLs (deduped, depth-capped,
+      injection-guarded).
+  - id: scout-taxonomy
+    runtime: python3
+    file: assets/scout-taxonomy.py
+    description: Roll findings into per-category and per-source counts plus explicit coverage gaps.
+  - id: scout-health
+    runtime: python3
+    file: assets/scout-health.py
+    description: Roll fetch telemetry into diagnostics with concrete tuning suggestions.
+
+config:
+  - key: p-scout-brief
+    seed: seeds/p-scout-brief.json
+    description: >-
+      The investigation definition — topic, description, domainHint, the category list the
+      classifier must choose from, scoring terms, host allow/deny lists, depth and recency
+      windows. Ships as a REPLACE-ME template on purpose: the pack carries no domain.
+
+credentials: []
+
+tiers:
+  - transition: t-scout-categorize
+    tier: worker    # per-article classification; profiled to research-worker
+  - transition: t-scout-digest
+    tier: high      # one synthesis pass over measured facts
+
+install:
+  targetModelDefault: net-lab
+  sessionId: agent-web-investigator
+
+verify: verify/smoke.json

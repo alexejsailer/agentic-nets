@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "name": "scripts registered",
+      "check": "tool-catalog contains scout-fetch, scout-taxonomy and scout-health in the target model",
+      "why": "command lanes invoke by toolId and resolve per-model; without these every fetch fails at fire time"
+    },
+    {
+      "name": "brief is required and non-consuming",
+      "check": "t-scout-fetch-cmd binds p-scout-brief with consume=false; a fire leaves the brief token in place",
+      "why": "a consuming config preset deletes the investigation definition on the first fire"
+    },
+    {
+      "name": "listing pages never reach the model",
+      "check": "after a crawl, no token in p-scout-candidates has pageType == 'index'",
+      "why": "index pages have no publication date and are not articles; categorising them costs model calls and files fake findings"
+    },
+    {
+      "name": "depth cap holds",
+      "check": "no token enters p-scout-frontier with depth >= brief.maxDepth",
+      "why": "the crawl is bounded by ArcQL '<' — never '!=', which also matches missing and overshoot"
+    },
+    {
+      "name": "analysis quotes measured numbers",
+      "check": "every count in p-scout-digest matches the corresponding value in the p-scout-taxonomy facts token",
+      "why": "the agent interprets; the deterministic rollup counts. A mismatch means the model authored a figure"
+    }
+  ]
+}

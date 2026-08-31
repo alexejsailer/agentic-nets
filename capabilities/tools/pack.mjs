@@ -309,6 +309,32 @@ async function cmdExport(a) {
   for (const netId of netIds) {
     const pnml = await callTool('EXPORT_PNML', { netId, sessionId: session, model });
     const net = pnml.net ?? pnml;
+    // The designtime element carries a COPY of the inscription from whenever the transition
+    // was created, and SET_INSCRIPTION does not rewrite it. Shipping both means shipping a
+    // stale second prompt — which in one real export leaked a previous domain's wording into
+    // a pack meant to be domain-neutral. PNML is visual structure; the .inscriptions.json
+    // beside it is the runtime truth, so drop the duplicate here.
+    for (const t of Object.values(net.transitions ?? {})) delete t.inscription;
+    // Deleting a place or transition leaves its designtime ARCS behind, so a net that was
+    // edited during development exports arcs pointing at nothing. Installing those dies
+    // partway and leaves a half-wired pack, which is worse than refusing. Drop them here and
+    // say so — an exported pack must be installable by construction.
+    const elementIds = new Set([
+      ...Object.keys(net.places ?? {}),
+      ...Object.keys(net.transitions ?? {}),
+    ]);
+    const dangling = [];
+    for (const [aid, arc] of Object.entries(net.arcs ?? {})) {
+      const missing = [arc.source, arc.target].filter((x) => !elementIds.has(x));
+      if (missing.length) {
+        dangling.push(`${aid} -> ${missing.join(', ')}`);
+        delete net.arcs[aid];
+      }
+    }
+    if (dangling.length) {
+      log(`  dropped ${dangling.length} dangling arc(s) from ${netId}:`);
+      for (const d of dangling) log(`    ${d}`);
+    }
     writeFileSync(join(dir, 'nets', `${netId}.pnml.json`), stable({ net }));
     for (const p of Object.keys(net.places ?? {})) allPlaceIds.add(p);
     log(`  ${netId}.pnml.json (${Object.keys(net.places ?? {}).length}p/${Object.keys(net.transitions ?? {}).length}t)`);
@@ -364,12 +390,51 @@ async function cmdExport(a) {
   }
 
   // Config/knowledge seeds: policy, config, charter, capabilities, routing places.
-  for (const place of [...allPlaceIds].filter((p) => /-(policy|config|charter|capabilities|routing-knowledge)$/.test(p))) {
+  for (const place of [...allPlaceIds].filter((p) => /-(policy|config|charter|brief|capabilities|routing-knowledge)$/.test(p))) {
     const q = await callTool('query_tokens', { model, place, maxValueLength: 100000 });
     const tokens = (q.results ?? []).map((r) => r.data).filter((d) => d && typeof d === 'object');
     if (tokens.length) {
       writeFileSync(join(dir, 'seeds', `${place}.json`), stable(tokens));
       log(`  seeds/${place}.json (${tokens.length} tokens)`);
+    }
+  }
+  // Tool-catalog SCRIPTS the command lanes invoke by reference. A pack whose lanes say
+  // {executor:"script", command:"invoke", args:{toolId}} is useless without them: the toolId
+  // resolves per-model, so installing the nets alone yields lanes that fail at fire time.
+  const toolIds = new Set();
+  const exportedNets = join(dir, 'nets');
+  for (const f of readdirSync(exportedNets).filter((f) => f.endsWith('.inscriptions.json'))) {
+    for (const i of JSON.parse(readFileSync(join(exportedNets, f), 'utf8'))) {
+      const tpl = i?.action?.template;
+      const tid = tpl?.args?.toolId;
+      if (typeof tid === 'string' && tid) toolIds.add(tid);
+    }
+  }
+  if (toolIds.size) {
+    mkdirSync(join(dir, 'assets'), { recursive: true });
+    const EXT = { python3: '.py', node: '.js', bash: '.sh', sh: '.sh' };
+    const index = [];
+    for (const id of [...toolIds].sort()) {
+      try {
+        const entry = await callTool('TOOL_CATALOG_GET', { id, model });
+        const b = entry?.binding ?? entry?.entry?.binding ?? {};
+        const urn = b.scriptUrn;
+        if (!urn) throw new Error('no scriptUrn on catalog entry');
+        // Scripts cap at 1 MB; ask for the whole body, not the 4000-char default preview.
+        const blob = await callTool('read_blob_text', { blobUrn: urn, maxLength: 1048576 });
+        const body = blob?.text ?? blob?.content ?? '';
+        if (!body) throw new Error('blob body empty');
+        const file = `${id}${EXT[b.runtime] ?? '.txt'}`;
+        writeFileSync(join(dir, 'assets', file), body);
+        index.push({ id, file, runtime: b.runtime, name: entry.name ?? id, description: entry.description ?? '' });
+        log(`  assets/${file} (${body.length} bytes)`);
+      } catch (e) {
+        log(`  WARN: script '${id}' not exported (${e.message.slice(0, 100)})`);
+      }
+    }
+    if (index.length) {
+      writeFileSync(join(dir, 'assets', 'index.json'), stable(index));
+      log(`  assets/index.json (${index.length} scripts)`);
     }
   }
   log('export complete');
@@ -387,6 +452,21 @@ async function cmdInstall(a) {
   log(`installing into ${model}/${session} (suffix '${suffix}')`);
   await callTool('CREATE_SESSION', { sessionId: session, naturalLanguageText: `pack install of ${basename(dir)}`, model })
     .catch((e) => log(`  session exists or create failed (${e.message.slice(0, 80)}) — continuing`));
+
+  // Scripts FIRST: a command lane invokes by reference (toolId), resolved per-model at FIRE
+  // time. Installing the nets before the scripts leaves lanes that look healthy and fail on
+  // their first fire, which is the worst kind of broken.
+  const assetsDir = join(dir, 'assets');
+  if (existsSync(join(assetsDir, 'index.json'))) {
+    for (const sc of JSON.parse(readFileSync(join(assetsDir, 'index.json'), 'utf8'))) {
+      const body = readFileSync(join(assetsDir, sc.file), 'utf8');
+      await callTool('TOOL_CATALOG_REGISTER_SCRIPT', {
+        id: sc.id, name: sc.name ?? sc.id, runtime: sc.runtime ?? 'python3',
+        description: sc.description ?? '', content: body, model,
+      });
+      log(`  script ${sc.id} (${sc.runtime}, ${body.length} bytes)`);
+    }
+  }
 
   const started = [];
   for (const f of pnmls) {
