@@ -8,7 +8,7 @@ import type { AppContext } from './context.js';
 import { buildInstructions } from './instructions.js';
 import { setScopeEchoSession, toolRegistry } from './scope.js';
 import { registerAgentTools } from './tools/agents.js';
-import { registerCatalogTools } from './tools/catalog.js';
+import { registerCatalogTools, registerScriptDryRun } from './tools/catalog.js';
 import { registerExternalReaders, registerExternalTools } from './tools/external.js';
 import { registerHostedTools } from './tools/hosted.js';
 import { registerHubTools } from './tools/hub.js';
@@ -62,6 +62,8 @@ export function createServer(ctx: AppContext): McpServer {
   // Read layers are always available (search_knowledge greps the bundled docs —
   // zero network, zero mutation — so it serves readonly observers too).
   registerObserveTools(server, ctx);
+  // Curated: belongs to the product surface, not the optional native catalog.
+  registerScriptDryRun(server, ctx);
   registerKnowledgeTools(server, ctx);
   // Capability delegation: find_capabilities registers in BOTH modes (read-only registry
   // lookup); delegate only in rw (it writes a task token). The registrar self-guards.

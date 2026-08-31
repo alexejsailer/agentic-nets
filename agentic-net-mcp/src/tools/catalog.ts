@@ -183,3 +183,132 @@ export function registerCatalogTools(server: McpServer, ctx: AppContext): void {
     );
   }
 }
+
+/**
+ * test_script — run a registered script ONCE on the executor without wiring a lane.
+ *
+ * Registering a script is a blob write; whether it actually runs is only discovered when some
+ * transition fires it, which meant authoring a pack or a net just to find out that argv was
+ * wrong. This builds a throwaway command lane, fires it, returns stdout, and tears the lane
+ * down again in a finally — a failed run must not leave debris behind for someone to find
+ * later and wonder about.
+ */
+export function registerScriptDryRun(server: McpServer, ctx: AppContext): void {
+  const { scope, config } = ctx;
+  // Mutating: it creates a place and a transition and fires it. Readonly must never see it —
+  // the gateway would refuse the writes anyway, but advertising it there is a false promise.
+  if (config.mode === 'readonly') return;
+  const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
+    ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
+    : {};
+
+  server.registerTool(
+    'test_script',
+    {
+      title: 'Dry-run a cataloged script',
+      description:
+        'Run a script from the tool catalog ONCE on the executor and return its stdout, without creating a permanent lane. ' +
+        'Use it to check a script actually runs — and that its env/argv contract is right — before wiring it into a net or shipping it in a capability pack. ' +
+        'Creates a temporary place + command transition, fires once, and deletes both afterwards even if the run fails. ' +
+        'The script resolves local-first in the target model, exactly as it would at fire time.',
+      inputSchema: {
+        toolId: z.string().describe('Catalog id of the script, e.g. scout-fetch'),
+        env: z.record(z.string()).optional().describe('Environment for the run — the injection-safe way to pass dynamic input'),
+        argv: z.array(z.string()).optional(),
+        timeoutMs: z.number().optional().describe('Default 120000'),
+        waitMs: z.number().optional().describe('How long to wait for the executor result (default 90000)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'test_script', mutates: true }, async (model, args) => {
+      const exec = ctx.executorFor(model);
+      const run = async (tool: string, params: Record<string, unknown>) => {
+        const res = await exec.execute(tool as any, params);
+        if (!res.success) throw new Error(`${tool}: ${res.error ?? 'failed'}`);
+        return res.data as any;
+      };
+
+      const sfx = Math.random().toString(36).slice(2, 8);
+      const cmdPlace = `p-scripttest-cmd-${sfx}`;
+      const outPlace = `p-scripttest-out-${sfx}`;
+      const tid = `t-scripttest-${sfx}`;
+      const timeoutMs = Number(args.timeoutMs ?? 120000);
+      const waitMs = Number(args.waitMs ?? 90000);
+      const created: string[] = [];
+      let transitionCreated = false;
+
+      try {
+        await run('CREATE_RUNTIME_PLACE', { placeId: cmdPlace, model });
+        created.push(cmdPlace);
+        await run('CREATE_RUNTIME_PLACE', { placeId: outPlace, model });
+        created.push(outPlace);
+
+        await run('SET_INSCRIPTION', {
+          transitionId: tid,
+          model,
+          inscription: {
+            id: tid,
+            kind: 'command',
+            label: `dry-run ${args.toolId}`,
+            mode: 'SINGLE',
+            presets: { input: { placeId: cmdPlace, host: `${model}@${config.nodeHost}`, arcql: 'FROM $ LIMIT 1', take: 'FIRST', consume: true } },
+            postsets: { log: { placeId: outPlace, host: `${model}@${config.nodeHost}` } },
+            action: { type: 'command', inputPlace: 'input', groupBy: 'executor', dispatch: [{ executor: 'bash', channel: 'default' }], await: 'ALL', timeoutMs },
+            emit: [{ to: 'log', from: '@result' }],
+          },
+        });
+        transitionCreated = true;
+        // SET_INSCRIPTION writes the config; it does not assign the lane to an executor.
+        // Firing an unassigned command lane 409s, so deploy before the token goes in.
+        await run('DEPLOY_TRANSITION', { transitionId: tid, model });
+
+        await run('CREATE_TOKEN', {
+          placeId: cmdPlace,
+          model,
+          data: {
+            kind: 'command', id: `dryrun-${sfx}`, executor: 'script', command: 'invoke', expect: 'text',
+            args: { toolId: args.toolId, argv: args.argv ?? [], env: args.env ?? {}, timeoutMs },
+          },
+        });
+
+        await run('FIRE_ONCE', { transitionId: tid, model });
+
+        // Command lanes are async: the executor has to poll, run, and report back.
+        const deadline = Date.now() + waitMs;
+        let result: any = null;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const q = await run('QUERY_TOKENS', { placeId: outPlace, model, arcql: 'FROM $ LIMIT 1', maxValueLength: 200000 });
+          const rows = q?.results ?? q?.tokens ?? [];
+          if (rows.length) { result = rows[0]?.data ?? rows[0]; break; }
+        }
+        if (!result) {
+          return { toolId: args.toolId, ran: false, timedOut: true, waitedMs: waitMs,
+            hint: 'No result within the wait window. Check an executor is ONLINE and polling this model (list_executors), and that the script runtime exists on that host.' };
+        }
+
+        let parsed = result.parsedStdout;
+        if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed); } catch { /* leave as text */ } }
+        return {
+          toolId: args.toolId,
+          ran: true,
+          success: result.success ?? null,
+          status: result.status ?? null,
+          durationMs: result.durationMs ?? null,
+          parsedStdout: parsed ?? null,
+          // batchResults holds the raw stdout when it was not JSON; the caller usually wants it
+          // on a failure and it is the only place plain-text output survives.
+          raw: parsed ? undefined : String(result.batchResults ?? '').slice(0, 4000),
+        };
+      } finally {
+        // Teardown regardless of outcome — a dry run that leaves a lane behind is not a dry run.
+        if (transitionCreated) {
+          await exec.execute('DELETE_TRANSITION' as any, { transitionId: tid, model }).catch(() => {});
+        }
+        for (const p of created) {
+          await exec.execute('DELETE_PLACE' as any, { placeId: p, model }).catch(() => {});
+        }
+      }
+    }),
+  );
+}
