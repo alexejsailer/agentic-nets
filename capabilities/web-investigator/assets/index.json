@@ -7,7 +7,7 @@
     "runtime": "python3"
   },
   {
-    "description": "Classify listing pages vs articles; gate on one literal verdict; date metrics over articles only.",
+    "description": "Insights are now REPLACED per run instead of accumulating; diagnostics over articles only.",
     "file": "scout-health.py",
     "id": "scout-health",
     "name": "Scout Health",

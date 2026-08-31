@@ -84,7 +84,7 @@
       "maxIterations": 4,
       "model": "deepseek-v4-flash:cloud",
       "modelId": "research-scout",
-      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nFull text is at blob ${input.data.blobUrn}. Only fetch it with HTTP_CALL GET http://127.0.0.1:8090/api/blobs/${input.data.blobUrn} if the extract is genuinely too thin to classify.\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt and title EXACTLY as given. Do not recompute them.",
+      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt and title EXACTLY as given. Do not recompute them.",
       "role": "rw-h-",
       "timeoutMs": 240000,
       "type": "agent"
@@ -145,7 +145,8 @@
     "postsets": {
       "out": {
         "host": "research-scout@agentic-net-node:8080",
-        "placeId": "p-scout-digest"
+        "placeId": "p-scout-digest",
+        "retain": 3
       }
     },
     "presets": {
@@ -443,7 +444,6 @@
         "attempt": "${input.data.parsedStdout.attempt}",
         "blobUrn": "${input.data.parsedStdout.blobUrn}",
         "briefId": "${input.data.parsedStdout.briefId}",
-        "bytes": "${input.data.parsedStdout.bytes}",
         "dateSource": "${input.data.parsedStdout.dateSource}",
         "depth": "${input.data.parsedStdout.depth}",
         "durationMs": "${input.data.parsedStdout.durationMs}",
@@ -462,7 +462,6 @@
         "recency": "${input.data.parsedStdout.recency}",
         "retry": "${input.data.parsedStdout.retry}",
         "score": "${input.data.parsedStdout.score}",
-        "spoolKnown": "${input.data.parsedStdout.spoolKnown}",
         "spoolQueued": "${input.data.parsedStdout.spoolQueued}",
         "title": "${input.data.parsedStdout.title}",
         "ts": "${input.data.parsedStdout.ts}",
@@ -502,7 +501,8 @@
     "postsets": {
       "out": {
         "host": "research-scout@agentic-net-node:8080",
-        "placeId": "p-scout-telemetry"
+        "placeId": "p-scout-telemetry",
+        "retain": 500
       },
       "scout_fetched": {
         "host": "research-scout@agentic-net-node:8080",

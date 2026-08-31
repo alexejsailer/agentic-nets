@@ -77,6 +77,8 @@ time to refresh it over everything filed so far.
 
 - `p-scout-telemetry` gets one row per fetch attempt, success or failure, with a closed-set
   `failureClass` and the `dateSource` that won. A failed scrape is diagnosable without re-crawling.
+  The place keeps its newest 500 rows (`retain: 500` on the lift lane) — housekeeping is built in,
+  no reaper lane needed. The digest place keeps its last 3 analyses the same way.
 - `t-scout-health` rolls that into `p-scout-insights` with concrete suggestions — dead hosts to
   deny, whether `minScore` is calibrated, how much of the crawl is listing pages.
 - Nothing is scheduled. Lanes run when started; arm a cron only once you have measured the cost.

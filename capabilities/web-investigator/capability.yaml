@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.0.0
+version: 1.1.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -10,7 +10,9 @@ description: >-
   article and one more writes the analysis. The split is the point: the agent decides, the
   pipeline measures, so no figure in the output is model-authored.
 tags: [agents, capability-pack, research, crawler, competitive-analysis]
-engineMin: "2.56.0"
+# fanOut emits, postset retain, and ${json()} are 2.57.0 engine features — installing
+# against an older master leaves the lift lane unable to fan links out or trim telemetry.
+engineMin: "2.57.0"
 
 entry:
   inbox: p-scout-brief

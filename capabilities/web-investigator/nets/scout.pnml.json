@@ -198,30 +198,6 @@
         "source": "t-scout-taxonomy",
         "target": "p-scout-health-log",
         "weight": 1
-      },
-      "a-t-verify-cfg-map-in": {
-        "id": "a-t-verify-cfg-map-in",
-        "source": "p-scout-candidates",
-        "target": "t-verify-cfg-map",
-        "weight": 1
-      },
-      "a-t-verify-cfg-map-out": {
-        "id": "a-t-verify-cfg-map-out",
-        "source": "t-verify-cfg-map",
-        "target": "p-scout-errors",
-        "weight": 1
-      },
-      "a-t-verify-configplace-in": {
-        "id": "a-t-verify-configplace-in",
-        "source": "p-scout-candidates",
-        "target": "t-verify-configplace",
-        "weight": 1
-      },
-      "a-t-verify-configplace-out": {
-        "id": "a-t-verify-configplace-out",
-        "source": "t-verify-configplace",
-        "target": "p-scout-digest",
-        "weight": 1
       }
     },
     "description": "",
@@ -387,12 +363,6 @@
         "x": 700,
         "y": 1420
       },
-      "t-probe-json": {
-        "id": "t-probe-json",
-        "label": "probe json()",
-        "x": 1700,
-        "y": 880
-      },
       "t-scout-categorize": {
         "id": "t-scout-categorize",
         "label": "Categorise candidate (profiled, low tier)",
@@ -447,18 +417,6 @@
         "x": 1100,
         "y": 660
       },
-      "t-scout-spool": {
-        "id": "t-scout-spool",
-        "label": "Spool discovered URLs to frontier",
-        "x": 700,
-        "y": 1000
-      },
-      "t-scout-spool-cmd": {
-        "id": "t-scout-spool-cmd",
-        "label": "Build spool CommandToken",
-        "x": 700,
-        "y": 860
-      },
       "t-scout-taxonomy": {
         "id": "t-scout-taxonomy",
         "label": "Roll findings into taxonomy + facts",
@@ -470,18 +428,6 @@
         "label": "Build taxonomy CommandToken",
         "x": 900,
         "y": 1060
-      },
-      "t-verify-cfg-map": {
-        "id": "t-verify-cfg-map",
-        "label": "t-verify-cfg-map",
-        "x": 900,
-        "y": 1380
-      },
-      "t-verify-configplace": {
-        "id": "t-verify-configplace",
-        "label": "t-verify-configplace",
-        "x": 900,
-        "y": 1200
       }
     }
   }

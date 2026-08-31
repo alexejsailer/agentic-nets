@@ -146,6 +146,11 @@ def main():
 
     if insights:
         try:
+            # REPLACE, don't append: each run is a full rollup of the same window, so keeping
+            # old runs just multiplies near-identical observations (measured: 125 accumulated
+            # tokens for what is ~6 insights). The place holds the CURRENT diagnosis only;
+            # history lives in the event line.
+            api("POST", "/api/runtime/places/p-scout-insights/tokens/deleteAll?modelId=" + MODEL)
             api("POST", "/api/runtime/places/p-scout-insights/tokens/bulk?modelId=" + MODEL,
                 {"tokens": insights})
             summary["insights"] = len(insights)
