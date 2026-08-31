@@ -83,8 +83,12 @@ async function callTool(name, args, { retries = 2 } = {}) {
 function parseArgs(argv) {
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i].startsWith('--')) out[argv[i].slice(2)] = argv[++i];
-    else out._.push(argv[i]);
+    if (argv[i].startsWith('--')) {
+      // A valueless flag (--start) must not swallow the next argument.
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith('--')) out[argv[i].slice(2)] = true;
+      else out[argv[i].slice(2)] = argv[++i];
+    } else out._.push(argv[i]);
   }
   return out;
 }
@@ -541,8 +545,17 @@ async function cmdInstall(a) {
 
   await callTool('TAG_SESSION', { sessionId: session, tags: ['agents', 'capability-pack'], mode: 'add', model });
 
-  for (const t of started) await callTool('START_TRANSITION', { transitionId: t, model });
-  log(`  started ${started.length} transitions`);
+  // Installed but NOT running by default. A pack ships its config as a template, so starting
+  // the lanes on install means going live against placeholder settings — for this pack, an
+  // agent lane pointed at a REPLACE-ME brief. Configure first, then start deliberately.
+  if (a.start === true || a.start === 'true') {
+    for (const t of started) await callTool('START_TRANSITION', { transitionId: t, model });
+    log(`  started ${started.length} transitions (--start was passed)`);
+  } else {
+    log(`  ${started.length} transitions installed and DEPLOYED, not started.`);
+    log('  Configure the pack (its seeds ship as templates), then start them:');
+    log(`    node tools/pack.mjs install --dir <dir> --model ${model} --start   # or start_transition per lane`);
+  }
   log('install complete');
 }
 
@@ -616,7 +629,8 @@ const a = parseArgs(process.argv.slice(2));
 const cmd = a._[0];
 const needsSession = ['export', 'install', 'uninstall'].includes(cmd);
 if (!a.dir || (cmd !== 'build' && !a.model) || (needsSession && !a.session)) {
-  console.error('usage: pack.mjs build|export|install|uninstall|verify --dir <packDir> [--model <model>] [--session <id>] [--suffix <sfx>] [--name <pack-name>] [--node-host <host:port>]');
+  console.error('usage: pack.mjs build|export|install|uninstall|verify --dir <packDir> [--model <model>] [--session <id>] [--suffix <sfx>] [--name <pack-name>] [--node-host <host:port>] [--start]');
+  console.error('       --start   install only: start the lanes immediately. Default is DEPLOYED-but-stopped, because a pack ships template config.');
   process.exit(2);
 }
 ({ build: cmdBuild, export: cmdExport, install: cmdInstall, uninstall: cmdUninstall, verify: cmdVerify }[cmd] ?? (() => { console.error(`unknown command ${cmd}`); process.exit(2); }))(a)

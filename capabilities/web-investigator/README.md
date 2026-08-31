@@ -47,6 +47,10 @@ The installer registers the three scripts into the target model's local tool cat
 wiring the nets — a command lane invokes by `toolId`, which resolves per-model, so nets installed
 without their scripts look healthy and fail on first fire.
 
+**Install does not go live.** Lanes land DEPLOYED but stopped, because the brief ships as a
+REPLACE-ME template and starting an agent lane against placeholder config is not a useful default.
+Configure the brief first, then start — either per lane, or re-run install with `--start`.
+
 ## Then make it yours
 
 The pack ships **no domain**. `seeds/p-scout-brief.json` is a REPLACE-ME template; edit the brief
