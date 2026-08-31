@@ -32,6 +32,9 @@ import { fetchTokens, linkPlaces } from './memory.js';
  */
 const COMMON_TRANSITION_ARGS = new Set([
   'netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'filter', 'label', 'x', 'y',
+  // A config/charter place bound NON-consuming. Applies to every firing kind: pointing
+  // inputPlace at a brief consumes it, and the first fire deletes the net's configuration.
+  'configPlace', 'configFilter',
   // `onEmpty` rides with the schedule params: it only means anything on a scheduled lane, and it
   // applies to every firing kind, so it belongs here rather than in a per-kind set.
   'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'replace', 'model',
@@ -43,7 +46,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   llm: new Set(['prompt', 'llmModel', 'group', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
   command: new Set(['executorId']),
-  agent: new Set(['prompt', 'role', 'group', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp']),
+  agent: new Set(['prompt', 'role', 'group', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp', 'capabilityProfile', 'llmModel']),
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
   link: new Set(['relation']),
 };
@@ -547,6 +550,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     kind: z.enum(['pass', 'map', 'llm', 'http', 'command', 'agent', 'link']),
     inputPlace: z.string(),
     outputPlace: z.string().optional(),
+    configPlace: z.string().optional(),
+    configFilter: z.string().optional(),
     filter: z.string().optional(),
     label: z.string().optional(),
     relation: z.string().optional(),
@@ -554,6 +559,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     y: z.number().optional(),
     prompt: z.string().optional(),
     llmModel: z.string().optional(),
+    capabilityProfile: z.string().optional(),
     group: z.string().optional(),
     role: z.string().optional(),
     tier: z.string().optional(),
@@ -597,13 +603,16 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         kind: z.enum(['pass', 'map', 'llm', 'http', 'command', 'agent', 'link']),
         inputPlace: z.string(),
         outputPlace: z.string().optional().describe('Where results land. Required for every kind EXCEPT map/llm/http with routes (a pure branch lane may omit it). If given alongside routes and no route targets it, every result is ALSO emitted there unconditionally (multi-place write)'),
+        configPlace: z.string().optional().describe('Config/charter/brief place bound NON-CONSUMING as a second preset named `config` — read it as ${config.data.field} in templates and prompts. Use this instead of pointing inputPlace at a brief: the input preset CONSUMES, so the first fire would delete the configuration the net depends on. Bound required (not optional) on purpose — an optional preset that binds nothing interpolates null into the action instead of failing loudly'),
+        configFilter: z.string().optional().describe('ArcQL WHERE selecting which config token binds, e.g. \'$.active == "true"\' when the place holds several briefs'),
         filter: z.string().optional().describe('ArcQL WHERE condition selecting which input tokens bind, e.g. \'$.status == "open"\' or \'$.verarbeitet == null\'. Use == null for "field absent". Without a filter the preset binds ANY token — required for mark-and-requeue designs (a lane emitting into its own input place must exclude its own output or it self-loops)'),
         label: z.string().optional(),
         relation: z.string().optional().describe('link: typed edge semantics (what TARGET is to SOURCE) — relates | contains | references | derives-from | supersedes | promotes-to | archives-to | ... (open vocabulary; label defaults from it)'),
         x: z.number().optional(),
         y: z.number().optional(),
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
-        llmModel: z.string().optional().describe('llm: per-transition model override (e.g. glm-5.2:cloud)'),
+        llmModel: z.string().optional().describe('llm/agent: per-transition model override (e.g. deepseek-v4-flash:cloud). An explicit model always beats tier'),
+        capabilityProfile: z.string().optional().describe('agent: narrow the tool set below the role ceiling (e.g. "research-worker", "token-worker", "net-builder"). This is the biggest agent cost lever — a lane with no profile ships the full ~90-tool preamble on EVERY iteration; narrowing one measured lane went from 273k to 11k tokens per fire with the same output contract, and converged faster'),
         group: z.string().optional().describe('llm/agent: named server-side model group. The group chooses the provider and tier lineup; inspect valid names with llm_groups. An explicit llmModel still wins inside that group'),
         role: z.string().optional().describe('agent: positional rwxhludctsm capability string (r read, w write, x execute, h http, l logs, u user-await, d docker, c coordinate-personas, t tool-nets, s scripts, m external MCP servers). Default rw--; rwxhl---t = commands + tool-net invocation (INVOKE_TOOL_NET needs t, not x); the m slot is position 11 and pairs with the mcp param — see docs/tool-catalog'),
         tier: z.string().optional().describe('llm/agent: LLM tier — omit for the worker/base model, "high" for the thinking model (llm also accepts "low"/"medium"; unknown tiers fall back to the EXPENSIVE model, so stick to these)'),
@@ -790,6 +799,8 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         host,
         inputPlace: args.inputPlace,
         outputPlace: args.outputPlace,
+        configPlace: args.configPlace,
+        configFilter: args.configFilter,
         filter: args.filter,
         prompt: args.prompt,
         llmModel: args.llmModel,
@@ -823,6 +834,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         llmMode: args.llmMode,
         binary: args.binary,
         mcp: args.mcp,
+        capabilityProfile: args.capabilityProfile,
       });
       // Execution-mode inheritance resolves net/session policy from inscription metadata.
       // Keep it on both runtime and designtime copies so re-deploys preserve the scope.

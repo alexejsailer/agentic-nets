@@ -143,7 +143,16 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
         },
         agent: {
           defaultMaxIterations: 12,
-          note: 'each iteration is a billed model call; an oscillating agent burns its whole budget before stopping',
+          engineDefaultWhenUnset: 20,
+          note:
+            'each iteration is a billed model call; an oscillating agent burns its whole budget before stopping. ' +
+            'The two numbers differ by construction: add_transition ALWAYS writes maxIterations, so a lane built ' +
+            'here gets 12; a hand-written inscription that omits the field falls back to the engine default of 20 ' +
+            '(AgentActionHandler). Check the inscription, not this doc, when auditing a lane you did not build here',
+          capabilityProfileNote:
+            'the far bigger cost lever is action.capabilityProfile — without one a lane ships the full ~90-tool ' +
+            'preamble on EVERY iteration; narrowing one measured lane went 273k -> 11k tokens per fire with an ' +
+            'identical output contract. add_transition accepts it directly',
         },
         tokens: {
           reservationTtlMs: 60000,

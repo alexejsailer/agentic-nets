@@ -26,6 +26,27 @@ function preset(placeId: string, host: string, over: Partial<PresetSpec> = {}): 
   return { placeId, host, arcql: 'FROM $ LIMIT 1', take: 'FIRST', consume: true, ...over };
 }
 
+/**
+ * A second, NON-CONSUMING preset for a config/charter/brief place, bound as `config` so
+ * templates and prompts read `${config.data.*}`.
+ *
+ * This exists because pointing `inputPlace` at a brief was silently destructive: the input
+ * preset consumes, so the first fire DELETED the configuration the whole net depends on.
+ * `optional` is false on purpose — an optional preset that binds nothing interpolates null
+ * into the action instead of failing, which is the harder bug to spot.
+ */
+function configPresets(opts: BuildOpts): Record<string, PresetSpec> {
+  if (!opts.configPlace) return {};
+  return {
+    config: preset(opts.configPlace, opts.host, {
+      arcql: opts.configFilter ? `FROM $ WHERE ${opts.configFilter} LIMIT 1` : 'FROM $ LIMIT 1',
+      take: 'FIRST',
+      consume: false,
+      optional: false,
+    }),
+  };
+}
+
 export interface BuildOpts {
   id: string;
   label?: string;
@@ -36,6 +57,11 @@ export interface BuildOpts {
   inputPlace: string;
   /** Required for link/agent/command; optional for map/llm/http WHEN routes cover the output. */
   outputPlace?: string;
+  /** Config/charter/brief place bound NON-CONSUMING as `config` (read `${config.data.*}`).
+   *  Use this instead of pointing inputPlace at a brief — that consumes and destroys it. */
+  configPlace?: string;
+  /** ArcQL WHERE selecting which config token binds, e.g. `$.active == "true"`. */
+  configFilter?: string;
   /** ArcQL WHERE condition filtering which input tokens bind (e.g. `$.verarbeitet == null`).
    *  The ONLY way to express a filtered preset on this surface — without it, mark-and-requeue
    *  designs self-loop because the preset rebinds whatever the lane emits back. */
@@ -66,6 +92,8 @@ export interface BuildOpts {
   /** llm */
   prompt?: string;
   llmModel?: string;
+  /** Narrow an agent's tool set below its role ceiling, e.g. 'research-worker'. */
+  capabilityProfile?: string;
   /** llm/agent: named server-side provider/model lineup from LLM_GROUPS_FILE. */
   group?: string;
   /** http */
@@ -324,7 +352,7 @@ export function buildMapInscription(opts: BuildOpts) {
     kind: 'map',
     label: opts.label ?? opts.id,
     ...schedule(opts),
-    presets: { input: inputPreset(opts) },
+    presets: { input: inputPreset(opts), ...configPresets(opts) },
     postsets: { ...postset(opts), ...(routed?.postsets ?? {}) },
     action: { type: 'map', template: opts.template ?? { value: '${input.data}' } },
     emit: opts.emit ?? routed?.emit ?? [{ to: 'out', from: '@response' }],
@@ -349,7 +377,7 @@ export function buildPassInscription(opts: BuildOpts) {
     kind: 'task',
     label: opts.label ?? opts.id,
     ...schedule(opts),
-    presets: { input: inputPreset(opts) },
+    presets: { input: inputPreset(opts), ...configPresets(opts) },
     postsets: { ...postset(opts), ...(routed?.postsets ?? {}) },
     emit: opts.emit ?? routed?.emit ?? [{ to: 'out', from: '@input.data' }],
     mode: opts.mode ?? 'SINGLE',
@@ -388,6 +416,7 @@ export function buildLlmInscription(opts: BuildOpts) {
     ...schedule(opts),
     presets: {
       input: inputPreset(opts),
+      ...configPresets(opts),
     },
     postsets,
     action: {
@@ -573,6 +602,7 @@ export function buildHttpInscription(opts: BuildOpts) {
     ...schedule(opts),
     presets: {
       input: inputPreset(opts),
+      ...configPresets(opts),
     },
     postsets,
     action,
@@ -594,6 +624,7 @@ export function buildCommandInscription(opts: BuildOpts) {
     ...schedule(opts),
     presets: {
       input: inputPreset(opts),
+      ...configPresets(opts),
     },
     postsets: { log: { placeId: requireOutputPlace(opts, 'command'), host: opts.host, ...(opts.capacity ? { capacity: opts.capacity } : {}) } },
     action: {
@@ -638,6 +669,7 @@ export function buildAgentInscription(opts: BuildOpts) {
     ...schedule(opts),
     presets: {
       input: inputPreset(opts),
+      ...configPresets(opts),
     },
     postsets: postset(opts),
     action: {
@@ -652,6 +684,13 @@ export function buildAgentInscription(opts: BuildOpts) {
         'Process the bound input token and produce a concise, self-contained result token. Input: ${input.data}',
       ...(opts.group ? { group: opts.group } : {}),
       ...(opts.tier ? { tier: opts.tier } : {}),
+      // The single biggest agent cost lever: a lane with no profile ships the full ~90-tool
+      // preamble on EVERY iteration. Narrowing one measured lane took it from 273k to 11k
+      // tokens per fire with an identical output contract — and it converged faster.
+      ...(opts.capabilityProfile ? { capabilityProfile: opts.capabilityProfile } : {}),
+      // Explicit model beats tier; without this an agent lane could only be pinned to a cheap
+      // model by a follow-up SET_INSCRIPTION.
+      ...(opts.llmModel ? { model: opts.llmModel } : {}),
       ...(opts.llmMode ? { llmMode: opts.llmMode } : {}),
       ...(opts.binary ? { binary: opts.binary } : {}),
       ...(opts.mcp ? { mcp: sanitizeMcp(opts.mcp) } : {}),
