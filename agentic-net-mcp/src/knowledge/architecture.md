@@ -48,3 +48,13 @@ stacks the first `add_place` 404s until something creates the containers.
 Design-time nets live per session; runtime places/transitions are model-global. That is why a
 fresh MCP connection's `net_overview` can show `sessionNetCount: 0` while the model is full of
 running nets — check `modelSessionCount`/`sessionIds`, then inspect other sessions explicitly.
+
+## View nets: structure a big net as several small ones
+
+Because runtime is model-global, several designtime nets can draw the SAME place and transition
+IDs — one big runtime, many small readable canvases. Keep one canonical net (transitions'
+`metadata.netId` point at it) and add per-stage views drawing shared elements. Tooling
+classifies instead of crying drift: `sync_net`/`net_overview` report `netRole` + `viewOf`; a
+shape is stale only when NO runtime backs it anywhere. `DELETE_PLACE` removes one canvas shape
+only — the runtime place and tokens survive, and the response warns via `stillDrawnIn`/`boundBy`.
+Convention: name views `<net>-<stage>`, description "Designtime view of '<net>'".

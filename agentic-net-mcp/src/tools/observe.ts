@@ -8,6 +8,7 @@ import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
 import { fetchTokens } from './memory.js';
 import { annotateLeases, LEASED_NOTE } from './lease-util.js';
+import { classifyCanvas, runtimeHomeMap } from './canvas.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
 
 /**
@@ -279,24 +280,42 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           const listed = await executor.execute('LIST_ALL_INSCRIPTIONS', { limit: 500, includeContent: true });
           if (listed.success) {
             const rows: any[] = (listed.data as any)?.transitions ?? [];
-            const runtimeInThisNet = rows.filter((r) => {
-              let ins = r?.inscription;
-              if (typeof ins === 'string') { try { ins = JSON.parse(ins); } catch { return false; } }
-              return ins?.metadata?.netId === args.netId;
-            }).length;
+            const runtimeHome = runtimeHomeMap(rows);
+            const runtimeInThisNet = [...runtimeHome.values()].filter((h) => h === args.netId).length;
             const shapes = ov.transitionCount ?? 0;
             if (shapes > runtimeInThisNet) {
-              return {
-                ...ov,
-                canvasDrift: {
-                  shapes,
-                  runtimeTransitions: runtimeInThisNet,
-                  note:
-                    `${shapes - runtimeInThisNet} shape(s) on this canvas have no runtime transition behind them — ` +
-                    `the editor is showing elements that cannot fire. Run sync_net {netId:"${args.netId}"} for the ` +
-                    `detail, or sync_net {netId:"${args.netId}", apply:true} to remove them.`,
-                },
-              };
+              // The count mismatch alone is not drift: in shared-place partitioning a small
+              // VIEW net draws shapes whose runtime is homed in another net. Only a shape
+              // with no runtime ANYWHERE in the model is genuinely dead — fetch the shape
+              // ids (one extra read, only on this suspicious path) and check each.
+              const pnmlRes = await executor.execute('EXPORT_PNML', {
+                netId: args.netId, sessionId: sessionForNet, model,
+              });
+              const pnml: any = pnmlRes.success ? pnmlRes.data : null;
+              const shapeIds = Object.keys((pnml?.net ?? pnml)?.transitions ?? {});
+              const { staleShapes, viewOf, netRole } = classifyCanvas(shapeIds, runtimeHome, args.netId);
+              if (staleShapes.length > 0) {
+                return {
+                  ...ov,
+                  canvasDrift: {
+                    shapes,
+                    runtimeTransitions: runtimeInThisNet,
+                    unbackedShapes: staleShapes,
+                    note:
+                      `${staleShapes.length} shape(s) on this canvas have no runtime transition behind them — ` +
+                      `the editor is showing elements that cannot fire. Run sync_net {netId:"${args.netId}"} for the ` +
+                      `detail, or sync_net {netId:"${args.netId}", apply:true} to remove them.`,
+                  },
+                };
+              }
+              if (viewOf.length > 0) {
+                return {
+                  ...ov,
+                  netRole,
+                  viewOf,
+                  note: `Designtime view: shapes on this canvas are backed by runtime transitions homed in ${viewOf.join(', ')}. Nothing here is drift.`,
+                };
+              }
             }
           }
         } catch {

@@ -23,6 +23,7 @@ import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
 import { ensurePlacesContainer } from '../tree.js';
 import { fetchTokens, linkPlaces } from './memory.js';
+import { classifyCanvas, runtimeHomeMap } from './canvas.js';
 
 /**
  * Which add_transition params each kind actually consumes. Anything outside
@@ -250,9 +251,10 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
     {
       title: 'Reconcile canvas with runtime',
       description:
-        'Compare a net\'s designtime canvas against its runtime transitions and report the drift: shapes with no runtime behind them (the canvas showing something that cannot fire), and arcs whose endpoints no longer exist. ' +
-        'Runtime transitions with no shape are reported too, but never auto-drawn — placing an element means choosing coordinates, which is a layout decision, not a cleanup. ' +
-        'Read-only by default; pass apply:true to remove the stale shapes and dangling arcs. Run it when a net is finished, or when the editor and net_stats disagree.',
+        'Compare a net\'s designtime canvas against its runtime transitions and report the drift: shapes with no runtime behind them ANYWHERE in the model (the canvas showing something that cannot fire), and arcs whose endpoints no longer exist. ' +
+        'Runtime transitions homed in this net (inscription metadata.netId) with no shape are reported too, but never auto-drawn — placing an element means choosing coordinates, which is a layout decision, not a cleanup. ' +
+        'Shapes backed by a transition homed in a DIFFERENT net are viewShapes, not drift: several small nets drawing shared elements of one big runtime is the supported way to structure it, and netRole reports canonical/view/hybrid accordingly. ' +
+        'Read-only by default; pass apply:true to remove the stale shapes and dangling arcs (view shapes are never removed). Run it when a net is finished, or when the editor and net_stats disagree.',
       inputSchema: {
         netId: z.string(),
         sessionId: z.string().optional().describe('Defaults to this connection\'s session'),
@@ -275,27 +277,31 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
       const places: Record<string, any> = net?.places ?? {};
       const arcs: Record<string, any> = net?.arcs ?? {};
 
-      const listed = await run('LIST_ALL_INSCRIPTIONS', { limit: 500, model });
-      const runtimeIds = new Set<string>(
-        (listed?.transitions ?? []).map((t: any) => t.transitionId ?? t.id).filter(Boolean),
-      );
+      // includeContent so each transition's HOME net (inscription metadata.netId) is known.
+      // A shape backed by a transition homed in another net is a VIEW element — the same
+      // runtime drawn on a second, smaller canvas — and must not be mistaken for drift.
+      const listed = await run('LIST_ALL_INSCRIPTIONS', { limit: 500, includeContent: true, model });
+      const runtimeHome = runtimeHomeMap(listed?.transitions ?? []);
+      const { staleShapes, viewShapes, viewOf, netRole, undrawn } =
+        classifyCanvas(Object.keys(shapes), runtimeHome, args.netId);
 
       const elementIds = new Set([...Object.keys(places), ...Object.keys(shapes)]);
-      const staleShapes = Object.keys(shapes).filter((t) => !runtimeIds.has(t));
       const danglingArcs = Object.entries(arcs)
         .filter(([, a]: [string, any]) => !elementIds.has(a?.source) || !elementIds.has(a?.target))
         .map(([id]) => id);
-      // Reported, never auto-created: drawing it would mean inventing coordinates.
-      const undrawn = [...runtimeIds].filter((t) => !(t in shapes));
 
       const drift = staleShapes.length + danglingArcs.length;
+      const roleNote = netRole === 'view'
+        ? ` (view net over ${viewOf.join(', ')})`
+        : netRole === 'hybrid' ? ` (hybrid: ${Object.keys(viewShapes).length} view shape(s) from ${viewOf.join(', ')})` : '';
       if (!args.apply) {
         return {
           netId: args.netId, applied: false, inSync: drift === 0 && undrawn.length === 0,
+          netRole, ...(viewOf.length ? { viewOf, viewShapes } : {}),
           staleShapes, danglingArcs, runtimeWithoutShape: undrawn,
           summary: drift === 0
-            ? (undrawn.length ? `${undrawn.length} runtime transition(s) have no shape — draw them with add_transition or accept the split` : 'canvas and runtime agree')
-            : `${staleShapes.length} stale shape(s) and ${danglingArcs.length} dangling arc(s) — re-run with apply:true to remove them`,
+            ? (undrawn.length ? `${undrawn.length} runtime transition(s) have no shape — draw them with add_transition or accept the split` : `canvas and runtime agree${roleNote}`)
+            : `${staleShapes.length} stale shape(s) and ${danglingArcs.length} dangling arc(s) — re-run with apply:true to remove them${roleNote}`,
         };
       }
 
@@ -320,9 +326,9 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
         } catch { /* ditto */ }
       }
       return {
-        netId: args.netId, applied: true, removedShapes, removedArcs,
+        netId: args.netId, applied: true, netRole, removedShapes, removedArcs,
         runtimeWithoutShape: undrawn,
-        summary: `removed ${removedShapes.length} stale shape(s) and ${removedArcs.length} dangling arc(s)`,
+        summary: `removed ${removedShapes.length} stale shape(s) and ${removedArcs.length} dangling arc(s)${roleNote}`,
       };
     }),
   );

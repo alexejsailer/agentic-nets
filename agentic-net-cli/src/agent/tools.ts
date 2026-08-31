@@ -461,7 +461,7 @@ const TOOL_DEFINITIONS: Record<AgentTool, ToolDef> = {
     },
   },
   DELETE_PLACE: {
-    description: 'Delete a place from a net.',
+    description: 'Delete a place SHAPE from one net\'s canvas. Designtime-only: the model-wide runtime place and its tokens always survive, because other nets may draw the same placeId (shared-place partitioning). The response warns with stillDrawnIn/boundBy when the place is still in use elsewhere.',
     schema: {
       type: 'object',
       properties: {

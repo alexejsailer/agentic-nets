@@ -1512,11 +1512,74 @@ export class ToolExecutor {
         await this.nodeApi.executeEvents(this.modelId, [
           { eventType: 'deleteNode', parentId: info.parentId, id: info.id, name: info.name ?? placeId },
         ]);
-        return { success: true, data: { deleted: true, placeId, netId } };
+        // Shared-place guard: this removed ONE canvas shape. The runtime container is
+        // model-wide and shared by every net that draws the same placeId, so it is
+        // deliberately untouched — report who still uses it instead of guessing.
+        const shared = await this.describeSharedPlaceUsage(netId, placeId, sessionId);
+        return { success: true, data: { deleted: true, placeId, netId, runtimeKept: true, ...shared } };
       }
       return { success: true, data: { deleted: false, placeId, message: 'Could not resolve place path for deletion' } };
     } catch (err: any) {
       return { success: false, error: `DELETE_PLACE failed: ${err.message || err}` };
+    }
+  }
+
+  /**
+   * After a designtime place delete: which OTHER nets still draw this place, and which
+   * runtime transitions still bind it. Best-effort — the delete already succeeded, so a
+   * failing guard must never turn success into an error; it just omits the warning.
+   */
+  private async describeSharedPlaceUsage(
+    deletedFromNetId: string,
+    placeId: string,
+    sessionId: string,
+  ): Promise<Record<string, any>> {
+    try {
+      const stillDrawnIn: string[] = [];
+      const listed = await this.masterApi.listNets(this.modelId, sessionId).catch(() => null);
+      const netIds: string[] = (listed?.nets ?? [])
+        .map((n: any) => n.netId ?? n.id ?? n.name)
+        .filter((id: any) => id && id !== deletedFromNetId)
+        .slice(0, 25);
+      for (const otherNetId of netIds) {
+        try {
+          const other = await this.masterApi.exportNet(otherNetId, this.modelId, sessionId);
+          const otherPlaces = other?.net?.places || other?.places || {};
+          if (otherPlaces[placeId]) stillDrawnIn.push(otherNetId);
+        } catch { /* an unreadable sibling net is not this delete's problem */ }
+      }
+
+      const boundBy: string[] = [];
+      const children = await this.nodeApi.getChildren(this.modelId, 'root/workspace/transitions').catch(() => []);
+      for (const child of children) {
+        try {
+          const ins: any = await this.loadTransitionInscription(child.name);
+          if (!ins) continue;
+          const refs = new Set<string>();
+          for (const arc of [...(ins.preset ?? []), ...(ins.postset ?? [])]) {
+            if (arc?.place) refs.add(String(arc.place));
+          }
+          const action = ins.action ?? {};
+          for (const key of ['inputPlace', 'outputPlace', 'errorPlace', 'taskPlace']) {
+            if (action[key]) refs.add(String(action[key]));
+          }
+          if (refs.has(placeId)) boundBy.push(child.name);
+        } catch { /* unreadable inscription — skip */ }
+      }
+
+      const result: Record<string, any> = {};
+      if (stillDrawnIn.length) result.stillDrawnIn = stillDrawnIn;
+      if (boundBy.length) result.boundBy = boundBy;
+      if (stillDrawnIn.length || boundBy.length) {
+        result.warning =
+          `Removed the shape from '${deletedFromNetId}' only. The runtime place '${placeId}' and its tokens are intact` +
+          (stillDrawnIn.length ? `; still drawn in: ${stillDrawnIn.join(', ')}` : '') +
+          (boundBy.length ? `; still bound by transitions: ${boundBy.join(', ')}` : '') +
+          '.';
+      }
+      return result;
+    } catch {
+      return {};
     }
   }
 
