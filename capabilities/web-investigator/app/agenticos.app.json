@@ -1,0 +1,434 @@
+{
+  "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
+  "name": "web-investigator",
+  "version": "1.1.1",
+  "displayName": "Web Investigator",
+  "description": "Browse what the investigation crawled — findings by recency, analyses, gaps, crawl health — and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
+  "author": "AgenticNetOS",
+  "visibility": "public",
+  "tags": [
+    "application",
+    "research",
+    "web-investigator"
+  ],
+  "runtimePackage": "runtime/session.package.json",
+  "output": "web-investigator-1.1.1.application.json",
+  "ui": {
+    "element": "agenticos-web-investigator-v1",
+    "entryFile": "ui/main.mjs",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "stores": [
+      {
+        "role": "brief",
+        "placeId": "p-scout-brief",
+        "required": true,
+        "description": "The investigation definition: topic, categories, scoring terms, host rules. Edit via the Token Workbench, not here."
+      },
+      {
+        "role": "brand-new",
+        "placeId": "p-find-brand-new",
+        "required": true,
+        "description": "Findings published within the brief's brand-new window. The most urgent competitor signal."
+      },
+      {
+        "role": "recent",
+        "placeId": "p-find-recent",
+        "required": true,
+        "description": "Findings published within the brief's recent window."
+      },
+      {
+        "role": "archive",
+        "placeId": "p-find-archive",
+        "required": true,
+        "description": "Older findings. The view shows the newest slice; query the place for the full corpus."
+      },
+      {
+        "role": "digest",
+        "placeId": "p-scout-digest",
+        "required": true,
+        "description": "Landscape analyses: owned angles, freshness, fresh signal, gaps, own position, recommendations."
+      },
+      {
+        "role": "taxonomy",
+        "placeId": "p-scout-taxonomy",
+        "required": true,
+        "description": "Deterministic per-category rollup with recency split, own-coverage and the facts token the digest reads."
+      },
+      {
+        "role": "insights",
+        "placeId": "p-scout-insights",
+        "required": false,
+        "description": "Crawl-health rollups with concrete tuning suggestions."
+      },
+      {
+        "role": "frontier",
+        "placeId": "p-scout-frontier",
+        "required": true,
+        "description": "URLs queued for the crawl. queue-url writes here; the fetch lane consumes."
+      },
+      {
+        "role": "queries",
+        "placeId": "p-scout-queries",
+        "required": false,
+        "description": "Search queries for the optional widening lane. queue-query writes here."
+      },
+      {
+        "role": "owned",
+        "placeId": "p-scout-owned",
+        "required": false,
+        "description": "The owner's own published articles (slugs only, indexed from the sitemap, never crawled)."
+      },
+      {
+        "role": "tasks",
+        "placeId": "p-scout-article-tasks",
+        "required": true,
+        "description": "Accepted recommendations with their evidence. Drained by the operator or a future writing persona.",
+        "schema": {
+          "type": "object",
+          "required": [
+            "taskId",
+            "title"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "accepted",
+                "done"
+              ]
+            },
+            "rationale": {
+              "type": "string"
+            },
+            "gapCategory": {
+              "type": "string"
+            },
+            "competitorUrl": {
+              "type": "string"
+            },
+            "blobUrn": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "role": "decisions",
+        "placeId": "p-scout-decisions",
+        "required": true,
+        "description": "Append-only audit of operator decisions: dismissals, covered-marks, task completions."
+      },
+      {
+        "role": "requests",
+        "placeId": "p-scout-app-requests",
+        "required": true,
+        "description": "Run-now requests. The net's own lane consumes these and builds the actual command tokens — the app never executes anything itself."
+      }
+    ],
+    "actions": [
+      {
+        "name": "accept-recommendation",
+        "targetRole": "tasks",
+        "description": "Turn a digest recommendation (or any finding) into an article task, carrying its evidence.",
+        "defaults": {
+          "kind": "article-task",
+          "status": "accepted"
+        },
+        "guard": {
+          "role": "tasks",
+          "matchKey": "taskId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "taskId",
+            "title"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "description": "Stable id, e.g. task-overheating"
+            },
+            "title": {
+              "type": "string",
+              "description": "Working title of the article to write"
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Why this, quoting the gap or fresh signal"
+            },
+            "gapCategory": {
+              "type": "string"
+            },
+            "competitorUrl": {
+              "type": "string",
+              "description": "The competitor piece this answers"
+            },
+            "blobUrn": {
+              "type": "string",
+              "description": "Stored full text of that piece, if any"
+            },
+            "source": {
+              "type": "string",
+              "description": "Which digest/finding this came from"
+            }
+          }
+        }
+      },
+      {
+        "name": "dismiss",
+        "targetRole": "decisions",
+        "description": "Reject a recommendation or finding, with the reason on record.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "dismissed"
+        },
+        "guard": {
+          "role": "decisions",
+          "matchKey": "decisionId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "decisionId",
+            "subject"
+          ],
+          "properties": {
+            "decisionId": {
+              "type": "string"
+            },
+            "subject": {
+              "type": "string",
+              "description": "URL or recommendation text being dismissed"
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "mark-covered",
+        "targetRole": "decisions",
+        "description": "Record that a competitor finding is already covered by the owner's site.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "covered-by-own"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "decisionId",
+            "url"
+          ],
+          "properties": {
+            "decisionId": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string",
+              "description": "The competitor URL that is covered"
+            },
+            "ownSlug": {
+              "type": "string",
+              "description": "The owner article that covers it"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "complete-task",
+        "targetRole": "decisions",
+        "description": "Close an accepted article task; the task token flips to done atomically.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "task-completed"
+        },
+        "guard": {
+          "role": "tasks",
+          "matchKey": "taskId",
+          "where": {
+            "status": [
+              "accepted"
+            ]
+          }
+        },
+        "effects": [
+          {
+            "updateRole": "tasks",
+            "matchKey": "taskId",
+            "set": {
+              "status": "done"
+            },
+            "setFromInput": {
+              "doneNote": "note"
+            }
+          }
+        ],
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "taskId"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string",
+              "description": "Outcome, e.g. the published URL"
+            }
+          }
+        }
+      },
+      {
+        "name": "queue-url",
+        "targetRole": "frontier",
+        "description": "Queue a URL for the crawl. The running fetch lane picks it up on its next binding.",
+        "defaults": {
+          "depth": 0,
+          "discoveredFrom": "web-investigator-app"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "queue-query",
+        "targetRole": "queries",
+        "description": "Queue a search query for the optional widening lane (needs its API key configured).",
+        "defaults": {
+          "kind": "search-query"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "request-run",
+        "targetRole": "requests",
+        "description": "Ask the net to run a rollup now. Its own lane builds and executes the command; the app only records the request.",
+        "defaults": {
+          "kind": "app-request",
+          "status": "requested"
+        },
+        "guard": {
+          "role": "requests",
+          "matchKey": "requestId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "requestId",
+            "run"
+          ],
+          "properties": {
+            "requestId": {
+              "type": "string",
+              "description": "Unique per request, e.g. run-2026-09-01-a"
+            },
+            "run": {
+              "enum": [
+                "taxonomy",
+                "owned",
+                "health"
+              ],
+              "description": "taxonomy = category rollup + digest; owned = re-index the owner's sitemap; health = crawl diagnostics"
+            }
+          }
+        }
+      }
+    ],
+    "permissions": {
+      "readStores": [
+        "brief",
+        "brand-new",
+        "recent",
+        "archive",
+        "digest",
+        "taxonomy",
+        "insights",
+        "frontier",
+        "queries",
+        "owned",
+        "tasks",
+        "decisions",
+        "requests"
+      ],
+      "watchStores": [
+        "brand-new",
+        "recent",
+        "digest",
+        "tasks",
+        "decisions",
+        "requests"
+      ],
+      "actions": [
+        "accept-recommendation",
+        "dismiss",
+        "mark-covered",
+        "complete-task",
+        "queue-url",
+        "queue-query",
+        "request-run"
+      ]
+    },
+    "agentProtocol": {
+      "taskStoreRole": "tasks",
+      "activityStoreRole": "decisions",
+      "readyStatuses": [
+        "accepted"
+      ],
+      "terminalStatuses": [
+        "done"
+      ],
+      "poll": {
+        "intervalMs": 60000
+      },
+      "rules": [
+        "Tasks carry their evidence (rationale, competitorUrl, blobUrn) — read it before writing anything.",
+        "Record every outcome through complete-task so the task flips atomically; never edit task tokens directly."
+      ]
+    },
+    "surface": {
+      "route": "web-investigator",
+      "icon": "search",
+      "defaultView": "stores"
+    }
+  }
+}

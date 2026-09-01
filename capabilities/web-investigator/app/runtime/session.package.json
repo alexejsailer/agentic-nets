@@ -1,0 +1,99 @@
+{
+  "format": "agentic-net-package",
+  "formatVersion": "1.5.0",
+  "scope": "runtime",
+  "kind": "session",
+  "visibility": "public",
+  "tokenPolicy": "none",
+  "manifest": {
+    "name": "web-investigator-runtime",
+    "version": "1.1.0",
+    "description": "Runtime net for the Web Investigator application (places only; store ids bind model-global runtime places).",
+    "author": "AgenticNetOS",
+    "tags": [
+      "application-runtime"
+    ],
+    "createdAt": "2026-09-01T00:00:00Z",
+    "agenticosVersion": "1.0.0"
+  },
+  "nets": [
+    {
+      "netId": "net-application-web-investigator",
+      "net": {
+        "net": {
+          "places": {
+            "p-scout-brief": {
+              "label": "Brief",
+              "x": 120,
+              "y": 100
+            },
+            "p-find-brand-new": {
+              "label": "Brand-new findings",
+              "x": 340,
+              "y": 100
+            },
+            "p-find-recent": {
+              "label": "Recent findings",
+              "x": 560,
+              "y": 100
+            },
+            "p-find-archive": {
+              "label": "Archive findings",
+              "x": 780,
+              "y": 100
+            },
+            "p-scout-digest": {
+              "label": "Analyses",
+              "x": 120,
+              "y": 260
+            },
+            "p-scout-taxonomy": {
+              "label": "Taxonomy + facts",
+              "x": 340,
+              "y": 260
+            },
+            "p-scout-insights": {
+              "label": "Crawl insights",
+              "x": 560,
+              "y": 260
+            },
+            "p-scout-owned": {
+              "label": "Own inventory",
+              "x": 780,
+              "y": 260
+            },
+            "p-scout-frontier": {
+              "label": "Crawl frontier",
+              "x": 120,
+              "y": 420
+            },
+            "p-scout-queries": {
+              "label": "Search queries",
+              "x": 340,
+              "y": 420
+            },
+            "p-scout-article-tasks": {
+              "label": "Article tasks",
+              "x": 560,
+              "y": 420
+            },
+            "p-scout-decisions": {
+              "label": "Decisions",
+              "x": 780,
+              "y": 420
+            },
+            "p-scout-app-requests": {
+              "label": "Run-now requests",
+              "x": 450,
+              "y": 560
+            }
+          },
+          "transitions": {},
+          "arcs": {}
+        }
+      },
+      "inscriptions": {},
+      "tokens": {}
+    }
+  ]
+}

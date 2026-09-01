@@ -1,9 +1,22 @@
 # Web Investigator — Studio application
 
-A `kind:"application"` package (generic surface, no custom UI) over the web-investigator
-capability's places. Because runtime places are model-global, installing it into the model that
-runs the net binds every store to the **live** data — the app's own session net is just another
-canvas over the same places.
+A `kind:"application"` package over the web-investigator capability's places. Because runtime
+places are model-global, installing it into the model that runs the net binds every store to the
+**live** data — the app's own session net is just another canvas over the same places.
+
+Two variants share the identical store/action contract:
+
+| File | Surface |
+|---|---|
+| `web-investigator.application.json` | **1.0.0, generic** — Studio's declarative renderer, zero custom JS |
+| `web-investigator-1.1.1.application.json` | **1.1.1, custom dashboard** — coverage matrix, fresh articles with own-coverage verdicts and Accept/Covered/Dismiss, analysis reader with accept-as-task on each recommendation, task queue, crawl controls |
+
+The dashboard is a single vanilla web component (`ui/main.mjs`, no framework, no imports —
+required by the trusted-element packer), built with `agenticos.app.json` +
+`agentic-net-apps/tools/pack-application.mjs`, sha256-pinned and re-verified by the browser
+before mount. It reads only through the injected `runtime` bridge. Design constraint learned
+live: the facts token is TRANSIENT (the analysis lane consumes it), so the matrix reads the
+persistent category tokens and the fresh list falls back to the recency stores.
 
 **Understand:** findings by recency, landscape analyses, the category rollup, crawl-health
 insights, the owner's own inventory. **Decide:** `accept-recommendation` (→ the article-task
