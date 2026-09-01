@@ -1,7 +1,7 @@
 {
   "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
   "name": "web-investigator",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "displayName": "Web Investigator",
   "description": "Browse what the investigation crawled — findings by recency, analyses, gaps, crawl health — and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
   "author": "AgenticNetOS",
@@ -12,7 +12,7 @@
     "web-investigator"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "web-investigator-1.1.1.application.json",
+  "output": "web-investigator-1.1.2.application.json",
   "ui": {
     "element": "agenticos-web-investigator-v1",
     "entryFile": "ui/main.mjs",
@@ -133,6 +133,39 @@
         "placeId": "p-scout-app-requests",
         "required": true,
         "description": "Run-now requests. The net's own lane consumes these and builds the actual command tokens — the app never executes anything itself."
+      },
+      {
+        "role": "drafts",
+        "placeId": "p-scout-drafts",
+        "required": false,
+        "description": "Publish-ready drafts written by the staff-writer lane from accepted tasks. The task itself is never consumed — close it with complete-task once published.",
+        "schema": {
+          "type": "object",
+          "required": [
+            "taskId",
+            "title",
+            "draftMarkdown"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "draft"
+              ]
+            },
+            "wordCount": {
+              "type": "string"
+            },
+            "draftMarkdown": {
+              "type": "string"
+            }
+          }
+        }
       }
     ],
     "actions": [
@@ -366,9 +399,10 @@
               "enum": [
                 "taxonomy",
                 "owned",
-                "health"
+                "health",
+                "write"
               ],
-              "description": "taxonomy = category rollup + digest; owned = re-index the owner's sitemap; health = crawl diagnostics"
+              "description": "taxonomy = category rollup + analysis; owned = re-index the owner's sitemap; health = crawl diagnostics; write = assemble the next accepted task into a packet and let the staff-writer lane draft it"
             }
           }
         }
@@ -388,7 +422,8 @@
         "owned",
         "tasks",
         "decisions",
-        "requests"
+        "requests",
+        "drafts"
       ],
       "watchStores": [
         "brand-new",
@@ -396,7 +431,8 @@
         "digest",
         "tasks",
         "decisions",
-        "requests"
+        "requests",
+        "drafts"
       ],
       "actions": [
         "accept-recommendation",

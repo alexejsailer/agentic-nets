@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.4.0
+version: 1.5.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -66,6 +66,14 @@ scripts:
       p-scout-owned to report ownCovered/ownUncovered per category plus trueGaps — competitor
       material with no owner equivalent. Filler terms are derived from the corpus, not listed,
       so the matching carries no domain.
+  - id: scout-write
+    runtime: python3
+    file: assets/scout-write.py
+    description: >-
+      Assemble ONE writing packet per run for the staff-writer lane: the oldest accepted
+      article task without a draft, the competitor text it must beat, related own slugs to
+      link, and the brief. Dedupe by the drafts+queue ledger; the task token is never
+      consumed — it belongs to the application lifecycle (accepted -> done).
   - id: scout-health
     runtime: python3
     file: assets/scout-health.py

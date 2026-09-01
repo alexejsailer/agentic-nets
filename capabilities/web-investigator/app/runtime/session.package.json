@@ -7,7 +7,7 @@
   "tokenPolicy": "none",
   "manifest": {
     "name": "web-investigator-runtime",
-    "version": "1.1.0",
+    "version": "1.1.2",
     "description": "Runtime net for the Web Investigator application (places only; store ids bind model-global runtime places).",
     "author": "AgenticNetOS",
     "tags": [
@@ -85,6 +85,21 @@
             "p-scout-app-requests": {
               "label": "Run-now requests",
               "x": 450,
+              "y": 560
+            },
+            "p-scout-drafts": {
+              "label": "Article drafts",
+              "x": 230,
+              "y": 560
+            },
+            "p-scout-write-queue": {
+              "label": "Writing packets",
+              "x": 670,
+              "y": 560
+            },
+            "p-scout-write-cmd": {
+              "label": "Write-prep CommandTokens",
+              "x": 890,
               "y": 560
             }
           },

@@ -33,5 +33,12 @@
     "id": "scout-taxonomy",
     "name": "Scout Taxonomy",
     "runtime": "python3"
+  },
+  {
+    "description": "Assemble ONE writing packet for the drafting persona: oldest accepted article task without a draft, the competitor article's stored text (blob or URL-fallback, chrome-stripped), related own slugs by term overlap, and the brief. The task token is never consumed — dedupe is by the drafts+queue ledger, so cron and on-demand triggers are both safe.",
+    "file": "scout-write.py",
+    "id": "scout-write",
+    "name": "Scout Write Prep",
+    "runtime": "python3"
   }
 ]

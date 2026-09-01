@@ -78,6 +78,58 @@
     }
   },
   {
+    "id": "t-link-tasks-decisions",
+    "kind": "link",
+    "label": "produces",
+    "relation": "produces",
+    "presets": {
+      "from": {
+        "placeId": "p-scout-article-tasks",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": false,
+        "optional": true
+      }
+    },
+    "postsets": {
+      "to": {
+        "placeId": "p-scout-decisions",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
+    "id": "t-link-tasks-drafts",
+    "kind": "link",
+    "label": "drafted-as",
+    "relation": "drafted-as",
+    "presets": {
+      "from": {
+        "placeId": "p-scout-article-tasks",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": false,
+        "optional": true
+      }
+    },
+    "postsets": {
+      "to": {
+        "placeId": "p-scout-drafts",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
     "id": "t-link-telemetry-insights",
     "kind": "link",
     "label": "derives-from",
@@ -98,6 +150,84 @@
         "host": "research-scout@agentic-net-node:8080"
       }
     },
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
+    "id": "t-scout-app-run",
+    "kind": "map",
+    "label": "Execute run-now requests from the app",
+    "mode": "SINGLE",
+    "presets": {
+      "input": {
+        "placeId": "p-scout-app-requests",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ WHERE $.status == \"requested\" LIMIT 1",
+        "take": "FIRST",
+        "consume": true
+      }
+    },
+    "postsets": {
+      "scout_taxonomy_cmd": {
+        "placeId": "p-scout-taxonomy-cmd",
+        "host": "research-scout@agentic-net-node:8080"
+      },
+      "scout_owned_cmd": {
+        "placeId": "p-scout-owned-cmd",
+        "host": "research-scout@agentic-net-node:8080"
+      },
+      "scout_health_cmd": {
+        "placeId": "p-scout-health-cmd",
+        "host": "research-scout@agentic-net-node:8080"
+      },
+      "scout_write_cmd": {
+        "placeId": "p-scout-write-cmd",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "action": {
+      "type": "map",
+      "template": {
+        "kind": "command",
+        "id": "app-${input.data.run}-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "run": "${input.data.run}",
+        "args": {
+          "toolId": "scout-${input.data.run}",
+          "argv": [],
+          "timeoutMs": 90000,
+          "env": {
+            "MODEL_ID": "research-scout"
+          }
+        }
+      }
+    },
+    "emit": [
+      {
+        "to": "scout_taxonomy_cmd",
+        "from": "@response",
+        "when": "run == 'taxonomy'"
+      },
+      {
+        "to": "scout_owned_cmd",
+        "from": "@response",
+        "when": "run == 'owned'"
+      },
+      {
+        "to": "scout_health_cmd",
+        "from": "@response",
+        "when": "run == 'health'"
+      },
+      {
+        "to": "scout_write_cmd",
+        "from": "@response",
+        "when": "run == 'write'"
+      }
+    ],
     "metadata": {
       "sessionId": "dev-support-council",
       "netId": "scout"
@@ -1000,6 +1130,151 @@
       "type": "cron",
       "cron": "0 30 6 * * *",
       "timezone": "Europe/Berlin"
+    }
+  },
+  {
+    "id": "t-scout-write",
+    "kind": "agent",
+    "label": "Staff writer: draft the accepted article",
+    "role": "rw-h-",
+    "mode": "SINGLE",
+    "presets": {
+      "input": {
+        "placeId": "p-scout-write-queue",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ WHERE $.kind == \"write-packet\" LIMIT 1",
+        "take": "FIRST",
+        "consume": true
+      },
+      "config": {
+        "placeId": "p-scout-brief",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
+        "take": "FIRST",
+        "consume": false,
+        "optional": false
+      }
+    },
+    "postsets": {
+      "out": {
+        "placeId": "p-scout-drafts",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "action": {
+      "type": "agent",
+      "role": "rw-h-",
+      "capabilityProfile": "research-worker",
+      "model": "deepseek-v4-pro:cloud",
+      "modelId": "research-scout",
+      "maxIterations": 8,
+      "autoEmit": true,
+      "timeoutMs": 300000,
+      "nl": "You are the staff writer for this investigation. One accepted article task has been assembled into the packet below; write the publish-ready draft.\n\nTOPIC: ${config.data.topic}\n${config.data.domainHint}\n\nTHE ASSIGNMENT\ntitle: ${input.data.title}\nwhy it was accepted: ${input.data.rationale}\ncategory: ${input.data.gapCategory}\n\nTHE COMPETITOR PIECE THIS MUST BEAT (${input.data.competitorUrl}):\n${input.data.competitorText}\n\nRELATED ARTICLES ALREADY ON THE OWNER'S SITE (link them with relative paths like /slug/ where they genuinely help the reader; never repeat their content): ${input.data.relatedOwnSlugs}\n\nWrite 1100-1500 words of practical, publish-ready markdown:\n- Open with the reader's actual problem, not a definition.\n- Deliver what the rationale says the competitor stops short of — that is the whole point of this assignment.\n- Structure with ## and ### headings; use tables or numbered steps where they beat prose.\n- Concrete values over vague advice. Plain language. No filler intros, no 'in conclusion'.\n- Do NOT copy or closely paraphrase the competitor's sentences; write from understanding.\n- Include a short FAQ (3 questions) at the end if the topic invites one.\n\nEverything you need is in this prompt — do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as its summary argument (no markdown fences around it):\n{\"kind\":\"draft\",\"taskId\":\"${input.data.taskId}\",\"title\":\"${input.data.title}\",\"gapCategory\":\"${input.data.gapCategory}\",\"competitorUrl\":\"${input.data.competitorUrl}\",\"briefId\":\"${input.data.briefId}\",\"status\":\"draft\",\"wordCount\":\"...\",\"draftMarkdown\":\"...the full article as one JSON string...\"}\n\nCopy taskId, title, gapCategory, competitorUrl and briefId EXACTLY as given — this lane's answer object REPLACES the token, so any field you omit is lost for good. DONE is the only channel that returns an answer: prose outside it is discarded and the whole run is wasted."
+    },
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
+    "id": "t-scout-write-cron",
+    "kind": "map",
+    "label": "Build write-prep command (daily)",
+    "schedule": {
+      "type": "cron",
+      "cron": "0 0 7 * * *",
+      "timezone": "Europe/Berlin"
+    },
+    "presets": {
+      "input": {
+        "placeId": "p-scout-brief",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": false,
+        "optional": true
+      }
+    },
+    "postsets": {
+      "out": {
+        "placeId": "p-scout-write-cmd",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "action": {
+      "type": "map",
+      "template": {
+        "kind": "command",
+        "id": "write-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "args": {
+          "toolId": "scout-write",
+          "argv": [],
+          "timeoutMs": 90000,
+          "env": {
+            "MODEL_ID": "research-scout"
+          }
+        }
+      }
+    },
+    "emit": [
+      {
+        "to": "out",
+        "from": "@response"
+      }
+    ],
+    "mode": "SINGLE",
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
+    "id": "t-scout-write-prep",
+    "kind": "command",
+    "label": "Assemble writing packet on executor",
+    "presets": {
+      "input": {
+        "placeId": "p-scout-write-cmd",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": true
+      }
+    },
+    "postsets": {
+      "log": {
+        "placeId": "p-scout-health-log",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "action": {
+      "type": "command",
+      "inputPlace": "input",
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "dispatch": [
+        {
+          "executor": "bash",
+          "channel": "default"
+        }
+      ],
+      "await": "ALL",
+      "timeoutMs": 150000
+    },
+    "emit": [
+      {
+        "to": "log",
+        "from": "@result"
+      }
+    ],
+    "mode": "SINGLE",
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
     }
   }
 ]

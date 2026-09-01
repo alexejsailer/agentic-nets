@@ -9,7 +9,7 @@ Two variants share the identical store/action contract:
 | File | Surface |
 |---|---|
 | `web-investigator.application.json` | **1.0.0, generic** — Studio's declarative renderer, zero custom JS |
-| `web-investigator-1.1.1.application.json` | **1.1.1, custom dashboard** — coverage matrix, fresh articles with own-coverage verdicts and Accept/Covered/Dismiss, analysis reader with accept-as-task on each recommendation, task queue, crawl controls |
+| `web-investigator-1.1.2.application.json` | **1.1.2, custom dashboard** — coverage matrix, fresh articles with own-coverage verdicts and Accept/Covered/Dismiss, analysis reader with accept-as-task on each recommendation, task queue with draft badges, a Drafts reader with copy-markdown, crawl controls, and a Draft-article trigger |
 
 The dashboard is a single vanilla web component (`ui/main.mjs`, no framework, no imports —
 required by the trusted-element packer), built with `agenticos.app.json` +

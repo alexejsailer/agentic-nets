@@ -162,7 +162,7 @@ class WebInvestigatorDashboard extends HTMLElement {
 
   async _load() {
     const roles = ['brief', 'taxonomy', 'digest', 'brand-new', 'recent', 'insights',
-      'frontier', 'queries', 'tasks', 'decisions', 'requests', 'owned'];
+      'frontier', 'queries', 'tasks', 'decisions', 'requests', 'owned', 'drafts'];
     await Promise.all(roles.map(async (r) => {
       try { this._stores[r] = await this._rt.readStore(r); }
       catch { this._stores[r] = []; }
@@ -286,6 +286,8 @@ class WebInvestigatorDashboard extends HTMLElement {
         <button data-run="taxonomy" ${this._runBusy() ? 'disabled' : ''}>Run rollup</button>
         <button data-run="owned" ${this._runBusy() ? 'disabled' : ''}>Re-index own site</button>
         <button data-run="health" ${this._runBusy() ? 'disabled' : ''}>Crawl health</button>
+        <button class="acc" data-run="write" ${this._runBusy() ? 'disabled' : ''}
+          title="Assemble the next accepted task and let the staff writer draft it">Draft article</button>
         <button class="ghost" data-refresh title="Reload every store">↻</button>
       </div>
       <div class="grid">
@@ -296,6 +298,7 @@ class WebInvestigatorDashboard extends HTMLElement {
         </div>
         <div style="display:grid;gap:14px;min-width:0;align-content:start">
           ${this._tasksCard(tasks)}
+          ${this._draftsCard(s.drafts || [])}
           ${this._crawlCard(s, brief)}
           ${this._decisionsCard(s.decisions || [])}
         </div>
@@ -400,6 +403,7 @@ class WebInvestigatorDashboard extends HTMLElement {
   }
 
   _tasksCard(tasks) {
+    const drafted = new Set((this._stores.drafts || []).map((d) => d.properties?.taskId));
     const rows = newestFirst(tasks, 'createdAt').map((t) => {
       const p = t.properties;
       const done = p.status === 'done';
@@ -409,13 +413,30 @@ class WebInvestigatorDashboard extends HTMLElement {
           <div class="meta">${esc(p.taskId)}${p.gapCategory ? ` · ${esc(p.gapCategory)}` : ''}${p.doneNote ? ` · ${esc(p.doneNote)}` : ''}
             ${p.competitorUrl ? ` · <a href="${esc(p.competitorUrl)}" target="_blank" rel="noopener">evidence</a>` : ''}</div>
         </div>
-        <div>${done ? '<span class="badge ok">done</span>' : '<span class="badge warm">accepted</span>'}</div>
+        <div>${done ? '<span class="badge ok">done</span>' : '<span class="badge warm">accepted</span>'}
+          ${drafted.has(p.taskId) ? ' <span class="badge ok">draft ✓</span>' : ''}</div>
         <div class="acts">${done ? '' : `<button data-task-done="${esc(p.taskId)}">Done</button>`}</div>
       </div>`;
     }).join('');
     return `<div class="card"><h3>Article tasks</h3>
-      <p class="sub">Accepted recommendations with their evidence. “Done” records the outcome atomically.</p>
+      <p class="sub">Accepted recommendations with their evidence. “Draft article” above writes the next one; “Done” records the outcome atomically.</p>
       ${rows || '<div class="empty">Nothing accepted yet — the gap lists on the left feed this queue.</div>'}</div>`;
+  }
+
+  _draftsCard(drafts) {
+    if (!drafts.length) return '';
+    const rows = newestFirst(drafts, 'ts').map((d, i) => {
+      const p = d.properties;
+      const md = String(p.draftMarkdown || '');
+      return `<details class="digest">
+        <summary>${esc(p.title)} <span class="badge">${esc(p.wordCount || '?')} words</span></summary>
+        <div class="acts" style="margin:6px 0"><button data-draft-copy="${i}">Copy markdown</button></div>
+        <p style="white-space:pre-wrap;font-family:var(--mono,monospace);font-size:12px;max-height:340px;overflow:auto">${esc(md)}</p>
+      </details>`;
+    }).join('');
+    return `<div class="card"><h3>Drafts</h3>
+      <p class="sub">Written by the staff-writer lane from the task's evidence. Copy, publish, then mark the task Done.</p>
+      ${rows}</div>`;
   }
 
   _crawlCard(s, brief) {
@@ -505,6 +526,16 @@ class WebInvestigatorDashboard extends HTMLElement {
       const url = new FormData(ev.target).get('url');
       if (url) { this._invoke('queue-url', { url: String(url) }, `url:${slug(String(url))}`); ev.target.reset(); }
     });
+    const drafts = newestFirst(this._stores.drafts || [], 'ts');
+    for (const b of wrap.querySelectorAll('[data-draft-copy]')) {
+      b.addEventListener('click', () => {
+        const md = String(drafts[Number(b.dataset.draftCopy)]?.properties?.draftMarkdown || '');
+        navigator.clipboard?.writeText(md).then(
+          () => this._toast('Markdown copied.'),
+          () => this._toast('Clipboard unavailable in this context.', true),
+        );
+      });
+    }
     wrap.querySelector('[data-form="query"]')?.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const query = new FormData(ev.target).get('query');
