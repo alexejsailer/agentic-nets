@@ -15,6 +15,7 @@
     "brandNewDays": "7",
     "recentDays": "90",
     "sameHostOnly": "false",
-    "searchProvider": "brave"
+    "searchProvider": "brave",
+    "ownSitemap": "REPLACE-ME: https://your-site.example/sitemap.xml — indexed by scout-owned into p-scout-owned so the digest reports TRUE gaps; keep this host in denyHosts too"
   }
 ]

@@ -29,6 +29,9 @@ FRESH_RECENCIES = ("brand-new", "recent")   # what "actively publishing" means h
 FRESH_MAX_ARTICLES = 12                      # bound the fan-out; freshness is a short list by design
 FRESH_CHARS = 2500                           # per article
 FRESH_TOTAL_CHARS = 26000                    # hard ceiling for the whole bundle
+OWNED_PLACE = "p-scout-owned"                # the owner's OWN inventory (slugs, never crawled)
+OWN_MATCH = 0.18                             # Jaccard on slug/title terms; tuned on a real 79-post site
+OWN_GAP_EXAMPLES = 8                         # uncovered titles surfaced per category
 
 
 def api(method, path, body=None, timeout=30):
@@ -81,6 +84,51 @@ def blob_text(urn):
     return " ".join(body.split())
 
 
+OWN_STOP = set("""a an the and or for to of in on with your you how what why when is are do does can
+will vs best top guide review reviews com www html htm index page""".split())
+# "Some Title - ExampleSite.com" — the site-name suffix is pure noise for matching and, if
+# hardcoded, would make this script domain-specific. Strip it structurally instead.
+TITLE_SUFFIX = re.compile(r"\s*[-|\u2013\u2014]\s*[^-|\u2013\u2014]{0,40}\.(com|net|org|co|io)\s*$", re.I)
+
+
+def own_terms(text, host=""):
+    text = TITLE_SUFFIX.sub("", text or "")
+    stop = set(OWN_STOP)
+    # Host words are shared by every finding from that site, so they inflate every score.
+    stop.update(w for w in re.split(r"[^a-z0-9]+", (host or "").lower()) if len(w) > 2)
+    return {w for w in re.split(r"[^a-z0-9]+", text.lower()) if w and w not in stop and len(w) > 2}
+
+
+def corpus_stopwords(docs, ratio=0.35):
+    """Terms that appear in a large share of the corpus carry no discriminating power — in a
+    generator corpus that is 'generator' itself. Deriving them keeps this script domain-neutral:
+    hardcoding the topic word would silently break the day this pack is pointed at another niche.
+    Without this, every title matches every slug and the gap list collapses to nothing."""
+    if not docs:
+        return set()
+    df = Counter()
+    for terms in docs:
+        df.update(set(terms))
+    cutoff = max(2, int(len(docs) * ratio))
+    return {w for w, n in df.items() if n >= cutoff}
+
+
+def best_own_match(terms, owned):
+    """Closest owned article by term overlap. Deliberately crude and deterministic: the point
+    is 'do I already have something on this?', not semantic similarity — and a model asked to
+    judge that for 126 findings would cost more than the whole crawl."""
+    best, who = 0.0, None
+    if not terms:
+        return 0.0, None
+    for slug, oterms in owned:
+        if not oterms:
+            continue
+        j = len(terms & oterms) / len(terms | oterms)
+        if j > best:
+            best, who = j, slug
+    return best, who
+
+
 def host_of(url):
     try:
         return url.split("/")[2].lower().replace("www.", "")
@@ -96,9 +144,29 @@ def main():
             d["_recency"] = recency
             findings.append(d)
 
-    summary = {"findings": len(findings), "categories": 0, "competitors": 0, "ts": ts}
+    # Own inventory: what the OWNER already published. Without it every "gap" below is a
+    # competitor gap, which is not the same question as "what should I write next".
+    owned = []
+    for d in rows(OWNED_PLACE):
+        try:
+            t = set(json.loads(d.get("terms") or "[]"))
+        except Exception:
+            t = own_terms(d.get("slug", ""))
+        owned.append((d.get("slug", ""), t))
+
+    summary = {"findings": len(findings), "categories": 0, "competitors": 0,
+               "ownArticles": len(owned), "ts": ts}
     if not findings:
         print(json.dumps(summary)); return
+
+    # Derive the corpus-wide filler terms from BOTH sides, then re-tokenise through them.
+    raw_find = [(f, own_terms(f.get("title") or f.get("url", ""), host_of(f.get("url", "")))) for f in findings]
+    filler = corpus_stopwords([t for _, t in raw_find] + [t for _, t in owned])
+    owned = [(slug, t - filler) for slug, t in owned]
+    for f, terms in raw_find:
+        score, who = best_own_match(terms - filler, owned)
+        f["_ownScore"], f["_ownMatch"] = round(score, 2), who
+        f["_covered"] = score >= OWN_MATCH
 
     by_cat = defaultdict(list)
     for f in findings:
@@ -117,6 +185,8 @@ def main():
             "archive": split.get("archive", 0),
             "competitors": dict(cat_hosts),
             "examples": [str(i.get("title") or i.get("url"))[:110] for i in items[:TOP_TITLES]],
+            "ownCovered": sum(1 for i in items if i["_covered"]),
+            "ownUncovered": sum(1 for i in items if not i["_covered"]),
         }
         cat_facts.append(fact)
         cat_tokens.append({"data": {**fact,
@@ -165,6 +235,7 @@ def main():
             "publishedAt": f.get("publishedAt", ""), "recency": f["_recency"],
             "category": (f.get("category") or "").lower(), "host": host_of(f.get("url", "")),
             "truncated": len(clipped) < len(text), "text": clipped,
+            "coveredByOwn": f["_covered"], "closestOwnSlug": f["_ownMatch"], "ownScore": f["_ownScore"],
         })
 
     facts = {
@@ -178,6 +249,28 @@ def main():
         "coverageGaps": gaps,
         "freshTextArticles": len(fresh_articles),
         "freshTextSkipped": skipped,
+        "ownInventory": {
+            "articles": len(owned),
+            "note": "The owner's OWN published slugs. A category with high ownCovered is ALREADY "
+                    "served by the owner — recommending it is a wasted recommendation.",
+        },
+        # The actual answer to "what should I write next": competitor material with no
+        # near-equivalent on the owner's site, newest first within each category.
+        "trueGaps": [
+            {
+                "category": cat,
+                "uncovered": sum(1 for i in items if not i["_covered"]),
+                "ofTotal": len(items),
+                "examples": [
+                    {"title": str(i.get("title") or i.get("url"))[:110], "recency": i["_recency"]}
+                    for i in sorted(items, key=lambda x: (x["_recency"] != "brand-new",
+                                                          x["_recency"] != "recent"))
+                    if not i["_covered"]
+                ][:OWN_GAP_EXAMPLES],
+            }
+            for cat, items in sorted(by_cat.items(), key=lambda kv: -sum(1 for i in kv[1] if not i["_covered"]))
+            if any(not i["_covered"] for i in items) and cat != "unrelated"
+        ],
     }
 
     try:
@@ -195,6 +288,8 @@ def main():
                                        "freshTextJson": json.dumps(fresh_articles),
                                        "freshTextArticles": len(fresh_articles),
                                        "freshTextChars": used,
+                                       "ownArticles": len(owned),
+                                       "ownUncovered": sum(1 for f in findings if not f["_covered"]),
                                        "totalFindings": len(findings),
                                        "categoryCount": len(by_cat),
                                        "competitorCount": len(per_host)}})
@@ -204,7 +299,9 @@ def main():
     summary.update(categories=len(by_cat), competitors=len(per_host),
                    recencySplit=facts["recencySplit"],
                    freshTextArticles=len(fresh_articles), freshTextChars=used,
-                   freshTextSkipped=skipped)
+                   freshTextSkipped=skipped, ownArticles=len(owned),
+                   ownCovered=sum(1 for f in findings if f["_covered"]),
+                   ownUncovered=sum(1 for f in findings if not f["_covered"]))
     print(json.dumps(summary))
 
 
