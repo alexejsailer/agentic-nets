@@ -54,7 +54,7 @@
       },
       "p-scout-owned-cmd": {
         "id": "p-scout-owned-cmd",
-        "label": "p-scout-owned-cmd",
+        "label": "Owned-inventory CommandTokens",
         "x": 1300.0,
         "y": 660.0,
         "tokens": 0

@@ -8,7 +8,9 @@ description: >-
   Deterministic scripts on the executor do the fetching, date extraction, relevance scoring,
   dedupe, link discovery and every count; ONE narrow agent lane classifies each surviving
   article and one more writes the analysis. The split is the point: the agent decides, the
-  pipeline measures, so no figure in the output is model-authored.
+  pipeline measures, so no figure in the output is model-authored. It also indexes YOUR OWN
+  site's sitemap into a separate place and subtracts it, so the gaps it reports are the ones
+  you have not already covered — without your pages ever entering the crawled corpus.
 tags: [agents, capability-pack, research, crawler, competitive-analysis]
 # fanOut emits, postset retain, and ${json()} are 2.57.0 engine features — installing
 # against an older master leaves the lift lane unable to fan links out or trim telemetry.
@@ -21,8 +23,8 @@ entry:
   statuses: [landscape-analysis]
   taskFields:
     required: [briefId, topic, description, categories, mustInclude]
-    optional: [domainHint, mustExclude, denyHosts, allowHosts, minScore, maxDepth, brandNewDays, recentDays, sameHostOnly]
-  resultFields: [ownedAngles, freshness, gaps, recommendations, totalFindings]
+    optional: [domainHint, mustExclude, denyHosts, allowHosts, minScore, maxDepth, brandNewDays, recentDays, sameHostOnly, searchProvider, ownSitemap]
+  resultFields: [ownedAngles, freshness, freshSignal, gaps, ownPosition, recommendations, totalFindings, freshTextArticles, ownArticles, ownUncovered]
 
 nets:
   - name: scout
@@ -48,10 +50,22 @@ scripts:
       Widen the crawl beyond link-following by querying a search API (brave | tavily | serper,
       whichever key is present). Hits enter the frontier at depth 0 through the same dedupe,
       host filters and injection guard as discovered links.
+  - id: scout-owned
+    runtime: python3
+    file: assets/scout-owned.py
+    description: >-
+      Index the OWNER's own published articles from their sitemap — urls and lastmod only, never
+      page bodies — into p-scout-owned. Writes to that one place, so owned content can never
+      reach the findings corpus; keep the same host in brief.denyHosts to block the crawl side.
   - id: scout-taxonomy
     runtime: python3
     file: assets/scout-taxonomy.py
-    description: Roll findings into per-category and per-source counts plus explicit coverage gaps.
+    description: >-
+      Roll findings into per-category and per-source counts and explicit coverage gaps; attach
+      chrome-stripped full text of the fresh findings from their blobs; and join against
+      p-scout-owned to report ownCovered/ownUncovered per category plus trueGaps — competitor
+      material with no owner equivalent. Filler terms are derived from the corpus, not listed,
+      so the matching carries no domain.
   - id: scout-health
     runtime: python3
     file: assets/scout-health.py
@@ -63,7 +77,12 @@ config:
     description: >-
       The investigation definition — topic, description, domainHint, the category list the
       classifier must choose from, scoring terms, host allow/deny lists, depth and recency
-      windows. Ships as a REPLACE-ME template on purpose: the pack carries no domain.
+      windows, and ownSitemap. Ships as a REPLACE-ME template on purpose: the pack carries no domain.
+  - key: p-scout-owned
+    description: >-
+      Derived, not seeded: scout-owned rebuilds it from brief.ownSitemap (weekly by default).
+      Holds slugs only. Leave it empty and the digest still runs — it simply cannot tell you
+      which gaps you have already filled.
 
 credentials:
   - key: SEARCH_API_KEY

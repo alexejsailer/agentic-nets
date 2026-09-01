@@ -100,10 +100,11 @@ def own_terms(text, host=""):
 
 
 def corpus_stopwords(docs, ratio=0.35):
-    """Terms that appear in a large share of the corpus carry no discriminating power — in a
-    generator corpus that is 'generator' itself. Deriving them keeps this script domain-neutral:
-    hardcoding the topic word would silently break the day this pack is pointed at another niche.
-    Without this, every title matches every slug and the gap list collapses to nothing."""
+    """Terms appearing in a large share of the corpus carry no discriminating power: whatever
+    noun the brief is about will occur in nearly every title and slug. Deriving those terms
+    instead of listing them is what keeps this script reusable — hardcoding the topic word
+    would work for one tenant and silently break the next. Without it, every title matches
+    every slug and the gap list collapses to nothing."""
     if not docs:
         return set()
     df = Counter()

@@ -2,8 +2,8 @@
   "cases": [
     {
       "name": "scripts registered",
-      "check": "tool-catalog contains scout-fetch, scout-taxonomy and scout-health in the target model",
-      "why": "command lanes invoke by toolId and resolve per-model; without these every fetch fails at fire time"
+      "check": "tool-catalog contains scout-fetch, scout-owned, scout-taxonomy and scout-health in the TARGET model's local catalog",
+      "why": "command lanes invoke by toolId and resolve per-model, local-first. An undeclared or globally-registered script leaves the lane failing at fire time, or silently running an older local entry that shadows it"
     },
     {
       "name": "brief is required and non-consuming",
@@ -24,6 +24,21 @@
       "name": "analysis quotes measured numbers",
       "check": "every count in p-scout-digest matches the corresponding value in the p-scout-taxonomy facts token",
       "why": "the agent interprets; the deterministic rollup counts. A mismatch means the model authored a figure"
+    },
+    {
+      "name": "owned content never enters the corpus",
+      "check": "after scout-owned runs, no token in p-scout-frontier, p-scout-registry or any p-find-* place has a url on brief.ownSitemap's host",
+      "why": "the whole point of indexing your own site is to SUBTRACT it; if it leaks into the crawl you are analysing yourself and every gap number is wrong"
+    },
+    {
+      "name": "own-coverage is derived, not hardcoded",
+      "check": "pointing the brief at a different topic still produces non-empty trueGaps with sensible matches",
+      "why": "filler terms are computed by document frequency; a hardcoded topic word would match everything in its own niche and nothing in the next"
+    },
+    {
+      "name": "digest answers through DONE",
+      "check": "tokens in p-scout-digest carry the analysis fields, never a bare {summary, iterationsUsed} object",
+      "why": "autoEmit emits the answer object only when the agent calls DONE; a lane that thinks until its iteration budget runs out emits a summary node and the whole billed run is lost"
     }
   ]
 }
