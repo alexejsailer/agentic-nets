@@ -35,10 +35,10 @@
     "runtime": "python3"
   },
   {
-    "description": "Assemble ONE writing packet for the drafting persona: oldest accepted article task without a draft, the competitor article's stored text (blob or URL-fallback, chrome-stripped), related own slugs by term overlap, and the brief. The task token is never consumed — dedupe is by the drafts+queue ledger, so cron and on-demand triggers are both safe.",
+    "description": "Draft ONE accepted article task end to end: deterministic prep (task + competitor text with URL-fallback + related own slugs + brief), then invoke the LOCAL claude binary headlessly (-p, no tools, no session persistence) and file its markdown as a draft token. Dedupe by drafts ledger; the task token is never consumed. Requires Claude Code on the executor host.",
     "file": "scout-write.py",
     "id": "scout-write",
-    "name": "Scout Write Prep",
+    "name": "Scout Write (Claude Code)",
     "runtime": "python3"
   }
 ]

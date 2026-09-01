@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
-"""scout-write — assemble ONE writing packet for the drafting persona.
+"""scout-write — draft ONE accepted article task with Claude Code.
 
-Deliberately NOT the writer. This script does everything deterministic about drafting an
-article so the agent lane only writes: it picks the oldest accepted task that has neither a
-draft nor a queued packet, pulls the competitor article's stored full text from its blob
-(chrome-stripped), finds the owner's related articles by term overlap (so the draft can link
-them), and emits a single packet token to p-scout-write-queue. One packet per run bounds the
-model spend to at most one draft per trigger; an empty queue plus no eligible task exits
-quietly, so cron and on-demand triggers are both safe.
+Everything deterministic happens here: pick the oldest accepted task without a draft, pull
+the competitor article's stored text (blob, or URL-fallback through the findings), find the
+owner's related articles by term overlap, assemble the assignment — then invoke the local
+`claude` binary headlessly (-p, no tools, no session persistence) and file its markdown as a
+draft token. One draft per run bounds the spend; a run with nothing eligible exits quietly,
+so the daily cron and the app's Draft-article button are both safe.
 
-Dedupe is by ledger (drafts + queue), never by consuming the task: the task token belongs to
-the application's lifecycle (accepted -> done via complete-task) and must survive drafting.
+Dedupe is by the drafts ledger, never by consuming the task: the task token belongs to the
+application's lifecycle (accepted -> done via complete-task) and must survive drafting.
 """
-import json, os, re
+import json, os, re, shutil, subprocess
 import urllib.request
 from datetime import datetime, timezone
 
@@ -21,6 +20,11 @@ BLOBS = os.environ.get("BLOB_URL", "http://127.0.0.1:8090").rstrip("/")
 MODEL = os.environ.get("MODEL_ID", "research-scout")
 COMPETITOR_CHARS = 7000
 RELATED_MAX = 5
+CLAUDE_TIMEOUT_S = 240
+# The executor may run with a minimal PATH; resolve the binary the way a user shell would.
+CLAUDE_CANDIDATES = [shutil.which("claude"), os.path.expanduser("~/.local/bin/claude"),
+                     os.path.expanduser("~/.claude/local/claude"),
+                     "/usr/local/bin/claude", "/opt/homebrew/bin/claude"]
 STOP = set("""a an the and or for to of in on with your you how what why when is are do does can
 will vs best top guide review reviews com www html htm index page""".split())
 SENTENCE = re.compile(r"[A-Z][^.!?]{60,}?[.!?](?:\s|$)")
@@ -77,12 +81,11 @@ def blob_text(urn):
 
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    out = {"kind": "write-prep", "ts": ts, "queued": 0}
+    out = {"kind": "write-prep", "ts": ts, "drafted": 0}
 
     tasks = [t for t in rows("p-scout-article-tasks") if t.get("status") == "accepted" and t.get("taskId")]
     done = {d.get("taskId") for d in rows("p-scout-drafts")}
-    queued = {p.get("taskId") for p in rows("p-scout-write-queue")}
-    eligible = sorted((t for t in tasks if t["taskId"] not in done and t["taskId"] not in queued),
+    eligible = sorted((t for t in tasks if t["taskId"] not in done),
                       key=lambda t: str(t.get("createdAt") or ""))
     out["acceptedTasks"] = len(tasks)
     out["alreadyDrafted"] = len([t for t in tasks if t["taskId"] in done])
@@ -122,21 +125,72 @@ def main():
     related = [s for _, s in sorted(related, reverse=True)[:RELATED_MAX]]
 
     brief = (rows("p-scout-brief") or [{}])[0]
-    packet = {
-        "kind": "write-packet", "ts": ts,
+
+    claude = next((c for c in CLAUDE_CANDIDATES if c and os.path.exists(c)), None)
+    if not claude:
+        out["error"] = "claude binary not found on this host"
+        print(json.dumps(out)); return
+
+    links = ("Related articles already on the owner's site — link them with relative paths "
+             "like /slug/ where they genuinely help the reader; never repeat their content: "
+             + ", ".join(related)) if related else ""
+    prompt = """You are the staff writer for this investigation. Write ONE publish-ready article.
+
+TOPIC: %s
+%s
+
+THE ASSIGNMENT
+title: %s
+why it was accepted: %s
+category: %s
+
+THE COMPETITOR PIECE THIS MUST BEAT (%s):
+%s
+
+%s
+
+Write 1100-1500 words of practical markdown:
+- Open with the reader's actual problem, not a definition.
+- Deliver what the rationale says the competitor stops short of — that is the whole point.
+- Structure with ## and ### headings; use tables or numbered steps where they beat prose.
+- Concrete values over vague advice. Plain language. No filler intros, no 'in conclusion'.
+- Do NOT copy or closely paraphrase the competitor's sentences; write from understanding.
+- End with a short FAQ (3 questions) if the topic invites one.
+
+Output ONLY the article markdown, starting directly with the first line of the article.
+No preamble, no code fences around the whole article, no commentary.""" % (
+        brief.get("topic", ""), brief.get("domainHint", ""), task.get("title", ""),
+        task.get("rationale", ""), task.get("gapCategory", ""),
+        task.get("competitorUrl", ""), competitor, links)
+
+    try:
+        run = subprocess.run(
+            [claude, "-p", prompt, "--allowedTools", "", "--no-session-persistence"],
+            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        out["error"] = "claude timed out after %ss" % CLAUDE_TIMEOUT_S
+        print(json.dumps(out)); return
+    draft = (run.stdout or "").strip()
+    if run.returncode != 0 or len(draft) < 400:
+        out["error"] = ("claude rc=%s stderr=%s stdoutChars=%s"
+                        % (run.returncode, (run.stderr or "")[:160], len(draft)))
+        print(json.dumps(out)); return
+
+    token = {
+        "kind": "draft", "source": "claude-code", "ts": ts, "status": "draft",
         "taskId": task["taskId"], "title": task.get("title", ""),
-        "rationale": task.get("rationale", ""), "gapCategory": task.get("gapCategory", ""),
+        "gapCategory": task.get("gapCategory", ""),
         "competitorUrl": task.get("competitorUrl", ""),
-        "competitorText": competitor,
-        "relatedOwnSlugs": json.dumps(related),
-        "topic": brief.get("topic", ""), "domainHint": brief.get("domainHint", ""),
         "briefId": brief.get("briefId", ""),
+        "wordCount": str(len(draft.split())),
+        "relatedOwnSlugs": json.dumps(related),
+        "draftMarkdown": draft,
     }
     try:
-        api("POST", "/api/runtime/places/p-scout-write-queue/tokens?modelId=" + MODEL,
-            {"name": "packet-" + task["taskId"], "data": packet})
-        out.update(queued=1, taskId=task["taskId"], competitorChars=len(competitor),
-                   relatedOwn=len(related))
+        api("POST", "/api/runtime/places/p-scout-drafts/tokens?modelId=" + MODEL,
+            {"name": "draft-" + task["taskId"], "data": token})
+        out.update(drafted=1, taskId=task["taskId"], wordCount=token["wordCount"],
+                   competitorChars=len(competitor), relatedOwn=len(related))
     except Exception as e:
         out["error"] = str(e)[:200]
     print(json.dumps(out))

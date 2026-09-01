@@ -297,6 +297,7 @@ class WebInvestigatorDashboard extends HTMLElement {
           ${this._digestCard(digest)}
         </div>
         <div style="display:grid;gap:14px;min-width:0;align-content:start">
+          ${this._helpCard()}
           ${this._tasksCard(tasks)}
           ${this._draftsCard(s.drafts || [])}
           ${this._crawlCard(s, brief)}
@@ -400,6 +401,35 @@ class WebInvestigatorDashboard extends HTMLElement {
       ${section('Freshness', p.freshness)}
       ${recCards || '<div class="empty">No recommendations in this analysis.</div>'}
     </div>`;
+  }
+
+  _helpCard() {
+    return `<div class="card"><details class="digest">
+      <summary>❓ How this works — the net behind this page</summary>
+      <p><b>This page is a window, not a database.</b> Every number and article you see is a token
+      in an event-sourced Petri net; every button writes a token back into it. The net does the
+      work — this app only reads state and records your decisions.</p>
+      <p><b>The pipeline.</b> URLs enter the <i>frontier</i> → a fetch script downloads, dates and
+      scores each page and discovers new links → a free gate drops off-topic pages → a small model
+      categorises survivors → findings land in the recency buckets (brand-new / recent / archive)
+      → a rollup script counts everything and joins it against <i>your own</i> site's inventory →
+      an analyst model writes the landscape analysis you see on the left. Your own site is never
+      crawled — only its sitemap is indexed, so "uncovered" means <i>you</i> have no equivalent.</p>
+      <p><b>Your decision loop.</b>
+      <i>Accept</i> turns a recommendation or fresh article into a task carrying its evidence.
+      <i>Draft article</i> (or the daily schedule) has the staff writer draft the oldest open task
+      — one per run, never twice for the same task. Copy the draft from the Drafts card, publish
+      it, then click <i>Done</i> on the task. <i>Dismiss</i> and <i>Covered</i> record the
+      opposite calls so the analysis stops re-recommending them.</p>
+      <p><b>Steering.</b> <i>Queue URL</i> feeds a page straight into the crawl. <i>Queue query</i>
+      widens it via a search API (needs its key configured). <i>Run rollup</i> recomputes counts +
+      analysis now; <i>Re-index own site</i> refreshes your inventory; <i>Crawl health</i> writes
+      fetch diagnostics into Insights. All of these only record a request token — the net's own
+      lanes build and execute the actual commands.</p>
+      <p><b>Where to look deeper.</b> The net itself (places, lanes, live tokens) is on the Studio
+      canvas — open the model's <i>scout</i> net or its stage views (crawl / analysis /
+      reporting). Raw tokens live in the Token Workbench on any place named on this page.</p>
+    </details></div>`;
   }
 
   _tasksCard(tasks) {

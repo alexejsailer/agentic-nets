@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.5.0
+version: 1.6.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -70,10 +70,12 @@ scripts:
     runtime: python3
     file: assets/scout-write.py
     description: >-
-      Assemble ONE writing packet per run for the staff-writer lane: the oldest accepted
-      article task without a draft, the competitor text it must beat, related own slugs to
-      link, and the brief. Dedupe by the drafts+queue ledger; the task token is never
-      consumed — it belongs to the application lifecycle (accepted -> done).
+      The staff writer: draft ONE accepted article task per run, end to end. Deterministic
+      prep (task + competitor text with URL-fallback + related own slugs + brief), then the
+      LOCAL claude binary headlessly (-p, no tools, no session persistence); the markdown
+      lands as a draft token. Dedupe by drafts ledger; the task token is never consumed —
+      it belongs to the application lifecycle (accepted -> done). Requires Claude Code on
+      the executor host; the stopped t-scout-write agent lane is the API fallback.
   - id: scout-health
     runtime: python3
     file: assets/scout-health.py

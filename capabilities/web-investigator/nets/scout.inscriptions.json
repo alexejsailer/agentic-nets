@@ -199,7 +199,7 @@
         "args": {
           "toolId": "scout-${input.data.run}",
           "argv": [],
-          "timeoutMs": 90000,
+          "timeoutMs": 300000,
           "env": {
             "MODEL_ID": "research-scout"
           }
@@ -1181,6 +1181,7 @@
     "id": "t-scout-write-cron",
     "kind": "map",
     "label": "Build write-prep command (daily)",
+    "mode": "SINGLE",
     "schedule": {
       "type": "cron",
       "cron": "0 0 7 * * *",
@@ -1213,7 +1214,7 @@
         "args": {
           "toolId": "scout-write",
           "argv": [],
-          "timeoutMs": 90000,
+          "timeoutMs": 300000,
           "env": {
             "MODEL_ID": "research-scout"
           }
@@ -1226,7 +1227,6 @@
         "from": "@response"
       }
     ],
-    "mode": "SINGLE",
     "metadata": {
       "sessionId": "dev-support-council",
       "netId": "scout"
@@ -1235,7 +1235,8 @@
   {
     "id": "t-scout-write-prep",
     "kind": "command",
-    "label": "Assemble writing packet on executor",
+    "label": "Draft on executor via Claude Code",
+    "mode": "SINGLE",
     "presets": {
       "input": {
         "placeId": "p-scout-write-cmd",
@@ -1263,7 +1264,7 @@
         }
       ],
       "await": "ALL",
-      "timeoutMs": 150000
+      "timeoutMs": 360000
     },
     "emit": [
       {
@@ -1271,7 +1272,6 @@
         "from": "@result"
       }
     ],
-    "mode": "SINGLE",
     "metadata": {
       "sessionId": "dev-support-council",
       "netId": "scout"
