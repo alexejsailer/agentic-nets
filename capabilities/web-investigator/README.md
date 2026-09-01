@@ -1,37 +1,48 @@
 # Web Investigator
 
-Point it at seed URLs and a brief. It crawls, dates, scores, categorises and analyses — and every
-number in the output is measured, not written by a model.
+**A research assistant that watches the web on a topic you choose, compares what it finds
+against your own website, tells you what's worth writing next — and drafts it.**
 
-## What it does
+You give it a brief ("investigate X") and a few starting URLs. From then on it reads competitor
+pages, files them by age and category, checks each one against your own published articles, and
+produces an analysis with concrete recommendations. You accept the ones you like with a click;
+a staff writer drafts them; you publish and mark them done. Everything runs on an ordinary
+Agentic-Net — the dashboard is just a window onto it.
+
+## The idea in one picture
 
 ```
-brief + seed URLs
-      │
-      ▼
-  fetch (script, executor)      conditional GET, extract text/links/date, score relevance,
-      │                         classify listing-vs-article, blobstore the text, queue new links
-      ▼
-  gate (map, free)              only articles above minScore reach a model
-      │
-      ▼
-  categorise (agent, cheap)     one classification per surviving article
-      │
-      ▼
-  route by recency              brand-new (≤7d) / recent (≤90d) / archive
-      │
-      ▼
-  taxonomy (script)             per-category and per-source counts, explicit coverage gaps
-      │
-      ▼
-  analysis (agent)              interprets those facts — and only those
+ you: brief + seed URLs                    your site: sitemap (indexed, NEVER crawled)
+        │                                                     │
+        ▼                                                     ▼
+   ┌─ CRAWL ────────────┐   ┌─ ANALYSE ───────────────────────────────┐
+   │ fetch pages        │   │ count by category × age                 │
+   │ find their links   │──▶│ subtract what YOU already cover         │
+   │ score relevance    │   │ → "true gaps" + a written analysis      │
+   │ classify + file    │   └───────────────┬─────────────────────────┘
+   └────────────────────┘                   ▼
+                              ┌─ DECIDE (the dashboard) ──────────────┐
+                              │ Accept → task   Dismiss   Covered     │
+                              └───────────────┬───────────────────────┘
+                                              ▼
+                              ┌─ WRITE ───────────────────────────────┐
+                              │ staff writer drafts the accepted task │
+                              │ you copy → publish → mark Done        │
+                              └───────────────────────────────────────┘
 ```
 
-**The split is the whole design.** Deterministic code does the fetching, dating, scoring, dedupe,
-link discovery and every count. Exactly two agent lanes exist: one classifies an article, one
-writes the analysis. An agent asked to both count and interpret will fabricate the counts.
+Two rules make the output trustworthy:
 
-## Install
+1. **Every number is measured, never model-written.** Scripts do all counting, dating, scoring
+   and dedupe; models only classify and interpret. An AI asked to both count and interpret
+   fabricates the counts.
+2. **Your own site never enters the crawl.** Only its sitemap is indexed (URLs + dates, no page
+   content), so "uncovered" genuinely means *you have no equivalent* — the analysis will not
+   recommend topics you already rank for.
+
+## Getting started
+
+### 1. Install the net
 
 ```bash
 export AGENTICOS_MCP_URL=http://127.0.0.1:8091/mcp
@@ -43,69 +54,113 @@ node capabilities/tools/pack.mjs install \
   --session agent-web-investigator
 ```
 
-The installer registers the three scripts into the target model's local tool catalog **before**
-wiring the nets — a command lane invokes by `toolId`, which resolves per-model, so nets installed
-without their scripts look healthy and fail on first fire.
+Install deliberately does **not** go live: the brief ships as a REPLACE-ME template, and
+starting lanes against placeholder config helps nobody.
 
-**Install does not go live.** Lanes land DEPLOYED but stopped, because the brief ships as a
-REPLACE-ME template and starting an agent lane against placeholder config is not a useful default.
-Configure the brief first, then start — either per lane, or re-run install with `--start`.
+### 2. Fill in the brief
 
-## Then make it yours
+Edit the token in `p-scout-brief` (Studio → Token Workbench, or MCP). The whole net retargets
+from this one token — no lane changes needed:
 
-The pack ships **no domain**. `seeds/p-scout-brief.json` is a REPLACE-ME template; edit the brief
-token in `p-scout-brief` and the whole net retargets without touching a lane:
-
-| Field | What it drives |
+| Field | What it means |
 |---|---|
-| `topic`, `description` | handed to the analysis agent verbatim |
-| `domainHint` | vocabulary that helps the classifier |
-| `categories` | the closed list the classifier must choose from |
-| `mustInclude` / `mustExclude` | the free relevance score |
+| `topic`, `description` | what you are investigating, in your words — handed to the analyst verbatim |
+| `domainHint` | vocabulary that helps the classifier (product names, brands, jargon) |
+| `categories` | the closed list every finding is sorted into |
+| `mustInclude` / `mustExclude` | words that raise / kill a page's relevance score |
 | `minScore` | how much reaches a model — the main cost lever |
-| `denyHosts` | sites never to crawl (e.g. your own) |
-| `maxDepth` | crawl depth cap |
-| `brandNewDays` / `recentDays` | the recency bucket boundaries |
+| `denyHosts` | sites never to crawl — **put your own site here** |
+| `ownSitemap` | your sitemap URL — how the net learns what you already cover |
+| `brandNewDays` / `recentDays` | what counts as brand-new / recent (defaults 7 / 90 days) |
 
-Seed work by writing URL tokens into `p-scout-frontier`:
-`{url, depth: 0, attempt: 0, briefId, queuedAt}`.
+### 3. Install the dashboard and start
 
-**To crawl wider than your seeds reach**, add a search key and write queries into
-`p-scout-queries` (`{query, maxResults}`). Hits enter the frontier at depth 0 and go through
-exactly the same dedupe, host filters and depth budget as discovered links:
+```bash
+# upload + install the application (files in app/)
+curl -X PUT "$MASTER/api/hub/applications/web-investigator/versions/<version>" \
+  -H 'Content-Type: application/json' --data-binary @app/web-investigator-<version>.application.json
+curl -X POST "$MASTER/api/hub/install" -H 'Content-Type: application/json' \
+  -d '{"source":"local","name":"web-investigator","version":"<version>","targetModelId":"my-research"}'
+```
+
+Start the lanes (per lane, or re-run install with `--start`), then open **Studio →
+Applications** and — important — **select your model in the dropdown**; a fresh Studio session
+defaults to another model and shows an empty list.
+
+### 4. Feed it
+
+Queue a few competitor URLs in the dashboard's **Queue URL** box (or drop tokens into
+`p-scout-frontier`). The crawl follows links from there on its own, bounded by `maxDepth` and
+deduped forever. Optionally add a search API key so **Queue query** can widen the crawl beyond
+the link graph:
 
 ```
 set_transition_credentials {transitionId: "t-scout-search",
                             credentials: {SEARCH_API_KEY: "..."}}
 ```
 
-Provider comes from `brief.searchProvider` — `brave`, `tavily` or `serper`. Without a key the
-net still runs on seeds plus link-following; the search lane fails loudly rather than
-returning zero hits, because "no credential" and "no results" must not look alike.
+## Using the dashboard, day to day
 
-Read the analysis from `p-scout-digest`. Re-run `t-scout-taxonomy-cmd` → `t-scout-taxonomy` any
-time to refresh it over everything filed so far.
+Open the app and read top-left to bottom-right — the **❓ How this works** card on the page
+repeats all of this:
 
-## Operating it
+- **Coverage by category** — how much the competition has per category and age, and how much of
+  it you already answer. Sorted by what's still open.
+- **Fresh competitor articles** — everything they published recently, each row with a verdict
+  (covered by you, or not) and three buttons: **Accept** (make it an article task, evidence
+  attached), **Covered** (I already have this), **✕** (dismiss).
+- **Latest analysis** — the written landscape analysis: what they're actually arguing right now,
+  your position, the gaps, and recommendations you can **Accept as task** or **Dismiss**.
+- **Article tasks** — everything you accepted. `draft ✓` means the writer has drafted it.
+- **Drafts** — the written articles. Expand, **Copy markdown**, publish on your site, then click
+  **Done** on the task.
+- **Steer the crawl / Run buttons** — queue URLs and queries; *Run rollup* recomputes the
+  analysis now; *Re-index own site* refreshes your inventory; *Crawl health* writes fetch
+  diagnostics; *Draft article* writes the next accepted task immediately.
 
-- `p-scout-telemetry` gets one row per fetch attempt, success or failure, with a closed-set
-  `failureClass` and the `dateSource` that won. A failed scrape is diagnosable without re-crawling.
-  The place keeps its newest 500 rows (`retain: 500` on the lift lane) — housekeeping is built in,
-  no reaper lane needed. The digest place keeps its last 3 analyses the same way.
-- `t-scout-health` rolls that into `p-scout-insights` with concrete suggestions — dead hosts to
-  deny, whether `minScore` is calibrated, how much of the crawl is listing pages.
-- Nothing is scheduled. Lanes run when started; arm a cron only once you have measured the cost.
+Buttons never execute anything themselves — they record a request token, and the net's own
+lanes do the work. That's also why every click is auditable in the Decision log.
 
-## Cost
+## What runs by itself
 
-Per article: one classification on a cheap model. Per run: one synthesis. Everything else is free.
-The gate is what keeps it cheap — in one measured run 48 of 148 fetched pages were listing pages
-and never reached a model at all. `capabilityProfile: research-worker` keeps each agent fire from
-shipping the full tool preamble.
+| When (Berlin) | What | Cost |
+|---|---|---|
+| Mon 06:15 | re-index your sitemap | free |
+| daily 06:30 | rollup + fresh analysis | one model call |
+| Mon 06:45 | crawl diagnostics | free |
+| daily 07:00 | draft the oldest accepted task | one Claude Code run — only if something is accepted and undrafted |
 
-## Known edges
+The crawl itself is *not* scheduled — it runs when you feed it. The writer requires the
+`claude` binary (Claude Code) on the executor host; a stopped API-model lane
+(`t-scout-write`) exists as a fallback.
 
-- Undated pages default to `archive` rather than claiming a freshness they cannot prove.
-  `undatedShare` in the insights tells you whether that is distorting the picture.
-- JS-rendered pages come back as `empty-extract`. There is no headless renderer here.
-- PDFs and feeds are classified `non-html` and skipped.
+## Under the hood (the net)
+
+```
+frontier ─▶ fetch (script) ─▶ gate (free) ─▶ categorise (cheap model) ─▶ file by age
+                │                                                            │
+                └─▶ telemetry (every attempt)                brand-new / recent / archive
+                                                                             │
+your sitemap ─▶ owned index ─────────────────▶ taxonomy (script: counts + true gaps)
+                                                                             │
+                                                              analysis (model, facts only)
+                                                                             │
+        app: accept ─▶ tasks ─▶ writer (Claude Code, one draft per run) ─▶ drafts
+```
+
+Five scripts (`assets/`), sha256-pinned in the tool catalog and invoked by reference; two model
+lanes (classify, analyse) plus the Claude Code writer; the rest is deterministic routing. The
+dashboard (`app/`) is a `kind:"application"` package whose stores bind the same runtime places —
+see `app/README.md` for how that works and how to rebuild the UI.
+
+## Operating notes
+
+- `p-scout-telemetry` records every fetch attempt with a closed-set `failureClass` — a failed
+  scrape is diagnosable without re-crawling. Newest 500 kept automatically.
+- The writer never drafts the same task twice, and one trigger produces at most one draft.
+  A task is only ever closed by *you* clicking Done.
+- Undated pages file as `archive` rather than claiming freshness they cannot prove.
+- JS-rendered pages come back `empty-extract`; PDFs/feeds are `non-html` and skipped. There is
+  no headless renderer here.
+- Drafts are strong first versions, not fact-checked finals — review concrete values before
+  publishing. That review is exactly what the accepted → Done gap is for.
