@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.6.0
+version: 1.7.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -43,6 +43,13 @@ scripts:
       compute the recency label and relevance score, classify listing-vs-article, store full text
       in the blobstore, classify failures, and queue newly discovered URLs (deduped, depth-capped,
       injection-guarded).
+  - id: scout-recrawl
+    runtime: python3
+    file: assets/scout-recrawl.py
+    description: >-
+      Keep the investigation watching: weekly (and on demand) re-queue every known source
+      host's entry pages into the frontier. Unchanged pages cost a 304; only genuinely new
+      links survive dedupe, so recency and growth numbers keep moving.
   - id: scout-search
     runtime: python3
     file: assets/scout-search.py

@@ -162,7 +162,8 @@ class WebInvestigatorDashboard extends HTMLElement {
 
   async _load() {
     const roles = ['brief', 'taxonomy', 'digest', 'brand-new', 'recent', 'insights',
-      'frontier', 'queries', 'tasks', 'decisions', 'requests', 'owned', 'drafts'];
+      'frontier', 'queries', 'tasks', 'decisions', 'requests', 'owned', 'drafts',
+      'sources', 'growth'];
     await Promise.all(roles.map(async (r) => {
       try { this._stores[r] = await this._rt.readStore(r); }
       catch { this._stores[r] = []; }
@@ -286,6 +287,8 @@ class WebInvestigatorDashboard extends HTMLElement {
         <button data-run="taxonomy" ${this._runBusy() ? 'disabled' : ''}>Run rollup</button>
         <button data-run="owned" ${this._runBusy() ? 'disabled' : ''}>Re-index own site</button>
         <button data-run="health" ${this._runBusy() ? 'disabled' : ''}>Crawl health</button>
+        <button data-run="recrawl" ${this._runBusy() ? 'disabled' : ''}
+          title="Re-queue every known source's entry pages so new articles get discovered">Re-crawl sources</button>
         <button class="acc" data-run="write" ${this._runBusy() ? 'disabled' : ''}
           title="Assemble the next accepted task and let the staff writer draft it">Draft article</button>
         <button class="ghost" data-refresh title="Reload every store">↻</button>
@@ -293,6 +296,7 @@ class WebInvestigatorDashboard extends HTMLElement {
       <div class="grid">
         <div style="display:grid;gap:14px;min-width:0">
           ${this._matrixCard(cats)}
+          ${this._expansionCard()}
           ${this._freshCard(facts)}
           ${this._digestCard(digest)}
         </div>
@@ -430,6 +434,62 @@ class WebInvestigatorDashboard extends HTMLElement {
       canvas — open the model's <i>scout</i> net or its stage views (crawl / analysis /
       reporting). Raw tokens live in the Token Workbench on any place named on this page.</p>
     </details></div>`;
+  }
+
+  _expansionCard() {
+    const sources = (this._stores.sources || []).map((t) => t.properties);
+    const growth = newestFirst(this._stores.growth || [], 'ts').reverse().map((t) => t.properties);
+    if (!sources.length && !growth.length) return '';
+
+    // source mix — findings per source type, as labelled bars
+    const byType = {};
+    for (const p of sources) byType[p.sourceType || 'other'] = (byType[p.sourceType || 'other'] || 0) + num(p.articles);
+    const totalArts = Object.values(byType).reduce((a, b) => a + b, 0) || 1;
+    const mix = Object.entries(byType).sort((a, b) => b[1] - a[1]).map(([k, v]) => `
+      <div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+        <span style="width:86px;font-size:12px;color:var(--muted,#9aa1ab)">${esc(k)}</span>
+        <span style="flex:1;height:9px;border-radius:5px;background:var(--card,#1d2026);overflow:hidden">
+          <i style="display:block;height:100%;width:${Math.max(3, Math.round((v / totalArts) * 100))}%;
+             background:var(--acc,#2f6fdd)"></i></span>
+        <b style="font-size:12px;min-width:30px;text-align:right">${v}</b>
+      </div>`).join('');
+
+    // sources table — the expansion evidence per host
+    const rows = sources.sort((a, b) => num(b.articles) - num(a.articles)).map((p) => `
+      <tr><td class="cat">${esc(p.host)}</td><td><span class="badge">${esc(p.sourceType)}</span></td>
+      <td class="n">${num(p.articles)}</td><td class="n">${num(p.brandNew) + num(p.recent) || ''}</td>
+      <td class="n">${num(p.categories)}</td><td>${esc(p.firstSeenAt || '')}</td></tr>`).join('');
+
+    // growth chart — findings + hosts over the snapshot series, hand-rolled SVG
+    let chart = '';
+    if (growth.length >= 2) {
+      const W = 560, H = 120, P = 24;
+      const maxF = Math.max(...growth.map((g) => num(g.findings)), 1);
+      const x = (i) => P + (i * (W - 2 * P)) / Math.max(1, growth.length - 1);
+      const yF = (v) => H - P - ((v / maxF) * (H - 2 * P));
+      const line = (get) => growth.map((g, i) => `${x(i).toFixed(1)},${yF(get(g)).toFixed(1)}`).join(' ');
+      chart = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-height:130px" role="img"
+          aria-label="findings over time">
+        <polyline points="${line((g) => num(g.findings))}" fill="none"
+          stroke="var(--acc,#2f6fdd)" stroke-width="2"/>
+        <polyline points="${line((g) => num(g.hosts) * (maxF / Math.max(1, Math.max(...growth.map((h) => num(h.hosts))))))}"
+          fill="none" stroke="var(--muted,#9aa1ab)" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="${P}" y="12" fill="var(--muted,#9aa1ab)" font-size="10">findings (solid) · hosts (dashed, scaled) · ${growth.length} snapshots</text>
+      </svg>`;
+    } else if (growth.length === 1) {
+      chart = `<div class="footnote">First snapshot recorded (${esc(growth[0].ts || '')}) — the chart draws itself as the series grows.</div>`;
+    }
+    const last = growth[growth.length - 1] || {};
+    return `<div class="card"><h3>Sources & expansion</h3>
+      <p class="sub">Where the findings come from, and how the investigation is growing.
+        ${num(last.newFindings) ? `<span class="badge warm">+${num(last.newFindings)} findings last rollup</span>` : ''}
+        ${num(last.newHosts) ? `<span class="badge warm">+${num(last.newHosts)} hosts</span>` : ''}</p>
+      ${mix}
+      <div style="overflow-x:auto;margin-top:8px"><table>
+        <tr><th>source</th><th>type</th><th class="n">articles</th><th class="n">fresh</th><th class="n">cats</th><th>first seen</th></tr>
+        ${rows}
+      </table></div>
+      ${chart}</div>`;
   }
 
   _tasksCard(tasks) {

@@ -86,6 +86,55 @@ def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# --- source-type detection (deterministic; the provenance dimension of every finding) -------
+# Host rules catch the big platforms; HTML fingerprints catch self-hosted software. Closed set:
+# blog | forum | social | video | news | commercial | docs | other.
+SOURCE_HOSTS = [
+    (("reddit.com", "redd.it"), "forum"),
+    (("twitter.com", "x.com", "facebook.com", "instagram.com", "linkedin.com",
+      "tiktok.com", "pinterest.com", "mastodon.", "bsky.app", "threads.net"), "social"),
+    (("youtube.com", "youtu.be", "vimeo.com", "rumble.com"), "video"),
+    (("stackexchange.com", "stackoverflow.com", "quora.com"), "forum"),
+    (("amazon.", "ebay.", "walmart.", "homedepot.", "lowes.", "etsy.", "aliexpress."), "commercial"),
+    (("wikipedia.org", "wikihow.com"), "docs"),
+    (("medium.com", "substack.com", "blogspot.", "wordpress.com", "tumblr.com"), "blog"),
+]
+FORUM_MARKERS = ("discourse", "phpbb", "vbulletin", "xenforo", "flarum", "nodebb", "mybb",
+                 "vanilla forums", "/viewtopic.php", "showthread.php")
+SHOP_MARKERS = ("cdn.shopify", "woocommerce", "add-to-cart", "addtocart", "bigcommerce",
+                "magento", "cart-drawer")
+NEWS_LD = ("newsarticle", "reportagenewsarticle", "newsmediaorganization")
+
+
+def detect_source_type(url, meta, ld_types, html_low):
+    host = ""
+    try:
+        host = url.split("/")[2].lower().replace("www.", "")
+    except Exception:
+        pass
+    for hosts, kind in SOURCE_HOSTS:
+        if any(h in host for h in hosts):
+            return kind
+    path = url.split(host, 1)[-1].lower() if host else url.lower()
+    if any(seg in path for seg in ("/forum", "/forums", "/community/", "/thread", "/topic/", "/t/")):
+        return "forum"
+    gen = (meta.get("generator") or "").lower()
+    og = (meta.get("og:type") or "").lower()
+    if any(m in gen or m in html_low for m in FORUM_MARKERS):
+        return "forum"
+    if any(t in NEWS_LD for t in ld_types) or og == "article" and "news" in host:
+        return "news"
+    if any(t in ("product", "offer", "store", "onlinestore") for t in ld_types)             or any(m in html_low for m in SHOP_MARKERS):
+        return "commercial"
+    if og == "video.other" or any(t == "videoobject" for t in ld_types):
+        return "video"
+    if "wordpress" in gen or "ghost" in gen or "hugo" in gen or "jekyll" in gen             or og in ("article", "blog") or any(t in ("blogposting", "article") for t in ld_types):
+        return "blog"
+    if any(t == "faqpage" or t == "howto" for t in ld_types):
+        return "docs"
+    return "other"
+
+
 class Extract(HTMLParser):
     """Minimal stdlib extractor: title, visible text, links, date meta."""
     SKIP = {"script", "style", "noscript", "template", "svg"}
@@ -207,7 +256,7 @@ def spool_links(links, parent_url, parent_depth, brief):
     Returns counters that ride out on the result token and into telemetry."""
     c = {"spoolQueued": 0, "spoolKnown": 0, "spoolFiltered": 0,
          "spoolDepthStopped": 0, "spoolMalformed": 0, "frontierCandidates": [],
-           "pageType": "article", "gateVerdict": "low-score"}
+           "pageType": "article", "gateVerdict": "low-score", "sourceType": ""}
     child = parent_depth + 1
     # Depth capped with < (never !=): != also matches missing and overshoot.
     if child >= int(brief.get("maxDepth") or 3):
@@ -334,9 +383,17 @@ def load_brief():
 
 
 def main():
+    def env_int(key, default=0):
+        # Template interpolation renders a MISSING field as the string 'null' — a token queued
+        # without `attempt` must not crash the whole fetch.
+        try:
+            return int(os.environ.get(key) or default)
+        except (TypeError, ValueError):
+            return default
+
     url = (os.environ.get("URL") or "").strip()
-    depth = int(os.environ.get("DEPTH") or 0)
-    attempt = int(os.environ.get("ATTEMPT") or 0)
+    depth = env_int("DEPTH")
+    attempt = env_int("ATTEMPT")
     brief = load_brief()
 
     out = {"url": url, "host": urlparse(url).netloc, "depth": depth, "attempt": attempt,
@@ -350,7 +407,7 @@ def main():
            "discoveredJson": "[]", "retry": "no",
            "spoolQueued": 0, "spoolKnown": 0, "spoolFiltered": 0,
            "spoolDepthStopped": 0, "spoolMalformed": 0, "frontierCandidates": [],
-           "pageType": "article", "gateVerdict": "low-score"}
+           "pageType": "article", "gateVerdict": "low-score", "sourceType": ""}
 
     if not url:
         out["failureClass"] = "no-url"
@@ -409,7 +466,7 @@ def main():
         registry_upsert(url, etag, last_mod, fail, prev_id)
         emit(out); return
 
-    if headers.get("Content-Encoding", "").lower() == "gzip":
+    if headers.get("Content-Encoding", "").lower() == "gzip" or raw[:2] == b"\x1f\x8b":
         try:
             raw = gzip.decompress(raw)
         except Exception:
@@ -427,12 +484,27 @@ def main():
         emit(out); return
 
     ex = Extract()
+    html_text = raw.decode("utf-8", "replace")
     try:
-        ex.feed(raw.decode("utf-8", "replace"))
+        ex.feed(html_text)
     except Exception:
         pass
     text = " ".join(ex.text)
     title = " ".join(ex.title.split())[:300]
+
+    ld_types = []
+    for blob in ex.ld:
+        try:
+            obj = json.loads(blob)
+            for node in (obj if isinstance(obj, list) else [obj]):
+                t = node.get("@type") if isinstance(node, dict) else None
+                for x in (t if isinstance(t, list) else [t]):
+                    if x:
+                        ld_types.append(str(x).lower())
+        except Exception:
+            continue
+    # Provenance survives even failed extracts: a forum that resists parsing is still a forum.
+    out["sourceType"] = detect_source_type(url, ex.meta, ld_types, html_text[:60000].lower())
 
     if len(text) < 200:
         # Almost always a JS-rendered page. Recorded, not retried.

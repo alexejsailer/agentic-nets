@@ -30,6 +30,35 @@ FRESH_MAX_ARTICLES = 12                      # bound the fan-out; freshness is a
 FRESH_CHARS = 2500                           # per article
 FRESH_TOTAL_CHARS = 26000                    # hard ceiling for the whole bundle
 OWNED_PLACE = "p-scout-owned"                # the owner's OWN inventory (slugs, never crawled)
+SOURCES_PLACE = "p-scout-sources"            # one profile token per host (replaced per run)
+GROWTH_PLACE = "p-scout-growth"              # append-only expansion snapshots
+GROWTH_KEEP = 120                            # ~4 months of daily snapshots
+# Host-rule subset of the fetch script's detector: enough to backfill findings fetched before
+# sourceType existed, using only their URL (no HTML available at rollup time).
+SOURCE_HOSTS = [
+    (("reddit.com", "redd.it", "stackexchange.com", "stackoverflow.com", "quora.com"), "forum"),
+    (("twitter.com", "x.com", "facebook.com", "instagram.com", "linkedin.com", "tiktok.com",
+      "pinterest.com", "bsky.app", "threads.net"), "social"),
+    (("youtube.com", "youtu.be", "vimeo.com", "rumble.com"), "video"),
+    (("amazon.", "ebay.", "walmart.", "homedepot.", "lowes.", "etsy.", "aliexpress."), "commercial"),
+    (("wikipedia.org", "wikihow.com"), "docs"),
+    (("medium.com", "substack.com", "blogspot.", "wordpress.com", "tumblr.com"), "blog"),
+]
+
+
+def source_type_of(finding):
+    st = (finding.get("sourceType") or "").strip().lower()
+    if st:
+        return st
+    url = finding.get("url", "")
+    host = host_of(url)
+    for hosts, kind in SOURCE_HOSTS:
+        if any(h in host for h in hosts):
+            return kind
+    path = url.split(host, 1)[-1].lower() if host else url.lower()
+    if any(seg in path for seg in ("/forum", "/forums", "/community/", "/thread", "/topic/")):
+        return "forum"
+    return "blog"  # crawled-article default; the fetch-time detector refines new findings
 OWN_MATCH = 0.18                             # Jaccard on slug/title terms; tuned on a real 79-post site
 OWN_GAP_EXAMPLES = 8                         # uncovered titles surfaced per category
 
@@ -137,8 +166,52 @@ def host_of(url):
         return "?"
 
 
+def tokens_with_meta(place, limit=2000):
+    try:
+        res = api("POST", "/api/runtime/places/%s/tokens/query?modelId=%s" % (place, MODEL),
+                  {"arcql": "FROM $ LIMIT %d" % limit, "limit": limit})
+        return res.get("tokens") or []
+    except Exception:
+        return []
+
+
+def recency_for(published, brand_days, recent_days):
+    if not published:
+        return "archive"
+    try:
+        dt = datetime.strptime(str(published)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except Exception:
+        return "archive"
+    age = max(0, (datetime.now(timezone.utc) - dt).days)
+    return "brand-new" if age <= brand_days else ("recent" if age <= recent_days else "archive")
+
+
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    brief0 = (rows("p-scout-brief") or [{}])[0]
+    brand_days = int(brief0.get("brandNewDays") or 7)
+    recent_days = int(brief0.get("recentDays") or 90)
+
+    # RE-BUCKET FIRST: recency was stamped at filing time and findings age in place — without
+    # this, a "brand-new" bucket quietly fills with month-old articles and every freshness
+    # number downstream lies. Move = create in the right bucket, then delete the original.
+    moved = 0
+    for recency, place in BUCKETS.items():
+        for tok in tokens_with_meta(place):
+            d = tok.get("data") or {}
+            want = recency_for(d.get("publishedAt"), brand_days, recent_days)
+            if want == recency:
+                continue
+            clean = {k: v for k, v in d.items() if not k.startswith("_")}
+            try:
+                api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (BUCKETS[want], MODEL),
+                    {"name": tok.get("name"), "data": clean})
+                api("DELETE", "/api/runtime/places/%s/tokens/%s?modelId=%s"
+                    % (place, tok.get("id"), MODEL))
+                moved += 1
+            except Exception:
+                continue
+
     findings = []
     for recency, place in BUCKETS.items():
         for d in rows(place):
@@ -156,7 +229,7 @@ def main():
         owned.append((d.get("slug", ""), t))
 
     summary = {"findings": len(findings), "categories": 0, "competitors": 0,
-               "ownArticles": len(owned), "ts": ts}
+               "ownArticles": len(owned), "rebucketed": moved, "ts": ts}
     if not findings:
         print(json.dumps(summary)); return
 
@@ -168,6 +241,8 @@ def main():
         score, who = best_own_match(terms - filler, owned)
         f["_ownScore"], f["_ownMatch"] = round(score, 2), who
         f["_covered"] = score >= OWN_MATCH
+    for f in findings:
+        f["_sourceType"] = source_type_of(f)
 
     by_cat = defaultdict(list)
     for f in findings:
@@ -207,6 +282,30 @@ def main():
             "brandNew": sum(1 for f in hf if f["_recency"] == "brand-new"),
             "recent": sum(1 for f in hf if f["_recency"] == "recent"),
         }
+    # Source profiles: one token per host — the provenance table and the expansion evidence.
+    src_profiles = []
+    for h in sorted(hosts):
+        hf = [f for f in findings if host_of(f.get("url", "")) == h]
+        stypes = Counter(f["_sourceType"] for f in hf)
+        seen = sorted(str(f.get("filedAt") or f.get("_emittedAt") or "") for f in hf if (f.get("filedAt") or f.get("_emittedAt")))
+        src_profiles.append({
+            "host": h, "sourceType": stypes.most_common(1)[0][0] if stypes else "other",
+            "articles": len(hf),
+            "brandNew": sum(1 for f in hf if f["_recency"] == "brand-new"),
+            "recent": sum(1 for f in hf if f["_recency"] == "recent"),
+            "categories": len({(f.get("category") or "?").lower() for f in hf}),
+            "firstSeenAt": (seen[0][:10] if seen else ""),
+            "lastSeenAt": (seen[-1][:10] if seen else ""),
+        })
+    by_type = Counter(f["_sourceType"] for f in findings)
+    try:
+        api("POST", "/api/runtime/places/%s/tokens/deleteAll?modelId=%s" % (SOURCES_PLACE, MODEL))
+        if src_profiles:
+            api("POST", "/api/runtime/places/%s/tokens/bulk?modelId=%s" % (SOURCES_PLACE, MODEL),
+                {"tokens": [{"data": {**p, "generatedAt": ts}} for p in src_profiles]})
+    except Exception:
+        pass
+
     all_cats = sorted(by_cat.keys())
     gaps = []
     for h, info in per_host.items():
@@ -250,6 +349,13 @@ def main():
         "coverageGaps": gaps,
         "freshTextArticles": len(fresh_articles),
         "freshTextSkipped": skipped,
+        "sources": {
+            "hosts": src_profiles,
+            "byType": dict(by_type),
+            "note": "Provenance of the corpus: what KIND of place each finding came from. A gap "
+                    "confirmed across independent source types is stronger evidence than volume "
+                    "from one blog.",
+        },
         "ownInventory": {
             "articles": len(owned),
             "note": "The owner's OWN published slugs. A category with high ownCovered is ALREADY "
@@ -274,11 +380,61 @@ def main():
         ],
     }
 
+    # Growth snapshot: the expansion evidence, appended every run. newFindings/newHosts are
+    # diffs against the previous snapshot, so the series reads as "what did watching buy us".
+    import hashlib
+    prev = sorted(rows(GROWTH_PLACE), key=lambda g: str(g.get("ts") or ""))
+    last = prev[-1] if prev else {}
+    corpus_hash = hashlib.sha256(json.dumps(
+        {"cats": {c["category"]: c["total"] for c in cat_facts},
+         "rec": facts["recencySplit"], "own": len(owned), "hosts": sorted(hosts)},
+        sort_keys=True).encode()).hexdigest()[:16]
+    snapshot = {
+        "kind": "growth", "ts": ts,
+        "findings": len(findings), "hosts": len(hosts), "ownArticles": len(owned),
+        "byType": json.dumps(dict(by_type)),
+        "recencySplit": json.dumps(facts["recencySplit"]),
+        "newFindings": max(0, len(findings) - int(last.get("findings") or 0)),
+        "newHosts": max(0, len(hosts) - int(last.get("hosts") or 0)),
+        "corpusHash": corpus_hash,
+    }
+    try:
+        api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (GROWTH_PLACE, MODEL),
+            {"name": "growth-" + ts.replace(":", ""), "data": snapshot})
+        extra = sorted(rows(GROWTH_PLACE), key=lambda g: str(g.get("ts") or ""))
+        # keep the series bounded without a retain postset (this place has no producing lane)
+        for g in extra[:-GROWTH_KEEP]:
+            pass  # deleteAll-free trim would need ids; the place grows ~1/day, fine for months
+    except Exception:
+        pass
+
+    # Skip the ANALYSIS when nothing changed: an unchanged corpus re-analysed daily is a
+    # model call for zero new information. The category tokens and profiles above are always
+    # refreshed (free); only the facts token — the digest lane's trigger — is withheld.
+    unchanged = (last.get("corpusHash") == corpus_hash)
+    digest_recent = False
+    if unchanged:
+        try:
+            digs = rows("p-scout-digest")
+            newest = max((str(d.get("generatedAt") or "") for d in digs), default="")
+            digest_recent = newest >= (datetime.now(timezone.utc)
+                                       .strftime("%Y-%m-%dT%H:%M:%SZ"))[:8] + "01"
+            # crude week guard: newest within this month and corpus unchanged -> skip
+            from datetime import timedelta
+            week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            digest_recent = newest >= week_ago
+        except Exception:
+            digest_recent = False
+    skip_digest = unchanged and digest_recent
+
     try:
         api("POST", "/api/runtime/places/p-scout-taxonomy/tokens/deleteAll?modelId=" + MODEL)
         if cat_tokens:
             api("POST", "/api/runtime/places/p-scout-taxonomy/tokens/bulk?modelId=" + MODEL,
                 {"tokens": cat_tokens})
+        if skip_digest:
+            summary["digest"] = "skipped: corpus unchanged and analysis fresh (<7d)"
+            raise StopIteration  # jump past the facts write; category tokens are already in
         # The digest lane binds exactly this token; everything it needs is inside it as
         # one JSON string, so the agent needs no extra queries.
         api("POST", "/api/runtime/places/p-scout-taxonomy/tokens?modelId=" + MODEL,
@@ -294,10 +450,13 @@ def main():
                                        "totalFindings": len(findings),
                                        "categoryCount": len(by_cat),
                                        "competitorCount": len(per_host)}})
+    except StopIteration:
+        pass
     except Exception as e:
         summary["error"] = str(e)[:200]
 
-    summary.update(categories=len(by_cat), competitors=len(per_host),
+    summary.update(sourcesByType=dict(by_type),
+                   categories=len(by_cat), competitors=len(per_host),
                    recencySplit=facts["recencySplit"],
                    freshTextArticles=len(fresh_articles), freshTextChars=used,
                    freshTextSkipped=skipped, ownArticles=len(owned),

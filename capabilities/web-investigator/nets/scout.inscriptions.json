@@ -78,6 +78,32 @@
     }
   },
   {
+    "id": "t-link-sources-growth",
+    "kind": "link",
+    "label": "aggregated-into",
+    "relation": "aggregated-into",
+    "presets": {
+      "from": {
+        "placeId": "p-scout-sources",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": false,
+        "optional": true
+      }
+    },
+    "postsets": {
+      "to": {
+        "placeId": "p-scout-growth",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
     "id": "t-link-tasks-decisions",
     "kind": "link",
     "label": "produces",
@@ -185,6 +211,10 @@
       "scout_write_cmd": {
         "placeId": "p-scout-write-cmd",
         "host": "research-scout@agentic-net-node:8080"
+      },
+      "scout_recrawl_cmd": {
+        "placeId": "p-scout-recrawl-cmd",
+        "host": "research-scout@agentic-net-node:8080"
       }
     },
     "action": {
@@ -226,6 +256,11 @@
         "to": "scout_write_cmd",
         "from": "@response",
         "when": "run == 'write'"
+      },
+      {
+        "to": "scout_recrawl_cmd",
+        "from": "@response",
+        "when": "run == 'recrawl'"
       }
     ],
     "metadata": {
@@ -271,7 +306,7 @@
       "maxIterations": 4,
       "autoEmit": true,
       "timeoutMs": 240000,
-      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn and briefId EXACTLY as given. Do not recompute\nor omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object\nREPLACES the token, so a field you leave out is lost for good."
+      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. Do not recompute\nor omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object\nREPLACES the token, so a field you leave out is lost for good."
     },
     "metadata": {
       "sessionId": "dev-support-council",
@@ -472,7 +507,8 @@
         "extractChars": "${input.data.extractChars}",
         "briefId": "${input.data.briefId}",
         "depth": "${input.data.depth}",
-        "gatedAt": "${now()}"
+        "gatedAt": "${now()}",
+        "sourceType": "${input.data.sourceType}"
       }
     },
     "emit": [
@@ -655,7 +691,8 @@
         "retry": "${input.data.parsedStdout.retry}",
         "briefId": "${input.data.parsedStdout.briefId}",
         "ts": "${input.data.parsedStdout.ts}",
-        "queuedAt": "${now()}"
+        "queuedAt": "${now()}",
+        "sourceType": "${input.data.parsedStdout.sourceType}"
       }
     },
     "emit": [
@@ -785,6 +822,106 @@
     }
   },
   {
+    "id": "t-scout-recrawl",
+    "kind": "command",
+    "label": "Re-queue source entry pages on executor",
+    "presets": {
+      "input": {
+        "placeId": "p-scout-recrawl-cmd",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": true
+      }
+    },
+    "postsets": {
+      "log": {
+        "placeId": "p-scout-health-log",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "action": {
+      "type": "command",
+      "inputPlace": "input",
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "dispatch": [
+        {
+          "executor": "bash",
+          "channel": "default"
+        }
+      ],
+      "await": "ALL",
+      "timeoutMs": 150000
+    },
+    "emit": [
+      {
+        "to": "log",
+        "from": "@result"
+      }
+    ],
+    "mode": "SINGLE",
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
+    "id": "t-scout-recrawl-cron",
+    "kind": "map",
+    "label": "Build re-crawl command (weekly)",
+    "schedule": {
+      "type": "cron",
+      "cron": "0 45 5 * * MON",
+      "timezone": "Europe/Berlin"
+    },
+    "presets": {
+      "input": {
+        "placeId": "p-scout-brief",
+        "host": "research-scout@agentic-net-node:8080",
+        "arcql": "FROM $ LIMIT 1",
+        "take": "FIRST",
+        "consume": false,
+        "optional": true
+      }
+    },
+    "postsets": {
+      "out": {
+        "placeId": "p-scout-recrawl-cmd",
+        "host": "research-scout@agentic-net-node:8080"
+      }
+    },
+    "action": {
+      "type": "map",
+      "template": {
+        "kind": "command",
+        "id": "recrawl-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "args": {
+          "toolId": "scout-recrawl",
+          "argv": [],
+          "timeoutMs": 120000,
+          "env": {
+            "MODEL_ID": "research-scout"
+          }
+        }
+      }
+    },
+    "emit": [
+      {
+        "to": "out",
+        "from": "@response"
+      }
+    ],
+    "mode": "SINGLE",
+    "metadata": {
+      "sessionId": "dev-support-council",
+      "netId": "scout"
+    }
+  },
+  {
     "id": "t-scout-route",
     "kind": "map",
     "label": "Route by publication recency",
@@ -829,7 +966,8 @@
         "confidence": "${input.data.confidence}",
         "blobUrn": "${input.data.blobUrn}",
         "briefId": "${input.data.briefId}",
-        "filedAt": "${now()}"
+        "filedAt": "${now()}",
+        "sourceType": "${input.data.sourceType}"
       }
     },
     "emit": [
