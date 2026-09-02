@@ -99,6 +99,16 @@ set_transition_credentials {transitionId: "t-scout-search",
                             credentials: {SEARCH_API_KEY: "..."}}
 ```
 
+To onboard a **whole website** rather than one page, use **Add source** (or drop a
+`{url: "https://the-site.example/"}` token into `p-scout-source-requests`), then press
+**Harvest sitemaps**. The harvester reads the site's own sitemap — robots.txt first, then the
+conventional locations — walks index files down to the article lists, and queues everything the
+net doesn't already know. No API key needed; a site's sitemap lists *everything* it published,
+which link-following alone never reaches. Runs are bounded (150 URLs per host, 300 per run by
+default), and repeat runs continue where the last one stopped, so a large site drains over a few
+runs (or the monthly schedule) instead of one expensive burst. Remember each harvested article
+that passes the relevance gate costs one classification call — that bound is your cost lever.
+
 ## Using the dashboard, day to day
 
 Open the app and read top-left to bottom-right — the **❓ How this works** card on the page
@@ -114,9 +124,11 @@ repeats all of this:
 - **Article tasks** — everything you accepted. `draft ✓` means the writer has drafted it.
 - **Drafts** — the written articles. Expand, **Copy markdown**, publish on your site, then click
   **Done** on the task.
-- **Steer the crawl / Run buttons** — queue URLs and queries; *Run rollup* recomputes the
-  analysis now; *Re-index own site* refreshes your inventory; *Crawl health* writes fetch
-  diagnostics; *Draft article* writes the next accepted task immediately.
+- **Steer the crawl / Run buttons** — queue URLs and queries; **Add source** onboards a whole
+  website (see below); *Run rollup* recomputes the analysis now; *Re-index own site* refreshes
+  your inventory; *Crawl health* writes fetch diagnostics; *Re-crawl sources* re-visits known
+  hosts' entry pages; *Harvest sitemaps* pulls sources' full article lists; *Draft article*
+  writes the next accepted task immediately.
 
 Buttons never execute anything themselves — they record a request token, and the net's own
 lanes do the work. That's also why every click is auditable in the Decision log.
@@ -125,10 +137,12 @@ lanes do the work. That's also why every click is auditable in the Decision log.
 
 | When (Berlin) | What | Cost |
 |---|---|---|
+| Mon 05:45 | re-crawl known sources' entry pages | free (304s for unchanged pages) |
 | Mon 06:15 | re-index your sitemap | free |
 | daily 06:30 | rollup + fresh analysis | one model call |
 | Mon 06:45 | crawl diagnostics | free |
 | daily 07:00 | draft the oldest accepted task | one Claude Code run — only if something is accepted and undrafted |
+| 1st of month 05:30 | sitemap harvest of all sources | free itself; each new article that passes the gate costs one classification call (capped at 300 URLs/run) |
 
 The crawl itself is *not* scheduled — it runs when you feed it. The writer requires the
 `claude` binary (Claude Code) on the executor host; a stopped API-model lane

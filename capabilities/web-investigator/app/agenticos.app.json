@@ -1,7 +1,7 @@
 {
   "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
   "name": "web-investigator",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "displayName": "Web Investigator",
   "description": "Browse what the investigation crawled — findings by recency, analyses, gaps, crawl health — and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
   "author": "AgenticNetOS",
@@ -12,7 +12,7 @@
     "web-investigator"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "web-investigator-1.2.0.application.json",
+  "output": "web-investigator-1.2.1.application.json",
   "ui": {
     "element": "agenticos-web-investigator-v1",
     "entryFile": "ui/main.mjs",
@@ -178,6 +178,12 @@
         "placeId": "p-scout-growth",
         "required": false,
         "description": "Append-only expansion snapshots: findings, hosts, by-type and recency splits, and what is NEW since the previous snapshot. The series behind the growth chart."
+      },
+      {
+        "role": "source-requests",
+        "placeId": "p-scout-source-requests",
+        "required": false,
+        "description": "Onboarding asks: a website whose sitemap should be discovered and harvested. Consumed by the harvest run."
       }
     ],
     "actions": [
@@ -413,9 +419,38 @@
                 "owned",
                 "health",
                 "write",
-                "recrawl"
+                "recrawl",
+                "sitemap"
               ],
-              "description": "taxonomy = rollup + analysis; owned = re-index own sitemap; health = crawl diagnostics; write = draft the next accepted task; recrawl = re-queue every known source's entry pages so new articles get discovered"
+              "description": "taxonomy = rollup + analysis; owned = re-index own sitemap; health = crawl diagnostics; write = draft next accepted task; recrawl = re-queue known sources' entry pages; sitemap = discover + harvest source sitemaps (incl. pending add-source requests)"
+            }
+          }
+        }
+      },
+      {
+        "name": "add-source",
+        "targetRole": "source-requests",
+        "description": "Onboard a website: the next sitemap harvest discovers its sitemap and queues its articles into the crawl.",
+        "defaults": {
+          "kind": "source-request"
+        },
+        "guard": {
+          "role": "source-requests",
+          "matchKey": "url",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The site, e.g. https://example.com/"
+            },
+            "note": {
+              "type": "string"
             }
           }
         }
@@ -438,7 +473,8 @@
         "requests",
         "drafts",
         "sources",
-        "growth"
+        "growth",
+        "source-requests"
       ],
       "watchStores": [
         "brand-new",
@@ -457,7 +493,8 @@
         "complete-task",
         "queue-url",
         "queue-query",
-        "request-run"
+        "request-run",
+        "add-source"
       ]
     },
     "agentProtocol": {

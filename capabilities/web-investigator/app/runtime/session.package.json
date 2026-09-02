@@ -7,7 +7,7 @@
   "tokenPolicy": "none",
   "manifest": {
     "name": "web-investigator-runtime",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Runtime net for the Web Investigator application (places only; store ids bind model-global runtime places).",
     "author": "AgenticNetOS",
     "tags": [
@@ -116,6 +116,16 @@
               "label": "Re-crawl CommandTokens",
               "x": 560,
               "y": 700
+            },
+            "p-scout-source-requests": {
+              "label": "Source onboarding requests",
+              "x": 780,
+              "y": 700
+            },
+            "p-scout-sitemap-cmd": {
+              "label": "Sitemap-harvest CommandTokens",
+              "x": 890,
+              "y": 760
             }
           },
           "transitions": {},

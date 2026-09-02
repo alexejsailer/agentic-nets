@@ -1,512 +1,10 @@
 {
   "net": {
-    "id": "scout",
-    "description": "",
-    "places": {
-      "p-find-archive": {
-        "id": "p-find-archive",
-        "label": "Archive (older than 90 days)",
-        "x": 1900.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-candidates": {
-        "id": "p-scout-candidates",
-        "label": "Candidates (passed the gate)",
-        "x": 100.0,
-        "y": 660.0,
-        "tokens": 0
-      },
-      "p-scout-rejected": {
-        "id": "p-scout-rejected",
-        "label": "Rejected (below minScore, kept for tuning)",
-        "x": 100.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-frontier": {
-        "id": "p-scout-frontier",
-        "label": "Frontier (URLs to visit)",
-        "x": 1300.0,
-        "y": 520.0,
-        "tokens": 0
-      },
-      "p-find-brand-new": {
-        "id": "p-find-brand-new",
-        "label": "Brand new (published within 7 days)",
-        "x": 2500.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-errors": {
-        "id": "p-scout-errors",
-        "label": "Errors (lane failures only)",
-        "x": 2100.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-brief": {
-        "id": "p-scout-brief",
-        "label": "Research Brief (what we seek)",
-        "x": 1300.0,
-        "y": 1080.0,
-        "tokens": 0
-      },
-      "p-scout-search-raw": {
-        "id": "p-scout-search-raw",
-        "label": "Raw search results (pre-lift)",
-        "x": 1900.0,
-        "y": 100.0,
-        "tokens": 0
-      },
-      "p-scout-raw": {
-        "id": "p-scout-raw",
-        "label": "Raw command results (pre-lift)",
-        "x": 1100.0,
-        "y": 380.0,
-        "tokens": 0
-      },
-      "p-scout-taxonomy": {
-        "id": "p-scout-taxonomy",
-        "label": "Taxonomy (discovered categories)",
-        "x": 900.0,
-        "y": 940.0,
-        "tokens": 0
-      },
-      "p-find-recent": {
-        "id": "p-find-recent",
-        "label": "Recent (8 to 90 days)",
-        "x": 2300.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-fetched": {
-        "id": "p-scout-fetched",
-        "label": "Fetched (dated, scored, blobbed)",
-        "x": 700.0,
-        "y": 380.0,
-        "tokens": 0
-      },
-      "p-scout-health-log": {
-        "id": "p-scout-health-log",
-        "label": "Health run summaries",
-        "x": 500.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-insights": {
-        "id": "p-scout-insights",
-        "label": "Insights (rollups + tuning proposals)",
-        "x": 300.0,
-        "y": 660.0,
-        "tokens": 0
-      },
-      "p-scout-write-cmd": {
-        "id": "p-scout-write-cmd",
-        "label": "Write-prep CommandTokens",
-        "x": 500.0,
-        "y": 940.0,
-        "tokens": 0
-      },
-      "p-scout-recrawl-cmd": {
-        "id": "p-scout-recrawl-cmd",
-        "label": "Re-crawl CommandTokens",
-        "x": 1100.0,
-        "y": 940.0,
-        "tokens": 0
-      },
-      "p-scout-taxonomy-cmd": {
-        "id": "p-scout-taxonomy-cmd",
-        "label": "Taxonomy CommandTokens",
-        "x": 700.0,
-        "y": 940.0,
-        "tokens": 0
-      },
-      "p-scout-fetch-cmd": {
-        "id": "p-scout-fetch-cmd",
-        "label": "Fetch CommandTokens",
-        "x": 1500.0,
-        "y": 380.0,
-        "tokens": 0
-      },
-      "p-scout-health-cmd": {
-        "id": "p-scout-health-cmd",
-        "label": "Health CommandTokens",
-        "x": 1500.0,
-        "y": 940.0,
-        "tokens": 0
-      },
-      "p-scout-owned-cmd": {
-        "id": "p-scout-owned-cmd",
-        "label": "Owned-inventory CommandTokens",
-        "x": 1300.0,
-        "y": 940.0,
-        "tokens": 0
-      },
-      "p-scout-search-cmd": {
-        "id": "p-scout-search-cmd",
-        "label": "Search CommandTokens",
-        "x": 1500.0,
-        "y": 100.0,
-        "tokens": 0
-      },
-      "p-scout-registry": {
-        "id": "p-scout-registry",
-        "label": "URL Registry (dedupe + HTTP cache)",
-        "x": 900.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-telemetry": {
-        "id": "p-scout-telemetry",
-        "label": "Telemetry (one token per fetch attempt)",
-        "x": 500.0,
-        "y": 380.0,
-        "tokens": 0
-      },
-      "p-scout-digest": {
-        "id": "p-scout-digest",
-        "label": "Digest (structured synthesis)",
-        "x": 300.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-analysis": {
-        "id": "p-scout-analysis",
-        "label": "Analysis (categorised)",
-        "x": 900.0,
-        "y": 660.0,
-        "tokens": 0
-      },
-      "p-scout-queries": {
-        "id": "p-scout-queries",
-        "label": "Search queries (widen the crawl)",
-        "x": 1100.0,
-        "y": 240.0,
-        "tokens": 0
-      },
-      "p-scout-owned": {
-        "id": "p-scout-owned",
-        "label": "Own article inventory (slugs only, never crawled)",
-        "x": 100.0,
-        "y": 240.0,
-        "tokens": 0
-      },
-      "p-scout-article-tasks": {
-        "id": "p-scout-article-tasks",
-        "label": "Article tasks (accepted recommendations)",
-        "x": 700.0,
-        "y": 240.0,
-        "tokens": 0
-      },
-      "p-scout-decisions": {
-        "id": "p-scout-decisions",
-        "label": "Operator decisions (audit)",
-        "x": 700.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-drafts": {
-        "id": "p-scout-drafts",
-        "label": "Article drafts",
-        "x": 1100.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-sources": {
-        "id": "p-scout-sources",
-        "label": "Source profiles (host, type, volume)",
-        "x": 300.0,
-        "y": 240.0,
-        "tokens": 0
-      },
-      "p-scout-app-requests": {
-        "id": "p-scout-app-requests",
-        "label": "Run-now requests from the app",
-        "x": 900.0,
-        "y": 240.0,
-        "tokens": 0
-      },
-      "p-scout-growth": {
-        "id": "p-scout-growth",
-        "label": "Growth snapshots (expansion over time)",
-        "x": 1300.0,
-        "y": 1430.0,
-        "tokens": 0
-      },
-      "p-scout-write-queue": {
-        "id": "p-scout-write-queue",
-        "label": "Writing packets (evidence assembled)",
-        "x": 1300.0,
-        "y": 240.0,
-        "tokens": 0
-      }
-    },
-    "transitions": {
-      "t-scout-fetch": {
-        "id": "t-scout-fetch",
-        "label": "Fetch page on executor",
-        "x": 1300.0,
-        "y": 380.0
-      },
-      "t-scout-categorize": {
-        "id": "t-scout-categorize",
-        "label": "Categorise candidate (profiled, low tier)",
-        "x": 700.0,
-        "y": 660.0
-      },
-      "t-scout-health": {
-        "id": "t-scout-health",
-        "label": "Roll telemetry into insights",
-        "x": 100.0,
-        "y": 940.0
-      },
-      "t-scout-route": {
-        "id": "t-scout-route",
-        "label": "Route by publication recency",
-        "x": 1900.0,
-        "y": 660.0
-      },
-      "t-scout-search-lift": {
-        "id": "t-scout-search-lift",
-        "label": "Lift search result, fan hits into frontier",
-        "x": 1900.0,
-        "y": 380.0
-      },
-      "t-scout-lift": {
-        "id": "t-scout-lift",
-        "label": "Lift result, telemeter, route, retry",
-        "x": 900.0,
-        "y": 380.0
-      },
-      "t-scout-gate": {
-        "id": "t-scout-gate",
-        "label": "Relevance gate (free filter)",
-        "x": 100.0,
-        "y": 380.0
-      },
-      "t-scout-digest": {
-        "id": "t-scout-digest",
-        "label": "Competitor analysis (interprets facts only)",
-        "x": 300.0,
-        "y": 940.0
-      },
-      "t-scout-owned-cmd": {
-        "id": "t-scout-owned-cmd",
-        "label": "Build owned-inventory command",
-        "x": 1500.0,
-        "y": 660.0
-      },
-      "t-scout-fetch-cmd": {
-        "id": "t-scout-fetch-cmd",
-        "label": "Build fetch CommandToken",
-        "x": 1700.0,
-        "y": 380.0
-      },
-      "t-scout-search-cmd": {
-        "id": "t-scout-search-cmd",
-        "label": "Build search CommandToken",
-        "x": 1100.0,
-        "y": 100.0
-      },
-      "t-scout-taxonomy-cmd": {
-        "id": "t-scout-taxonomy-cmd",
-        "label": "Build taxonomy CommandToken",
-        "x": 1900.0,
-        "y": 940.0
-      },
-      "t-scout-health-cmd": {
-        "id": "t-scout-health-cmd",
-        "label": "Build health CommandToken",
-        "x": 1300.0,
-        "y": 660.0
-      },
-      "t-link-telemetry-insights": {
-        "id": "t-link-telemetry-insights",
-        "label": "t-link-telemetry-insights",
-        "x": 300.0,
-        "y": 380.0
-      },
-      "t-scout-taxonomy": {
-        "id": "t-scout-taxonomy",
-        "label": "Roll findings into taxonomy + facts",
-        "x": 500.0,
-        "y": 1220.0
-      },
-      "t-link-owned-taxonomy": {
-        "id": "t-link-owned-taxonomy",
-        "label": "scopes",
-        "x": 100.0,
-        "y": 100.0
-      },
-      "t-link-brief-taxonomy": {
-        "id": "t-link-brief-taxonomy",
-        "label": "t-link-brief-taxonomy",
-        "x": 1100.0,
-        "y": 660.0
-      },
-      "t-link-insights-brief": {
-        "id": "t-link-insights-brief",
-        "label": "t-link-insights-brief",
-        "x": 500.0,
-        "y": 660.0
-      },
-      "t-scout-search": {
-        "id": "t-scout-search",
-        "label": "Run search on executor",
-        "x": 1700.0,
-        "y": 100.0
-      },
-      "t-scout-owned": {
-        "id": "t-scout-owned",
-        "label": "Index own articles from sitemap",
-        "x": 100.0,
-        "y": 1220.0
-      },
-      "t-scout-app-run": {
-        "id": "t-scout-app-run",
-        "label": "Execute run-now requests from the app",
-        "x": 900.0,
-        "y": 100.0
-      },
-      "t-link-tasks-decisions": {
-        "id": "t-link-tasks-decisions",
-        "label": "produces",
-        "x": 500.0,
-        "y": 100.0
-      },
-      "t-scout-recrawl-cron": {
-        "id": "t-scout-recrawl-cron",
-        "label": "Build re-crawl command (weekly)",
-        "x": 1700.0,
-        "y": 660.0
-      },
-      "t-scout-write-cron": {
-        "id": "t-scout-write-cron",
-        "label": "Build write-prep command (daily)",
-        "x": 1700.0,
-        "y": 940.0
-      },
-      "t-scout-write-prep": {
-        "id": "t-scout-write-prep",
-        "label": "Assemble writing packet on executor",
-        "x": 700.0,
-        "y": 1220.0
-      },
-      "t-scout-write": {
-        "id": "t-scout-write",
-        "label": "Staff writer: draft the accepted article",
-        "x": 1300.0,
-        "y": 100.0
-      },
-      "t-link-tasks-drafts": {
-        "id": "t-link-tasks-drafts",
-        "label": "drafted-as",
-        "x": 700.0,
-        "y": 100.0
-      },
-      "t-scout-recrawl": {
-        "id": "t-scout-recrawl",
-        "label": "Re-queue source entry pages on executor",
-        "x": 300.0,
-        "y": 1220.0
-      },
-      "t-link-sources-growth": {
-        "id": "t-link-sources-growth",
-        "label": "aggregated-into",
-        "x": 300.0,
-        "y": 100.0
-      }
-    },
     "arcs": {
-      "a-t-link-owned-taxonomy-out": {
-        "id": "a-t-link-owned-taxonomy-out",
-        "source": "t-link-owned-taxonomy",
-        "target": "p-scout-taxonomy",
-        "weight": 1
-      },
-      "a-t-scout-search-lift-out": {
-        "id": "a-t-scout-search-lift-out",
-        "source": "t-scout-search-lift",
-        "target": "p-scout-frontier",
-        "weight": 1
-      },
-      "a-t-scout-search-cmd-out": {
-        "id": "a-t-scout-search-cmd-out",
-        "source": "t-scout-search-cmd",
-        "target": "p-scout-search-cmd",
-        "weight": 1
-      },
-      "a-t-link-tasks-drafts-out": {
-        "id": "a-t-link-tasks-drafts-out",
-        "source": "t-link-tasks-drafts",
-        "target": "p-scout-drafts",
-        "weight": 1
-      },
-      "a-t-link-sources-growth-out": {
-        "id": "a-t-link-sources-growth-out",
-        "source": "t-link-sources-growth",
-        "target": "p-scout-growth",
-        "weight": 1
-      },
-      "a-t-scout-search-out": {
-        "id": "a-t-scout-search-out",
-        "source": "t-scout-search",
-        "target": "p-scout-search-raw",
-        "weight": 1
-      },
-      "a-t-scout-write-out": {
-        "id": "a-t-scout-write-out",
-        "source": "t-scout-write",
-        "target": "p-scout-drafts",
-        "weight": 1
-      },
-      "a-t-scout-recrawl-out": {
-        "id": "a-t-scout-recrawl-out",
-        "source": "t-scout-recrawl",
-        "target": "p-scout-health-log",
-        "weight": 1
-      },
-      "a-t-scout-write-prep-out": {
-        "id": "a-t-scout-write-prep-out",
-        "source": "t-scout-write-prep",
-        "target": "p-scout-health-log",
-        "weight": 1
-      },
-      "a-t-scout-fetch-cmd-out": {
-        "id": "a-t-scout-fetch-cmd-out",
-        "source": "t-scout-fetch-cmd",
-        "target": "p-scout-fetch-cmd",
-        "weight": 1
-      },
-      "a-t-scout-categorize-out": {
-        "id": "a-t-scout-categorize-out",
-        "source": "t-scout-categorize",
-        "target": "p-scout-analysis",
-        "weight": 1
-      },
-      "a-t-scout-recrawl-cron-out": {
-        "id": "a-t-scout-recrawl-cron-out",
-        "source": "t-scout-recrawl-cron",
-        "target": "p-scout-recrawl-cmd",
-        "weight": 1
-      },
-      "a-t-link-tasks-decisions-out": {
-        "id": "a-t-link-tasks-decisions-out",
-        "source": "t-link-tasks-decisions",
-        "target": "p-scout-decisions",
-        "weight": 1
-      },
-      "a-t-link-insights-brief-out": {
-        "id": "a-t-link-insights-brief-out",
-        "source": "t-link-insights-brief",
-        "target": "p-scout-brief",
-        "weight": 1
-      },
-      "a-t-scout-digest-out": {
-        "id": "a-t-scout-digest-out",
-        "source": "t-scout-digest",
-        "target": "p-scout-digest",
+      "a-t-link-brief-taxonomy-in": {
+        "id": "a-t-link-brief-taxonomy-in",
+        "source": "p-scout-brief",
+        "target": "t-link-brief-taxonomy",
         "weight": 1
       },
       "a-t-link-brief-taxonomy-out": {
@@ -515,124 +13,16 @@
         "target": "p-scout-taxonomy",
         "weight": 1
       },
-      "a-t-scout-health-cmd-out": {
-        "id": "a-t-scout-health-cmd-out",
-        "source": "t-scout-health-cmd",
-        "target": "p-scout-health-cmd",
-        "weight": 1
-      },
-      "a-t-scout-write-cron-out": {
-        "id": "a-t-scout-write-cron-out",
-        "source": "t-scout-write-cron",
-        "target": "p-scout-write-cmd",
-        "weight": 1
-      },
-      "a-t-link-telemetry-insights-out": {
-        "id": "a-t-link-telemetry-insights-out",
-        "source": "t-link-telemetry-insights",
-        "target": "p-scout-insights",
-        "weight": 1
-      },
-      "a-t-scout-lift-out": {
-        "id": "a-t-scout-lift-out",
-        "source": "t-scout-lift",
-        "target": "p-scout-telemetry",
-        "weight": 1
-      },
-      "a-t-scout-owned-cmd-out": {
-        "id": "a-t-scout-owned-cmd-out",
-        "source": "t-scout-owned-cmd",
-        "target": "p-scout-owned-cmd",
-        "weight": 1
-      },
-      "a-t-scout-route-b0": {
-        "id": "a-t-scout-route-b0",
-        "source": "t-scout-route",
-        "target": "p-find-brand-new",
-        "weight": 1
-      },
-      "a-t-scout-taxonomy-cmd-out": {
-        "id": "a-t-scout-taxonomy-cmd-out",
-        "source": "t-scout-taxonomy-cmd",
-        "target": "p-scout-taxonomy-cmd",
-        "weight": 1
-      },
-      "a-t-scout-fetch-out": {
-        "id": "a-t-scout-fetch-out",
-        "source": "t-scout-fetch",
-        "target": "p-scout-raw",
-        "weight": 1
-      },
-      "a-t-scout-taxonomy-out": {
-        "id": "a-t-scout-taxonomy-out",
-        "source": "t-scout-taxonomy",
-        "target": "p-scout-health-log",
-        "weight": 1
-      },
-      "a-t-scout-owned-out": {
-        "id": "a-t-scout-owned-out",
-        "source": "t-scout-owned",
-        "target": "p-scout-health-log",
-        "weight": 1
-      },
-      "a-t-scout-lift-in": {
-        "id": "a-t-scout-lift-in",
-        "source": "p-scout-raw",
-        "target": "t-scout-lift",
-        "weight": 1
-      },
-      "a-t-scout-taxonomy-cmd-in": {
-        "id": "a-t-scout-taxonomy-cmd-in",
-        "source": "p-scout-brief",
-        "target": "t-scout-taxonomy-cmd",
-        "weight": 1
-      },
-      "a-t-scout-gate-in": {
-        "id": "a-t-scout-gate-in",
-        "source": "p-scout-fetched",
-        "target": "t-scout-gate",
-        "weight": 1
-      },
-      "a-t-link-brief-taxonomy-in": {
-        "id": "a-t-link-brief-taxonomy-in",
-        "source": "p-scout-brief",
-        "target": "t-link-brief-taxonomy",
-        "weight": 1
-      },
-      "a-t-scout-route-in": {
-        "id": "a-t-scout-route-in",
-        "source": "p-scout-analysis",
-        "target": "t-scout-route",
-        "weight": 1
-      },
-      "a-t-scout-search-lift-in": {
-        "id": "a-t-scout-search-lift-in",
-        "source": "p-scout-search-raw",
-        "target": "t-scout-search-lift",
-        "weight": 1
-      },
-      "a-t-scout-fetch-cmd-in": {
-        "id": "a-t-scout-fetch-cmd-in",
-        "source": "p-scout-frontier",
-        "target": "t-scout-fetch-cmd",
-        "weight": 1
-      },
       "a-t-link-insights-brief-in": {
         "id": "a-t-link-insights-brief-in",
         "source": "p-scout-insights",
         "target": "t-link-insights-brief",
         "weight": 1
       },
-      "a-t-scout-taxonomy-in": {
-        "id": "a-t-scout-taxonomy-in",
-        "source": "p-scout-taxonomy-cmd",
-        "target": "t-scout-taxonomy",
-        "weight": 1
-      },
-      "a-t-scout-categorize-in": {
-        "id": "a-t-scout-categorize-in",
-        "source": "p-scout-candidates",
-        "target": "t-scout-categorize",
+      "a-t-link-insights-brief-out": {
+        "id": "a-t-link-insights-brief-out",
+        "source": "t-link-insights-brief",
+        "target": "p-scout-brief",
         "weight": 1
       },
       "a-t-link-owned-taxonomy-in": {
@@ -641,94 +31,22 @@
         "target": "t-link-owned-taxonomy",
         "weight": 1
       },
-      "a-t-scout-search-in": {
-        "id": "a-t-scout-search-in",
-        "source": "p-scout-search-cmd",
-        "target": "t-scout-search",
+      "a-t-link-owned-taxonomy-out": {
+        "id": "a-t-link-owned-taxonomy-out",
+        "source": "t-link-owned-taxonomy",
+        "target": "p-scout-taxonomy",
         "weight": 1
       },
-      "a-t-scout-health-in": {
-        "id": "a-t-scout-health-in",
-        "source": "p-scout-health-cmd",
-        "target": "t-scout-health",
+      "a-t-link-requests-sources-in": {
+        "id": "a-t-link-requests-sources-in",
+        "source": "p-scout-source-requests",
+        "target": "t-link-requests-sources",
         "weight": 1
       },
-      "a-t-scout-search-cmd-in": {
-        "id": "a-t-scout-search-cmd-in",
-        "source": "p-scout-queries",
-        "target": "t-scout-search-cmd",
-        "weight": 1
-      },
-      "a-t-scout-owned-cmd-in": {
-        "id": "a-t-scout-owned-cmd-in",
-        "source": "p-scout-brief",
-        "target": "t-scout-owned-cmd",
-        "weight": 1
-      },
-      "a-t-scout-digest-in": {
-        "id": "a-t-scout-digest-in",
-        "source": "p-scout-taxonomy",
-        "target": "t-scout-digest",
-        "weight": 1
-      },
-      "a-t-scout-write-prep-in": {
-        "id": "a-t-scout-write-prep-in",
-        "source": "p-scout-write-cmd",
-        "target": "t-scout-write-prep",
-        "weight": 1
-      },
-      "a-t-scout-write-in": {
-        "id": "a-t-scout-write-in",
-        "source": "p-scout-write-queue",
-        "target": "t-scout-write",
-        "weight": 1
-      },
-      "a-t-scout-fetch-in": {
-        "id": "a-t-scout-fetch-in",
-        "source": "p-scout-fetch-cmd",
-        "target": "t-scout-fetch",
-        "weight": 1
-      },
-      "a-t-link-telemetry-insights-in": {
-        "id": "a-t-link-telemetry-insights-in",
-        "source": "p-scout-telemetry",
-        "target": "t-link-telemetry-insights",
-        "weight": 1
-      },
-      "a-t-link-tasks-decisions-in": {
-        "id": "a-t-link-tasks-decisions-in",
-        "source": "p-scout-article-tasks",
-        "target": "t-link-tasks-decisions",
-        "weight": 1
-      },
-      "a-t-scout-app-run-in": {
-        "id": "a-t-scout-app-run-in",
-        "source": "p-scout-app-requests",
-        "target": "t-scout-app-run",
-        "weight": 1
-      },
-      "a-t-scout-health-cmd-in": {
-        "id": "a-t-scout-health-cmd-in",
-        "source": "p-scout-brief",
-        "target": "t-scout-health-cmd",
-        "weight": 1
-      },
-      "a-t-scout-recrawl-in": {
-        "id": "a-t-scout-recrawl-in",
-        "source": "p-scout-recrawl-cmd",
-        "target": "t-scout-recrawl",
-        "weight": 1
-      },
-      "a-t-scout-owned-in": {
-        "id": "a-t-scout-owned-in",
-        "source": "p-scout-owned-cmd",
-        "target": "t-scout-owned",
-        "weight": 1
-      },
-      "a-t-link-tasks-drafts-in": {
-        "id": "a-t-link-tasks-drafts-in",
-        "source": "p-scout-article-tasks",
-        "target": "t-link-tasks-drafts",
+      "a-t-link-requests-sources-out": {
+        "id": "a-t-link-requests-sources-out",
+        "source": "t-link-requests-sources",
+        "target": "p-scout-sources",
         "weight": 1
       },
       "a-t-link-sources-growth-in": {
@@ -737,34 +55,46 @@
         "target": "t-link-sources-growth",
         "weight": 1
       },
-      "a-t-scout-lift-b1": {
-        "id": "a-t-scout-lift-b1",
-        "source": "t-scout-lift",
-        "target": "p-scout-frontier",
+      "a-t-link-sources-growth-out": {
+        "id": "a-t-link-sources-growth-out",
+        "source": "t-link-sources-growth",
+        "target": "p-scout-growth",
         "weight": 1
       },
-      "a-t-scout-recrawl-cron-in": {
-        "id": "a-t-scout-recrawl-cron-in",
-        "source": "p-scout-brief",
-        "target": "t-scout-recrawl-cron",
+      "a-t-link-tasks-decisions-in": {
+        "id": "a-t-link-tasks-decisions-in",
+        "source": "p-scout-article-tasks",
+        "target": "t-link-tasks-decisions",
         "weight": 1
       },
-      "a-t-scout-gate-b1": {
-        "id": "a-t-scout-gate-b1",
-        "source": "t-scout-gate",
-        "target": "p-scout-rejected",
+      "a-t-link-tasks-decisions-out": {
+        "id": "a-t-link-tasks-decisions-out",
+        "source": "t-link-tasks-decisions",
+        "target": "p-scout-decisions",
         "weight": 1
       },
-      "a-t-scout-app-run-b1": {
-        "id": "a-t-scout-app-run-b1",
-        "source": "t-scout-app-run",
-        "target": "p-scout-owned-cmd",
+      "a-t-link-tasks-drafts-in": {
+        "id": "a-t-link-tasks-drafts-in",
+        "source": "p-scout-article-tasks",
+        "target": "t-link-tasks-drafts",
         "weight": 1
       },
-      "a-t-scout-route-b1": {
-        "id": "a-t-scout-route-b1",
-        "source": "t-scout-route",
-        "target": "p-find-recent",
+      "a-t-link-tasks-drafts-out": {
+        "id": "a-t-link-tasks-drafts-out",
+        "source": "t-link-tasks-drafts",
+        "target": "p-scout-drafts",
+        "weight": 1
+      },
+      "a-t-link-telemetry-insights-in": {
+        "id": "a-t-link-telemetry-insights-in",
+        "source": "p-scout-telemetry",
+        "target": "t-link-telemetry-insights",
+        "weight": 1
+      },
+      "a-t-link-telemetry-insights-out": {
+        "id": "a-t-link-telemetry-insights-out",
+        "source": "t-link-telemetry-insights",
+        "target": "p-scout-insights",
         "weight": 1
       },
       "a-t-scout-app-run-b0": {
@@ -773,22 +103,10 @@
         "target": "p-scout-taxonomy-cmd",
         "weight": 1
       },
-      "a-t-scout-gate-b0": {
-        "id": "a-t-scout-gate-b0",
-        "source": "t-scout-gate",
-        "target": "p-scout-candidates",
-        "weight": 1
-      },
-      "a-t-scout-lift-b0": {
-        "id": "a-t-scout-lift-b0",
-        "source": "t-scout-lift",
-        "target": "p-scout-fetched",
-        "weight": 1
-      },
-      "a-t-scout-route-b2": {
-        "id": "a-t-scout-route-b2",
-        "source": "t-scout-route",
-        "target": "p-find-archive",
+      "a-t-scout-app-run-b1": {
+        "id": "a-t-scout-app-run-b1",
+        "source": "t-scout-app-run",
+        "target": "p-scout-owned-cmd",
         "weight": 1
       },
       "a-t-scout-app-run-b2": {
@@ -797,16 +115,232 @@
         "target": "p-scout-health-cmd",
         "weight": 1
       },
+      "a-t-scout-app-run-in": {
+        "id": "a-t-scout-app-run-in",
+        "source": "p-scout-app-requests",
+        "target": "t-scout-app-run",
+        "weight": 1
+      },
+      "a-t-scout-categorize-in": {
+        "id": "a-t-scout-categorize-in",
+        "source": "p-scout-candidates",
+        "target": "t-scout-categorize",
+        "weight": 1
+      },
+      "a-t-scout-categorize-out": {
+        "id": "a-t-scout-categorize-out",
+        "source": "t-scout-categorize",
+        "target": "p-scout-analysis",
+        "weight": 1
+      },
+      "a-t-scout-digest-in": {
+        "id": "a-t-scout-digest-in",
+        "source": "p-scout-taxonomy",
+        "target": "t-scout-digest",
+        "weight": 1
+      },
+      "a-t-scout-digest-out": {
+        "id": "a-t-scout-digest-out",
+        "source": "t-scout-digest",
+        "target": "p-scout-digest",
+        "weight": 1
+      },
+      "a-t-scout-fetch-cmd-in": {
+        "id": "a-t-scout-fetch-cmd-in",
+        "source": "p-scout-frontier",
+        "target": "t-scout-fetch-cmd",
+        "weight": 1
+      },
+      "a-t-scout-fetch-cmd-out": {
+        "id": "a-t-scout-fetch-cmd-out",
+        "source": "t-scout-fetch-cmd",
+        "target": "p-scout-fetch-cmd",
+        "weight": 1
+      },
+      "a-t-scout-fetch-in": {
+        "id": "a-t-scout-fetch-in",
+        "source": "p-scout-fetch-cmd",
+        "target": "t-scout-fetch",
+        "weight": 1
+      },
+      "a-t-scout-fetch-out": {
+        "id": "a-t-scout-fetch-out",
+        "source": "t-scout-fetch",
+        "target": "p-scout-raw",
+        "weight": 1
+      },
+      "a-t-scout-gate-b0": {
+        "id": "a-t-scout-gate-b0",
+        "source": "t-scout-gate",
+        "target": "p-scout-candidates",
+        "weight": 1
+      },
+      "a-t-scout-gate-b1": {
+        "id": "a-t-scout-gate-b1",
+        "source": "t-scout-gate",
+        "target": "p-scout-rejected",
+        "weight": 1
+      },
+      "a-t-scout-gate-in": {
+        "id": "a-t-scout-gate-in",
+        "source": "p-scout-fetched",
+        "target": "t-scout-gate",
+        "weight": 1
+      },
+      "a-t-scout-health-cmd-in": {
+        "id": "a-t-scout-health-cmd-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-health-cmd",
+        "weight": 1
+      },
+      "a-t-scout-health-cmd-out": {
+        "id": "a-t-scout-health-cmd-out",
+        "source": "t-scout-health-cmd",
+        "target": "p-scout-health-cmd",
+        "weight": 1
+      },
+      "a-t-scout-health-in": {
+        "id": "a-t-scout-health-in",
+        "source": "p-scout-health-cmd",
+        "target": "t-scout-health",
+        "weight": 1
+      },
+      "a-t-scout-lift-b0": {
+        "id": "a-t-scout-lift-b0",
+        "source": "t-scout-lift",
+        "target": "p-scout-fetched",
+        "weight": 1
+      },
+      "a-t-scout-lift-b1": {
+        "id": "a-t-scout-lift-b1",
+        "source": "t-scout-lift",
+        "target": "p-scout-frontier",
+        "weight": 1
+      },
       "a-t-scout-lift-b2": {
         "id": "a-t-scout-lift-b2",
         "source": "t-scout-lift",
         "target": "p-scout-frontier",
         "weight": 1
       },
-      "a-t-scout-write-cron-in": {
-        "id": "a-t-scout-write-cron-in",
+      "a-t-scout-lift-in": {
+        "id": "a-t-scout-lift-in",
+        "source": "p-scout-raw",
+        "target": "t-scout-lift",
+        "weight": 1
+      },
+      "a-t-scout-lift-out": {
+        "id": "a-t-scout-lift-out",
+        "source": "t-scout-lift",
+        "target": "p-scout-telemetry",
+        "weight": 1
+      },
+      "a-t-scout-owned-cmd-in": {
+        "id": "a-t-scout-owned-cmd-in",
         "source": "p-scout-brief",
-        "target": "t-scout-write-cron",
+        "target": "t-scout-owned-cmd",
+        "weight": 1
+      },
+      "a-t-scout-owned-cmd-out": {
+        "id": "a-t-scout-owned-cmd-out",
+        "source": "t-scout-owned-cmd",
+        "target": "p-scout-owned-cmd",
+        "weight": 1
+      },
+      "a-t-scout-owned-in": {
+        "id": "a-t-scout-owned-in",
+        "source": "p-scout-owned-cmd",
+        "target": "t-scout-owned",
+        "weight": 1
+      },
+      "a-t-scout-owned-out": {
+        "id": "a-t-scout-owned-out",
+        "source": "t-scout-owned",
+        "target": "p-scout-health-log",
+        "weight": 1
+      },
+      "a-t-scout-recrawl-cron-in": {
+        "id": "a-t-scout-recrawl-cron-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-recrawl-cron",
+        "weight": 1
+      },
+      "a-t-scout-recrawl-cron-out": {
+        "id": "a-t-scout-recrawl-cron-out",
+        "source": "t-scout-recrawl-cron",
+        "target": "p-scout-recrawl-cmd",
+        "weight": 1
+      },
+      "a-t-scout-recrawl-in": {
+        "id": "a-t-scout-recrawl-in",
+        "source": "p-scout-recrawl-cmd",
+        "target": "t-scout-recrawl",
+        "weight": 1
+      },
+      "a-t-scout-recrawl-out": {
+        "id": "a-t-scout-recrawl-out",
+        "source": "t-scout-recrawl",
+        "target": "p-scout-health-log",
+        "weight": 1
+      },
+      "a-t-scout-route-b0": {
+        "id": "a-t-scout-route-b0",
+        "source": "t-scout-route",
+        "target": "p-find-brand-new",
+        "weight": 1
+      },
+      "a-t-scout-route-b1": {
+        "id": "a-t-scout-route-b1",
+        "source": "t-scout-route",
+        "target": "p-find-recent",
+        "weight": 1
+      },
+      "a-t-scout-route-b2": {
+        "id": "a-t-scout-route-b2",
+        "source": "t-scout-route",
+        "target": "p-find-archive",
+        "weight": 1
+      },
+      "a-t-scout-route-in": {
+        "id": "a-t-scout-route-in",
+        "source": "p-scout-analysis",
+        "target": "t-scout-route",
+        "weight": 1
+      },
+      "a-t-scout-search-cmd-in": {
+        "id": "a-t-scout-search-cmd-in",
+        "source": "p-scout-queries",
+        "target": "t-scout-search-cmd",
+        "weight": 1
+      },
+      "a-t-scout-search-cmd-out": {
+        "id": "a-t-scout-search-cmd-out",
+        "source": "t-scout-search-cmd",
+        "target": "p-scout-search-cmd",
+        "weight": 1
+      },
+      "a-t-scout-search-in": {
+        "id": "a-t-scout-search-in",
+        "source": "p-scout-search-cmd",
+        "target": "t-scout-search",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-err": {
+        "id": "a-t-scout-search-lift-err",
+        "source": "t-scout-search-lift",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-in": {
+        "id": "a-t-scout-search-lift-in",
+        "source": "p-scout-search-raw",
+        "target": "t-scout-search-lift",
+        "weight": 1
+      },
+      "a-t-scout-search-lift-out": {
+        "id": "a-t-scout-search-lift-out",
+        "source": "t-scout-search-lift",
+        "target": "p-scout-frontier",
         "weight": 1
       },
       "a-t-scout-search-lift-tel": {
@@ -815,11 +349,545 @@
         "target": "p-scout-telemetry",
         "weight": 1
       },
-      "a-t-scout-search-lift-err": {
-        "id": "a-t-scout-search-lift-err",
-        "source": "t-scout-search-lift",
-        "target": "p-scout-errors",
+      "a-t-scout-search-out": {
+        "id": "a-t-scout-search-out",
+        "source": "t-scout-search",
+        "target": "p-scout-search-raw",
         "weight": 1
+      },
+      "a-t-scout-sitemap-cron-in": {
+        "id": "a-t-scout-sitemap-cron-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-sitemap-cron",
+        "weight": 1
+      },
+      "a-t-scout-sitemap-cron-out": {
+        "id": "a-t-scout-sitemap-cron-out",
+        "source": "t-scout-sitemap-cron",
+        "target": "p-scout-sitemap-cmd",
+        "weight": 1
+      },
+      "a-t-scout-sitemap-in": {
+        "id": "a-t-scout-sitemap-in",
+        "source": "p-scout-sitemap-cmd",
+        "target": "t-scout-sitemap",
+        "weight": 1
+      },
+      "a-t-scout-sitemap-out": {
+        "id": "a-t-scout-sitemap-out",
+        "source": "t-scout-sitemap",
+        "target": "p-scout-health-log",
+        "weight": 1
+      },
+      "a-t-scout-taxonomy-cmd-in": {
+        "id": "a-t-scout-taxonomy-cmd-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-taxonomy-cmd",
+        "weight": 1
+      },
+      "a-t-scout-taxonomy-cmd-out": {
+        "id": "a-t-scout-taxonomy-cmd-out",
+        "source": "t-scout-taxonomy-cmd",
+        "target": "p-scout-taxonomy-cmd",
+        "weight": 1
+      },
+      "a-t-scout-taxonomy-in": {
+        "id": "a-t-scout-taxonomy-in",
+        "source": "p-scout-taxonomy-cmd",
+        "target": "t-scout-taxonomy",
+        "weight": 1
+      },
+      "a-t-scout-taxonomy-out": {
+        "id": "a-t-scout-taxonomy-out",
+        "source": "t-scout-taxonomy",
+        "target": "p-scout-health-log",
+        "weight": 1
+      },
+      "a-t-scout-write-cron-in": {
+        "id": "a-t-scout-write-cron-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-write-cron",
+        "weight": 1
+      },
+      "a-t-scout-write-cron-out": {
+        "id": "a-t-scout-write-cron-out",
+        "source": "t-scout-write-cron",
+        "target": "p-scout-write-cmd",
+        "weight": 1
+      },
+      "a-t-scout-write-in": {
+        "id": "a-t-scout-write-in",
+        "source": "p-scout-write-queue",
+        "target": "t-scout-write",
+        "weight": 1
+      },
+      "a-t-scout-write-out": {
+        "id": "a-t-scout-write-out",
+        "source": "t-scout-write",
+        "target": "p-scout-drafts",
+        "weight": 1
+      },
+      "a-t-scout-write-prep-in": {
+        "id": "a-t-scout-write-prep-in",
+        "source": "p-scout-write-cmd",
+        "target": "t-scout-write-prep",
+        "weight": 1
+      },
+      "a-t-scout-write-prep-out": {
+        "id": "a-t-scout-write-prep-out",
+        "source": "t-scout-write-prep",
+        "target": "p-scout-health-log",
+        "weight": 1
+      }
+    },
+    "description": "",
+    "id": "scout",
+    "places": {
+      "p-find-archive": {
+        "id": "p-find-archive",
+        "label": "Archive (older than 90 days)",
+        "tokens": 0,
+        "x": 1100,
+        "y": 1430
+      },
+      "p-find-brand-new": {
+        "id": "p-find-brand-new",
+        "label": "Brand new (published within 7 days)",
+        "tokens": 0,
+        "x": 1900,
+        "y": 1430
+      },
+      "p-find-recent": {
+        "id": "p-find-recent",
+        "label": "Recent (8 to 90 days)",
+        "tokens": 0,
+        "x": 500,
+        "y": 1430
+      },
+      "p-scout-analysis": {
+        "id": "p-scout-analysis",
+        "label": "Analysis (categorised)",
+        "tokens": 0,
+        "x": 300,
+        "y": 380
+      },
+      "p-scout-app-requests": {
+        "id": "p-scout-app-requests",
+        "label": "Run-now requests from the app",
+        "tokens": 0,
+        "x": 900,
+        "y": 240
+      },
+      "p-scout-article-tasks": {
+        "id": "p-scout-article-tasks",
+        "label": "Article tasks (accepted recommendations)",
+        "tokens": 0,
+        "x": 700,
+        "y": 240
+      },
+      "p-scout-brief": {
+        "id": "p-scout-brief",
+        "label": "Research Brief (what we seek)",
+        "tokens": 0,
+        "x": 1500,
+        "y": 1080
+      },
+      "p-scout-candidates": {
+        "id": "p-scout-candidates",
+        "label": "Candidates (passed the gate)",
+        "tokens": 0,
+        "x": 1100,
+        "y": 380
+      },
+      "p-scout-decisions": {
+        "id": "p-scout-decisions",
+        "label": "Operator decisions (audit)",
+        "tokens": 0,
+        "x": 900,
+        "y": 1430
+      },
+      "p-scout-digest": {
+        "id": "p-scout-digest",
+        "label": "Digest (structured synthesis)",
+        "tokens": 0,
+        "x": 700,
+        "y": 1430
+      },
+      "p-scout-drafts": {
+        "id": "p-scout-drafts",
+        "label": "Article drafts",
+        "tokens": 0,
+        "x": 2300,
+        "y": 1430
+      },
+      "p-scout-errors": {
+        "id": "p-scout-errors",
+        "label": "Errors (lane failures only)",
+        "tokens": 0,
+        "x": 2100,
+        "y": 1430
+      },
+      "p-scout-fetch-cmd": {
+        "id": "p-scout-fetch-cmd",
+        "label": "Fetch CommandTokens",
+        "tokens": 0,
+        "x": 700,
+        "y": 660
+      },
+      "p-scout-fetched": {
+        "id": "p-scout-fetched",
+        "label": "Fetched (dated, scored, blobbed)",
+        "tokens": 0,
+        "x": 1700,
+        "y": 100
+      },
+      "p-scout-frontier": {
+        "id": "p-scout-frontier",
+        "label": "Frontier (URLs to visit)",
+        "tokens": 0,
+        "x": 700,
+        "y": 800
+      },
+      "p-scout-growth": {
+        "id": "p-scout-growth",
+        "label": "Growth snapshots (expansion over time)",
+        "tokens": 0,
+        "x": 1700,
+        "y": 1430
+      },
+      "p-scout-health-cmd": {
+        "id": "p-scout-health-cmd",
+        "label": "Health CommandTokens",
+        "tokens": 0,
+        "x": 900,
+        "y": 940
+      },
+      "p-scout-health-log": {
+        "id": "p-scout-health-log",
+        "label": "Health run summaries",
+        "tokens": 0,
+        "x": 1300,
+        "y": 1430
+      },
+      "p-scout-insights": {
+        "id": "p-scout-insights",
+        "label": "Insights (rollups + tuning proposals)",
+        "tokens": 0,
+        "x": 900,
+        "y": 660
+      },
+      "p-scout-owned": {
+        "id": "p-scout-owned",
+        "label": "Own article inventory (slugs only, never crawled)",
+        "tokens": 0,
+        "x": 100,
+        "y": 240
+      },
+      "p-scout-owned-cmd": {
+        "id": "p-scout-owned-cmd",
+        "label": "Owned-inventory CommandTokens",
+        "tokens": 0,
+        "x": 700,
+        "y": 940
+      },
+      "p-scout-queries": {
+        "id": "p-scout-queries",
+        "label": "Search queries (widen the crawl)",
+        "tokens": 0,
+        "x": 1300,
+        "y": 240
+      },
+      "p-scout-raw": {
+        "id": "p-scout-raw",
+        "label": "Raw command results (pre-lift)",
+        "tokens": 0,
+        "x": 1500,
+        "y": 660
+      },
+      "p-scout-recrawl-cmd": {
+        "id": "p-scout-recrawl-cmd",
+        "label": "Re-crawl CommandTokens",
+        "tokens": 0,
+        "x": 500,
+        "y": 940
+      },
+      "p-scout-registry": {
+        "id": "p-scout-registry",
+        "label": "URL Registry (dedupe + HTTP cache)",
+        "tokens": 0,
+        "x": 100,
+        "y": 1430
+      },
+      "p-scout-rejected": {
+        "id": "p-scout-rejected",
+        "label": "Rejected (below minScore, kept for tuning)",
+        "tokens": 0,
+        "x": 1500,
+        "y": 1430
+      },
+      "p-scout-search-cmd": {
+        "id": "p-scout-search-cmd",
+        "label": "Search CommandTokens",
+        "tokens": 0,
+        "x": 1900,
+        "y": 100
+      },
+      "p-scout-search-raw": {
+        "id": "p-scout-search-raw",
+        "label": "Raw search results (pre-lift)",
+        "tokens": 0,
+        "x": 900,
+        "y": 380
+      },
+      "p-scout-sitemap-cmd": {
+        "id": "p-scout-sitemap-cmd",
+        "label": "Sitemap-harvest CommandTokens",
+        "tokens": 0,
+        "x": 300,
+        "y": 940
+      },
+      "p-scout-source-requests": {
+        "id": "p-scout-source-requests",
+        "label": "Source onboarding requests",
+        "tokens": 0,
+        "x": 300,
+        "y": 240
+      },
+      "p-scout-sources": {
+        "id": "p-scout-sources",
+        "label": "Source profiles (host, type, volume)",
+        "tokens": 0,
+        "x": 1900,
+        "y": 380
+      },
+      "p-scout-taxonomy": {
+        "id": "p-scout-taxonomy",
+        "label": "Taxonomy (discovered categories)",
+        "tokens": 0,
+        "x": 100,
+        "y": 940
+      },
+      "p-scout-taxonomy-cmd": {
+        "id": "p-scout-taxonomy-cmd",
+        "label": "Taxonomy CommandTokens",
+        "tokens": 0,
+        "x": 100,
+        "y": 1220
+      },
+      "p-scout-telemetry": {
+        "id": "p-scout-telemetry",
+        "label": "Telemetry (one token per fetch attempt)",
+        "tokens": 0,
+        "x": 100,
+        "y": 380
+      },
+      "p-scout-write-cmd": {
+        "id": "p-scout-write-cmd",
+        "label": "Write-prep CommandTokens",
+        "tokens": 0,
+        "x": 300,
+        "y": 1220
+      },
+      "p-scout-write-queue": {
+        "id": "p-scout-write-queue",
+        "label": "Writing packets (evidence assembled)",
+        "tokens": 0,
+        "x": 1500,
+        "y": 240
+      }
+    },
+    "transitions": {
+      "t-link-brief-taxonomy": {
+        "id": "t-link-brief-taxonomy",
+        "label": "t-link-brief-taxonomy",
+        "x": 1700,
+        "y": 660
+      },
+      "t-link-insights-brief": {
+        "id": "t-link-insights-brief",
+        "label": "t-link-insights-brief",
+        "x": 1100,
+        "y": 660
+      },
+      "t-link-owned-taxonomy": {
+        "id": "t-link-owned-taxonomy",
+        "label": "scopes",
+        "x": 100,
+        "y": 100
+      },
+      "t-link-requests-sources": {
+        "id": "t-link-requests-sources",
+        "label": "onboards",
+        "x": 300,
+        "y": 100
+      },
+      "t-link-sources-growth": {
+        "id": "t-link-sources-growth",
+        "label": "aggregated-into",
+        "x": 1700,
+        "y": 380
+      },
+      "t-link-tasks-decisions": {
+        "id": "t-link-tasks-decisions",
+        "label": "produces",
+        "x": 500,
+        "y": 100
+      },
+      "t-link-tasks-drafts": {
+        "id": "t-link-tasks-drafts",
+        "label": "drafted-as",
+        "x": 700,
+        "y": 100
+      },
+      "t-link-telemetry-insights": {
+        "id": "t-link-telemetry-insights",
+        "label": "t-link-telemetry-insights",
+        "x": 100,
+        "y": 660
+      },
+      "t-scout-app-run": {
+        "id": "t-scout-app-run",
+        "label": "Execute run-now requests from the app",
+        "x": 900,
+        "y": 100
+      },
+      "t-scout-categorize": {
+        "id": "t-scout-categorize",
+        "label": "Categorise candidate (profiled, low tier)",
+        "x": 700,
+        "y": 380
+      },
+      "t-scout-digest": {
+        "id": "t-scout-digest",
+        "label": "Competitor analysis (interprets facts only)",
+        "x": 500,
+        "y": 1220
+      },
+      "t-scout-fetch": {
+        "id": "t-scout-fetch",
+        "label": "Fetch page on executor",
+        "x": 1300,
+        "y": 660
+      },
+      "t-scout-fetch-cmd": {
+        "id": "t-scout-fetch-cmd",
+        "label": "Build fetch CommandToken",
+        "x": 300,
+        "y": 660
+      },
+      "t-scout-gate": {
+        "id": "t-scout-gate",
+        "label": "Relevance gate (free filter)",
+        "x": 1500,
+        "y": 380
+      },
+      "t-scout-health": {
+        "id": "t-scout-health",
+        "label": "Roll telemetry into insights",
+        "x": 700,
+        "y": 1220
+      },
+      "t-scout-health-cmd": {
+        "id": "t-scout-health-cmd",
+        "label": "Build health CommandToken",
+        "x": 1900,
+        "y": 660
+      },
+      "t-scout-lift": {
+        "id": "t-scout-lift",
+        "label": "Lift result, telemeter, route, retry",
+        "x": 1100,
+        "y": 100
+      },
+      "t-scout-owned": {
+        "id": "t-scout-owned",
+        "label": "Index own articles from sitemap",
+        "x": 900,
+        "y": 1220
+      },
+      "t-scout-owned-cmd": {
+        "id": "t-scout-owned-cmd",
+        "label": "Build owned-inventory command",
+        "x": 1900,
+        "y": 940
+      },
+      "t-scout-recrawl": {
+        "id": "t-scout-recrawl",
+        "label": "Re-queue source entry pages on executor",
+        "x": 1100,
+        "y": 1220
+      },
+      "t-scout-recrawl-cron": {
+        "id": "t-scout-recrawl-cron",
+        "label": "Build re-crawl command (weekly)",
+        "x": 1700,
+        "y": 940
+      },
+      "t-scout-route": {
+        "id": "t-scout-route",
+        "label": "Route by publication recency",
+        "x": 500,
+        "y": 660
+      },
+      "t-scout-search": {
+        "id": "t-scout-search",
+        "label": "Run search on executor",
+        "x": 1300,
+        "y": 380
+      },
+      "t-scout-search-cmd": {
+        "id": "t-scout-search-cmd",
+        "label": "Build search CommandToken",
+        "x": 1300,
+        "y": 100
+      },
+      "t-scout-search-lift": {
+        "id": "t-scout-search-lift",
+        "label": "Lift search result, fan hits into frontier",
+        "x": 500,
+        "y": 380
+      },
+      "t-scout-sitemap": {
+        "id": "t-scout-sitemap",
+        "label": "Discover + harvest sitemaps on executor",
+        "x": 1300,
+        "y": 1220
+      },
+      "t-scout-sitemap-cron": {
+        "id": "t-scout-sitemap-cron",
+        "label": "Build sitemap-harvest command (monthly sweep)",
+        "x": 1500,
+        "y": 940
+      },
+      "t-scout-taxonomy": {
+        "id": "t-scout-taxonomy",
+        "label": "Roll findings into taxonomy + facts",
+        "x": 1500,
+        "y": 1220
+      },
+      "t-scout-taxonomy-cmd": {
+        "id": "t-scout-taxonomy-cmd",
+        "label": "Build taxonomy CommandToken",
+        "x": 1300,
+        "y": 940
+      },
+      "t-scout-write": {
+        "id": "t-scout-write",
+        "label": "Staff writer: draft the accepted article",
+        "x": 1500,
+        "y": 100
+      },
+      "t-scout-write-cron": {
+        "id": "t-scout-write-cron",
+        "label": "Build write-prep command (daily)",
+        "x": 1100,
+        "y": 940
+      },
+      "t-scout-write-prep": {
+        "id": "t-scout-write-prep",
+        "label": "Assemble writing packet on executor",
+        "x": 1700,
+        "y": 1220
       }
     }
   }

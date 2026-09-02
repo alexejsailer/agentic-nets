@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.7.0
+version: 1.8.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -57,6 +57,18 @@ scripts:
       Widen the crawl beyond link-following by querying a search API (brave | tavily | serper,
       whichever key is present). Hits enter the frontier at depth 0 through the same dedupe,
       host filters and injection guard as discovered links.
+  - id: scout-sitemap
+    runtime: python3
+    file: assets/scout-sitemap.py
+    description: >-
+      Onboard a website by harvesting its own index of itself: discover the sitemap via
+      robots.txt (then conventional locations), walk index files down to the article lists,
+      filter obvious non-articles, dedupe against everything already fetched or queued, and
+      feed the rest to the frontier. Hosts come from onboarding requests
+      (p-scout-source-requests, consumed after processing), host profiles, and finding hosts;
+      denyHosts is honoured. Free and key-less; URLS_PER_HOST / MAX_TOTAL bound each run and
+      the registry makes repeat runs incremental, so a large backlog drains over the monthly
+      schedule instead of in one burst.
   - id: scout-owned
     runtime: python3
     file: assets/scout-owned.py

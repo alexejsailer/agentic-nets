@@ -1,6 +1,6 @@
 [
   {
-    "description": "Fetch one URL with conditional GET; extract, date, score, classify listing-vs-article AND source type (blog/forum/social/video/news/commercial/docs via host rules + HTML fingerprints, stamped even on failed extracts); blobstore the text; queue discovered links deduped and depth-capped. Tolerates 'null' env ints; sniffs gzip by magic number.",
+    "description": "Fetch one URL with conditional GET; extract, date, score, classify listing-vs-article AND source type (host rules + HTML fingerprints; stamped even on failed extracts); blobstore the text; queue discovered links deduped and depth-capped. Tolerates missing DEPTH/ATTEMPT env ('null' from template interpolation) and sniffs gzip by magic number.",
     "file": "scout-fetch.py",
     "id": "scout-fetch",
     "name": "Scout Fetch",
@@ -14,14 +14,14 @@
     "runtime": "python3"
   },
   {
-    "description": "Index the OWNER'S own published articles from their sitemap (urls + lastmod only, never page bodies). Writes solely to p-scout-owned, so owner content can never enter the findings corpus, and scout-taxonomy can subtract what is already covered.",
+    "description": "Index the OWNER'S own published articles from their sitemap (urls + lastmod only, never page bodies). Writes solely to p-scout-owned so the owner's content can never enter the findings corpus.",
     "file": "scout-owned.py",
     "id": "scout-owned",
     "name": "Scout Owned Inventory",
     "runtime": "python3"
   },
   {
-    "description": "Keep watching: re-queue every known source host's root + busiest article sections into the frontier. Conditional GETs make unchanged pages a 304; only new links survive dedupe. Honours brief.denyHosts.",
+    "description": "Keep watching: re-queue every known source host's root + its busiest article sections into the frontier. Conditional GETs make unchanged pages a 304; only genuinely new links survive dedupe. Honours brief.denyHosts; capped per run.",
     "file": "scout-recrawl.py",
     "id": "scout-recrawl",
     "name": "Scout Recrawl",
@@ -35,14 +35,21 @@
     "runtime": "python3"
   },
   {
-    "description": "Deterministic rollup + expansion tracking: re-buckets findings by CURRENT age first, rolls counts by category and source type, maintains per-host profiles (p-scout-sources), appends growth snapshots (p-scout-growth), joins own inventory for trueGaps, and withholds the facts token when the corpus is unchanged and the analysis fresh — no model call for zero new information.",
+    "description": "Onboard a website by harvesting its own index: discover the sitemap (robots.txt Sitemap: lines, then conventional locations), walk index files to the article lists, filter non-articles, drop everything the registry knows, queue the rest into the frontier. Consumes p-scout-source-requests onboarding asks. Bounded per run (150/host, 300 total by default) — repeat runs are incremental via the registry.",
+    "file": "scout-sitemap.py",
+    "id": "scout-sitemap",
+    "name": "Scout Sitemap Harvest",
+    "runtime": "python3"
+  },
+  {
+    "description": "Deterministic rollup + expansion tracking: re-buckets findings by current age FIRST, rolls counts by category and SOURCE TYPE, maintains per-host source profiles (p-scout-sources), appends a growth snapshot (p-scout-growth), joins own inventory for trueGaps, and withholds the facts token when the corpus is unchanged and the analysis is fresh — no model call for zero new information.",
     "file": "scout-taxonomy.py",
     "id": "scout-taxonomy",
     "name": "Scout Taxonomy",
     "runtime": "python3"
   },
   {
-    "description": "Draft ONE accepted article task end to end: deterministic prep (task + competitor text with URL-fallback + related own slugs + brief), then invoke the LOCAL claude binary headlessly (-p, no tools, no session persistence) and file its markdown as a draft token. Dedupe by drafts ledger; the task token is never consumed. Requires Claude Code on the executor host.",
+    "description": "Draft ONE accepted article task end to end: deterministic prep (task + competitor text with URL-fallback + related own slugs + brief), then invoke the LOCAL claude binary headlessly (-p, no tools, no session persistence) and file its markdown as a draft token. Dedupe by drafts ledger; the task token is never consumed. Requires Claude Code installed on the executor host.",
     "file": "scout-write.py",
     "id": "scout-write",
     "name": "Scout Write (Claude Code)",

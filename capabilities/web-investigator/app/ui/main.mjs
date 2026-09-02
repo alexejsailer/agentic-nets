@@ -289,6 +289,8 @@ class WebInvestigatorDashboard extends HTMLElement {
         <button data-run="health" ${this._runBusy() ? 'disabled' : ''}>Crawl health</button>
         <button data-run="recrawl" ${this._runBusy() ? 'disabled' : ''}
           title="Re-queue every known source's entry pages so new articles get discovered">Re-crawl sources</button>
+        <button data-run="sitemap" ${this._runBusy() ? 'disabled' : ''}
+          title="Discover each source's sitemap and queue its articles (bounded per run; repeat to sweep more)">Harvest sitemaps</button>
         <button class="acc" data-run="write" ${this._runBusy() ? 'disabled' : ''}
           title="Assemble the next accepted task and let the staff writer draft it">Draft article</button>
         <button class="ghost" data-refresh title="Reload every store">↻</button>
@@ -540,6 +542,10 @@ class WebInvestigatorDashboard extends HTMLElement {
         <input name="query" required placeholder="search query for the widening lane">
         <button>Queue query</button>
       </form>
+      <form class="inline" data-form="source">
+        <input name="url" type="url" required placeholder="https:// … onboard a whole site (sitemap harvest)">
+        <button>Add source</button>
+      </form>
       <div class="footnote">Run-now requests are executed by the net's own lane — the app only records them.</div>
     </div>`;
   }
@@ -626,6 +632,14 @@ class WebInvestigatorDashboard extends HTMLElement {
         );
       });
     }
+    wrap.querySelector('[data-form="source"]')?.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const url = new FormData(ev.target).get('url');
+      if (url) {
+        this._invoke('add-source', { url: String(url) }, `src:${slug(String(url))}`);
+        ev.target.reset();
+      }
+    });
     wrap.querySelector('[data-form="query"]')?.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const query = new FormData(ev.target).get('query');

@@ -3,1416 +3,1551 @@
     "id": "t-link-brief-taxonomy",
     "kind": "link",
     "label": "defines",
-    "relation": "defines",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-taxonomy",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-taxonomy"
       }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      }
+    },
+    "relation": "defines"
   },
   {
     "id": "t-link-insights-brief",
     "kind": "link",
     "label": "tunes",
-    "relation": "tunes",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-insights",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-brief"
       }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-insights",
+        "take": "FIRST"
+      }
+    },
+    "relation": "tunes"
   },
   {
     "id": "t-link-owned-taxonomy",
     "kind": "link",
     "label": "scopes",
-    "relation": "scopes",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-owned",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-taxonomy",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-taxonomy"
       }
     },
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-owned",
+        "take": "FIRST"
+      }
+    },
+    "relation": "scopes"
+  },
+  {
+    "id": "t-link-requests-sources",
+    "kind": "link",
+    "label": "onboards",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "postsets": {
+      "to": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-sources"
+      }
+    },
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-source-requests",
+        "take": "FIRST"
+      }
+    },
+    "relation": "onboards"
   },
   {
     "id": "t-link-sources-growth",
     "kind": "link",
     "label": "aggregated-into",
-    "relation": "aggregated-into",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-sources",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-growth",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-growth"
       }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-sources",
+        "take": "FIRST"
+      }
+    },
+    "relation": "aggregated-into"
   },
   {
     "id": "t-link-tasks-decisions",
     "kind": "link",
     "label": "produces",
-    "relation": "produces",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-article-tasks",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-decisions",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-decisions"
       }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-article-tasks",
+        "take": "FIRST"
+      }
+    },
+    "relation": "produces"
   },
   {
     "id": "t-link-tasks-drafts",
     "kind": "link",
     "label": "drafted-as",
-    "relation": "drafted-as",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-article-tasks",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-drafts",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-drafts"
       }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-article-tasks",
+        "take": "FIRST"
+      }
+    },
+    "relation": "drafted-as"
   },
   {
     "id": "t-link-telemetry-insights",
     "kind": "link",
     "label": "derives-from",
-    "relation": "derives-from",
-    "presets": {
-      "from": {
-        "placeId": "p-scout-telemetry",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
     "postsets": {
       "to": {
-        "placeId": "p-scout-insights",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-insights"
       }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "presets": {
+      "from": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-telemetry",
+        "take": "FIRST"
+      }
+    },
+    "relation": "derives-from"
   },
   {
-    "id": "t-scout-app-run",
-    "kind": "map",
-    "label": "Execute run-now requests from the app",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-app-requests",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.status == \"requested\" LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
-    },
-    "postsets": {
-      "scout_taxonomy_cmd": {
-        "placeId": "p-scout-taxonomy-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "scout_owned_cmd": {
-        "placeId": "p-scout-owned-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "scout_health_cmd": {
-        "placeId": "p-scout-health-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "scout_write_cmd": {
-        "placeId": "p-scout-write-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "scout_recrawl_cmd": {
-        "placeId": "p-scout-recrawl-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "map",
       "template": {
-        "kind": "command",
-        "id": "app-${input.data.run}-${now()}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "run": "${input.data.run}",
         "args": {
-          "toolId": "scout-${input.data.run}",
           "argv": [],
-          "timeoutMs": 300000,
           "env": {
             "MODEL_ID": "research-scout"
-          }
-        }
-      }
+          },
+          "timeoutMs": 300000,
+          "toolId": "scout-${input.data.run}"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "app-${input.data.run}-${now()}",
+        "kind": "command",
+        "run": "${input.data.run}"
+      },
+      "type": "map"
     },
     "emit": [
       {
-        "to": "scout_taxonomy_cmd",
         "from": "@response",
+        "to": "scout_taxonomy_cmd",
         "when": "run == 'taxonomy'"
       },
       {
-        "to": "scout_owned_cmd",
         "from": "@response",
+        "to": "scout_owned_cmd",
         "when": "run == 'owned'"
       },
       {
-        "to": "scout_health_cmd",
         "from": "@response",
+        "to": "scout_health_cmd",
         "when": "run == 'health'"
       },
       {
-        "to": "scout_write_cmd",
         "from": "@response",
+        "to": "scout_write_cmd",
         "when": "run == 'write'"
       },
       {
-        "to": "scout_recrawl_cmd",
         "from": "@response",
+        "to": "scout_recrawl_cmd",
         "when": "run == 'recrawl'"
+      },
+      {
+        "from": "@response",
+        "to": "scout_sitemap_cmd",
+        "when": "run == 'sitemap'"
       }
     ],
+    "id": "t-scout-app-run",
+    "kind": "map",
+    "label": "Execute run-now requests from the app",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "scout_health_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-cmd"
+      },
+      "scout_owned_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-owned-cmd"
+      },
+      "scout_recrawl_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-recrawl-cmd"
+      },
+      "scout_sitemap_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-sitemap-cmd"
+      },
+      "scout_taxonomy_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-taxonomy-cmd"
+      },
+      "scout_write_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-write-cmd"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.status == \"requested\" LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-app-requests",
+        "take": "FIRST"
+      }
     }
   },
   {
+    "action": {
+      "autoEmit": true,
+      "capabilityProfile": "research-worker",
+      "maxIterations": 4,
+      "model": "deepseek-v4-flash:cloud",
+      "modelId": "research-scout",
+      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. Do not recompute\nor omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object\nREPLACES the token, so a field you leave out is lost for good.",
+      "role": "rw-h-",
+      "timeoutMs": 240000,
+      "type": "agent"
+    },
     "id": "t-scout-categorize",
     "kind": "agent",
     "label": "Categorise one article (domain from brief)",
-    "role": "rw-h-",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-candidates",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      },
-      "config": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "out": {
-        "placeId": "p-scout-analysis",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-analysis"
       }
     },
-    "action": {
-      "type": "agent",
-      "role": "rw-h-",
-      "capabilityProfile": "research-worker",
-      "model": "deepseek-v4-flash:cloud",
-      "modelId": "research-scout",
-      "maxIterations": 4,
-      "autoEmit": true,
-      "timeoutMs": 240000,
-      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. Do not recompute\nor omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object\nREPLACES the token, so a field you leave out is lost for good."
+    "presets": {
+      "config": {
+        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-candidates",
+        "take": "FIRST"
+      }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "role": "rw-h-"
   },
   {
+    "action": {
+      "autoEmit": true,
+      "capabilityProfile": "research-worker",
+      "maxIterations": 8,
+      "model": "deepseek-v4-pro:cloud",
+      "modelId": "research-scout",
+      "nl": "You are an analyst working this brief:\n\nTOPIC: ${config.data.topic}\n${config.data.description}\n\nYou get two kinds of input and must treat them differently.\n\nFACTS — computed deterministically from the crawl. Every number is measured. Do NOT recount,\nre-derive, or estimate any figure; quote them exactly. If a number you want is not there, say\nso rather than inventing it.\n${input.data.factsJson}\n\nOWN COVERAGE — there is no separate payload for this: the fields below are INSIDE the FACTS\nobject you just read. `ownInventory.articles` (${input.data.ownArticles}) is how many articles\nthe owner already has; each entry of `categories` carries `ownCovered` / `ownUncovered`; and\n`trueGaps` is the ranked list of competitor material with NO owner equivalent\n(${input.data.ownUncovered} findings uncovered in total). In FRESH ARTICLES below, each item\nadds `coveredByOwn`, `closestOwnSlug` and `ownScore`. This matters because the crawl EXCLUDES\nthe owner's own site: a category can be huge for competitors and still be worthless advice if\n`ownCovered` is high, because the owner already ranks there. If a field really is missing, say\nso plainly rather than guessing — but read the FACTS object carefully first.\n\nFRESH ARTICLES — the actual body text of every recently published competitor article\n(${input.data.freshTextArticles} of them). This is evidence, not counts. Some are clipped;\n`truncated` says which. Read them to say what the competition is ACTUALLY arguing right now,\nnot merely how many pieces they shipped.\n${input.data.freshTextJson}\n\nWrite the analysis. Cover:\n1. Which angles the sources clearly OWN — categories with the most coverage, and who leads each.\n2. FRESHNESS — who publishes recently versus sits on ageing content, using the brand-new/recent/archive split.\n3. FRESH SIGNAL — from the article text only: the specific problems, sub-topics and framings the\n   recent pieces cover, the depth they go to, and what they conspicuously leave out. Quote or\n   closely paraphrase concrete details so a reader can tell you actually read them. If two fresh\n   pieces converge on one theme, name that theme — a competitor segmenting a topic is the single\n   strongest signal of where they see demand.\n4. GAPS — read these from `trueGaps` and `ownUncovered`, NOT from raw competitor counts. State\n   plainly where the owner is already strong (high `ownCovered`) so that ground is not re-fought.\n   Each fresh article carries `coveredByOwn` and `closestOwnSlug`: an uncovered FRESH piece is the\n   most urgent opening there is, and a covered one where the competitor went narrower than the\n   owner's existing page is a defence job, not a new article.\n5. Three concrete recommendations, drawn from `trueGaps`. Each must name the specific uncovered\n   competitor material it answers, the source it targets, and where possible the fresh-article\n   weakness it beats. NEVER recommend a category whose `ownCovered` is high — that is advice the\n   owner has already taken. Ground every one in the article text, not just the counts.\n\nBe specific. Name sources by host. No preamble, no restating the brief.\n\nEverything you need is already in this prompt — there is nothing to look up, so do NOT call\nTHINK, and do not query anything. Deliver the result by calling DONE exactly once, on your\nFIRST iteration.\n\nCRITICAL — what to pass as DONE's `summary` argument: the COMPLETE JSON object below, with\nevery ... filled in with your full analysis text. The tool parameter is named `summary`, but\nfor this lane it is NOT a summary — it is the entire deliverable. Passing a sentence like\n'Landscape analysis complete.' destroys the whole run: the run before you did exactly that,\nits output was unusable junk, and the day's analysis was lost. The JSON object IS your answer;\nnothing you write anywhere else survives.\n\n{\"kind\":\"landscape-analysis\",\"generatedAt\":\"${input.data.generatedAt}\",\"totalFindings\":\"${input.data.totalFindings}\",\"freshTextArticles\":\"${input.data.freshTextArticles}\",\"ownArticles\":\"${input.data.ownArticles}\",\"ownUncovered\":\"${input.data.ownUncovered}\",\"ownedAngles\":\"...\",\"freshness\":\"...\",\"freshSignal\":\"...\",\"gaps\":\"...\",\"ownPosition\":\"...\",\"recommendations\":[\"...\",\"...\",\"...\"]}",
+      "role": "rw-h-",
+      "timeoutMs": 300000,
+      "type": "agent"
+    },
     "id": "t-scout-digest",
     "kind": "agent",
     "label": "Landscape analysis (facts + fresh text + own coverage)",
-    "role": "rw-h-",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-taxonomy",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.kind == \"facts\" LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      },
-      "config": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "out": {
-        "placeId": "p-scout-digest",
         "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-digest",
         "retain": 3
       }
     },
-    "action": {
-      "type": "agent",
-      "role": "rw-h-",
-      "capabilityProfile": "research-worker",
-      "model": "deepseek-v4-pro:cloud",
-      "modelId": "research-scout",
-      "maxIterations": 8,
-      "autoEmit": true,
-      "timeoutMs": 300000,
-      "nl": "You are an analyst working this brief:\n\nTOPIC: ${config.data.topic}\n${config.data.description}\n\nYou get two kinds of input and must treat them differently.\n\nFACTS — computed deterministically from the crawl. Every number is measured. Do NOT recount,\nre-derive, or estimate any figure; quote them exactly. If a number you want is not there, say\nso rather than inventing it.\n${input.data.factsJson}\n\nOWN COVERAGE — there is no separate payload for this: the fields below are INSIDE the FACTS\nobject you just read. `ownInventory.articles` (${input.data.ownArticles}) is how many articles\nthe owner already has; each entry of `categories` carries `ownCovered` / `ownUncovered`; and\n`trueGaps` is the ranked list of competitor material with NO owner equivalent\n(${input.data.ownUncovered} findings uncovered in total). In FRESH ARTICLES below, each item\nadds `coveredByOwn`, `closestOwnSlug` and `ownScore`. This matters because the crawl EXCLUDES\nthe owner's own site: a category can be huge for competitors and still be worthless advice if\n`ownCovered` is high, because the owner already ranks there. If a field really is missing, say\nso plainly rather than guessing — but read the FACTS object carefully first.\n\nFRESH ARTICLES — the actual body text of every recently published competitor article\n(${input.data.freshTextArticles} of them). This is evidence, not counts. Some are clipped;\n`truncated` says which. Read them to say what the competition is ACTUALLY arguing right now,\nnot merely how many pieces they shipped.\n${input.data.freshTextJson}\n\nWrite the analysis. Cover:\n1. Which angles the sources clearly OWN — categories with the most coverage, and who leads each.\n2. FRESHNESS — who publishes recently versus sits on ageing content, using the brand-new/recent/archive split.\n3. FRESH SIGNAL — from the article text only: the specific problems, sub-topics and framings the\n   recent pieces cover, the depth they go to, and what they conspicuously leave out. Quote or\n   closely paraphrase concrete details so a reader can tell you actually read them. If two fresh\n   pieces converge on one theme, name that theme — a competitor segmenting a topic is the single\n   strongest signal of where they see demand.\n4. GAPS — read these from `trueGaps` and `ownUncovered`, NOT from raw competitor counts. State\n   plainly where the owner is already strong (high `ownCovered`) so that ground is not re-fought.\n   Each fresh article carries `coveredByOwn` and `closestOwnSlug`: an uncovered FRESH piece is the\n   most urgent opening there is, and a covered one where the competitor went narrower than the\n   owner's existing page is a defence job, not a new article.\n5. Three concrete recommendations, drawn from `trueGaps`. Each must name the specific uncovered\n   competitor material it answers, the source it targets, and where possible the fresh-article\n   weakness it beats. NEVER recommend a category whose `ownCovered` is high — that is advice the\n   owner has already taken. Ground every one in the article text, not just the counts.\n\nBe specific. Name sources by host. No preamble, no restating the brief.\n\nEverything you need is already in this prompt — there is nothing to look up, so do NOT call\nTHINK, and do not query anything. Deliver the result by calling DONE exactly once, on your\nFIRST iteration.\n\nCRITICAL — what to pass as DONE's `summary` argument: the COMPLETE JSON object below, with\nevery ... filled in with your full analysis text. The tool parameter is named `summary`, but\nfor this lane it is NOT a summary — it is the entire deliverable. Passing a sentence like\n'Landscape analysis complete.' destroys the whole run: the run before you did exactly that,\nits output was unusable junk, and the day's analysis was lost. The JSON object IS your answer;\nnothing you write anywhere else survives.\n\n{\"kind\":\"landscape-analysis\",\"generatedAt\":\"${input.data.generatedAt}\",\"totalFindings\":\"${input.data.totalFindings}\",\"freshTextArticles\":\"${input.data.freshTextArticles}\",\"ownArticles\":\"${input.data.ownArticles}\",\"ownUncovered\":\"${input.data.ownUncovered}\",\"ownedAngles\":\"...\",\"freshness\":\"...\",\"freshSignal\":\"...\",\"gaps\":\"...\",\"ownPosition\":\"...\",\"recommendations\":[\"...\",\"...\",\"...\"]}"
+    "presets": {
+      "config": {
+        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ WHERE $.kind == \"facts\" LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-taxonomy",
+        "take": "FIRST"
+      }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "role": "rw-h-"
   },
   {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 180000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
     "id": "t-scout-fetch",
     "kind": "command",
     "label": "Fetch page on executor",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-fetch-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "log": {
-        "placeId": "p-scout-raw",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-raw"
       }
     },
-    "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
-      "dispatch": [
-        {
-          "executor": "bash",
-          "channel": "default"
-        }
-      ],
-      "await": "ALL",
-      "timeoutMs": 180000
-    },
-    "emit": [
-      {
-        "to": "log",
-        "from": "@result"
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-fetch-cmd",
+        "take": "FIRST"
       }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "ATTEMPT": "${input.data.attempt}",
+            "BRIEF_JSON": "${json(config.data)}",
+            "DEPTH": "${input.data.depth}",
+            "MODEL_ID": "research-scout",
+            "URL": "${input.data.url}"
+          },
+          "timeoutMs": 120000,
+          "toolId": "scout-fetch"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "fetch-${input._meta.id}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
     "id": "t-scout-fetch-cmd",
     "kind": "map",
     "label": "Build fetch CommandToken",
-    "mode": "FOREACH",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-frontier",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.depth < 3 LIMIT 5",
-        "take": "ALL",
-        "consume": true
-      },
-      "config": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "FOREACH",
     "postsets": {
       "out": {
-        "placeId": "p-scout-fetch-cmd",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-fetch-cmd"
       }
     },
-    "action": {
-      "type": "map",
-      "template": {
-        "kind": "command",
-        "id": "fetch-${input._meta.id}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "args": {
-          "toolId": "scout-fetch",
-          "argv": [],
-          "timeoutMs": 120000,
-          "env": {
-            "URL": "${input.data.url}",
-            "DEPTH": "${input.data.depth}",
-            "ATTEMPT": "${input.data.attempt}",
-            "MODEL_ID": "research-scout",
-            "BRIEF_JSON": "${json(config.data)}"
-          }
-        }
+    "presets": {
+      "config": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ WHERE $.depth < 3 LIMIT 5",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-frontier",
+        "take": "ALL"
       }
-    },
-    "emit": [
-      {
-        "to": "out",
-        "from": "@response"
-      }
-    ],
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
-    "id": "t-scout-gate",
-    "kind": "map",
-    "label": "Gate: articles above minScore only",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-fetched",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
-    },
-    "postsets": {
-      "scout_candidates": {
-        "placeId": "p-scout-candidates",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "scout_rejected": {
-        "placeId": "p-scout-rejected",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "map",
       "template": {
-        "url": "${input.data.url}",
-        "host": "${input.data.host}",
-        "title": "${input.data.title}",
-        "publishedAt": "${input.data.publishedAt}",
         "ageDays": "${input.data.ageDays}",
-        "recency": "${input.data.recency}",
-        "dateSource": "${input.data.dateSource}",
-        "score": "${input.data.score}",
-        "pageType": "${input.data.pageType}",
-        "gateVerdict": "${input.data.gateVerdict}",
-        "extract": "${input.data.extract}",
         "blobUrn": "${input.data.blobUrn}",
-        "extractChars": "${input.data.extractChars}",
         "briefId": "${input.data.briefId}",
+        "dateSource": "${input.data.dateSource}",
         "depth": "${input.data.depth}",
+        "extract": "${input.data.extract}",
+        "extractChars": "${input.data.extractChars}",
+        "gateVerdict": "${input.data.gateVerdict}",
         "gatedAt": "${now()}",
-        "sourceType": "${input.data.sourceType}"
-      }
+        "host": "${input.data.host}",
+        "pageType": "${input.data.pageType}",
+        "publishedAt": "${input.data.publishedAt}",
+        "recency": "${input.data.recency}",
+        "score": "${input.data.score}",
+        "sourceType": "${input.data.sourceType}",
+        "title": "${input.data.title}",
+        "url": "${input.data.url}"
+      },
+      "type": "map"
     },
     "emit": [
       {
-        "to": "scout_candidates",
         "from": "@response",
+        "to": "scout_candidates",
         "when": "gateVerdict == 'pass'"
       },
       {
-        "to": "scout_rejected",
         "from": "@response",
+        "to": "scout_rejected",
         "when": "gateVerdict == 'low-score'"
       },
       {
-        "to": "scout_rejected",
         "from": "@response",
+        "to": "scout_rejected",
         "when": "gateVerdict == 'index'"
       }
     ],
+    "id": "t-scout-gate",
+    "kind": "map",
+    "label": "Gate: articles above minScore only",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "scout_candidates": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-candidates"
+      },
+      "scout_rejected": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-rejected"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-fetched",
+        "take": "FIRST"
+      }
     }
   },
   {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 120000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
     "id": "t-scout-health",
     "kind": "command",
     "label": "Roll telemetry into insights",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-health-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "log": {
-        "placeId": "p-scout-health-log",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-log"
       }
     },
-    "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
-      "dispatch": [
-        {
-          "executor": "bash",
-          "channel": "default"
-        }
-      ],
-      "await": "ALL",
-      "timeoutMs": 120000
-    },
-    "emit": [
-      {
-        "to": "log",
-        "from": "@result"
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-cmd",
+        "take": "FIRST"
       }
-    ],
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
-    "id": "t-scout-health-cmd",
-    "kind": "map",
-    "label": "Build health CommandToken",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
-    },
-    "postsets": {
-      "out": {
-        "placeId": "p-scout-health-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "map",
       "template": {
-        "kind": "command",
-        "id": "health-${now()}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
         "args": {
-          "toolId": "scout-health",
           "argv": [],
-          "timeoutMs": 90000,
           "env": {
             "MODEL_ID": "research-scout",
             "WINDOW": "2000"
-          }
-        }
-      }
+          },
+          "timeoutMs": 90000,
+          "toolId": "scout-health"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "health-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
     },
     "emit": [
       {
-        "to": "out",
-        "from": "@response"
+        "from": "@response",
+        "to": "out"
       }
     ],
+    "id": "t-scout-health-cmd",
+    "kind": "map",
+    "label": "Build health CommandToken",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-cmd"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      }
     },
     "schedule": {
-      "type": "cron",
       "cron": "0 45 6 * * MON",
-      "timezone": "Europe/Berlin"
+      "timezone": "Europe/Berlin",
+      "type": "cron"
     }
   },
   {
-    "id": "t-scout-lift",
-    "kind": "map",
-    "label": "Lift result, telemeter, route, fan out discovered links",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-raw",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
-    },
-    "postsets": {
-      "out": {
-        "placeId": "p-scout-telemetry",
-        "host": "research-scout@agentic-net-node:8080",
-        "retain": 500
-      },
-      "scout_fetched": {
-        "placeId": "p-scout-fetched",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "scout_frontier": {
-        "placeId": "p-scout-frontier",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "map",
       "template": {
-        "url": "${input.data.parsedStdout.url}",
-        "host": "${input.data.parsedStdout.host}",
-        "outcome": "${input.data.parsedStdout.outcome}",
-        "failureClass": "${input.data.parsedStdout.failureClass}",
-        "httpStatus": "${input.data.parsedStdout.httpStatus}",
-        "durationMs": "${input.data.parsedStdout.durationMs}",
-        "title": "${input.data.parsedStdout.title}",
-        "publishedAt": "${input.data.parsedStdout.publishedAt}",
         "ageDays": "${input.data.parsedStdout.ageDays}",
-        "recency": "${input.data.parsedStdout.recency}",
-        "dateSource": "${input.data.parsedStdout.dateSource}",
-        "score": "${input.data.parsedStdout.score}",
-        "pageType": "${input.data.parsedStdout.pageType}",
-        "gateVerdict": "${input.data.parsedStdout.gateVerdict}",
-        "extract": "${input.data.parsedStdout.extract}",
-        "blobUrn": "${input.data.parsedStdout.blobUrn}",
-        "extractChars": "${input.data.parsedStdout.extractChars}",
-        "linksFound": "${input.data.parsedStdout.linksFound}",
-        "spoolQueued": "${input.data.parsedStdout.spoolQueued}",
-        "frontierCandidates": "${input.data.parsedStdout.frontierCandidates}",
-        "depth": "${input.data.parsedStdout.depth}",
         "attempt": "${input.data.parsedStdout.attempt}",
-        "retry": "${input.data.parsedStdout.retry}",
+        "blobUrn": "${input.data.parsedStdout.blobUrn}",
         "briefId": "${input.data.parsedStdout.briefId}",
-        "ts": "${input.data.parsedStdout.ts}",
+        "dateSource": "${input.data.parsedStdout.dateSource}",
+        "depth": "${input.data.parsedStdout.depth}",
+        "durationMs": "${input.data.parsedStdout.durationMs}",
+        "extract": "${input.data.parsedStdout.extract}",
+        "extractChars": "${input.data.parsedStdout.extractChars}",
+        "failureClass": "${input.data.parsedStdout.failureClass}",
+        "frontierCandidates": "${input.data.parsedStdout.frontierCandidates}",
+        "gateVerdict": "${input.data.parsedStdout.gateVerdict}",
+        "host": "${input.data.parsedStdout.host}",
+        "httpStatus": "${input.data.parsedStdout.httpStatus}",
+        "linksFound": "${input.data.parsedStdout.linksFound}",
+        "outcome": "${input.data.parsedStdout.outcome}",
+        "pageType": "${input.data.parsedStdout.pageType}",
+        "publishedAt": "${input.data.parsedStdout.publishedAt}",
         "queuedAt": "${now()}",
-        "sourceType": "${input.data.parsedStdout.sourceType}"
-      }
+        "recency": "${input.data.parsedStdout.recency}",
+        "retry": "${input.data.parsedStdout.retry}",
+        "score": "${input.data.parsedStdout.score}",
+        "sourceType": "${input.data.parsedStdout.sourceType}",
+        "spoolQueued": "${input.data.parsedStdout.spoolQueued}",
+        "title": "${input.data.parsedStdout.title}",
+        "ts": "${input.data.parsedStdout.ts}",
+        "url": "${input.data.parsedStdout.url}"
+      },
+      "type": "map"
     },
     "emit": [
       {
-        "to": "scout_fetched",
         "from": "@response",
+        "to": "scout_fetched",
         "when": "outcome == 'ok'"
       },
       {
-        "to": "scout_frontier",
+        "fanOut": true,
         "from": "@response.frontierCandidates",
-        "fanOut": true
+        "to": "scout_frontier"
       },
       {
-        "to": "scout_frontier",
         "from": "@response",
+        "to": "scout_frontier",
         "when": "retry == 'yes'"
       },
       {
-        "to": "out",
-        "from": "@response"
+        "from": "@response",
+        "to": "out"
       }
     ],
+    "id": "t-scout-lift",
+    "kind": "map",
+    "label": "Lift result, telemeter, route, fan out discovered links",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-telemetry",
+        "retain": 500
+      },
+      "scout_fetched": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-fetched"
+      },
+      "scout_frontier": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-frontier"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-raw",
+        "take": "FIRST"
+      }
     }
   },
   {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 150000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
     "id": "t-scout-owned",
     "kind": "command",
     "label": "Index own articles from sitemap",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-owned-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "log": {
-        "placeId": "p-scout-health-log",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-log"
       }
     },
-    "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
-      "dispatch": [
-        {
-          "executor": "bash",
-          "channel": "default"
-        }
-      ],
-      "await": "ALL",
-      "timeoutMs": 150000
-    },
-    "emit": [
-      {
-        "to": "log",
-        "from": "@result"
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-owned-cmd",
+        "take": "FIRST"
       }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout"
+          },
+          "timeoutMs": 90000,
+          "toolId": "scout-owned"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "owned-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
     "id": "t-scout-owned-cmd",
     "kind": "map",
     "label": "Build owned-inventory command",
-    "schedule": {
-      "type": "cron",
-      "cron": "0 15 6 * * MON",
-      "timezone": "Europe/Berlin"
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-owned-cmd"
+      }
     },
     "presets": {
       "input": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
         "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
         "consume": false,
-        "optional": true
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
       }
     },
-    "postsets": {
-      "out": {
-        "placeId": "p-scout-owned-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
-    "action": {
-      "type": "map",
-      "template": {
-        "kind": "command",
-        "id": "owned-${now()}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "args": {
-          "toolId": "scout-owned",
-          "argv": [],
-          "timeoutMs": 90000,
-          "env": {
-            "MODEL_ID": "research-scout"
-          }
-        }
-      }
-    },
-    "emit": [
-      {
-        "to": "out",
-        "from": "@response"
-      }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+    "schedule": {
+      "cron": "0 15 6 * * MON",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
     }
   },
   {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 150000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
     "id": "t-scout-recrawl",
     "kind": "command",
     "label": "Re-queue source entry pages on executor",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-recrawl-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "log": {
-        "placeId": "p-scout-health-log",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-log"
       }
     },
-    "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
-      "dispatch": [
-        {
-          "executor": "bash",
-          "channel": "default"
-        }
-      ],
-      "await": "ALL",
-      "timeoutMs": 150000
-    },
-    "emit": [
-      {
-        "to": "log",
-        "from": "@result"
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-recrawl-cmd",
+        "take": "FIRST"
       }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout"
+          },
+          "timeoutMs": 120000,
+          "toolId": "scout-recrawl"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "recrawl-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
     "id": "t-scout-recrawl-cron",
     "kind": "map",
     "label": "Build re-crawl command (weekly)",
-    "schedule": {
-      "type": "cron",
-      "cron": "0 45 5 * * MON",
-      "timezone": "Europe/Berlin"
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-recrawl-cmd"
+      }
     },
     "presets": {
       "input": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
         "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
         "consume": false,
-        "optional": true
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
       }
     },
-    "postsets": {
-      "out": {
-        "placeId": "p-scout-recrawl-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
-    "action": {
-      "type": "map",
-      "template": {
-        "kind": "command",
-        "id": "recrawl-${now()}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "args": {
-          "toolId": "scout-recrawl",
-          "argv": [],
-          "timeoutMs": 120000,
-          "env": {
-            "MODEL_ID": "research-scout"
-          }
-        }
-      }
-    },
-    "emit": [
-      {
-        "to": "out",
-        "from": "@response"
-      }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+    "schedule": {
+      "cron": "0 45 5 * * MON",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
     }
   },
   {
-    "id": "t-scout-route",
-    "kind": "map",
-    "label": "Route by publication recency",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-analysis",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
-    },
-    "postsets": {
-      "find_brand_new": {
-        "placeId": "p-find-brand-new",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "find_recent": {
-        "placeId": "p-find-recent",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "find_archive": {
-        "placeId": "p-find-archive",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "malformed": {
-        "placeId": "p-scout-errors",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "map",
       "template": {
-        "url": "${input.data.url}",
-        "title": "${input.data.title}",
-        "category": "${input.data.category}",
-        "recency": "${input.data.recency}",
-        "publishedAt": "${input.data.publishedAt}",
-        "summary": "${input.data.summary}",
-        "keyPoints": "${input.data.keyPoints}",
-        "confidence": "${input.data.confidence}",
         "blobUrn": "${input.data.blobUrn}",
         "briefId": "${input.data.briefId}",
+        "category": "${input.data.category}",
+        "confidence": "${input.data.confidence}",
         "filedAt": "${now()}",
-        "sourceType": "${input.data.sourceType}"
-      }
+        "keyPoints": "${input.data.keyPoints}",
+        "publishedAt": "${input.data.publishedAt}",
+        "recency": "${input.data.recency}",
+        "sourceType": "${input.data.sourceType}",
+        "summary": "${input.data.summary}",
+        "title": "${input.data.title}",
+        "url": "${input.data.url}"
+      },
+      "type": "map"
     },
     "emit": [
       {
-        "to": "find_brand_new",
         "from": "@response",
+        "to": "find_brand_new",
         "when": "recency == 'brand-new'"
       },
       {
-        "to": "find_recent",
         "from": "@response",
+        "to": "find_recent",
         "when": "recency == 'recent'"
       },
       {
-        "to": "find_archive",
         "from": "@response",
+        "to": "find_archive",
         "when": "recency == 'archive'"
       },
       {
-        "to": "malformed",
         "from": "@response",
+        "to": "malformed",
         "when": "recency == null"
       }
     ],
+    "id": "t-scout-route",
+    "kind": "map",
+    "label": "Route by publication recency",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "find_archive": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-find-archive"
+      },
+      "find_brand_new": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-find-brand-new"
+      },
+      "find_recent": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-find-recent"
+      },
+      "malformed": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-errors"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-analysis",
+        "take": "FIRST"
+      }
     }
   },
   {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 120000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
     "id": "t-scout-search",
     "kind": "command",
     "label": "Run search on executor",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-search-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "log": {
-        "placeId": "p-scout-search-raw",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-search-raw"
       }
     },
-    "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
-      "dispatch": [
-        {
-          "executor": "bash",
-          "channel": "default"
-        }
-      ],
-      "await": "ALL",
-      "timeoutMs": 120000
-    },
-    "emit": [
-      {
-        "to": "log",
-        "from": "@result"
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-search-cmd",
+        "take": "FIRST"
       }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MAX_RESULTS": "${input.data.maxResults}",
+            "MODEL_ID": "research-scout",
+            "QUERY": "${input.data.query}",
+            "SEARCH_PROVIDER": "${config.data.searchProvider}"
+          },
+          "timeoutMs": 90000,
+          "toolId": "scout-search"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "search-${input._meta.id}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
     "id": "t-scout-search-cmd",
     "kind": "map",
     "label": "Build search CommandToken",
-    "mode": "FOREACH",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-queries",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 3",
-        "take": "ALL",
-        "consume": true
-      },
-      "config": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "FOREACH",
     "postsets": {
       "out": {
-        "placeId": "p-scout-search-cmd",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-search-cmd"
       }
     },
-    "action": {
-      "type": "map",
-      "template": {
-        "kind": "command",
-        "id": "search-${input._meta.id}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "args": {
-          "toolId": "scout-search",
-          "argv": [],
-          "timeoutMs": 90000,
-          "env": {
-            "QUERY": "${input.data.query}",
-            "MAX_RESULTS": "${input.data.maxResults}",
-            "SEARCH_PROVIDER": "${config.data.searchProvider}",
-            "MODEL_ID": "research-scout"
-          }
-        }
+    "presets": {
+      "config": {
+        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ LIMIT 3",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-queries",
+        "take": "ALL"
       }
-    },
-    "emit": [
-      {
-        "to": "out",
-        "from": "@response"
-      }
-    ],
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
-    "id": "t-scout-search-lift",
-    "kind": "map",
-    "label": "Lift search result, fan hits into frontier",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-search-raw",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
-    },
-    "postsets": {
-      "out": {
-        "placeId": "p-scout-telemetry",
-        "host": "research-scout@agentic-net-node:8080",
-        "retain": 500
-      },
-      "scout_frontier": {
-        "placeId": "p-scout-frontier",
-        "host": "research-scout@agentic-net-node:8080"
-      },
-      "err": {
-        "placeId": "p-scout-errors",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "map",
       "template": {
-        "kind": "search",
-        "query": "${input.data.parsedStdout.query}",
-        "provider": "${input.data.parsedStdout.provider}",
-        "outcome": "${input.data.parsedStdout.outcome}",
         "error": "${input.data.parsedStdout.error}",
         "found": "${input.data.parsedStdout.found}",
-        "queued": "${input.data.parsedStdout.queued}",
-        "known": "${input.data.parsedStdout.known}",
-        "hostFiltered": "${input.data.parsedStdout.hostFiltered}",
-        "malformed": "${input.data.parsedStdout.malformed}",
         "frontierCandidates": "${input.data.parsedStdout.frontierCandidates}",
-        "ts": "${input.data.parsedStdout.ts}",
-        "queuedAt": "${now()}"
-      }
+        "hostFiltered": "${input.data.parsedStdout.hostFiltered}",
+        "kind": "search",
+        "known": "${input.data.parsedStdout.known}",
+        "malformed": "${input.data.parsedStdout.malformed}",
+        "outcome": "${input.data.parsedStdout.outcome}",
+        "provider": "${input.data.parsedStdout.provider}",
+        "query": "${input.data.parsedStdout.query}",
+        "queued": "${input.data.parsedStdout.queued}",
+        "queuedAt": "${now()}",
+        "ts": "${input.data.parsedStdout.ts}"
+      },
+      "type": "map"
     },
     "emit": [
       {
-        "to": "scout_frontier",
+        "fanOut": true,
         "from": "@response.frontierCandidates",
-        "fanOut": true
+        "to": "scout_frontier"
       },
       {
-        "to": "err",
         "from": "@response",
+        "to": "err",
         "when": "outcome == 'failed'"
       },
       {
-        "to": "out",
-        "from": "@response"
+        "from": "@response",
+        "to": "out"
       }
     ],
+    "id": "t-scout-search-lift",
+    "kind": "map",
+    "label": "Lift search result, fan hits into frontier",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "err": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-errors"
+      },
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-telemetry",
+        "retain": 500
+      },
+      "scout_frontier": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-frontier"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-search-raw",
+        "take": "FIRST"
+      }
     }
   },
   {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 150000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-scout-sitemap",
+    "kind": "command",
+    "label": "Discover + harvest sitemaps on executor",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "log": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-log"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-sitemap-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout"
+          },
+          "timeoutMs": 240000,
+          "toolId": "scout-sitemap"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "sitemap-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
+    "id": "t-scout-sitemap-cron",
+    "kind": "map",
+    "label": "Build sitemap-harvest command (monthly sweep)",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-sitemap-cmd"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 30 5 1 * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 120000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
     "id": "t-scout-taxonomy",
     "kind": "command",
     "label": "Roll findings into taxonomy + facts",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-taxonomy-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "log": {
-        "placeId": "p-scout-health-log",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-log"
       }
     },
-    "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
-      "dispatch": [
-        {
-          "executor": "bash",
-          "channel": "default"
-        }
-      ],
-      "await": "ALL",
-      "timeoutMs": 120000
-    },
-    "emit": [
-      {
-        "to": "log",
-        "from": "@result"
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-taxonomy-cmd",
+        "take": "FIRST"
       }
-    ],
-    "mode": "SINGLE",
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     }
   },
   {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout"
+          },
+          "timeoutMs": 90000,
+          "toolId": "scout-taxonomy"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "taxonomy-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
     "id": "t-scout-taxonomy-cmd",
     "kind": "map",
     "label": "Build taxonomy CommandToken",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "out": {
-        "placeId": "p-scout-taxonomy-cmd",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-taxonomy-cmd"
       }
     },
-    "action": {
-      "type": "map",
-      "template": {
-        "kind": "command",
-        "id": "taxonomy-${now()}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "args": {
-          "toolId": "scout-taxonomy",
-          "argv": [],
-          "timeoutMs": 90000,
-          "env": {
-            "MODEL_ID": "research-scout"
-          }
-        }
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
       }
-    },
-    "emit": [
-      {
-        "to": "out",
-        "from": "@response"
-      }
-    ],
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
     },
     "schedule": {
-      "type": "cron",
       "cron": "0 30 6 * * *",
-      "timezone": "Europe/Berlin"
+      "timezone": "Europe/Berlin",
+      "type": "cron"
     }
   },
   {
+    "action": {
+      "autoEmit": true,
+      "capabilityProfile": "research-worker",
+      "maxIterations": 8,
+      "model": "deepseek-v4-pro:cloud",
+      "modelId": "research-scout",
+      "nl": "You are the staff writer for this investigation. One accepted article task has been assembled into the packet below; write the publish-ready draft.\n\nTOPIC: ${config.data.topic}\n${config.data.domainHint}\n\nTHE ASSIGNMENT\ntitle: ${input.data.title}\nwhy it was accepted: ${input.data.rationale}\ncategory: ${input.data.gapCategory}\n\nTHE COMPETITOR PIECE THIS MUST BEAT (${input.data.competitorUrl}):\n${input.data.competitorText}\n\nRELATED ARTICLES ALREADY ON THE OWNER'S SITE (link them with relative paths like /slug/ where they genuinely help the reader; never repeat their content): ${input.data.relatedOwnSlugs}\n\nWrite 1100-1500 words of practical, publish-ready markdown:\n- Open with the reader's actual problem, not a definition.\n- Deliver what the rationale says the competitor stops short of — that is the whole point of this assignment.\n- Structure with ## and ### headings; use tables or numbered steps where they beat prose.\n- Concrete values over vague advice. Plain language. No filler intros, no 'in conclusion'.\n- Do NOT copy or closely paraphrase the competitor's sentences; write from understanding.\n- Include a short FAQ (3 questions) at the end if the topic invites one.\n\nEverything you need is in this prompt — do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as its summary argument (no markdown fences around it):\n{\"kind\":\"draft\",\"taskId\":\"${input.data.taskId}\",\"title\":\"${input.data.title}\",\"gapCategory\":\"${input.data.gapCategory}\",\"competitorUrl\":\"${input.data.competitorUrl}\",\"briefId\":\"${input.data.briefId}\",\"status\":\"draft\",\"wordCount\":\"...\",\"draftMarkdown\":\"...the full article as one JSON string...\"}\n\nCopy taskId, title, gapCategory, competitorUrl and briefId EXACTLY as given — this lane's answer object REPLACES the token, so any field you omit is lost for good. DONE is the only channel that returns an answer: prose outside it is discarded and the whole run is wasted.",
+      "role": "rw-h-",
+      "timeoutMs": 300000,
+      "type": "agent"
+    },
     "id": "t-scout-write",
     "kind": "agent",
     "label": "Staff writer: draft the accepted article",
-    "role": "rw-h-",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-write-queue",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.kind == \"write-packet\" LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      },
-      "config": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
-        "take": "FIRST",
-        "consume": false,
-        "optional": false
-      }
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
     },
+    "mode": "SINGLE",
     "postsets": {
       "out": {
-        "placeId": "p-scout-drafts",
-        "host": "research-scout@agentic-net-node:8080"
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-drafts"
       }
     },
-    "action": {
-      "type": "agent",
-      "role": "rw-h-",
-      "capabilityProfile": "research-worker",
-      "model": "deepseek-v4-pro:cloud",
-      "modelId": "research-scout",
-      "maxIterations": 8,
-      "autoEmit": true,
-      "timeoutMs": 300000,
-      "nl": "You are the staff writer for this investigation. One accepted article task has been assembled into the packet below; write the publish-ready draft.\n\nTOPIC: ${config.data.topic}\n${config.data.domainHint}\n\nTHE ASSIGNMENT\ntitle: ${input.data.title}\nwhy it was accepted: ${input.data.rationale}\ncategory: ${input.data.gapCategory}\n\nTHE COMPETITOR PIECE THIS MUST BEAT (${input.data.competitorUrl}):\n${input.data.competitorText}\n\nRELATED ARTICLES ALREADY ON THE OWNER'S SITE (link them with relative paths like /slug/ where they genuinely help the reader; never repeat their content): ${input.data.relatedOwnSlugs}\n\nWrite 1100-1500 words of practical, publish-ready markdown:\n- Open with the reader's actual problem, not a definition.\n- Deliver what the rationale says the competitor stops short of — that is the whole point of this assignment.\n- Structure with ## and ### headings; use tables or numbered steps where they beat prose.\n- Concrete values over vague advice. Plain language. No filler intros, no 'in conclusion'.\n- Do NOT copy or closely paraphrase the competitor's sentences; write from understanding.\n- Include a short FAQ (3 questions) at the end if the topic invites one.\n\nEverything you need is in this prompt — do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as its summary argument (no markdown fences around it):\n{\"kind\":\"draft\",\"taskId\":\"${input.data.taskId}\",\"title\":\"${input.data.title}\",\"gapCategory\":\"${input.data.gapCategory}\",\"competitorUrl\":\"${input.data.competitorUrl}\",\"briefId\":\"${input.data.briefId}\",\"status\":\"draft\",\"wordCount\":\"...\",\"draftMarkdown\":\"...the full article as one JSON string...\"}\n\nCopy taskId, title, gapCategory, competitorUrl and briefId EXACTLY as given — this lane's answer object REPLACES the token, so any field you omit is lost for good. DONE is the only channel that returns an answer: prose outside it is discarded and the whole run is wasted."
+    "presets": {
+      "config": {
+        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
+        "consume": false,
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ WHERE $.kind == \"write-packet\" LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-write-queue",
+        "take": "FIRST"
+      }
     },
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
-    }
+    "role": "rw-h-"
   },
   {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout"
+          },
+          "timeoutMs": 300000,
+          "toolId": "scout-write"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "write-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
     "id": "t-scout-write-cron",
     "kind": "map",
     "label": "Build write-prep command (daily)",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
     "mode": "SINGLE",
-    "schedule": {
-      "type": "cron",
-      "cron": "0 0 7 * * *",
-      "timezone": "Europe/Berlin"
+    "postsets": {
+      "out": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-write-cmd"
+      }
     },
     "presets": {
       "input": {
-        "placeId": "p-scout-brief",
-        "host": "research-scout@agentic-net-node:8080",
         "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
         "consume": false,
-        "optional": true
+        "host": "research-scout@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
       }
     },
-    "postsets": {
-      "out": {
-        "placeId": "p-scout-write-cmd",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
-    "action": {
-      "type": "map",
-      "template": {
-        "kind": "command",
-        "id": "write-${now()}",
-        "executor": "script",
-        "command": "invoke",
-        "expect": "text",
-        "args": {
-          "toolId": "scout-write",
-          "argv": [],
-          "timeoutMs": 300000,
-          "env": {
-            "MODEL_ID": "research-scout"
-          }
-        }
-      }
-    },
-    "emit": [
-      {
-        "to": "out",
-        "from": "@response"
-      }
-    ],
-    "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+    "schedule": {
+      "cron": "0 0 7 * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
     }
   },
   {
-    "id": "t-scout-write-prep",
-    "kind": "command",
-    "label": "Draft on executor via Claude Code",
-    "mode": "SINGLE",
-    "presets": {
-      "input": {
-        "placeId": "p-scout-write-cmd",
-        "host": "research-scout@agentic-net-node:8080",
-        "arcql": "FROM $ LIMIT 1",
-        "take": "FIRST",
-        "consume": true
-      }
-    },
-    "postsets": {
-      "log": {
-        "placeId": "p-scout-health-log",
-        "host": "research-scout@agentic-net-node:8080"
-      }
-    },
     "action": {
-      "type": "command",
-      "inputPlace": "input",
-      "executorId": "agentic-net-executor-default",
-      "groupBy": "executor",
+      "await": "ALL",
       "dispatch": [
         {
-          "executor": "bash",
-          "channel": "default"
+          "channel": "default",
+          "executor": "bash"
         }
       ],
-      "await": "ALL",
-      "timeoutMs": 360000
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 360000,
+      "type": "command"
     },
     "emit": [
       {
-        "to": "log",
-        "from": "@result"
+        "from": "@result",
+        "to": "log"
       }
     ],
+    "id": "t-scout-write-prep",
+    "kind": "command",
+    "label": "Draft on executor via Claude Code",
     "metadata": {
-      "sessionId": "dev-support-council",
-      "netId": "scout"
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "log": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-health-log"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-write-cmd",
+        "take": "FIRST"
+      }
     }
   }
 ]
