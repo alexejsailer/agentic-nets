@@ -254,9 +254,10 @@ def spool_links(links, parent_url, parent_depth, brief):
     args.env: the engine auto-parses JSON-looking strings and type preservation re-emits
     an array, which the executor drops. Doing it here also saves an executor round trip.
     Returns counters that ride out on the result token and into telemetry."""
+    # Counters ONLY. Anything else here is merged over `out` by the caller and would silently
+    # reset a field computed earlier — that is how sourceType stayed empty on 1300 findings.
     c = {"spoolQueued": 0, "spoolKnown": 0, "spoolFiltered": 0,
-         "spoolDepthStopped": 0, "spoolMalformed": 0, "frontierCandidates": [],
-           "pageType": "article", "gateVerdict": "low-score", "sourceType": ""}
+         "spoolDepthStopped": 0, "spoolMalformed": 0, "frontierCandidates": []}
     child = parent_depth + 1
     # Depth capped with < (never !=): != also matches missing and overshoot.
     if child >= int(brief.get("maxDepth") or 3):

@@ -247,9 +247,9 @@ class WebInvestigatorDashboard extends HTMLElement {
   _complete(taskId, note) {
     this._invoke('complete-task', { taskId, ...(note ? { note } : {}) }, `done:${taskId}:${slug(note || '')}`);
   }
-  _run(what) {
+  _run(what, extra = {}) {
     const requestId = `run-${what}-${crypto.randomUUID().slice(0, 8)}`;
-    this._invoke('request-run', { requestId, run: what }, `run:${requestId}`);
+    this._invoke('request-run', { requestId, run: what, ...extra }, `run:${requestId}`);
   }
 
   _toast(msg, isErr = false) {
@@ -424,9 +424,12 @@ class WebInvestigatorDashboard extends HTMLElement {
       <p><b>Your decision loop.</b>
       <i>Accept</i> turns a recommendation or fresh article into a task carrying its evidence.
       <i>Draft article</i> (or the daily schedule) has the staff writer draft the oldest open task
-      — one per run, never twice for the same task. Copy the draft from the Drafts card, publish
-      it, then click <i>Done</i> on the task. <i>Dismiss</i> and <i>Covered</i> record the
-      opposite calls so the analysis stops re-recommending them.</p>
+      — one per run, never twice for the same task. <i>✍ Fable</i> on a task is the deliberate
+      version: it drafts <i>that</i> assignment with the Fable model, on demand only (nothing
+      schedules it), storing the article as a blob and adding a new revision rather than replacing
+      what is already there — so you can compare writers on the same brief. Copy the draft from the
+      Drafts card, publish it, then click <i>Done</i> on the task. <i>Dismiss</i> and <i>Covered</i>
+      record the opposite calls so the analysis stops re-recommending them.</p>
       <p><b>Steering.</b> <i>Queue URL</i> feeds a page straight into the crawl. <i>Queue query</i>
       widens it via a search API (needs its key configured). <i>Run rollup</i> recomputes counts +
       analysis now; <i>Re-index own site</i> refreshes your inventory; <i>Crawl health</i> writes
@@ -507,11 +510,12 @@ class WebInvestigatorDashboard extends HTMLElement {
         </div>
         <div>${done ? '<span class="badge ok">done</span>' : '<span class="badge warm">accepted</span>'}
           ${drafted.has(p.taskId) ? ' <span class="badge ok">draft ✓</span>' : ''}</div>
-        <div class="acts">${done ? '' : `<button data-task-done="${esc(p.taskId)}">Done</button>`}</div>
+        <div class="acts">${done ? '' : `<button data-fable="${esc(p.taskId)}" title="Draft this assignment with Claude Code running the Fable model">✍ Fable</button>
+          <button data-task-done="${esc(p.taskId)}">Done</button>`}</div>
       </div>`;
     }).join('');
     return `<div class="card"><h3>Article tasks</h3>
-      <p class="sub">Accepted recommendations with their evidence. “Draft article” above writes the next one; “Done” records the outcome atomically.</p>
+      <p class="sub">Accepted recommendations with their evidence. “Draft article” above writes the next undrafted one; <b>✍ Fable</b> drafts <i>this</i> assignment with the Fable model (a new revision each time, the article itself stored as a blob); “Done” records the outcome atomically.</p>
       ${rows || '<div class="empty">Nothing accepted yet — the gap lists on the left feed this queue.</div>'}</div>`;
   }
 
@@ -520,14 +524,18 @@ class WebInvestigatorDashboard extends HTMLElement {
     const rows = newestFirst(drafts, 'ts').map((d, i) => {
       const p = d.properties;
       const md = String(p.draftMarkdown || '');
+      const writer = String(p.writerModel || '').trim();
       return `<details class="digest">
-        <summary>${esc(p.title)} <span class="badge">${esc(p.wordCount || '?')} words</span></summary>
+        <summary>${esc(p.title)} <span class="badge">${esc(p.wordCount || '?')} words</span>${
+          writer && writer !== 'default' ? ` <span class="badge ok">${esc(writer)}</span>` : ''}${
+          Number(p.revision) > 1 ? ` <span class="badge">rev ${esc(p.revision)}</span>` : ''}</summary>
         <div class="acts" style="margin:6px 0"><button data-draft-copy="${i}">Copy markdown</button></div>
+        ${p.blobUrn ? `<div class="meta">stored as <code>${esc(p.blobUrn)}</code></div>` : ''}
         <p style="white-space:pre-wrap;font-family:var(--mono,monospace);font-size:12px;max-height:340px;overflow:auto">${esc(md)}</p>
       </details>`;
     }).join('');
     return `<div class="card"><h3>Drafts</h3>
-      <p class="sub">Written by the staff-writer lane from the task's evidence. Copy, publish, then mark the task Done.</p>
+      <p class="sub">Written by a staff-writer lane from the task's evidence, and kept as a blob. Copy, publish, then mark the task Done. A badge names the model when it was not the default writer.</p>
       ${rows}</div>`;
   }
 
@@ -609,6 +617,12 @@ class WebInvestigatorDashboard extends HTMLElement {
       b.addEventListener('click', () => {
         const r = String(recs[Number(b.dataset.recDismiss)] || '');
         if (r) this._dismiss(r.slice(0, 120), 'dismissed from analysis');
+      });
+    }
+    for (const b of wrap.querySelectorAll('[data-fable]')) {
+      b.addEventListener('click', () => {
+        this._run('write-fable', { taskId: b.dataset.fable, writerModel: 'fable' });
+        this._toast('Fable is drafting this assignment — the draft appears below when it lands.');
       });
     }
     for (const b of wrap.querySelectorAll('[data-task-done]')) {

@@ -1,6 +1,6 @@
 [
   {
-    "description": "Fetch one URL with conditional GET; extract, date, score, classify listing-vs-article AND source type (host rules + HTML fingerprints; stamped even on failed extracts); blobstore the text; queue discovered links deduped and depth-capped. Tolerates missing DEPTH/ATTEMPT env ('null' from template interpolation) and sniffs gzip by magic number.",
+    "description": "Fetch one URL with conditional GET; extract, date, score, classify listing-vs-article AND source type; blobstore the text; queue discovered links deduped and depth-capped. 5.0.2 stops the link-spool counters from overwriting the detected sourceType.",
     "file": "scout-fetch.py",
     "id": "scout-fetch",
     "name": "Scout Fetch",
@@ -49,10 +49,17 @@
     "runtime": "python3"
   },
   {
-    "description": "Draft ONE accepted article task end to end: deterministic prep (task + competitor text with URL-fallback + related own slugs + brief), then invoke the LOCAL claude binary headlessly (-p, no tools, no session persistence) and file its markdown as a draft token. Dedupe by drafts ledger; the task token is never consumed. Requires Claude Code installed on the executor host.",
+    "description": "Draft ONE accepted article task with the local claude binary: deterministic prep, headless claude, markdown stored in the blobstore and filed as a revisioned draft token. Env TASK_ID drafts a named task (always writes); WRITER_MODEL picks the claude model alias.",
     "file": "scout-write.py",
     "id": "scout-write",
     "name": "Scout Write (Claude Code)",
+    "runtime": "python3"
+  },
+  {
+    "description": "The same staff writer, driven by the dashboard for ONE named task and a named model: the lane passes TASK_ID and WRITER_MODEL, so a human can ask a specific model to draft a specific assignment. On demand only — nothing schedules it. Blob-backed and revisioned, so the earlier draft survives for comparison.",
+    "file": "scout-write.py",
+    "id": "scout-write-fable",
+    "name": "Scout Write (named model, on demand)",
     "runtime": "python3"
   }
 ]

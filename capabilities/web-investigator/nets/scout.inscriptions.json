@@ -213,7 +213,9 @@
         "args": {
           "argv": [],
           "env": {
-            "MODEL_ID": "research-scout"
+            "MODEL_ID": "research-scout",
+            "TASK_ID": "${input.data.taskId}",
+            "WRITER_MODEL": "${input.data.writerModel}"
           },
           "timeoutMs": 300000,
           "toolId": "scout-${input.data.run}"
@@ -257,6 +259,11 @@
         "from": "@response",
         "to": "scout_sitemap_cmd",
         "when": "run == 'sitemap'"
+      },
+      {
+        "from": "@response",
+        "to": "scout_fable_cmd",
+        "when": "run == 'write-fable'"
       }
     ],
     "id": "t-scout-app-run",
@@ -268,6 +275,10 @@
     },
     "mode": "SINGLE",
     "postsets": {
+      "scout_fable_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-fable-cmd"
+      },
       "scout_health_cmd": {
         "host": "research-scout@agentic-net-node:8080",
         "placeId": "p-scout-health-cmd"
@@ -1503,6 +1514,51 @@
       "cron": "0 0 7 * * *",
       "timezone": "Europe/Berlin",
       "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 150000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-scout-write-fable",
+    "kind": "command",
+    "label": "Write article with Fable (on demand)",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "log": {
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-health-log"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-fable-cmd",
+        "take": "FIRST"
+      }
     }
   },
   {

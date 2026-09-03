@@ -7,7 +7,7 @@
   "tokenPolicy": "none",
   "manifest": {
     "name": "web-investigator-runtime",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "description": "Runtime net for the Web Investigator application (places only; store ids bind model-global runtime places).",
     "author": "AgenticNetOS",
     "tags": [
@@ -126,6 +126,11 @@
               "label": "Sitemap-harvest CommandTokens",
               "x": 890,
               "y": 760
+            },
+            "p-scout-fable-cmd": {
+              "label": "Fable write commands",
+              "x": 890,
+              "y": 850
             }
           },
           "transitions": {},

@@ -122,8 +122,13 @@ repeats all of this:
 - **Latest analysis** — the written landscape analysis: what they're actually arguing right now,
   your position, the gaps, and recommendations you can **Accept as task** or **Dismiss**.
 - **Article tasks** — everything you accepted. `draft ✓` means the writer has drafted it.
-- **Drafts** — the written articles. Expand, **Copy markdown**, publish on your site, then click
-  **Done** on the task.
+  **✍ Fable** on a task drafts *that* assignment with the Fable model, on demand: it always
+  writes (a second opinion is the point), files a new revision beside the existing draft, and
+  stores the article itself in the blobstore. Nothing schedules this lane — it fires only when
+  you press the button, so you can put the strongest model on the pieces that matter and leave
+  the routine ones to the daily writer.
+- **Drafts** — the written articles, newest first, each badged with its writer and revision.
+  Expand, **Copy markdown**, publish on your site, then click **Done** on the task.
 - **Steer the crawl / Run buttons** — queue URLs and queries; **Add source** onboards a whole
   website (see below); *Run rollup* recomputes the analysis now; *Re-index own site* refreshes
   your inventory; *Crawl health* writes fetch diagnostics; *Re-crawl sources* re-visits known
@@ -144,9 +149,10 @@ lanes do the work. That's also why every click is auditable in the Decision log.
 | daily 07:00 | draft the oldest accepted task | one Claude Code run — only if something is accepted and undrafted |
 | 1st of month 05:30 | sitemap harvest of all sources | free itself; each new article that passes the gate costs one classification call (capped at 300 URLs/run) |
 
-The crawl itself is *not* scheduled — it runs when you feed it. The writer requires the
-`claude` binary (Claude Code) on the executor host; a stopped API-model lane
-(`t-scout-write`) exists as a fallback.
+The crawl itself is *not* scheduled — it runs when you feed it, and neither is the on-demand
+**✍ Fable** writer: a lane that spends a strong model's time should start with a human decision.
+Both writer lanes require the `claude` binary (Claude Code) on the executor host; a stopped
+API-model lane (`t-scout-write`) exists as a fallback.
 
 ## Under the hood (the net)
 

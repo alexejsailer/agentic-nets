@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.8.0
+version: 1.9.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -91,10 +91,21 @@ scripts:
     description: >-
       The staff writer: draft ONE accepted article task per run, end to end. Deterministic
       prep (task + competitor text with URL-fallback + related own slugs + brief), then the
-      LOCAL claude binary headlessly (-p, no tools, no session persistence); the markdown
-      lands as a draft token. Dedupe by drafts ledger; the task token is never consumed —
-      it belongs to the application lifecycle (accepted -> done). Requires Claude Code on
-      the executor host; the stopped t-scout-write agent lane is the API fallback.
+      LOCAL claude binary headlessly (-p, no tools, no session persistence); the markdown is
+      stored in the blobstore and filed as a revisioned draft token. Dedupe by drafts ledger;
+      the task token is never consumed — it belongs to the application lifecycle
+      (accepted -> done). Requires Claude Code on the executor host; the stopped
+      t-scout-write agent lane is the API fallback.
+  - id: scout-write-fable
+    runtime: python3
+    file: assets/scout-write.py
+    description: >-
+      The same writer bound to a HUMAN CHOICE rather than a schedule: the dashboard's per-task
+      button passes TASK_ID and WRITER_MODEL, so a specific assignment gets drafted by a
+      specific model (the pack ships the button wired to `fable`). Always writes — asking for a
+      second draft is the point — and files it as a new revision beside the existing one, with
+      the article itself in the blobstore, so two writers can be compared on one brief. Nothing
+      schedules this lane; it fires only when a person presses the button.
   - id: scout-health
     runtime: python3
     file: assets/scout-health.py

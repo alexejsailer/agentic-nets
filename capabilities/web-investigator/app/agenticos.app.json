@@ -1,7 +1,7 @@
 {
   "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
   "name": "web-investigator",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "displayName": "Web Investigator",
   "description": "Browse what the investigation crawled — findings by recency, analyses, gaps, crawl health — and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
   "author": "AgenticNetOS",
@@ -12,7 +12,7 @@
     "web-investigator"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "web-investigator-1.2.1.application.json",
+  "output": "web-investigator-1.3.0.application.json",
   "ui": {
     "element": "agenticos-web-investigator-v1",
     "entryFile": "ui/main.mjs",
@@ -420,9 +420,18 @@
                 "health",
                 "write",
                 "recrawl",
-                "sitemap"
+                "sitemap",
+                "write-fable"
               ],
-              "description": "taxonomy = rollup + analysis; owned = re-index own sitemap; health = crawl diagnostics; write = draft next accepted task; recrawl = re-queue known sources' entry pages; sitemap = discover + harvest source sitemaps (incl. pending add-source requests)"
+              "description": "taxonomy = rollup + analysis; owned = re-index own sitemap; health = crawl diagnostics; write = draft next accepted task; recrawl = re-queue known sources' entry pages; sitemap = discover + harvest source sitemaps (incl. pending add-source requests); write-fable = draft ONE named task with a named model"
+            },
+            "taskId": {
+              "type": "string",
+              "description": "For write-fable: the article task to draft. Ignored by the other runs."
+            },
+            "writerModel": {
+              "type": "string",
+              "description": "For write-fable: model alias handed to the writer (e.g. fable)."
             }
           }
         }

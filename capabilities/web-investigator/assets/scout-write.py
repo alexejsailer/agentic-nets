@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 """scout-write — draft ONE accepted article task with Claude Code.
 
-Everything deterministic happens here: pick the oldest accepted task without a draft, pull
-the competitor article's stored text (blob, or URL-fallback through the findings), find the
-owner's related articles by term overlap, assemble the assignment — then invoke the local
-`claude` binary headlessly (-p, no tools, no session persistence) and file its markdown as a
-draft token. One draft per run bounds the spend; a run with nothing eligible exits quietly,
-so the daily cron and the app's Draft-article button are both safe.
+Everything deterministic happens here: pick the task, pull the competitor article's stored text
+(blob, or URL-fallback through the findings), find the owner's related articles by term overlap,
+assemble the assignment — then invoke the local `claude` binary headlessly (-p, no tools, no
+session persistence), store the markdown in the blobstore and file a draft token pointing at it.
+One draft per run bounds the spend; a run with nothing eligible exits quietly, so the daily cron
+and the app's buttons are all safe.
+
+Two env knobs make one script serve several lanes:
+  TASK_ID       draft THIS task (a human picked it in the app). Without it, the lane takes the
+                oldest accepted task that has no draft yet — the unattended behaviour.
+  WRITER_MODEL  model alias handed to `claude --model` (e.g. fable). Unset uses the binary's
+                default. Naming it also marks the draft, so the app can show who wrote what and
+                the same assignment can be re-drafted by a stronger model without losing the
+                first attempt.
 
 Dedupe is by the drafts ledger, never by consuming the task: the task token belongs to the
-application's lifecycle (accepted -> done via complete-task) and must survive drafting.
+application's lifecycle (accepted -> done via complete-task) and must survive drafting. An
+explicitly requested TASK_ID always writes — asking for a second draft is the point of asking.
 """
 import json, os, re, shutil, subprocess
 import urllib.request
@@ -18,6 +27,17 @@ from datetime import datetime, timezone
 MASTER = os.environ.get("MASTER_URL", "http://127.0.0.1:8082").rstrip("/")
 BLOBS = os.environ.get("BLOB_URL", "http://127.0.0.1:8090").rstrip("/")
 MODEL = os.environ.get("MODEL_ID", "research-scout")
+
+
+def env_str(key):
+    # An unset field interpolates through a map template as the literal 'null'; treat every
+    # flavour of absent as absent.
+    v = (os.environ.get(key) or "").strip()
+    return "" if v.lower() in ("", "null", "none", "undefined") else v
+
+
+TASK_ID = env_str("TASK_ID")
+WRITER_MODEL = env_str("WRITER_MODEL")
 COMPETITOR_CHARS = 7000
 RELATED_MAX = 5
 CLAUDE_TIMEOUT_S = 240
@@ -67,6 +87,13 @@ def article_body(text, title):
     return text[m.start():] if m else text
 
 
+def put_blob(text):
+    req = urllib.request.Request(BLOBS + "/api/blobs", data=text.encode("utf-8"), method="POST")
+    req.add_header("Content-Type", "text/plain; charset=utf-8")  # omit and the body is mangled
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode())
+
+
 def blob_text(urn):
     if not urn or "blob:" not in urn:
         return ""
@@ -84,14 +111,26 @@ def main():
     out = {"kind": "write-prep", "ts": ts, "drafted": 0}
 
     tasks = [t for t in rows("p-scout-article-tasks") if t.get("status") == "accepted" and t.get("taskId")]
-    done = {d.get("taskId") for d in rows("p-scout-drafts")}
-    eligible = sorted((t for t in tasks if t["taskId"] not in done),
-                      key=lambda t: str(t.get("createdAt") or ""))
+    drafts = rows("p-scout-drafts")
+    done = {d.get("taskId") for d in drafts}
     out["acceptedTasks"] = len(tasks)
     out["alreadyDrafted"] = len([t for t in tasks if t["taskId"] in done])
-    if not eligible:
-        print(json.dumps(out)); return
-    task = eligible[0]
+    if WRITER_MODEL:
+        out["writerModel"] = WRITER_MODEL
+    if TASK_ID:
+        # Explicitly requested from the app: draft it even if a draft exists — a second opinion
+        # from a different model is exactly why someone presses that button.
+        task = next((t for t in tasks if t["taskId"] == TASK_ID), None)
+        if not task:
+            out["error"] = "no accepted task with taskId %r" % TASK_ID
+            print(json.dumps(out)); return
+        out["requestedTaskId"] = TASK_ID
+    else:
+        eligible = sorted((t for t in tasks if t["taskId"] not in done),
+                          key=lambda t: str(t.get("createdAt") or ""))
+        if not eligible:
+            print(json.dumps(out)); return
+        task = eligible[0]
 
     host = ""
     try:
@@ -163,10 +202,12 @@ No preamble, no code fences around the whole article, no commentary.""" % (
         task.get("rationale", ""), task.get("gapCategory", ""),
         task.get("competitorUrl", ""), competitor, links)
 
+    cmd = [claude, "-p", prompt, "--allowedTools", "", "--no-session-persistence"]
+    if WRITER_MODEL:
+        cmd += ["--model", WRITER_MODEL]
     try:
-        run = subprocess.run(
-            [claude, "-p", prompt, "--allowedTools", "", "--no-session-persistence"],
-            stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT_S)
+        run = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True,
+                             text=True, timeout=CLAUDE_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         out["error"] = "claude timed out after %ss" % CLAUDE_TIMEOUT_S
         print(json.dumps(out)); return
@@ -176,20 +217,41 @@ No preamble, no code fences around the whole article, no commentary.""" % (
                         % (run.returncode, (run.stderr or "")[:160], len(draft)))
         print(json.dumps(out)); return
 
+    # The blob is the durable artifact: it holds the article whole, survives any token trimming,
+    # and can be read back by urn long after this run. The token carries the markdown too,
+    # because the dashboard reads stores, not blobs.
+    blob_urn = ""
+    try:
+        blob_urn = put_blob("TITLE: %s\nTASK: %s\nWRITER: claude-code %s\nWRITTEN: %s\n\n%s"
+                            % (task.get("title", ""), task["taskId"],
+                               WRITER_MODEL or "default", ts, draft))["urn"]
+    except Exception as e:
+        out["blobError"] = str(e)[:120]
+
+    writer = ("claude-code:" + WRITER_MODEL) if WRITER_MODEL else "claude-code"
+    revision = len([d for d in drafts if d.get("taskId") == task["taskId"]]) + 1
     token = {
-        "kind": "draft", "source": "claude-code", "ts": ts, "status": "draft",
+        "kind": "draft", "source": writer, "writerModel": WRITER_MODEL or "default",
+        "ts": ts, "status": "draft",
         "taskId": task["taskId"], "title": task.get("title", ""),
         "gapCategory": task.get("gapCategory", ""),
         "competitorUrl": task.get("competitorUrl", ""),
         "briefId": brief.get("briefId", ""),
         "wordCount": str(len(draft.split())),
+        "revision": str(revision),
+        "blobUrn": blob_urn,
         "relatedOwnSlugs": json.dumps(related),
         "draftMarkdown": draft,
     }
+    # Revision 1 keeps the historic name so nothing that looked it up by name breaks; later
+    # drafts of the same task must NOT collide with it.
+    name = ("draft-" + task["taskId"] if revision == 1 else
+            "draft-%s-%s-r%d" % (task["taskId"], (WRITER_MODEL or "default"), revision))
     try:
         api("POST", "/api/runtime/places/p-scout-drafts/tokens?modelId=" + MODEL,
-            {"name": "draft-" + task["taskId"], "data": token})
+            {"name": name, "data": token})
         out.update(drafted=1, taskId=task["taskId"], wordCount=token["wordCount"],
+                   revision=revision, blobUrn=blob_urn,
                    competitorChars=len(competitor), relatedOwn=len(related))
     except Exception as e:
         out["error"] = str(e)[:200]
