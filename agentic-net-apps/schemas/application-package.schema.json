@@ -82,6 +82,21 @@
                 },
                 "additionalProperties": false
               },
+              "command": {
+                "type": "object",
+                "required": ["role", "toolId"],
+                "properties": {
+                  "role": { "type": "string", "minLength": 1 },
+                  "toolId": { "type": "string", "minLength": 1 },
+                  "executor": { "type": "string" },
+                  "command": { "type": "string" },
+                  "expect": { "type": "string" },
+                  "argv": { "type": "array", "items": { "type": "string" } },
+                  "env": { "type": "object", "additionalProperties": { "type": "string" } },
+                  "timeoutMs": { "type": "number" }
+                },
+                "additionalProperties": false
+              },
               "effects": {
                 "type": "array",
                 "items": {

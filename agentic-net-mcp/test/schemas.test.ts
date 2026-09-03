@@ -415,3 +415,16 @@ describe('tool argument aliases (count_tokens placeId, usage_report hours)', () 
     expect(text).not.toMatch(/Invalid arguments|invalid_type/);
   });
 });
+
+describe('agent answer seam fields (oneShot, answerSchema, allowedTools)', () => {
+  it('add_transitions accepts the three fields on an agent lane', async () => {
+    const client = await connectedClient(makeConfig());
+    const res: any = await client.callTool({ name: 'add_transitions', arguments: { netId: 'n', transitions: [{
+      transitionId: 't-classify', kind: 'agent', inputPlace: 'p-in', outputPlace: 'p-out', errorPlace: 'p-err',
+      prompt: 'Classify ${input.data.text}', oneShot: true, allowedTools: [],
+      answerSchema: { required: ['category'], equals: { kind: 'finding' } },
+    }] } });
+    const text = String(res.content?.[0]?.text ?? '');
+    expect(text).not.toMatch(/Invalid arguments|invalid_type|unrecognized_keys/);
+  });
+});

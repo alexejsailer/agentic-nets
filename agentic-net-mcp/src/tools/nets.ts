@@ -47,7 +47,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   llm: new Set(['prompt', 'llmModel', 'group', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
   command: new Set(['executorId']),
-  agent: new Set(['prompt', 'role', 'group', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp', 'capabilityProfile', 'llmModel']),
+  agent: new Set(['prompt', 'role', 'group', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp', 'capabilityProfile', 'llmModel', 'oneShot', 'answerSchema', 'allowedTools']),
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
   link: new Set(['relation']),
 };
@@ -675,6 +675,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     tier: z.string().optional(),
     maxIterations: z.number().optional(),
     autoEmit: z.boolean().optional(),
+    oneShot: z.boolean().optional(),
+    answerSchema: z.record(z.any()).optional(),
+    allowedTools: z.array(z.string()).optional(),
     llmMode: z.enum(['api', 'bash']).optional(),
     binary: z.enum(['claude', 'codex']).optional(),
     mcp: z.array(z.record(z.any())).optional(),
@@ -728,6 +731,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         tier: z.string().optional().describe('llm/agent: LLM tier — omit for the worker/base model, "high" for the thinking model (llm also accepts "low"/"medium"; unknown tiers fall back to the EXPENSIVE model, so stick to these)'),
         maxIterations: z.number().optional().describe('agent: max reasoning steps (default 12)'),
         autoEmit: z.boolean().optional().describe('agent: auto-route the final result to the output place (default true)'),
+        oneShot: z.boolean().optional().describe('agent: the reply IS the answer — one completion, no tool protocol, no loop. For classify/extract/summarise lanes; pair with answerSchema. Cuts a tool-loop lane from ~10k to ~1-2k tokens per fire'),
+        answerSchema: z.record(z.any()).optional().describe('agent: the answer contract the engine enforces at DONE (or on the one-shot reply): {required:[...], equals:{field: literal}, types:{field: "array"}, retries: 1, errorPostset?: "err"} or JSON-Schema-shaped {required, properties:{f:{const,type}}}. A mismatch is sent back for correction, then routed to the error branch (errorPlace) as an answer-mismatch token — never to the output place. Without it the lane is unconstrained'),
+        allowedTools: z.array(z.string()).optional().describe('agent: exact tool names the lane may call; [] leaves only DONE/THINK/FAIL — the cheapest lane that still uses the tool protocol'),
         llmMode: z.enum(['api', 'bash']).optional().describe('agent: api (default) uses the server LLM provider; bash keeps the full agent loop but calls a headless Claude Code/Codex session and works in Desktop Lite with no provider'),
         binary: z.enum(['claude', 'codex']).optional().describe('agent with llmMode:"bash": headless CLI to run (default claude)'),
         mcp: MCP_SERVER_SCHEMA.optional().describe('agent: external MCP servers the agent may call via MCP_CALL. The 11th role flag m is added automatically (declaring servers IS the intent to use them); an explicit 11-slot role denying it is rejected as a contradiction. Discovered tools are advertised in the agent prompt; an unreachable server degrades to UNAVAILABLE without failing fires. Auth ONLY via credentialKey + set_transition_credentials — or use attach_mcp_server on an existing lane, which stores the credential for you'),
@@ -945,6 +951,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         binary: args.binary,
         mcp: args.mcp,
         capabilityProfile: args.capabilityProfile,
+        oneShot: args.oneShot,
+        answerSchema: args.answerSchema,
+        allowedTools: args.allowedTools,
       });
       // Execution-mode inheritance resolves net/session policy from inscription metadata.
       // Keep it on both runtime and designtime copies so re-deploys preserve the scope.

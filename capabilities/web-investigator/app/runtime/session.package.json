@@ -7,7 +7,7 @@
   "tokenPolicy": "none",
   "manifest": {
     "name": "web-investigator-runtime",
-    "version": "1.5.0",
+    "version": "1.6.1",
     "description": "Runtime net for the Web Investigator application (places only; store ids bind model-global runtime places).",
     "author": "AgenticNetOS",
     "tags": [

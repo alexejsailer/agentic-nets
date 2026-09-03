@@ -46,6 +46,12 @@ export interface CompactTransition {
     role?: string;
     tier?: string;
     maxIterations?: number;
+    /** The reply is the answer: one completion, no tool protocol. */
+    oneShot?: boolean;
+    /** Answer contract enforced by the engine at DONE. */
+    answerSchema?: Record<string, unknown>;
+    /** Exact tool names allowed; [] = DONE/THINK/FAIL only. */
+    allowedTools?: string[];
     requireWritesTo?: string[];
     nl?: string;
     charter?: string;
@@ -164,7 +170,10 @@ export function compileNet(src: CompactNetSource, opts: CompileOptions = {}): Co
         type: 'agent',
         modelId: model,
         role: ag.role ?? 'rw',
-        maxIterations: ag.maxIterations ?? 12,
+        maxIterations: ag.oneShot ? 1 : (ag.maxIterations ?? 12),
+        ...(ag.oneShot ? { oneShot: true } : {}),
+        ...(ag.answerSchema ? { answerSchema: ag.answerSchema } : {}),
+        ...(ag.allowedTools ? { allowedTools: ag.allowedTools } : {}),
         autoEmit: false,
         ...(ag.tier ? { tier: ag.tier } : {}),
         sessionId: session,

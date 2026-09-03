@@ -394,6 +394,38 @@ store:
 `set` supplies constants. `setFromInput` maps target-property names to fields on the merged action
 token, including master-added `createdAt`. Missing optional source values are skipped.
 
+### Command emission
+
+A button that means "run X" should not need a request token *and* a dispatcher lane that turns
+it into a command. An action may declare a `command`: in the same Node transaction as its
+primary append, master writes a CommandToken into the store named by `role`, shaped exactly as
+every command lane consumes it, with `${input.field}` interpolated from the merged action token:
+
+```json
+{
+  "name": "refresh-cost",
+  "targetRole": "requests",
+  "defaults": { "kind": "app-request", "run": "usage" },
+  "command": {
+    "role": "usage-cmd",
+    "toolId": "scout-usage",
+    "env": { "MODEL_ID": "research", "SINCE": "${input.since}" },
+    "timeoutMs": 60000
+  }
+}
+```
+
+`role` must be a declared store; `toolId` is required; `executor` (default `script`), `command`
+(`invoke`), `expect` (`text`), `argv` and `env` are optional. Env values are strings and a missing
+input interpolates to an empty string, never the text `null`. Besides `${input.field}` the scope
+offers `${modelId}` (the model the application is installed into), `${application}` and
+`${action}`. Prefer references over literals under `env`: a package publish scrubs every literal
+string under an `env` key as credential material (`[REDACTED]`), while a `${...}` reference
+survives, so `"MODEL_ID": "${modelId}"` is both portable and publishable. The primary token still records
+the request (the audit trail), the command token carries `application`, `action` and the
+`actionRequestId` so the two can be joined, and the action response returns the command under
+`command`. The application never executes anything; the lane consuming the command store does.
+
 ### Atomicity and conflicts
 
 Master reads each correlated token together with its Node element version, evaluates the guard,

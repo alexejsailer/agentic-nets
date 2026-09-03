@@ -565,7 +565,7 @@ class WebInvestigatorDashboard extends HTMLElement {
       <td class="n">${esc(l.avgIterations ?? '')}</td></tr>`).join('');
     return `<div class="card"><h3>Cost</h3>
       <p class="sub">Measured tokens per day and per lane, so the burn sits next to the buttons that cause it. Filed nightly by the usage lane; <b>Refresh cost</b> files today so far.
-        <button data-run="usage" style="margin-left:8px">Refresh cost</button></p>
+        <button data-refresh-cost style="margin-left:8px" title="Files today's usage now: the request and its command token commit together">Refresh cost</button></p>
       ${days.length ? `<div style="overflow-x:auto"><table>
         <tr><th>day</th><th class="n">tokens</th><th class="n">model tokens</th><th class="n">fires</th><th>top lane</th></tr>${dayRows}</table></div>` : '<div class="empty">No usage filed yet — press Refresh cost.</div>'}
       ${lanes.length ? `<div style="overflow-x:auto;margin-top:8px"><table>
@@ -781,6 +781,12 @@ class WebInvestigatorDashboard extends HTMLElement {
         }, `rev:${p.taskId}:${revision}:${b.dataset.review}`);
       });
     }
+    wrap.querySelector('[data-refresh-cost]')?.addEventListener('click', () => {
+      // A command-emitting action: master writes the usage CommandToken in the same transaction
+      // as this request record, so no request-to-command lane sits in between.
+      const requestId = `refresh-cost-${crypto.randomUUID().slice(0, 8)}`;
+      this._invoke('refresh-cost', { requestId, since: '24h' }, `cost:${requestId}`);
+    });
     for (const b of wrap.querySelectorAll('[data-policy]')) {
       b.addEventListener('click', () => {
         const host = String(b.dataset.policyHost || '').toLowerCase().replace(/^www\./, '');

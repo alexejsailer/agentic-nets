@@ -141,7 +141,8 @@ repeats all of this:
   read it.
 - **Cost** — measured tokens per day and per lane (with tier and group), filed nightly by the
   usage lane or on demand with **Refresh cost**, so the burn sits next to the buttons that
-  cause it.
+  cause it. Refresh cost is a *command-emitting* action: master writes the usage CommandToken in
+  the same transaction as the request record, with no request-to-command lane in between.
 - **Steer the crawl / Run buttons** — queue URLs and queries; **Add source** onboards a whole
   website (see below); *Run rollup* recomputes the analysis now; *Re-index own site* refreshes
   your inventory; *Crawl health* writes fetch diagnostics; *Re-crawl sources* re-visits known
@@ -168,11 +169,12 @@ The crawl itself is *not* scheduled — it runs when you feed it, and neither is
 Both writer lanes require the `claude` binary (Claude Code) on the executor host; a stopped
 API-model lane (`t-scout-write`) exists as a fallback.
 
-One lane is event-driven rather than scheduled: if the analysis model ends its run without
-delivering the answer object (the engine then emits a bare fallback node instead of an
-analysis), `t-scout-analysis-retry` files that node to `p-scout-errors` and re-issues the
-rollup, so the analysis is retried on the same facts. The taxonomy script bounds this to three
-re-runs per day; the dashboard never shows a fallback node as if it were an analysis.
+One lane is event-driven rather than scheduled. Both model lanes carry an **answer contract**
+(`answerSchema`): the engine checks the answer at DONE, asks the model for one correction, and
+routes a final mismatch to `p-scout-errors` as an `answer-mismatch` token instead of the output
+place. `t-scout-analysis-retry` watches for the analysis lane's mismatches there and re-issues
+the rollup, so the analysis is retried on the same facts; the taxonomy script bounds this to
+three re-runs per day. A wrong answer never reaches the dashboard.
 
 ### Which model does what
 
@@ -187,11 +189,12 @@ on exactly these lanes and nothing else, name the group in the master's groups f
     "low": "<cheap classifier model>", "high": "<strong analyst model>", "defaultTier": "high" } } }
 ```
 
-Both lanes carry `allowedTools: []` (the DONE/THINK/FAIL protocol only) and a read-only role:
-they classify and interpret, they never query or write. Measured on one install, that took the
-classifier from ~25k to ~11k tokens per article; the analysis lane costs one strong-model call
-per day. The writers are not model lanes at all — they run Claude Code headlessly on the
-executor and pick the model with `--model`.
+The classifier is a **one-shot** lane (`oneShot: true`): one completion, no tool protocol, the
+reply is the answer, checked against its contract. Measured on one install that took it from
+~25k tokens per article (tool loop, full preamble) to ~4.8k. The analysis lane keeps the tool
+protocol with `allowedTools: []` (DONE/THINK/FAIL only) and a read-only role, and costs one
+strong-model call per day. The writers are not model lanes at all — they run Claude Code
+headlessly on the executor and pick the model with `--model`.
 
 ## Under the hood (the net)
 
@@ -239,9 +242,12 @@ which answers browser reads with read-only CORS headers.
   a real gate: a spec sheet or product grid with the right words lands around 20, a short
   article around 60, a full one 90-100. Pages that are mostly fragments are typed `catalog` and
   rejected before any model sees them.
-- The agent lanes' answer contract is DONE's `message` parameter carrying the answer object
-  itself. The engine also accepts the object under `summary`/`result`/`answer`, but the prompt
-  names `message` because that is what the tool description asks for.
+- The agent lanes' answer contract is declared as `answerSchema` on the inscription and enforced
+  by the engine (required fields, `kind` equality, array types). The prompt still names DONE's
+  `message` parameter as the carrier for the analysis lane; the one-shot classifier replies with
+  the object itself.
+- The routing lanes (`t-scout-gate`, `t-scout-route`) use a template **spread**
+  (`"...": "${input.data}"`), so a field added upstream flows through without being listed.
 - The writer never drafts the same task twice, and one trigger produces at most one draft.
   A task is only ever closed by *you* clicking Done.
 - Undated pages file as `archive` rather than claiming freshness they cannot prove.

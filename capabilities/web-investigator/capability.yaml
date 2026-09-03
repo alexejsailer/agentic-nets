@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.11.0
+version: 1.12.0
 displayName: Web Investigator
 domain: research
 description: >-

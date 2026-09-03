@@ -125,6 +125,12 @@ export interface BuildOpts {
   tier?: string;
   maxIterations?: number;
   autoEmit?: boolean;
+  /** agent: the reply is the answer — one completion, no tool protocol (pair with answerSchema). */
+  oneShot?: boolean;
+  /** agent: answer contract enforced by the engine at DONE / on the one-shot reply. */
+  answerSchema?: Record<string, any>;
+  /** agent: exact tool names allowed; [] = DONE/THINK/FAIL only. */
+  allowedTools?: string[];
   /** agent reasoning backend: api = master's configured provider; bash = headless CLI session. */
   llmMode?: 'api' | 'bash';
   /** agent bash backend (default claude when llmMode=bash). */
@@ -688,6 +694,11 @@ export function buildAgentInscription(opts: BuildOpts) {
       // preamble on EVERY iteration. Narrowing one measured lane took it from 273k to 11k
       // tokens per fire with an identical output contract — and it converged faster.
       ...(opts.capabilityProfile ? { capabilityProfile: opts.capabilityProfile } : {}),
+      // The answer seam: oneShot skips the tool loop, answerSchema makes the answer checkable,
+      // allowedTools narrows the preamble to exactly the tools named.
+      ...(opts.oneShot ? { oneShot: true, maxIterations: 1 } : {}),
+      ...(opts.answerSchema ? { answerSchema: opts.answerSchema } : {}),
+      ...(opts.allowedTools ? { allowedTools: opts.allowedTools } : {}),
       // Explicit model beats tier; without this an agent lane could only be pinned to a cheap
       // model by a follow-up SET_INSCRIPTION.
       ...(opts.llmModel ? { model: opts.llmModel } : {}),

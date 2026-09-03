@@ -226,7 +226,7 @@
         "id": "taxonomy-retry-${now()}",
         "iterationsUsed": "${input.data.iterationsUsed}",
         "kind": "command",
-        "note": "the analysis lane ended without a DONE answer (engine fallback: ${input.data.summary}); the rollup is re-issued so the analysis is retried, at most 3 times a day",
+        "note": "the analysis lane's answer did not meet its contract (${input.data.problems}); the rollup is re-issued so the analysis is retried, at most 3 times a day",
         "reason": "analysis-fallback",
         "transitionId": "t-scout-digest"
       },
@@ -246,7 +246,7 @@
     ],
     "id": "t-scout-analysis-retry",
     "kind": "map",
-    "label": "Analysis answered without DONE: file it, re-run the rollup (bounded per day)",
+    "label": "Analysis answer rejected by its contract: file it, re-run the rollup (bounded per day)",
     "metadata": {
       "netId": "scout",
       "sessionId": "agent-web-investigator"
@@ -264,10 +264,10 @@
     },
     "presets": {
       "input": {
-        "arcql": "FROM $ WHERE $.kind != \"landscape-analysis\" LIMIT 1",
+        "arcql": "FROM $ WHERE $.kind == \"answer-mismatch\" AND $.transitionId == \"t-scout-digest\" LIMIT 1",
         "consume": true,
         "host": "research-scout@localhost:8080",
-        "placeId": "p-scout-digest",
+        "placeId": "p-scout-errors",
         "take": "FIRST"
       }
     }
@@ -390,17 +390,46 @@
   },
   {
     "action": {
-      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "url",
+          "title",
+          "category",
+          "summary",
+          "keyPoints",
+          "blobUrn",
+          "recency",
+          "briefId"
+        ],
+        "retries": 1,
+        "types": {
+          "category": "string",
+          "keyPoints": "array",
+          "summary": "string"
+        }
+      },
       "autoEmit": true,
       "group": "analyst",
-      "maxIterations": 2,
+      "maxIterations": 1,
       "modelId": "research-scout",
-      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nopening: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nThen distil the knowledge this page carries, from its text only: `summary` = two sentences (under 300 characters) on the angle it takes and who it is for; `keyPoints` = 3 to 5 short, concrete points (under 120 characters each: values, steps, claims) a writer could use later. Keep every string on one line with double quotes escaped — a truncated or malformed object costs a second round trip.\n\nEverything you need is in this prompt — there is nothing to look up, so do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as the value of its `message` parameter (the object itself, no markdown fences, no sentence about it):\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. Do not recompute or omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object REPLACES the token, so a field you leave out is lost for good. Your whole reply is one tool call: {\"reasoning\":\"...\",\"tool\":\"DONE\",\"params\":{\"message\":{ ...the object above... }}}. DONE is the only channel that returns an answer — prose outside it is discarded and the run is wasted.",
+      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nopening: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nThen distil the knowledge this page carries, from its text only: `summary` = two sentences (under 300 characters) on the angle it takes and who it is for; `keyPoints` = 3 to 5 short, concrete points (under 120 characters each: values, steps, claims) a writer could use later. Keep every string on one line with double quotes escaped.\n\nReply with EXACTLY this JSON object and nothing else:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. blobUrn is the ONLY pointer to the stored full text: your reply REPLACES the token, so a field you leave out is lost for good.",
+      "oneShot": true,
       "role": "r--h-",
       "tier": "low",
       "timeoutMs": 180000,
       "type": "agent"
     },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
     "id": "t-scout-categorize",
     "kind": "agent",
     "label": "Categorise one article (domain from brief)",
@@ -410,6 +439,10 @@
     },
     "mode": "SINGLE",
     "postsets": {
+      "err": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-errors"
+      },
       "out": {
         "host": "research-scout@agentic-net-node:8080",
         "placeId": "p-scout-analysis"
@@ -437,6 +470,24 @@
   {
     "action": {
       "allowedTools": [],
+      "answerSchema": {
+        "equals": {
+          "kind": "landscape-analysis"
+        },
+        "required": [
+          "kind",
+          "ownedAngles",
+          "freshness",
+          "freshSignal",
+          "gaps",
+          "ownPosition",
+          "recommendations"
+        ],
+        "retries": 1,
+        "types": {
+          "recommendations": "array"
+        }
+      },
       "autoEmit": true,
       "group": "analyst",
       "maxIterations": 3,
@@ -447,6 +498,17 @@
       "timeoutMs": 300000,
       "type": "agent"
     },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      },
+      {
+        "from": "@response",
+        "to": "err",
+        "when": "error"
+      }
+    ],
     "id": "t-scout-digest",
     "kind": "agent",
     "label": "Landscape analysis (facts + fresh text + own coverage)",
@@ -456,6 +518,10 @@
     },
     "mode": "SINGLE",
     "postsets": {
+      "err": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-errors"
+      },
       "out": {
         "host": "research-scout@agentic-net-node:8080",
         "placeId": "p-scout-digest",
@@ -590,23 +656,8 @@
   {
     "action": {
       "template": {
-        "ageDays": "${input.data.ageDays}",
-        "blobUrn": "${input.data.blobUrn}",
-        "briefId": "${input.data.briefId}",
-        "dateSource": "${input.data.dateSource}",
-        "depth": "${input.data.depth}",
-        "extract": "${input.data.extract}",
-        "extractChars": "${input.data.extractChars}",
-        "gateVerdict": "${input.data.gateVerdict}",
-        "gatedAt": "${now()}",
-        "host": "${input.data.host}",
-        "pageType": "${input.data.pageType}",
-        "publishedAt": "${input.data.publishedAt}",
-        "recency": "${input.data.recency}",
-        "score": "${input.data.score}",
-        "sourceType": "${input.data.sourceType}",
-        "title": "${input.data.title}",
-        "url": "${input.data.url}"
+        "...": "${input.data}",
+        "gatedAt": "${now()}"
       },
       "type": "map"
     },
@@ -1058,18 +1109,8 @@
   {
     "action": {
       "template": {
-        "blobUrn": "${input.data.blobUrn}",
-        "briefId": "${input.data.briefId}",
-        "category": "${input.data.category}",
-        "confidence": "${input.data.confidence}",
-        "filedAt": "${now()}",
-        "keyPoints": "${input.data.keyPoints}",
-        "publishedAt": "${input.data.publishedAt}",
-        "recency": "${input.data.recency}",
-        "sourceType": "${input.data.sourceType}",
-        "summary": "${input.data.summary}",
-        "title": "${input.data.title}",
-        "url": "${input.data.url}"
+        "...": "${input.data}",
+        "filedAt": "${now()}"
       },
       "type": "map"
     },

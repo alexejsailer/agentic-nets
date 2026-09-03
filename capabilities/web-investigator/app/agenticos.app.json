@@ -1,7 +1,7 @@
 {
   "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
   "name": "web-investigator",
-  "version": "1.5.0",
+  "version": "1.6.1",
   "displayName": "Web Investigator",
   "description": "Browse what the investigation crawled \u2014 findings by recency, analyses, gaps, crawl health \u2014 and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
   "author": "AgenticNetOS",
@@ -12,7 +12,7 @@
     "web-investigator"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "web-investigator-1.5.0.application.json",
+  "output": "web-investigator-1.6.1.application.json",
   "ui": {
     "element": "agenticos-web-investigator-v1",
     "entryFile": "ui/main.mjs",
@@ -196,6 +196,12 @@
         "role": "usage",
         "placeId": "p-scout-usage",
         "description": "One token per day of measured usage: total tokens and fires plus the per-lane breakdown with tier and group, filed by the usage rollup lane (nightly, or Refresh cost)."
+      },
+      {
+        "role": "usage-cmd",
+        "placeId": "p-scout-usage-cmd",
+        "required": false,
+        "description": "Command store of the usage lane: Refresh cost writes a CommandToken here in the same transaction as its request record; t-scout-usage runs it."
       }
     ],
     "actions": [
@@ -555,6 +561,45 @@
             }
           }
         }
+      },
+      {
+        "name": "refresh-cost",
+        "targetRole": "requests",
+        "description": "File today's measured usage now. The request token is the audit record; the command token it emits in the same transaction is the work order the usage lane runs.",
+        "defaults": {
+          "kind": "app-request",
+          "status": "commanded",
+          "run": "usage"
+        },
+        "guard": {
+          "role": "requests",
+          "matchKey": "requestId",
+          "exists": false
+        },
+        "command": {
+          "role": "usage-cmd",
+          "toolId": "scout-usage",
+          "env": {
+            "MODEL_ID": "${modelId}",
+            "SINCE": "${input.since}"
+          },
+          "timeoutMs": 60000
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "requestId"
+          ],
+          "properties": {
+            "requestId": {
+              "type": "string"
+            },
+            "since": {
+              "type": "string",
+              "description": "Window, e.g. 24h (default) or 7d"
+            }
+          }
+        }
       }
     ],
     "permissions": {
@@ -577,7 +622,8 @@
         "growth",
         "source-requests",
         "policies",
-        "usage"
+        "usage",
+        "usage-cmd"
       ],
       "watchStores": [
         "brand-new",
@@ -601,7 +647,8 @@
         "request-run",
         "add-source",
         "set-source-policy",
-        "review-draft"
+        "review-draft",
+        "refresh-cost"
       ]
     },
     "agentProtocol": {
