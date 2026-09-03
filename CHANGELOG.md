@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.58.0] - 2026-09-03
+
 ### Added
 - **`web-investigator` 1.12.0 / dashboard 1.6.1 use the new engine seams** (`capabilities/web-investigator/`). The classifier is a one-shot lane with an answer contract (~4.8k tokens per article, from ~25k at the start of the day); the analysis lane carries a contract too, and `t-scout-analysis-retry` now watches the engine's `answer-mismatch` records in `p-scout-errors` instead of junk in the digest place. The gate and route lanes pass tokens through with a template spread. Refresh cost is a command-emitting action (`${modelId}` in its env), so the dispatcher lane is no longer in that path.
 - **`oneShot`, `answerSchema` and `allowedTools` on agent lanes** (`agentic-net-mcp` — `add_transition`/`add_transitions`, `inscriptions.ts`; `agentic-net-cli` — compact net source). The three engine fields land on an agent inscription from the MCP tools and from a pack's compact source: `oneShot` (the reply is the answer, one completion, `maxIterations` pinned to 1), `answerSchema` (the contract the engine enforces at DONE and routes to `errorPlace` on a final mismatch) and `allowedTools` (`[]` for DONE/THINK/FAIL only). Documented in the developer guide together with the application manifest's new `command` emission and the map template spread key.
