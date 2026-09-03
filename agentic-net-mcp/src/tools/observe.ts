@@ -1487,7 +1487,8 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       description:
         'The answer to "what is this model\'s spend, and which lanes cause it". Ranks every transition that fired by MEASURED tokens (per-fire average, iterations, duration) over a window, with the burnSplit headline: how much is scheduled coordinators firing on idle vs real work. The analyze-and-adapt loop: (1) usage_report ranks the burn, (2) the expensive lanes are almost always agent-kind thinkers, not the frequent cheap command lanes, (3) retune with set_schedule / a schedule.intervalMs edit — live, no redeploy (lengthening never triggers a fire; shortening can fire immediately), (4) scheduler_status shows the new nextFireAt. Caveat: command lanes whose scripts spawn their OWN model calls are invisible to this counter — read the script bodies when the ranking looks too clean. GET-based: works in readonly mode too.',
       inputSchema: {
-        since: z.string().optional().describe('Window, e.g. 1h / 24h / 7d (default 24h)'),
+        since: z.string().optional().describe('Window: <n>m | <n>h | <n>d | <n>w | all (default 24h)'),
+        hours: z.number().optional().describe('Alias of since as a number of hours, e.g. 2'),
         sort: z.string().optional().describe('tokens (default) | fires | avgDuration'),
         limit: z.number().optional().describe('Max ranked rows (default 20)'),
         transitionId: z.string().optional().describe('Drill into ONE transition: aggregate + its recent fires'),
@@ -1501,7 +1502,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const res: any = await ctx.client.masterApi('GET', '/usage/transitions', undefined, {
         modelId: model,
         sort: String(args.sort ?? 'tokens'),
-        since: String(args.since ?? '24h'),
+        since: String(args.since ?? (args.hours != null ? `${Math.max(1, Math.round(args.hours))}h` : '24h')),
         limit: String(args.limit ?? 20),
       });
       const top = (res?.transitions ?? [])[0];
@@ -1582,7 +1583,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Read offloaded blob text',
       description:
-        'Fetch text behind a blob URN returned by command output, knowledge search, or token properties. Use searchFor to retrieve only relevant paragraphs and keep the MCP result bounded.',
+        'Fetch text behind a blob locator (urn:agenticos:blob:… or a bare id) returned by command output, knowledge search, or token properties — through the platform read path (gateway → master → the store that owns the locator), so it works for any registered store. Use searchFor to retrieve only relevant paragraphs and keep the MCP result bounded.',
       inputSchema: {
         blobUrn: z.string(),
         maxLength: z.number().optional().describe('Default 4000'),
@@ -1591,6 +1592,24 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'read_blob_text', mutates: false }, async (model, args) => {
+      // The platform read path: gateway → master → whichever store owns the locator
+      // (GET /api/blobs/{locator}?format=json). It carries this connection's credential, needs
+      // no model scope and works for any registered store. The agent-tool executor stays as
+      // the fallback for a master that predates the endpoint.
+      const locator = String(args.blobUrn).trim();
+      const path = '/blobs/' + locator.split('/').map(encodeURIComponent).join('/');
+      try {
+        return await ctx.client.masterApi('GET', path, undefined, {
+          format: 'json',
+          ...(args.maxLength != null ? { maxLength: String(args.maxLength) } : {}),
+          ...(args.searchFor ? { searchFor: args.searchFor } : {}),
+        });
+      } catch (e: any) {
+        const status = Number(e?.status ?? e?.statusCode);
+        // 404 with our error shape means the blob is missing; a bare 404/405 means no endpoint.
+        const body = String(e?.body ?? e?.message ?? '');
+        if (!(status === 405 || (status === 404 && !body.includes('locator')))) throw e;
+      }
       const result = await ctx.executorFor(model).execute('READ_BLOB_TEXT', {
         blobUrn: args.blobUrn,
         ...(args.maxLength != null ? { maxLength: args.maxLength } : {}),

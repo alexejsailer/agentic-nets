@@ -329,6 +329,11 @@
         "from": "@response",
         "to": "scout_fable_cmd",
         "when": "run == 'write-fable'"
+      },
+      {
+        "from": "@response",
+        "to": "scout_usage_cmd",
+        "when": "run == 'usage'"
       }
     ],
     "id": "t-scout-app-run",
@@ -363,6 +368,10 @@
       "scout_taxonomy_cmd": {
         "host": "research-scout@agentic-net-node:8080",
         "placeId": "p-scout-taxonomy-cmd"
+      },
+      "scout_usage_cmd": {
+        "host": "research-scout@agentic-net-node:8080",
+        "placeId": "p-scout-usage-cmd"
       },
       "scout_write_cmd": {
         "host": "research-scout@agentic-net-node:8080",
@@ -621,6 +630,11 @@
         "from": "@response",
         "to": "scout_rejected",
         "when": "gateVerdict == 'catalog'"
+      },
+      {
+        "from": "@response",
+        "to": "scout_rejected",
+        "when": "gateVerdict == 'policy'"
       }
     ],
     "id": "t-scout-gate",
@@ -1486,6 +1500,107 @@
     },
     "schedule": {
       "cron": "0 30 6 * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 120000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-scout-usage",
+    "kind": "command",
+    "label": "Roll measured usage into p-scout-usage",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "log": {
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-health-log"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-usage-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout",
+            "SINCE": "24h"
+          },
+          "timeoutMs": 60000,
+          "toolId": "scout-usage"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "id": "usage-${now()}",
+        "kind": "command"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out"
+      }
+    ],
+    "id": "t-scout-usage-cron",
+    "kind": "map",
+    "label": "Build usage-rollup CommandToken (daily)",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "dev-support-council"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "out": {
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-usage-cmd"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.active == \"true\" LIMIT 1",
+        "consume": false,
+        "host": "research-scout@localhost:8080",
+        "optional": false,
+        "placeId": "p-scout-brief",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 50 23 * * *",
       "timezone": "Europe/Berlin",
       "type": "cron"
     }

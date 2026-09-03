@@ -1,9 +1,9 @@
 {
   "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
   "name": "web-investigator",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "displayName": "Web Investigator",
-  "description": "Browse what the investigation crawled — findings by recency, analyses, gaps, crawl health — and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
+  "description": "Browse what the investigation crawled \u2014 findings by recency, analyses, gaps, crawl health \u2014 and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
   "author": "AgenticNetOS",
   "visibility": "public",
   "tags": [
@@ -12,7 +12,7 @@
     "web-investigator"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "web-investigator-1.4.0.application.json",
+  "output": "web-investigator-1.5.0.application.json",
   "ui": {
     "element": "agenticos-web-investigator-v1",
     "entryFile": "ui/main.mjs",
@@ -132,13 +132,13 @@
         "role": "requests",
         "placeId": "p-scout-app-requests",
         "required": true,
-        "description": "Run-now requests. The net's own lane consumes these and builds the actual command tokens — the app never executes anything itself."
+        "description": "Run-now requests. The net's own lane consumes these and builds the actual command tokens \u2014 the app never executes anything itself."
       },
       {
         "role": "drafts",
         "placeId": "p-scout-drafts",
         "required": false,
-        "description": "Publish-ready drafts written by the staff-writer lane from accepted tasks. The task itself is never consumed — close it with complete-task once published.",
+        "description": "Publish-ready drafts written by the staff-writer lane from accepted tasks. The task itself is never consumed \u2014 close it with complete-task once published.",
         "schema": {
           "type": "object",
           "required": [
@@ -184,6 +184,18 @@
         "placeId": "p-scout-source-requests",
         "required": false,
         "description": "Onboarding asks: a website whose sitemap should be discovered and harvested. Consumed by the harvest run."
+      },
+      {
+        "required": false,
+        "role": "policies",
+        "placeId": "p-scout-source-policy",
+        "description": "Per-host crawl policy set from the dashboard: allow (default), index-only (fetch for links, never classify), ignore (never fetch). Append-only; the newest token per host wins. Fetch, harvest and recrawl honour it."
+      },
+      {
+        "required": false,
+        "role": "usage",
+        "placeId": "p-scout-usage",
+        "description": "One token per day of measured usage: total tokens and fires plus the per-lane breakdown with tier and group, filed by the usage rollup lane (nightly, or Refresh cost)."
       }
     ],
     "actions": [
@@ -421,7 +433,8 @@
                 "write",
                 "recrawl",
                 "sitemap",
-                "write-fable"
+                "write-fable",
+                "usage"
               ],
               "description": "taxonomy = rollup + analysis; owned = re-index own sitemap; health = crawl diagnostics; write = draft next accepted task; recrawl = re-queue known sources' entry pages; sitemap = discover + harvest source sitemaps (incl. pending add-source requests); write-fable = draft ONE named task with a named model"
             },
@@ -463,6 +476,85 @@
             }
           }
         }
+      },
+      {
+        "name": "set-source-policy",
+        "targetRole": "policies",
+        "description": "Record a per-host crawl policy. The crawl reads the newest policy per host: ignore skips the fetch entirely, index-only fetches for links but never classifies, allow restores the default.",
+        "defaults": {
+          "kind": "source-policy"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "host",
+            "policy"
+          ],
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Host name without scheme, e.g. example.com"
+            },
+            "policy": {
+              "type": "string",
+              "enum": [
+                "allow",
+                "index-only",
+                "ignore"
+              ]
+            },
+            "setAt": {
+              "type": "string",
+              "description": "ISO timestamp; newest wins"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "review-draft",
+        "targetRole": "decisions",
+        "description": "Record what happened to a draft after a human read it, so writers and evidence packs can be compared over time.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "draft-reviewed"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "taskId",
+            "revision",
+            "rating"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            },
+            "rating": {
+              "type": "string",
+              "enum": [
+                "used",
+                "edited",
+                "discarded"
+              ],
+              "description": "used as is | edited heavily | discarded"
+            },
+            "writerModel": {
+              "type": "string"
+            },
+            "reviewedAt": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
       }
     ],
     "permissions": {
@@ -483,7 +575,9 @@
         "drafts",
         "sources",
         "growth",
-        "source-requests"
+        "source-requests",
+        "policies",
+        "usage"
       ],
       "watchStores": [
         "brand-new",
@@ -493,7 +587,9 @@
         "decisions",
         "requests",
         "drafts",
-        "growth"
+        "growth",
+        "policies",
+        "usage"
       ],
       "actions": [
         "accept-recommendation",
@@ -503,7 +599,9 @@
         "queue-url",
         "queue-query",
         "request-run",
-        "add-source"
+        "add-source",
+        "set-source-policy",
+        "review-draft"
       ]
     },
     "agentProtocol": {
@@ -519,7 +617,7 @@
         "intervalMs": 60000
       },
       "rules": [
-        "Tasks carry their evidence (rationale, competitorUrl, blobUrn) — read it before writing anything.",
+        "Tasks carry their evidence (rationale, competitorUrl, blobUrn) \u2014 read it before writing anything.",
         "Record every outcome through complete-task so the task flips atomically; never edit task tokens directly."
       ]
     },

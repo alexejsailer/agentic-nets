@@ -390,3 +390,28 @@ describe('advertised tool surface', () => {
     expect(body.code).not.toBe('MODEL_NOT_ALLOWED');
   });
 });
+
+describe('tool argument aliases (count_tokens placeId, usage_report hours)', () => {
+  it('count_tokens accepts placeId as an alias of place', async () => {
+    const client = await connectedClient(makeConfig());
+    const res: any = await client.callTool({ name: 'count_tokens', arguments: { placeId: 'p-x' } });
+    // Reaches the handler (fails only because the test gateway does not exist) — a schema
+    // rejection would carry a validation message instead of a gateway error.
+    const text = String(res.content?.[0]?.text ?? '');
+    expect(text).not.toMatch(/Invalid arguments|invalid_type/);
+  });
+
+  it('count_tokens without either name is rejected by the handler, not silently defaulted', async () => {
+    const client = await connectedClient(makeConfig());
+    const res: any = await client.callTool({ name: 'count_tokens', arguments: {} });
+    expect(res.isError).toBe(true);
+    expect(String(res.content?.[0]?.text ?? '')).toMatch(/place/);
+  });
+
+  it('usage_report accepts hours as a number', async () => {
+    const client = await connectedClient(makeConfig());
+    const res: any = await client.callTool({ name: 'usage_report', arguments: { hours: 2 } });
+    const text = String(res.content?.[0]?.text ?? '');
+    expect(text).not.toMatch(/Invalid arguments|invalid_type/);
+  });
+});

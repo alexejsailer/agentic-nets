@@ -47,14 +47,22 @@ const slug = (s) =>
 // rule Studio's own blob viewer uses. The store sends read-only CORS headers for exactly this.
 const blobUrl = (urn) =>
   `${location.protocol}//${location.hostname}:8090/api/blobs/${String(urn).replace(/^urn:agenticos:blob:/, '')}`;
-async function readBlob(urn) {
-  if (!urn) throw new Error('this draft has no blob pointer');
-  const r = await fetch(blobUrl(urn));
-  if (!r.ok) throw new Error(`blobstore answered ${r.status}`);
-  const raw = await r.text();
+function stripHeader(raw) {
   // The writer stores a provenance header, a blank line, then the article.
   const cut = raw.indexOf('\n\n');
   return cut > 0 && cut < 400 ? raw.slice(cut + 2) : raw;
+}
+async function readBlob(urn, rt) {
+  if (!urn) throw new Error('this draft has no blob pointer');
+  if (rt && typeof rt.readBlob === 'function') {
+    // Studio's application runtime reads through the platform path (gateway → master → the
+    // store that owns the locator) with Studio's own credential — no store port, no CORS.
+    const r = await rt.readBlob(urn, { maxLength: 400000 });
+    return stripHeader(String(r?.content ?? ''));
+  }
+  const r = await fetch(blobUrl(urn));
+  if (!r.ok) throw new Error(`blobstore answered ${r.status}`);
+  return stripHeader(await r.text());
 }
 
 const newestFirst = (tokens, field) =>
@@ -164,7 +172,7 @@ class WebInvestigatorDashboard extends HTMLElement {
       `<style>${CSS}</style><div class="wrap"><div class="empty">Loading…</div></div>`;
     await this._load();
     // Live refresh only for the stores a decision changes; the corpus reloads on demand.
-    for (const role of ['tasks', 'decisions', 'requests']) {
+    for (const role of ['tasks', 'decisions', 'requests', 'policies']) {
       this._unsubs.push(
         this._rt.watchStore(role, (ev) => {
           this._stores[role] = ev.tokens;
@@ -177,7 +185,7 @@ class WebInvestigatorDashboard extends HTMLElement {
   async _load() {
     const roles = ['brief', 'taxonomy', 'digest', 'brand-new', 'recent', 'insights',
       'frontier', 'queries', 'tasks', 'decisions', 'requests', 'owned', 'drafts',
-      'sources', 'growth'];
+      'sources', 'growth', 'policies', 'usage'];
     await Promise.all(roles.map(async (r) => {
       try { this._stores[r] = await this._rt.readStore(r); }
       catch { this._stores[r] = []; }
@@ -216,6 +224,23 @@ class WebInvestigatorDashboard extends HTMLElement {
   _digest() {
     const rows = (this._stores.digest || []).filter((t) => t.properties?.kind === 'landscape-analysis');
     return newestFirst(rows, 'generatedAt')[0] || null;
+  }
+  _policies() {
+    const out = {};
+    for (const t of newestFirst(this._stores.policies || [], 'setAt').reverse()) {
+      const p = t.properties || {};
+      const host = String(p.host || '').toLowerCase().replace(/^www\./, '');
+      if (host && p.policy) out[host] = p.policy;
+    }
+    return out;
+  }
+  _reviews() {
+    const out = {};
+    for (const t of newestFirst(this._stores.decisions || [], 'reviewedAt').reverse()) {
+      const p = t.properties || {};
+      if (p.verdict === 'draft-reviewed' && p.taskId) out[`${p.taskId}#${p.revision || '1'}`] = p;
+    }
+    return out;
   }
   _dismissed() {
     return new Set((this._stores.decisions || [])
@@ -313,6 +338,7 @@ class WebInvestigatorDashboard extends HTMLElement {
         <div style="display:grid;gap:14px;min-width:0">
           ${this._matrixCard(cats)}
           ${this._expansionCard()}
+          ${this._costCard()}
           ${this._freshCard(facts)}
           ${this._digestCard(digest)}
         </div>
@@ -473,11 +499,22 @@ class WebInvestigatorDashboard extends HTMLElement {
         <b style="font-size:12px;min-width:30px;text-align:right">${v}</b>
       </div>`).join('');
 
-    // sources table — the expansion evidence per host
+    // sources table — the expansion evidence per host, and the one judgment the crawl can act on
+    const policies = this._policies();
+    const policyCell = (host) => {
+      const cur = policies[String(host || '').toLowerCase().replace(/^www\./, '')] || 'allow';
+      return ['allow', 'index-only', 'ignore'].map((pol) =>
+        `<button data-policy="${esc(pol)}" data-policy-host="${esc(host)}" ${cur === pol ? 'disabled' : ''}
+           title="${pol === 'allow' ? 'Crawl and classify this host (default)'
+             : pol === 'index-only' ? 'Fetch this host for its links only; never classify its pages'
+             : 'Never fetch this host again'}"
+           style="${cur === pol ? 'font-weight:700' : 'opacity:.75'}">${esc(pol)}</button>`).join(' ');
+    };
     const rows = sources.sort((a, b) => num(b.articles) - num(a.articles)).map((p) => `
       <tr><td class="cat">${esc(p.host)}</td><td><span class="badge">${esc(p.sourceType)}</span></td>
       <td class="n">${num(p.articles)}</td><td class="n">${num(p.brandNew) + num(p.recent) || ''}</td>
-      <td class="n">${num(p.categories)}</td><td>${esc(p.firstSeenAt || '')}</td></tr>`).join('');
+      <td class="n">${num(p.categories)}</td><td>${esc(p.firstSeenAt || '')}</td>
+      <td class="acts">${policyCell(p.host)}</td></tr>`).join('');
 
     // growth chart — findings + hosts over the snapshot series, hand-rolled SVG
     let chart = '';
@@ -500,15 +537,40 @@ class WebInvestigatorDashboard extends HTMLElement {
     }
     const last = growth[growth.length - 1] || {};
     return `<div class="card"><h3>Sources & expansion</h3>
-      <p class="sub">Where the findings come from, and how the investigation is growing.
+      <p class="sub">Where the findings come from, and how the investigation is growing. The <b>policy</b> is your judgment the crawl acts on: <i>index-only</i> keeps a host for its links, <i>ignore</i> drops it from fetch, harvest and recrawl.
         ${num(last.newFindings) ? `<span class="badge warm">+${num(last.newFindings)} findings last rollup</span>` : ''}
         ${num(last.newHosts) ? `<span class="badge warm">+${num(last.newHosts)} hosts</span>` : ''}</p>
       ${mix}
       <div style="overflow-x:auto;margin-top:8px"><table>
-        <tr><th>source</th><th>type</th><th class="n">articles</th><th class="n">fresh</th><th class="n">cats</th><th>first seen</th></tr>
+        <tr><th>source</th><th>type</th><th class="n">articles</th><th class="n">fresh</th><th class="n">cats</th><th>first seen</th><th>policy</th></tr>
         ${rows}
       </table></div>
       ${chart}</div>`;
+  }
+
+  _costCard() {
+    const days = newestFirst((this._stores.usage || []).filter((t) => t.properties?.kind === 'usage-day'), 'day')
+      .map((t) => t.properties);
+    const latest = days[0];
+    const lanes = latest ? arr(latest.lanes).filter((l) => l && l.transitionId).slice(0, 6) : [];
+    const fmt = (n) => Number(n || 0).toLocaleString();
+    const dayRows = days.slice(0, 7).map((d) => `
+      <tr><td class="cat">${esc(d.day)}</td><td class="n">${fmt(d.totalTokens)}</td>
+      <td class="n">${fmt(d.modelTokens)}</td><td class="n">${fmt(d.fires)}</td><td>${esc(d.topLane || '')}</td></tr>`).join('');
+    const laneRows = lanes.map((l) => `
+      <tr><td class="cat">${esc(l.transitionId)}</td><td><span class="badge">${esc(l.kind || '')}</span>${
+        l.group ? ` <span class="badge">${esc(l.group)}/${esc(l.tier || '')}</span>` : ''}</td>
+      <td class="n">${fmt(l.tokens)}</td><td class="n">${fmt(l.fires)}</td>
+      <td class="n">${l.fires ? fmt(Math.round(Number(l.tokens || 0) / Number(l.fires))) : ''}</td>
+      <td class="n">${esc(l.avgIterations ?? '')}</td></tr>`).join('');
+    return `<div class="card"><h3>Cost</h3>
+      <p class="sub">Measured tokens per day and per lane, so the burn sits next to the buttons that cause it. Filed nightly by the usage lane; <b>Refresh cost</b> files today so far.
+        <button data-run="usage" style="margin-left:8px">Refresh cost</button></p>
+      ${days.length ? `<div style="overflow-x:auto"><table>
+        <tr><th>day</th><th class="n">tokens</th><th class="n">model tokens</th><th class="n">fires</th><th>top lane</th></tr>${dayRows}</table></div>` : '<div class="empty">No usage filed yet — press Refresh cost.</div>'}
+      ${lanes.length ? `<div style="overflow-x:auto;margin-top:8px"><table>
+        <tr><th>lane (${esc(latest.day)})</th><th>kind</th><th class="n">tokens</th><th class="n">fires</th><th class="n">per fire</th><th class="n">iters</th></tr>${laneRows}</table></div>` : ''}
+    </div>`;
   }
 
   _tasksCard(tasks) {
@@ -535,6 +597,7 @@ class WebInvestigatorDashboard extends HTMLElement {
 
   _draftsCard(drafts) {
     if (!drafts.length) return '';
+    const reviews = this._reviews();
     const rows = newestFirst(drafts, 'ts').map((d, i) => {
       const p = d.properties;
       // Drafts filed before 1.4 carried the article inline; newer ones keep it in the blob and
@@ -543,16 +606,23 @@ class WebInvestigatorDashboard extends HTMLElement {
       const writer = String(p.writerModel || '').trim();
       const outline = arr(p.outline);
       const hosts = arr(p.sourceHosts);
+      const review = reviews[`${p.taskId}#${p.revision || '1'}`];
+      const reviewBtn = (rating, label) => `<button data-review="${esc(rating)}" data-review-idx="${i}"
+        ${review?.rating === rating ? 'disabled style="font-weight:700"' : ''}>${label}</button>`;
       return `<details class="digest" data-draft="${i}">
         <summary>${esc(p.title)} <span class="badge">${esc(p.wordCount || '?')} words</span>${
           writer && writer !== 'default' ? ` <span class="badge ok">${esc(writer)}</span>` : ''}${
           Number(p.revision) > 1 ? ` <span class="badge">rev ${esc(p.revision)}</span>` : ''}${
-          p.sourcesUsed ? ` <span class="badge">${esc(p.sourcesUsed)} sources</span>` : ''}</summary>
+          p.sourcesUsed ? ` <span class="badge">${esc(p.sourcesUsed)} sources</span>` : ''}${
+          review ? ` <span class="badge ${review.rating === 'discarded' ? 'warm' : 'ok'}">${esc(review.rating)}</span>` : ''}</summary>
         <div class="acts" style="margin:6px 0">
           ${inline ? '' : `<button data-draft-open="${i}">Open article</button>`}
           <button data-draft-copy="${i}">Copy markdown</button>
           ${p.knowledgeBlobUrn ? `<button data-draft-knowledge="${i}" title="The evidence pack the writer was given">What the writer saw</button>` : ''}
+          <span class="meta" style="margin-left:8px">after reading:</span>
+          ${reviewBtn('used', 'used as is')} ${reviewBtn('edited', 'edited heavily')} ${reviewBtn('discarded', 'discarded')}
         </div>
+        <pre class="draft-knowledge" hidden style="white-space:pre-wrap;font-size:11px;max-height:50vh;overflow:auto"></pre>
         ${p.blobUrn ? `<div class="meta">stored as <code>${esc(p.blobUrn)}</code>${hosts.length ? ` · evidence from ${esc(hosts.join(', '))}` : ''}</div>` : ''}
         ${outline.length ? `<div class="meta">${outline.map(esc).join(' · ')}</div>` : ''}
         <p class="draft-body" style="white-space:pre-wrap;font-family:var(--mono,monospace);font-size:12px;max-height:340px;overflow:auto">${esc(inline || p.preview || '')}${!inline && p.preview ? ' …' : ''}</p>
@@ -661,7 +731,7 @@ class WebInvestigatorDashboard extends HTMLElement {
       if (url) { this._invoke('queue-url', { url: String(url) }, `url:${slug(String(url))}`); ev.target.reset(); }
     });
     const drafts = newestFirst(this._stores.drafts || [], 'ts');
-    const draftText = (p) => (p?.draftMarkdown ? Promise.resolve(String(p.draftMarkdown)) : readBlob(p?.blobUrn));
+    const draftText = (p) => (p?.draftMarkdown ? Promise.resolve(String(p.draftMarkdown)) : readBlob(p?.blobUrn, this._rt));
     for (const b of wrap.querySelectorAll('[data-draft-open]')) {
       b.addEventListener('click', async () => {
         const i = Number(b.dataset.draftOpen);
@@ -689,9 +759,33 @@ class WebInvestigatorDashboard extends HTMLElement {
       });
     }
     for (const b of wrap.querySelectorAll('[data-draft-knowledge]')) {
+      b.addEventListener('click', async () => {
+        const i = Number(b.dataset.draftKnowledge);
+        const urn = drafts[i]?.properties?.knowledgeBlobUrn;
+        const box = wrap.querySelector(`details[data-draft="${i}"] .draft-knowledge`);
+        if (!urn || !box) return;
+        if (!box.hidden) { box.hidden = true; return; }
+        b.disabled = true;
+        try { box.textContent = await readBlob(urn, this._rt); box.hidden = false; }
+        catch (e) { this._toast(`Could not read the knowledge pack: ${e?.message || e}`, true); }
+        finally { b.disabled = false; }
+      });
+    }
+    for (const b of wrap.querySelectorAll('[data-review]')) {
       b.addEventListener('click', () => {
-        const urn = drafts[Number(b.dataset.draftKnowledge)]?.properties?.knowledgeBlobUrn;
-        if (urn) window.open(blobUrl(urn), '_blank', 'noopener');
+        const p = drafts[Number(b.dataset.reviewIdx)]?.properties || {};
+        const revision = String(p.revision || '1');
+        this._invoke('review-draft', {
+          taskId: p.taskId, revision, rating: b.dataset.review,
+          writerModel: String(p.writerModel || 'default'), reviewedAt: new Date().toISOString(),
+        }, `rev:${p.taskId}:${revision}:${b.dataset.review}`);
+      });
+    }
+    for (const b of wrap.querySelectorAll('[data-policy]')) {
+      b.addEventListener('click', () => {
+        const host = String(b.dataset.policyHost || '').toLowerCase().replace(/^www\./, '');
+        this._invoke('set-source-policy', { host, policy: b.dataset.policy, setAt: new Date().toISOString() },
+          `pol:${host}:${b.dataset.policy}:${Date.now()}`);
       });
     }
     wrap.querySelector('[data-form="source"]')?.addEventListener('submit', (ev) => {

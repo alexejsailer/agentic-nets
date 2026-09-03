@@ -49,6 +49,23 @@ def host_of(url):
         return ""
 
 
+def load_policies():
+    """Newest per-host policy from the dashboard's policy log (p-scout-source-policy)."""
+    pol = {}
+    try:
+        res = api("POST", "/api/runtime/places/p-scout-source-policy/tokens/query?modelId=" + MODEL,
+                  {"arcql": "FROM $ LIMIT 500", "limit": 500})
+        rows = sorted(((t.get("data") or {}) for t in (res.get("tokens") or [])),
+                      key=lambda d: str(d.get("setAt") or d.get("_emittedAt") or ""))
+        for d in rows:
+            h = str(d.get("host") or "").lower().replace("www.", "").strip("/ ")
+            if h and d.get("policy") in ("allow", "index-only", "ignore"):
+                pol[h] = d["policy"]
+    except Exception:
+        pass
+    return pol
+
+
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     out = {"kind": "recrawl", "ts": ts, "queued": 0, "hosts": 0}
@@ -70,7 +87,9 @@ def main():
                 urls_by_host.setdefault(h, []).append(f.get("url", ""))
     if not hosts:
         hosts = sorted(urls_by_host.keys())
-    hosts = [h for h in hosts if h and h not in deny][:MAX_HOSTS]
+    policies = load_policies()
+    out["hostsSkippedByPolicy"] = len([h for h in hosts if policies.get(h) in ("index-only", "ignore")])
+    hosts = [h for h in hosts if h and h not in deny and policies.get(h) not in ("index-only", "ignore")][:MAX_HOSTS]
 
     frontier_now = {f.get("url") for f in rows("p-scout-frontier")}
     queued = []

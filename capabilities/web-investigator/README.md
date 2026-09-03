@@ -129,9 +129,19 @@ repeats all of this:
   the routine ones to the daily writer.
 - **Drafts** — the written articles, newest first, each badged with its writer, revision and
   how many sources fed it. The token only *describes* the draft (preview, outline, pointers);
-  **Open article** reads the full markdown from the blobstore, **Copy markdown** copies it, and
-  **What the writer saw** opens the knowledge pack the writer was given. Publish on your site,
-  then click **Done** on the task.
+  **Open article** reads the full markdown through the platform's blob path, **Copy markdown**
+  copies it, and **What the writer saw** shows the knowledge pack the writer was given. After
+  reading, say what happened (**used as is / edited heavily / discarded**): that verdict is a
+  decision token, so writers and evidence packs can be compared over time. Publish on your
+  site, then click **Done** on the task.
+- **Sources & expansion** — per host: what kind of place it is, how much it contributed, and
+  the one judgment the crawl acts on, its **policy**: *allow* (default), *index-only* (fetch
+  the host for its links, never classify its pages) or *ignore* (never fetch it again). The
+  policy log is append-only; the newest entry per host wins; fetch, harvest and recrawl all
+  read it.
+- **Cost** — measured tokens per day and per lane (with tier and group), filed nightly by the
+  usage lane or on demand with **Refresh cost**, so the burn sits next to the buttons that
+  cause it.
 - **Steer the crawl / Run buttons** — queue URLs and queries; **Add source** onboards a whole
   website (see below); *Run rollup* recomputes the analysis now; *Re-index own site* refreshes
   your inventory; *Crawl health* writes fetch diagnostics; *Re-crawl sources* re-visits known
@@ -151,6 +161,7 @@ lanes do the work. That's also why every click is auditable in the Decision log.
 | Mon 06:45 | crawl diagnostics | free |
 | daily 07:00 | draft the oldest accepted task | one Claude Code run — only if something is accepted and undrafted |
 | 1st of month 05:30 | sitemap harvest of all sources | free itself; each new article that passes the gate costs one classification call (capped at 300 URLs/run) |
+| daily 23:50 | usage rollup into the Cost card | free |
 
 The crawl itself is *not* scheduled — it runs when you feed it, and neither is the on-demand
 **✍ Fable** writer: a lane that spends a strong model's time should start with a human decision.
@@ -196,7 +207,7 @@ your sitemap ─▶ owned index ────────────────
         app: accept ─▶ tasks ─▶ writer (Claude Code, one draft per run) ─▶ drafts
 ```
 
-Eight scripts (`assets/`), sha256-pinned in the tool catalog and invoked by reference; two model
+Nine scripts (`assets/`), sha256-pinned in the tool catalog and invoked by reference; two model
 lanes (classify, analyse) plus the Claude Code writer; the rest is deterministic routing. The
 dashboard (`app/`) is a `kind:"application"` package whose stores bind the same runtime places —
 see `app/README.md` for how that works and how to rebuild the UI.
@@ -212,8 +223,11 @@ what the writer was shown is auditable from the dashboard.
 **Tokens stay small; text lives in blobs.** A finding token is ~900 bytes (summary, key points,
 attributes, blob pointer), a draft token holds preview, outline, counts and two blob urns, and
 the analysis lane receives cards rather than bodies for all but the newest few articles. The
-blobstore answers browser reads with read-only CORS headers, which is what lets the dashboard
-open an article or a knowledge pack directly.
+dashboard reads a blob through the platform's front door, `GET /api/blobs/{locator}` on master
+via the gateway (Studio's application runtime exposes it as `readBlob`), so the same credential
+that read the token reads the text, and a second blob store later is a provider, not a new
+endpoint. On a Studio build without `readBlob` the dashboard falls back to the store's own port,
+which answers browser reads with read-only CORS headers.
 
 ## Operating notes
 

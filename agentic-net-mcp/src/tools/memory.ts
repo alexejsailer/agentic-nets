@@ -306,13 +306,16 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       description:
         'How many tokens a place holds, without returning any of them. query_tokens had to ship token DATA just to answer "how many", which is the wrong trade for a place holding hundreds of large tokens. Pass arcql to count a subset (same grammar as query_tokens). Read-only, so it works in readonly mode.',
       inputSchema: {
-        place: z.string().describe('Runtime place id (alias: placeId)'),
+        place: z.string().optional().describe('Runtime place id'),
+        placeId: z.string().optional().describe('Alias of place — query_tokens and count_tokens accept either'),
         arcql: z.string().optional().describe('Optional selector; default counts every token'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'count_tokens', mutates: false }, async (model, args) => {
-      const placeId = resolveMemoryPlace(args.place ?? (args as any).placeId);
+      const requested = args.place ?? args.placeId;
+      if (!requested) throw new Error('count_tokens needs `place` (or its alias `placeId`)');
+      const placeId = resolveMemoryPlace(requested);
       const arcql = String(args.arcql ?? 'FROM $').trim();
       // maxValueLength:1 keeps the wire payload to a stub per token — the count is the answer,
       // the values are not.

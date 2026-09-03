@@ -1,6 +1,6 @@
 [
   {
-    "description": "Fetch one URL with conditional GET; extract, date (meta, ld+json, time tag, URL path), score as topic fit x page shape, classify index/catalog/article and source type; blobstore the text; queue discovered links deduped and depth-capped. 5.1.0: shape-aware gate so catalogue and spec pages are rejected before any model call.",
+    "description": "Fetch one URL with conditional GET; extract, date, score as topic fit x page shape, classify index/catalog/article and source type; honour the dashboard's per-host policy (ignore skips the fetch, index-only fetches for links only); blobstore the text; queue discovered links deduped and depth-capped.",
     "file": "scout-fetch.py",
     "id": "scout-fetch",
     "name": "Scout Fetch",
@@ -21,7 +21,7 @@
     "runtime": "python3"
   },
   {
-    "description": "Keep watching: re-queue every known source host's root + its busiest article sections into the frontier. Conditional GETs make unchanged pages a 304; only genuinely new links survive dedupe. Honours brief.denyHosts; capped per run.",
+    "description": "Re-queue every known source host's root and busiest sections into the frontier; conditional GETs make unchanged pages a 304. Honours brief.denyHosts and the per-host policy log; capped per run.",
     "file": "scout-recrawl.py",
     "id": "scout-recrawl",
     "name": "Scout Recrawl",
@@ -35,7 +35,7 @@
     "runtime": "python3"
   },
   {
-    "description": "Onboard a website by harvesting its own index: discover the sitemap (robots.txt Sitemap: lines, then conventional locations), walk index files to the article lists, filter non-articles, drop everything the registry knows, queue the rest into the frontier. Consumes p-scout-source-requests onboarding asks. Bounded per run (150/host, 300 total by default) \u2014 repeat runs are incremental via the registry.",
+    "description": "Onboard a website by harvesting its own sitemap: robots.txt then conventional locations, index files walked to article lists, non-articles filtered, registry-deduped, bounded per run. Hosts a human set to index-only or ignore are not harvested.",
     "file": "scout-sitemap.py",
     "id": "scout-sitemap",
     "name": "Scout Sitemap Harvest",
@@ -46,6 +46,13 @@
     "file": "scout-taxonomy.py",
     "id": "scout-taxonomy",
     "name": "Scout Taxonomy",
+    "runtime": "python3"
+  },
+  {
+    "description": "Put the cost where the decisions are made: read master's measured per-transition usage for the last 24h and file one compact usage-day token (totals, fires, per-lane breakdown with tier/group) into p-scout-usage; keeps 30 days.",
+    "file": "scout-usage.py",
+    "id": "scout-usage",
+    "name": "Scout Usage Rollup",
     "runtime": "python3"
   },
   {

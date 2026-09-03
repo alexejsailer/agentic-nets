@@ -155,6 +155,23 @@ def harvest_host(host, known, budget):
     return urls, used, listed
 
 
+def load_policies():
+    """Newest per-host policy from the dashboard's policy log (p-scout-source-policy)."""
+    pol = {}
+    try:
+        res = api("POST", "/api/runtime/places/p-scout-source-policy/tokens/query?modelId=" + MODEL,
+                  {"arcql": "FROM $ LIMIT 500", "limit": 500})
+        rows = sorted(((t.get("data") or {}) for t in (res.get("tokens") or [])),
+                      key=lambda d: str(d.get("setAt") or d.get("_emittedAt") or ""))
+        for d in rows:
+            h = str(d.get("host") or "").lower().replace("www.", "").strip("/ ")
+            if h and d.get("policy") in ("allow", "index-only", "ignore"):
+                pol[h] = d["policy"]
+    except Exception:
+        pass
+    return pol
+
+
 def main():
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     out = {"kind": "sitemap-harvest", "ts": ts, "queued": 0, "hosts": 0}
@@ -182,6 +199,12 @@ def main():
         + [host_of(f.get("url", "")) for pl in ("p-find-brand-new", "p-find-recent", "p-find-archive")
            for f in rows(pl)]))
     hosts = [h for h in hosts if h and h not in deny]
+    # A host a human set to index-only or ignore is not harvested: harvesting exists to find
+    # articles to classify, and both policies say "do not classify this host".
+    policies = load_policies()
+    turned_off = [h for h in hosts if policies.get(h) in ("index-only", "ignore")]
+    hosts = [h for h in hosts if h not in turned_off]
+    out["hostsSkippedByPolicy"] = len(turned_off)
 
     # Everything the net has ever fetched or queued counts as known.
     known = set()

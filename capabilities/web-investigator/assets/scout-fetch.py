@@ -9,6 +9,8 @@ Prints ONE small JSON object to stdout. Small is load-bearing: executor stdout o
 the routing fields. Full article text goes to the blobstore explicitly; only metadata
 and a short extract are printed.
 
+5.2.0: per-host policy from the dashboard (p-scout-source-policy) — ignore skips the fetch,
+index-only fetches for links but never classifies; both are visible in telemetry.
 5.1.0: the gate discriminates. Relevance is topic fit x PAGE SHAPE (prose ratio, length), so
 a spec sheet or product grid that merely uses the right words no longer passes; pages that
 are mostly fragments are typed `catalog` and rejected before any model sees them. Dates are
@@ -31,6 +33,9 @@ MAX_LINKS = 25
 EXTRACT_CHARS = 2400
 # Below this share of sentence-shaped text a page is a catalogue/spec/listing, not an article.
 CATALOG_PROSE_RATIO = 0.3
+# The dashboard's per-host judgment: allow (default) | index-only (fetch for its links, never
+# classify) | ignore (never fetch). Newest policy per host wins; the place is an audit log.
+POLICY_PLACE = "p-scout-source-policy"
 
 MASTER = os.environ.get("MASTER_URL", "http://127.0.0.1:8082").rstrip("/")
 BLOBS = os.environ.get("BLOB_URL", "http://127.0.0.1:8090").rstrip("/")
@@ -91,6 +96,31 @@ def put_blob(text):
     req.add_header("Content-Type", "text/plain; charset=utf-8")  # omit and the body is mangled
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read().decode())
+
+
+def load_policies():
+    """Newest policy per host from the policy log. Missing place or empty log = everything allowed."""
+    pol = {}
+    try:
+        res = api("POST", "/api/runtime/places/%s/tokens/query?modelId=%s" % (POLICY_PLACE, MODEL),
+                  {"arcql": "FROM $ LIMIT 500", "limit": 500})
+        rows = sorted(((t.get("data") or {}) for t in (res.get("tokens") or [])),
+                      key=lambda d: str(d.get("setAt") or d.get("_emittedAt") or ""))
+        for d in rows:
+            h = str(d.get("host") or "").lower().replace("www.", "").strip("/ ")
+            if h and d.get("policy") in ("allow", "index-only", "ignore"):
+                pol[h] = d["policy"]
+    except Exception:
+        pass
+    return pol
+
+
+def policy_for(url, policies):
+    try:
+        h = url.split("/")[2].lower().replace("www.", "")
+    except Exception:
+        return "allow"
+    return policies.get(h, "allow")
 
 
 def now_iso():
@@ -317,7 +347,7 @@ def emit(obj):
 
 
 
-def spool_links(links, parent_url, parent_depth, brief):
+def spool_links(links, parent_url, parent_depth, brief, policies=None):
     """Queue newly discovered URLs into the frontier, deduped. Runs INLINE here rather
     than in a downstream lane because a JSON string cannot survive a map template into
     args.env: the engine auto-parses JSON-looking strings and type preservation re-emits
@@ -356,7 +386,8 @@ def spool_links(links, parent_url, parent_depth, brief):
             c["spoolMalformed"] += 1
             continue
         h = urlparse(u).netloc.lower()
-        if h in deny or (allow and h not in allow) or (same_host and phost and h != phost):
+        if h in deny or (allow and h not in allow) or (same_host and phost and h != phost) \
+                or (policies or {}).get(h.replace("www.", "")) == "ignore":
             c["spoolFiltered"] += 1
             continue
         if u in known:
@@ -484,7 +515,15 @@ def main():
         out["failureClass"] = "no-url"
         emit(out); return
 
+    policies = load_policies()
+    policy = policy_for(url, policies)
     etag, last_mod, prev_id = registry_lookup(url)
+    if policy == "ignore":
+        # A human said this host is not worth reading. Recorded in the registry so the URL is
+        # never re-queued, and in telemetry so the decision is visible.
+        out.update(outcome="skipped", failureClass="policy-ignore", gateVerdict="policy")
+        registry_upsert(url, etag, last_mod, "policy-ignore", prev_id)
+        emit(out); return
     started = time.time()
     fail = None
     try:
@@ -620,7 +659,7 @@ def main():
     except Exception:
         pass
 
-    out.update(spool_links(links, url, depth, brief))
+    out.update(spool_links(links, url, depth, brief, policies))
     page_type = classify_page(url)
     if page_type == "article" and shape["proseRatio"] < CATALOG_PROSE_RATIO:
         page_type = "catalog"
@@ -630,7 +669,8 @@ def main():
     except Exception:
         min_score = 0
     # Collapsed to ONE literal the gate lane can route on.
-    verdict = ("index" if page_type == "index" else "catalog" if page_type == "catalog"
+    verdict = ("policy" if policy == "index-only"
+               else "index" if page_type == "index" else "catalog" if page_type == "catalog"
                else "pass" if score_val >= min_score else "low-score")
     out.update(pageType=page_type, gateVerdict=verdict)
     body = article_start(text, title)

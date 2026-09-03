@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.10.0
+version: 1.11.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -45,14 +45,17 @@ scripts:
       fragment-heavy pages as `catalog` for a free rejection, classify listing-vs-article and
       source type, store full text in the blobstore, keep the article's opening as the extract,
       classify failures, and queue newly discovered URLs (deduped, depth-capped,
-      injection-guarded).
+      injection-guarded). Honours the dashboard's per-host policy (p-scout-source-policy):
+      `ignore` skips the fetch and pins the URL in the registry, `index-only` fetches for links
+      but never lets the page reach the classifier.
   - id: scout-recrawl
     runtime: python3
     file: assets/scout-recrawl.py
     description: >-
       Keep the investigation watching: weekly (and on demand) re-queue every known source
       host's entry pages into the frontier. Unchanged pages cost a 304; only genuinely new
-      links survive dedupe, so recency and growth numbers keep moving.
+      links survive dedupe, so recency and growth numbers keep moving. Hosts a human set to
+      index-only or ignore are left alone.
   - id: scout-search
     runtime: python3
     file: assets/scout-search.py
@@ -69,9 +72,10 @@ scripts:
       filter obvious non-articles, dedupe against everything already fetched or queued, and
       feed the rest to the frontier. Hosts come from onboarding requests
       (p-scout-source-requests, consumed after processing), host profiles, and finding hosts;
-      denyHosts is honoured. Free and key-less; URLS_PER_HOST / MAX_TOTAL bound each run and
-      the registry makes repeat runs incremental, so a large backlog drains over the monthly
-      schedule instead of in one burst.
+      denyHosts and the per-host policy log are honoured (index-only and ignore hosts are not
+      harvested: harvesting exists to find pages to classify). Free and key-less;
+      URLS_PER_HOST / MAX_TOTAL bound each run and the registry makes repeat runs incremental,
+      so a large backlog drains over the monthly schedule instead of in one burst.
   - id: scout-owned
     runtime: python3
     file: assets/scout-owned.py
@@ -118,6 +122,14 @@ scripts:
     runtime: python3
     file: assets/scout-health.py
     description: Roll fetch telemetry into diagnostics with concrete tuning suggestions.
+  - id: scout-usage
+    runtime: python3
+    file: assets/scout-usage.py
+    description: >-
+      Put the cost where the decisions are made: read master's measured per-transition usage
+      for the last 24 hours and file ONE compact usage-day token (totals, fires, per-lane
+      breakdown with tier and group) into p-scout-usage, keeping 30 days. Nightly by cron and
+      on demand from the dashboard's Refresh cost.
 
 config:
   - key: p-scout-brief

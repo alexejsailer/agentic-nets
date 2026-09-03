@@ -421,6 +421,30 @@
         "target": "p-scout-health-log",
         "weight": 1
       },
+      "a-t-scout-usage-cron-in": {
+        "id": "a-t-scout-usage-cron-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-usage-cron",
+        "weight": 1
+      },
+      "a-t-scout-usage-cron-out": {
+        "id": "a-t-scout-usage-cron-out",
+        "source": "t-scout-usage-cron",
+        "target": "p-scout-usage-cmd",
+        "weight": 1
+      },
+      "a-t-scout-usage-in": {
+        "id": "a-t-scout-usage-in",
+        "source": "p-scout-usage-cmd",
+        "target": "t-scout-usage",
+        "weight": 1
+      },
+      "a-t-scout-usage-out": {
+        "id": "a-t-scout-usage-out",
+        "source": "t-scout-usage",
+        "target": "p-scout-health-log",
+        "weight": 1
+      },
       "a-t-scout-write-cron-in": {
         "id": "a-t-scout-write-cron-in",
         "source": "p-scout-brief",
@@ -477,22 +501,22 @@
         "id": "p-find-archive",
         "label": "Archive (older than 90 days)",
         "tokens": 0,
-        "x": 2300,
-        "y": 1430
+        "x": 2500,
+        "y": 1850
       },
       "p-find-brand-new": {
         "id": "p-find-brand-new",
         "label": "Brand new (published within 7 days)",
         "tokens": 0,
-        "x": 1500,
-        "y": 1430
+        "x": 1700,
+        "y": 1850
       },
       "p-find-recent": {
         "id": "p-find-recent",
         "label": "Recent (8 to 90 days)",
         "tokens": 0,
-        "x": 1900,
-        "y": 1430
+        "x": 2300,
+        "y": 1850
       },
       "p-scout-analysis": {
         "id": "p-scout-analysis",
@@ -519,7 +543,7 @@
         "id": "p-scout-brief",
         "label": "Research Brief (what we seek)",
         "tokens": 0,
-        "x": 1500,
+        "x": 1300,
         "y": 1080
       },
       "p-scout-candidates": {
@@ -534,28 +558,28 @@
         "label": "Operator decisions (audit)",
         "tokens": 0,
         "x": 500,
-        "y": 1430
+        "y": 1850
       },
       "p-scout-digest": {
         "id": "p-scout-digest",
         "label": "Digest (structured synthesis)",
         "tokens": 0,
-        "x": 700,
-        "y": 1430
+        "x": 1700,
+        "y": 1500
       },
       "p-scout-drafts": {
         "id": "p-scout-drafts",
         "label": "Article drafts",
         "tokens": 0,
         "x": 1100,
-        "y": 1430
+        "y": 1850
       },
       "p-scout-errors": {
         "id": "p-scout-errors",
         "label": "Errors (lane failures only)",
         "tokens": 0,
-        "x": 1300,
-        "y": 1430
+        "x": 1500,
+        "y": 1850
       },
       "p-scout-fable-cmd": {
         "id": "p-scout-fable-cmd",
@@ -589,22 +613,22 @@
         "id": "p-scout-growth",
         "label": "Growth snapshots (expansion over time)",
         "tokens": 0,
-        "x": 2100,
-        "y": 1430
+        "x": 1900,
+        "y": 1850
       },
       "p-scout-health-cmd": {
         "id": "p-scout-health-cmd",
         "label": "Health CommandTokens",
         "tokens": 0,
-        "x": 700,
+        "x": 500,
         "y": 940
       },
       "p-scout-health-log": {
         "id": "p-scout-health-log",
         "label": "Health run summaries",
         "tokens": 0,
-        "x": 1700,
-        "y": 1430
+        "x": 2100,
+        "y": 1850
       },
       "p-scout-insights": {
         "id": "p-scout-insights",
@@ -624,7 +648,7 @@
         "id": "p-scout-owned-cmd",
         "label": "Owned-inventory CommandTokens",
         "tokens": 0,
-        "x": 500,
+        "x": 300,
         "y": 940
       },
       "p-scout-queries": {
@@ -645,7 +669,7 @@
         "id": "p-scout-recrawl-cmd",
         "label": "Re-crawl CommandTokens",
         "tokens": 0,
-        "x": 300,
+        "x": 100,
         "y": 940
       },
       "p-scout-registry": {
@@ -653,14 +677,14 @@
         "label": "URL Registry (dedupe + HTTP cache)",
         "tokens": 0,
         "x": 100,
-        "y": 1430
+        "y": 1850
       },
       "p-scout-rejected": {
         "id": "p-scout-rejected",
         "label": "Rejected (below minScore, kept for tuning)",
         "tokens": 0,
-        "x": 900,
-        "y": 1430
+        "x": 700,
+        "y": 1850
       },
       "p-scout-search-cmd": {
         "id": "p-scout-search-cmd",
@@ -681,7 +705,14 @@
         "label": "Sitemap-harvest CommandTokens",
         "tokens": 0,
         "x": 100,
-        "y": 940
+        "y": 1220
+      },
+      "p-scout-source-policy": {
+        "id": "p-scout-source-policy",
+        "label": "Per-host source policy (dashboard)",
+        "tokens": 0,
+        "x": 300,
+        "y": 1850
       },
       "p-scout-source-requests": {
         "id": "p-scout-source-requests",
@@ -701,15 +732,15 @@
         "id": "p-scout-taxonomy",
         "label": "Taxonomy (discovered categories)",
         "tokens": 0,
-        "x": 100,
+        "x": 300,
         "y": 1220
       },
       "p-scout-taxonomy-cmd": {
         "id": "p-scout-taxonomy-cmd",
         "label": "Taxonomy CommandTokens",
         "tokens": 0,
-        "x": 300,
-        "y": 1220
+        "x": 1300,
+        "y": 1640
       },
       "p-scout-telemetry": {
         "id": "p-scout-telemetry",
@@ -718,11 +749,25 @@
         "x": 100,
         "y": 660
       },
+      "p-scout-usage": {
+        "id": "p-scout-usage",
+        "label": "Daily usage rollups",
+        "tokens": 0,
+        "x": 900,
+        "y": 1850
+      },
+      "p-scout-usage-cmd": {
+        "id": "p-scout-usage-cmd",
+        "label": "Usage rollup CommandTokens",
+        "tokens": 0,
+        "x": 500,
+        "y": 1220
+      },
       "p-scout-write-cmd": {
         "id": "p-scout-write-cmd",
         "label": "Write-prep CommandTokens",
         "tokens": 0,
-        "x": 500,
+        "x": 700,
         "y": 1220
       },
       "p-scout-write-queue": {
@@ -785,8 +830,8 @@
       "t-scout-analysis-retry": {
         "id": "t-scout-analysis-retry",
         "label": "Analysis answered without DONE: file it, re-run the rollup (bounded per day)",
-        "x": 1180,
-        "y": 700
+        "x": 1500,
+        "y": 1500
       },
       "t-scout-app-run": {
         "id": "t-scout-app-run",
@@ -803,7 +848,7 @@
       "t-scout-digest": {
         "id": "t-scout-digest",
         "label": "Competitor analysis (interprets facts only)",
-        "x": 700,
+        "x": 900,
         "y": 1220
       },
       "t-scout-fetch": {
@@ -827,7 +872,7 @@
       "t-scout-health": {
         "id": "t-scout-health",
         "label": "Roll telemetry into insights",
-        "x": 900,
+        "x": 1100,
         "y": 1220
       },
       "t-scout-health-cmd": {
@@ -845,7 +890,7 @@
       "t-scout-owned": {
         "id": "t-scout-owned",
         "label": "Index own articles from sitemap",
-        "x": 1100,
+        "x": 1300,
         "y": 1220
       },
       "t-scout-owned-cmd": {
@@ -857,7 +902,7 @@
       "t-scout-recrawl": {
         "id": "t-scout-recrawl",
         "label": "Re-queue source entry pages on executor",
-        "x": 1300,
+        "x": 1500,
         "y": 1220
       },
       "t-scout-recrawl-cron": {
@@ -893,7 +938,7 @@
       "t-scout-sitemap": {
         "id": "t-scout-sitemap",
         "label": "Discover + harvest sitemaps on executor",
-        "x": 1500,
+        "x": 1700,
         "y": 1220
       },
       "t-scout-sitemap-cron": {
@@ -905,13 +950,25 @@
       "t-scout-taxonomy": {
         "id": "t-scout-taxonomy",
         "label": "Roll findings into taxonomy + facts",
-        "x": 1700,
-        "y": 1220
+        "x": 1300,
+        "y": 1500
       },
       "t-scout-taxonomy-cmd": {
         "id": "t-scout-taxonomy-cmd",
         "label": "Build taxonomy CommandToken",
         "x": 1100,
+        "y": 940
+      },
+      "t-scout-usage": {
+        "id": "t-scout-usage",
+        "label": "Roll measured usage into p-scout-usage",
+        "x": 1900,
+        "y": 1220
+      },
+      "t-scout-usage-cron": {
+        "id": "t-scout-usage-cron",
+        "label": "Build usage-rollup CommandToken (daily)",
+        "x": 900,
         "y": 940
       },
       "t-scout-write": {
@@ -923,7 +980,7 @@
       "t-scout-write-cron": {
         "id": "t-scout-write-cron",
         "label": "Build write-prep command (daily)",
-        "x": 900,
+        "x": 700,
         "y": 940
       },
       "t-scout-write-fable": {
@@ -936,7 +993,7 @@
         "id": "t-scout-write-prep",
         "label": "Assemble writing packet on executor",
         "x": 1900,
-        "y": 1220
+        "y": 1500
       }
     }
   }
