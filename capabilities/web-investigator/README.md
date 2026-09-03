@@ -127,8 +127,11 @@ repeats all of this:
   stores the article itself in the blobstore. Nothing schedules this lane — it fires only when
   you press the button, so you can put the strongest model on the pieces that matter and leave
   the routine ones to the daily writer.
-- **Drafts** — the written articles, newest first, each badged with its writer and revision.
-  Expand, **Copy markdown**, publish on your site, then click **Done** on the task.
+- **Drafts** — the written articles, newest first, each badged with its writer, revision and
+  how many sources fed it. The token only *describes* the draft (preview, outline, pointers);
+  **Open article** reads the full markdown from the blobstore, **Copy markdown** copies it, and
+  **What the writer saw** opens the knowledge pack the writer was given. Publish on your site,
+  then click **Done** on the task.
 - **Steer the crawl / Run buttons** — queue URLs and queries; **Add source** onboards a whole
   website (see below); *Run rollup* recomputes the analysis now; *Re-index own site* refreshes
   your inventory; *Crawl health* writes fetch diagnostics; *Re-crawl sources* re-visits known
@@ -154,6 +157,31 @@ The crawl itself is *not* scheduled — it runs when you feed it, and neither is
 Both writer lanes require the `claude` binary (Claude Code) on the executor host; a stopped
 API-model lane (`t-scout-write`) exists as a fallback.
 
+One lane is event-driven rather than scheduled: if the analysis model ends its run without
+delivering the answer object (the engine then emits a bare fallback node instead of an
+analysis), `t-scout-analysis-retry` files that node to `p-scout-errors` and re-issues the
+rollup, so the analysis is retried on the same facts. The taxonomy script bounds this to three
+re-runs per day; the dashboard never shows a fallback node as if it were an analysis.
+
+### Which model does what
+
+The two model lanes select their model by **group and tier**, never by name: the classifier
+runs `tier: low` and the analysis `tier: high` of a group called `analyst`. Without a groups
+file those resolve to the provider's own low/high lineup. To put a stronger (or cheaper) model
+on exactly these lanes and nothing else, name the group in the master's groups file
+(`~/.agenticos/llm-groups.json` on Desktop, `LLM_GROUPS_FILE` elsewhere):
+
+```json
+{ "groups": { "analyst": { "provider": "default",
+    "low": "<cheap classifier model>", "high": "<strong analyst model>", "defaultTier": "high" } } }
+```
+
+Both lanes carry `allowedTools: []` (the DONE/THINK/FAIL protocol only) and a read-only role:
+they classify and interpret, they never query or write. Measured on one install, that took the
+classifier from ~25k to ~11k tokens per article; the analysis lane costs one strong-model call
+per day. The writers are not model lanes at all — they run Claude Code headlessly on the
+executor and pick the model with `--model`.
+
 ## Under the hood (the net)
 
 ```
@@ -168,15 +196,38 @@ your sitemap ─▶ owned index ────────────────
         app: accept ─▶ tasks ─▶ writer (Claude Code, one draft per run) ─▶ drafts
 ```
 
-Five scripts (`assets/`), sha256-pinned in the tool catalog and invoked by reference; two model
+Eight scripts (`assets/`), sha256-pinned in the tool catalog and invoked by reference; two model
 lanes (classify, analyse) plus the Claude Code writer; the rest is deterministic routing. The
 dashboard (`app/`) is a `kind:"application"` package whose stores bind the same runtime places —
 see `app/README.md` for how that works and how to rebuild the UI.
 
+**The writer works from a knowledge pack, not one page.** Every finding already carries a
+summary and key points written at classification time, and its full text sits in a blob. For
+an assignment the writer ranks the whole corpus against the task (title, rationale, category),
+caps what one host may contribute, and assembles three rings of evidence: the competitor piece
+to beat, the best-matching passages of the next few sources pulled from their blobs, and
+compact cards for the wider field. The pack is stored as a blob and linked from the draft, so
+what the writer was shown is auditable from the dashboard.
+
+**Tokens stay small; text lives in blobs.** A finding token is ~900 bytes (summary, key points,
+attributes, blob pointer), a draft token holds preview, outline, counts and two blob urns, and
+the analysis lane receives cards rather than bodies for all but the newest few articles. The
+blobstore answers browser reads with read-only CORS headers, which is what lets the dashboard
+open an article or a knowledge pack directly.
+
 ## Operating notes
 
-- `p-scout-telemetry` records every fetch attempt with a closed-set `failureClass` — a failed
-  scrape is diagnosable without re-crawling. Newest 500 kept automatically.
+- `p-scout-telemetry` records every fetch attempt with a closed-set `failureClass` and the page
+  shape (`proseRatio`, `wordCount`) — a failed scrape or a mis-gated page is diagnosable without
+  re-crawling. Newest 1,500 kept automatically.
+- The relevance score is topic fit × page shape. Topic terms alone saturate on any on-topic site
+  (every page there uses the brief's vocabulary), so the shape factor is what makes `minScore`
+  a real gate: a spec sheet or product grid with the right words lands around 20, a short
+  article around 60, a full one 90-100. Pages that are mostly fragments are typed `catalog` and
+  rejected before any model sees them.
+- The agent lanes' answer contract is DONE's `message` parameter carrying the answer object
+  itself. The engine also accepts the object under `summary`/`result`/`answer`, but the prompt
+  names `message` because that is what the tool description asks for.
 - The writer never drafts the same task twice, and one trigger produces at most one draft.
   A task is only ever closed by *you* clicking Done.
 - Undated pages file as `archive` rather than claiming freshness they cannot prove.

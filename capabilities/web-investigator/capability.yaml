@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.9.0
+version: 1.10.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -39,9 +39,12 @@ scripts:
     runtime: python3
     file: assets/scout-fetch.py
     description: >-
-      Fetch one URL with conditional GET, extract title/text/links, detect the publication date,
-      compute the recency label and relevance score, classify listing-vs-article, store full text
-      in the blobstore, classify failures, and queue newly discovered URLs (deduped, depth-capped,
+      Fetch one URL with conditional GET, extract title/text/links, detect the publication date
+      (meta, ld+json, time tag, URL path), score relevance as topic fit x PAGE SHAPE (prose
+      ratio, length) so a spec sheet that merely uses the right words no longer passes, type
+      fragment-heavy pages as `catalog` for a free rejection, classify listing-vs-article and
+      source type, store full text in the blobstore, keep the article's opening as the extract,
+      classify failures, and queue newly discovered URLs (deduped, depth-capped,
       injection-guarded).
   - id: scout-recrawl
     runtime: python3
@@ -80,32 +83,37 @@ scripts:
     runtime: python3
     file: assets/scout-taxonomy.py
     description: >-
-      Roll findings into per-category and per-source counts and explicit coverage gaps; attach
-      chrome-stripped full text of the fresh findings from their blobs; and join against
+      Roll findings into per-category and per-source counts and explicit coverage gaps; hand the
+      analyst every fresh finding as a compact card (the summary and key points written at
+      classification time) and only the newest few as clipped body text; and join against
       p-scout-owned to report ownCovered/ownUncovered per category plus trueGaps — competitor
       material with no owner equivalent. Filler terms are derived from the corpus, not listed,
-      so the matching carries no domain.
+      so the matching carries no domain. When the retry lane re-issues a run after the analysis
+      answered without DONE, the facts token is withheld once three such fallbacks were filed
+      today, so a model that ignores the contract cannot burn all night.
   - id: scout-write
     runtime: python3
     file: assets/scout-write.py
     description: >-
-      The staff writer: draft ONE accepted article task per run, end to end. Deterministic
-      prep (task + competitor text with URL-fallback + related own slugs + brief), then the
-      LOCAL claude binary headlessly (-p, no tools, no session persistence); the markdown is
-      stored in the blobstore and filed as a revisioned draft token. Dedupe by drafts ledger;
-      the task token is never consumed — it belongs to the application lifecycle
-      (accepted -> done). Requires Claude Code on the executor host; the stopped
+      The staff writer: draft ONE accepted article task per run, end to end, from a KNOWLEDGE
+      PACK ranked across the whole corpus — the competitor piece to beat, the best-matching
+      passages of the next few sources pulled from their blobs, and cards for the wider field,
+      no host dominating — stored as its own blob so what the writer saw is auditable. Then the
+      LOCAL claude binary headlessly (-p, no tools, no session persistence); the article goes to
+      the blobstore and the draft token carries only preview, outline, counts and blob urns.
+      Dedupe by drafts ledger; the task token is never consumed — it belongs to the application
+      lifecycle (accepted -> done). Requires Claude Code on the executor host; the stopped
       t-scout-write agent lane is the API fallback.
   - id: scout-write-fable
     runtime: python3
     file: assets/scout-write.py
     description: >-
-      The same writer bound to a HUMAN CHOICE rather than a schedule: the dashboard's per-task
-      button passes TASK_ID and WRITER_MODEL, so a specific assignment gets drafted by a
-      specific model (the pack ships the button wired to `fable`). Always writes — asking for a
-      second draft is the point — and files it as a new revision beside the existing one, with
-      the article itself in the blobstore, so two writers can be compared on one brief. Nothing
-      schedules this lane; it fires only when a person presses the button.
+      The same knowledge-pack writer bound to a HUMAN CHOICE rather than a schedule: the
+      dashboard's per-task button passes TASK_ID and WRITER_MODEL, so a specific assignment gets
+      drafted by a specific model (the pack ships the button wired to `fable`). Always writes —
+      asking for a second draft is the point — and files it as a new revision beside the
+      existing one, with the article itself in the blobstore, so two writers can be compared on
+      one brief. Nothing schedules this lane; it fires only when a person presses the button.
   - id: scout-health
     runtime: python3
     file: assets/scout-health.py

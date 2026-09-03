@@ -8,10 +8,16 @@ Prints ONE small JSON object to stdout. Small is load-bearing: executor stdout o
 ~128KB is auto-offloaded to a blob and REPLACES the whole payload, which would destroy
 the routing fields. Full article text goes to the blobstore explicitly; only metadata
 and a short extract are printed.
+
+5.1.0: the gate discriminates. Relevance is topic fit x PAGE SHAPE (prose ratio, length), so
+a spec sheet or product grid that merely uses the right words no longer passes; pages that
+are mostly fragments are typed `catalog` and rejected before any model sees them. Dates are
+also read from the URL path, and the extract grows to the article's opening so the
+classifier's summary and key points carry real knowledge.
 """
 import json, os, re, sys, time, socket, gzip, io
 import urllib.request, urllib.error
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse, urldefrag
 
@@ -19,7 +25,12 @@ UA = "AgenticNetOS-ResearchScout/1.0 (+local)"
 MAX_BYTES = 2_000_000
 TIMEOUT = 20
 MAX_LINKS = 25
-EXTRACT_CHARS = 600
+# The extract is what the classifier reads AND what its summary/keyPoints are distilled from,
+# so it is the knowledge a finding keeps. 2,400 chars is an article's opening (thesis, framing),
+# not its bulk; the full text stays in the blob. Rejected pages carry it too, for tuning.
+EXTRACT_CHARS = 2400
+# Below this share of sentence-shaped text a page is a catalogue/spec/listing, not an article.
+CATALOG_PROSE_RATIO = 0.3
 
 MASTER = os.environ.get("MASTER_URL", "http://127.0.0.1:8082").rstrip("/")
 BLOBS = os.environ.get("BLOB_URL", "http://127.0.0.1:8090").rstrip("/")
@@ -184,6 +195,8 @@ class Extract(HTMLParser):
 
 
 ISO = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
+URL_DATE = re.compile(r"/((?:19|20)\d{2})/(\d{1,2})(?:/(\d{1,2}))?(?=/|$)"
+                      r"|/((?:19|20)\d{2})-(\d{2})-(\d{2})(?=[/\-_.]|$)")
 
 
 def parse_date(s):
@@ -198,9 +211,28 @@ def parse_date(s):
         return None
 
 
-def find_date(ex, headers):
+def url_date(url):
+    """A date the site wrote into its own URL (/2024/05/12/slug, /2024-05-12-slug). A day-less
+    path (/2024/05/) takes the 1st: precise enough for a 90-day recency window, and far better
+    than filing the page as undated archive."""
+    path = urlparse(url).path
+    now = datetime.now(timezone.utc)
+    for m in URL_DATE.finditer(path):
+        y, mo, d = (m.group(1), m.group(2), m.group(3)) if m.group(1) else (m.group(4), m.group(5), m.group(6))
+        try:
+            dt = datetime(int(y), int(mo), int(d or 1), tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if datetime(1995, 1, 1, tzinfo=timezone.utc) <= dt <= now + timedelta(days=2):
+            return dt
+    return None
+
+
+def find_date(ex, headers, url=""):
     """Return (datetime, source). Source is the field the health rollup optimises against."""
-    for k in ("article:published_time", "og:published_time", "datepublished",
+    for k in ("article:published_time", "og:published_time", "article:published",
+              "datepublished", "parsely-pub-date", "sailthru.date", "citation_publication_date",
+              "dc.date.issued", "dcterms.created", "dcterms.date", "publish-date", "publishdate",
               "article:modified_time", "date", "dc.date", "pubdate"):
         d = parse_date(ex.meta.get(k))
         if d:
@@ -218,27 +250,64 @@ def find_date(ex, headers):
     d = parse_date(ex.meta.get("__time"))
     if d:
         return d, "time-tag"
+    d = url_date(url)
+    if d:
+        return d, "url"
     d = parse_date(headers.get("Last-Modified", ""))
     if d:
         return d, "header"
     return None, "none"
 
 
-def score_text(title, text, brief):
+def page_shape(pieces):
+    """How much of a page is PROSE. A spec sheet, a product grid or a listing is mostly labels,
+    values and link text (short fragments); an article is sentences. The share of characters
+    inside sentence-length fragments separates the two without knowing one word of the domain,
+    which is what lets the gate turn catalogue pages away before they cost a model call."""
+    total = sum(len(p) for p in pieces) or 1
+    prose = 0
+    for p in pieces:
+        w = len(p.split())
+        if w >= 12 or (w >= 7 and p.rstrip()[-1:] in ".!?"):
+            prose += len(p)
+    toks = [t for p in pieces for t in p.split()]
+    numeric = sum(1 for t in toks if any(ch.isdigit() for ch in t)) / (len(toks) or 1)
+    return {"proseRatio": round(prose / total, 3), "numericDensity": round(numeric, 3),
+            "wordCount": len(toks)}
+
+
+def article_start(text, title):
+    """Skip site chrome: an article's body usually begins at the last occurrence of its own
+    title. Only trusted when that sits in the first 60% of the page."""
+    key = " ".join((title or "").split()[:6])
+    if key and len(key) > 12:
+        i = text.rfind(key)
+        if 0 <= i < len(text) * 0.6:
+            return text[i:]
+    return text
+
+
+def score_text(title, text, brief, shape=None):
+    """0-100 = topic fit x article shape. Topic fit alone saturates on any on-topic site,
+    because every page there uses the brief's own vocabulary (measured: 100% of pages scored
+    exactly 100), so shape is what makes minScore a real gate: a 300-word spec sheet with the
+    right words lands around 20, a short article around 60-70, a full one 90-100."""
     inc = [t.lower() for t in (brief.get("mustInclude") or []) if t.strip()]
     exc = [t.lower() for t in (brief.get("mustExclude") or []) if t.strip()]
     hay, head = text.lower(), title.lower()
     for t in exc:
         if t in hay or t in head:
             return 0
-    if not inc:
-        return 50
-    got = 0
-    for t in inc:
-        if t in head:
-            got += 3
-        got += min(hay.count(t), 5)
-    return int(min(100, (got / (len(inc) * 5.0)) * 100))
+    words = max(1, len(text.split()))
+    if inc:
+        present = sum(1 for t in inc if t in hay or t in head)
+        per_thousand = sum(hay.count(t) for t in inc) * 1000.0 / words
+        topic = 0.6 * (present / len(inc)) + 0.4 * min(1.0, per_thousand / 6.0)
+    else:
+        topic = 0.5
+    if shape:
+        topic *= min(1.0, shape["proseRatio"] / 0.6) * min(1.0, shape["wordCount"] / 500.0)
+    return int(round(100 * topic))
 
 
 def emit(obj):
@@ -403,6 +472,7 @@ def main():
            "title": "", "publishedAt": "", "ageDays": -1, "recency": "archive",
            "dateSource": "none", "score": 0, "extract": "", "blobUrn": "",
            "extractChars": 0, "linksFound": 0, "discoveredUrls": [],
+           "proseRatio": 0, "numericDensity": 0, "wordCount": 0,
            # Pre-serialised because args.env values must be STRINGS: a template can only
            # preserve the array type, and the executor drops a non-string env value.
            "discoveredJson": "[]", "retry": "no",
@@ -514,7 +584,9 @@ def main():
         registry_upsert(url, headers.get("ETag", ""), headers.get("Last-Modified", ""), "empty-extract", prev_id)
         emit(out); return
 
-    dt, src = find_date(ex, headers)
+    shape = page_shape(ex.text)
+    out.update(shape)
+    dt, src = find_date(ex, headers, url)
     brand = int(brief.get("brandNewDays") or 7)
     recent = int(brief.get("recentDays") or 90)
     if dt:
@@ -550,18 +622,24 @@ def main():
 
     out.update(spool_links(links, url, depth, brief))
     page_type = classify_page(url)
-    score_val = score_text(title, text, brief)
+    if page_type == "article" and shape["proseRatio"] < CATALOG_PROSE_RATIO:
+        page_type = "catalog"
+    score_val = score_text(title, text, brief, shape)
     try:
         min_score = int(brief.get("minScore") or 0)
     except Exception:
         min_score = 0
     # Collapsed to ONE literal the gate lane can route on.
-    verdict = ("index" if page_type == "index"
+    verdict = ("index" if page_type == "index" else "catalog" if page_type == "catalog"
                else "pass" if score_val >= min_score else "low-score")
     out.update(pageType=page_type, gateVerdict=verdict)
+    body = article_start(text, title)
+    extract = body[:EXTRACT_CHARS]
+    if len(body) > EXTRACT_CHARS:
+        extract = extract.rsplit(" ", 1)[0]
     out.update(outcome="ok", failureClass="ok", title=title, ageDays=age, recency=recency,
                dateSource=src, score=score_val,
-               extract=text[:EXTRACT_CHARS], blobUrn=blob_urn, extractChars=len(text),
+               extract=extract, blobUrn=blob_urn, extractChars=len(text),
                linksFound=len(links), discoveredUrls=links,
                discoveredJson=json.dumps(links))
     registry_upsert(url, headers.get("ETag", ""), headers.get("Last-Modified", ""), "ok", prev_id)

@@ -1,6 +1,24 @@
 {
   "net": {
     "arcs": {
+      "a-retry-0": {
+        "id": "a-retry-0",
+        "source": "p-scout-digest",
+        "target": "t-scout-analysis-retry",
+        "weight": 1
+      },
+      "a-retry-1": {
+        "id": "a-retry-1",
+        "source": "t-scout-analysis-retry",
+        "target": "p-scout-taxonomy-cmd",
+        "weight": 1
+      },
+      "a-retry-2": {
+        "id": "a-retry-2",
+        "source": "t-scout-analysis-retry",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
       "a-t-link-brief-taxonomy-in": {
         "id": "a-t-link-brief-taxonomy-in",
         "source": "p-scout-brief",
@@ -763,6 +781,12 @@
         "label": "t-link-telemetry-insights",
         "x": 300,
         "y": 660
+      },
+      "t-scout-analysis-retry": {
+        "id": "t-scout-analysis-retry",
+        "label": "Analysis answered without DONE: file it, re-run the rollup (bounded per day)",
+        "x": 1180,
+        "y": 700
       },
       "t-scout-app-run": {
         "id": "t-scout-app-run",

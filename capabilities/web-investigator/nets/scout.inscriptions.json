@@ -214,10 +214,75 @@
           "argv": [],
           "env": {
             "MODEL_ID": "research-scout",
+            "RETRY_REASON": "analysis-fallback"
+          },
+          "timeoutMs": 120000,
+          "toolId": "scout-taxonomy"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "taxonomy-retry-${now()}",
+        "iterationsUsed": "${input.data.iterationsUsed}",
+        "kind": "command",
+        "note": "the analysis lane ended without a DONE answer (engine fallback: ${input.data.summary}); the rollup is re-issued so the analysis is retried, at most 3 times a day",
+        "reason": "analysis-fallback",
+        "transitionId": "t-scout-digest"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "scout_taxonomy_cmd",
+        "when": "reason == 'analysis-fallback'"
+      },
+      {
+        "from": "@response",
+        "to": "scout_errors",
+        "when": "reason == 'analysis-fallback'"
+      }
+    ],
+    "id": "t-scout-analysis-retry",
+    "kind": "map",
+    "label": "Analysis answered without DONE: file it, re-run the rollup (bounded per day)",
+    "metadata": {
+      "netId": "scout",
+      "sessionId": "agent-web-investigator"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "scout_errors": {
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-errors"
+      },
+      "scout_taxonomy_cmd": {
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-taxonomy-cmd"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.kind != \"landscape-analysis\" LIMIT 1",
+        "consume": true,
+        "host": "research-scout@localhost:8080",
+        "placeId": "p-scout-digest",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [],
+          "env": {
+            "MODEL_ID": "research-scout",
             "TASK_ID": "${input.data.taskId}",
             "WRITER_MODEL": "${input.data.writerModel}"
           },
-          "timeoutMs": 300000,
+          "timeoutMs": 480000,
           "toolId": "scout-${input.data.run}"
         },
         "command": "invoke",
@@ -316,14 +381,15 @@
   },
   {
     "action": {
+      "allowedTools": [],
       "autoEmit": true,
-      "capabilityProfile": "research-worker",
-      "maxIterations": 4,
-      "model": "deepseek-v4-flash:cloud",
+      "group": "analyst",
+      "maxIterations": 2,
       "modelId": "research-scout",
-      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nextract: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nYour FINAL answer must be exactly one JSON object, no markdown fences:\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"one or two sentences on the angle it takes\",\"keyPoints\":[\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. Do not recompute\nor omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object\nREPLACES the token, so a field you leave out is lost for good.",
-      "role": "rw-h-",
-      "timeoutMs": 240000,
+      "nl": "You classify ONE article for a research brief. You do NOT count, date, or route anything — those are already computed and must be copied through verbatim.\n\nDOMAIN: ${config.data.topic}\n${config.data.domainHint}\n\nARTICLE\nurl: ${input.data.url}\ntitle: ${input.data.title}\nopening: ${input.data.extract}\n\nAssign EXACTLY ONE category, using one of these strings verbatim:\n${config.data.categories}\n\nIf none fits, use \"unrelated\". Prefer an existing category over inventing a near-duplicate.\n\nThen distil the knowledge this page carries, from its text only: `summary` = two sentences (under 300 characters) on the angle it takes and who it is for; `keyPoints` = 3 to 5 short, concrete points (under 120 characters each: values, steps, claims) a writer could use later. Keep every string on one line with double quotes escaped — a truncated or malformed object costs a second round trip.\n\nEverything you need is in this prompt — there is nothing to look up, so do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as the value of its `message` parameter (the object itself, no markdown fences, no sentence about it):\n{\"url\":\"${input.data.url}\",\"recency\":\"${input.data.recency}\",\"publishedAt\":\"${input.data.publishedAt}\",\"title\":\"${input.data.title}\",\"blobUrn\":\"${input.data.blobUrn}\",\"briefId\":\"${input.data.briefId}\",\"sourceType\":\"${input.data.sourceType}\",\"category\":\"...\",\"summary\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"],\"confidence\":\"high|medium|low\"}\n\nCopy url, recency, publishedAt, title, blobUrn, briefId and sourceType EXACTLY as given. Do not recompute or omit them. blobUrn is the ONLY pointer to the stored full text: this lane's answer object REPLACES the token, so a field you leave out is lost for good. Your whole reply is one tool call: {\"reasoning\":\"...\",\"tool\":\"DONE\",\"params\":{\"message\":{ ...the object above... }}}. DONE is the only channel that returns an answer — prose outside it is discarded and the run is wasted.",
+      "role": "r--h-",
+      "tier": "low",
+      "timeoutMs": 180000,
       "type": "agent"
     },
     "id": "t-scout-categorize",
@@ -357,17 +423,18 @@
         "take": "FIRST"
       }
     },
-    "role": "rw-h-"
+    "role": "r--h-"
   },
   {
     "action": {
+      "allowedTools": [],
       "autoEmit": true,
-      "capabilityProfile": "research-worker",
-      "maxIterations": 8,
-      "model": "deepseek-v4-pro:cloud",
+      "group": "analyst",
+      "maxIterations": 3,
       "modelId": "research-scout",
-      "nl": "You are an analyst working this brief:\n\nTOPIC: ${config.data.topic}\n${config.data.description}\n\nYou get two kinds of input and must treat them differently.\n\nFACTS — computed deterministically from the crawl. Every number is measured. Do NOT recount,\nre-derive, or estimate any figure; quote them exactly. If a number you want is not there, say\nso rather than inventing it.\n${input.data.factsJson}\n\nOWN COVERAGE — there is no separate payload for this: the fields below are INSIDE the FACTS\nobject you just read. `ownInventory.articles` (${input.data.ownArticles}) is how many articles\nthe owner already has; each entry of `categories` carries `ownCovered` / `ownUncovered`; and\n`trueGaps` is the ranked list of competitor material with NO owner equivalent\n(${input.data.ownUncovered} findings uncovered in total). In FRESH ARTICLES below, each item\nadds `coveredByOwn`, `closestOwnSlug` and `ownScore`. This matters because the crawl EXCLUDES\nthe owner's own site: a category can be huge for competitors and still be worthless advice if\n`ownCovered` is high, because the owner already ranks there. If a field really is missing, say\nso plainly rather than guessing — but read the FACTS object carefully first.\n\nFRESH ARTICLES — the actual body text of every recently published competitor article\n(${input.data.freshTextArticles} of them). This is evidence, not counts. Some are clipped;\n`truncated` says which. Read them to say what the competition is ACTUALLY arguing right now,\nnot merely how many pieces they shipped.\n${input.data.freshTextJson}\n\nWrite the analysis. Cover:\n1. Which angles the sources clearly OWN — categories with the most coverage, and who leads each.\n2. FRESHNESS — who publishes recently versus sits on ageing content, using the brand-new/recent/archive split.\n3. FRESH SIGNAL — from the article text only: the specific problems, sub-topics and framings the\n   recent pieces cover, the depth they go to, and what they conspicuously leave out. Quote or\n   closely paraphrase concrete details so a reader can tell you actually read them. If two fresh\n   pieces converge on one theme, name that theme — a competitor segmenting a topic is the single\n   strongest signal of where they see demand.\n4. GAPS — read these from `trueGaps` and `ownUncovered`, NOT from raw competitor counts. State\n   plainly where the owner is already strong (high `ownCovered`) so that ground is not re-fought.\n   Each fresh article carries `coveredByOwn` and `closestOwnSlug`: an uncovered FRESH piece is the\n   most urgent opening there is, and a covered one where the competitor went narrower than the\n   owner's existing page is a defence job, not a new article.\n5. Three concrete recommendations, drawn from `trueGaps`. Each must name the specific uncovered\n   competitor material it answers, the source it targets, and where possible the fresh-article\n   weakness it beats. NEVER recommend a category whose `ownCovered` is high — that is advice the\n   owner has already taken. Ground every one in the article text, not just the counts.\n\nBe specific. Name sources by host. No preamble, no restating the brief.\n\nEverything you need is already in this prompt — there is nothing to look up, so do NOT call\nTHINK, and do not query anything. Deliver the result by calling DONE exactly once, on your\nFIRST iteration.\n\nCRITICAL — what to pass as DONE's `summary` argument: the COMPLETE JSON object below, with\nevery ... filled in with your full analysis text. The tool parameter is named `summary`, but\nfor this lane it is NOT a summary — it is the entire deliverable. Passing a sentence like\n'Landscape analysis complete.' destroys the whole run: the run before you did exactly that,\nits output was unusable junk, and the day's analysis was lost. The JSON object IS your answer;\nnothing you write anywhere else survives.\n\n{\"kind\":\"landscape-analysis\",\"generatedAt\":\"${input.data.generatedAt}\",\"totalFindings\":\"${input.data.totalFindings}\",\"freshTextArticles\":\"${input.data.freshTextArticles}\",\"ownArticles\":\"${input.data.ownArticles}\",\"ownUncovered\":\"${input.data.ownUncovered}\",\"ownedAngles\":\"...\",\"freshness\":\"...\",\"freshSignal\":\"...\",\"gaps\":\"...\",\"ownPosition\":\"...\",\"recommendations\":[\"...\",\"...\",\"...\"]}",
-      "role": "rw-h-",
+      "nl": "You are an analyst working this brief:\n\nTOPIC: ${config.data.topic}\n${config.data.description}\n\nYou get two kinds of input and must treat them differently.\n\nFACTS — computed deterministically from the crawl. Every number is measured. Do NOT recount,\nre-derive, or estimate any figure; quote them exactly. If a number you want is not there, say\nso rather than inventing it.\n${input.data.factsJson}\n\nOWN COVERAGE — there is no separate payload for this: the fields below are INSIDE the FACTS\nobject you just read. `ownInventory.articles` (${input.data.ownArticles}) is how many articles\nthe owner already has; each entry of `categories` carries `ownCovered` / `ownUncovered`; and\n`trueGaps` is the ranked list of competitor material with NO owner equivalent\n(${input.data.ownUncovered} findings uncovered in total). In FRESH ARTICLES below, each item\nadds `coveredByOwn`, `closestOwnSlug` and `ownScore`. This matters because the crawl EXCLUDES\nthe owner's own site: a category can be huge for competitors and still be worthless advice if\n`ownCovered` is high, because the owner already ranks there. If a field really is missing, say\nso plainly rather than guessing — but read the FACTS object carefully first.\n\nFRESH ARTICLES — every recently published competitor piece as a card (${input.data.freshCards}\nof them): `summary` and `keyPoints` distilled from its text at classification time, and for the\nnewest ${input.data.freshTextArticles} also the clipped body `text` (`truncated` says which).\nThis is evidence, not counts. Read the cards for breadth and the bodies for depth, to say what\nthe competition is ACTUALLY arguing right now, not merely how many pieces they shipped.\n${input.data.freshTextJson}\n\nWrite the analysis. Cover:\n1. Which angles the sources clearly OWN — categories with the most coverage, and who leads each.\n2. FRESHNESS — who publishes recently versus sits on ageing content, using the brand-new/recent/archive split.\n3. FRESH SIGNAL — from the cards and bodies only: the specific problems, sub-topics and framings the\n   recent pieces cover, the depth they go to, and what they conspicuously leave out. Quote or\n   closely paraphrase concrete details so a reader can tell you actually read them. If two fresh\n   pieces converge on one theme, name that theme — a competitor segmenting a topic is the single\n   strongest signal of where they see demand.\n4. GAPS — read these from `trueGaps` and `ownUncovered`, NOT from raw competitor counts. State\n   plainly where the owner is already strong (high `ownCovered`) so that ground is not re-fought.\n   Each fresh article carries `coveredByOwn` and `closestOwnSlug`: an uncovered FRESH piece is the\n   most urgent opening there is, and a covered one where the competitor went narrower than the\n   owner's existing page is a defence job, not a new article.\n5. Three concrete recommendations, drawn from `trueGaps`. Each must name the specific uncovered\n   competitor material it answers, the source it targets, and where possible the fresh-article\n   weakness it beats. NEVER recommend a category whose `ownCovered` is high — that is advice the\n   owner has already taken. Ground every one in the article text, not just the counts.\n\nBe specific. Name sources by host. No preamble, no restating the brief.\n\nEverything you need is already in this prompt — there is nothing to look up, so do NOT call\nTHINK, and do not query anything. Deliver the result by calling DONE exactly once, on your\nFIRST iteration.\n\nCRITICAL — DONE's `message` parameter IS the deliverable: pass the COMPLETE JSON object below\nas the value of `message` (the object itself, not a sentence about it), with every ... filled\nin with your full analysis text. Your whole reply is one tool call:\n{\"reasoning\":\"...\",\"tool\":\"DONE\",\"params\":{\"message\":{ ...the object below... }}}\nA sentence like 'Landscape analysis complete.' in `message` destroys the run: the analysis is\nlost and the day's work is wasted. The JSON object IS your answer; nothing you write anywhere\nelse survives.\n\n{\"kind\":\"landscape-analysis\",\"generatedAt\":\"${input.data.generatedAt}\",\"totalFindings\":\"${input.data.totalFindings}\",\"freshCards\":\"${input.data.freshCards}\",\"freshTextArticles\":\"${input.data.freshTextArticles}\",\"ownArticles\":\"${input.data.ownArticles}\",\"ownUncovered\":\"${input.data.ownUncovered}\",\"ownedAngles\":\"...\",\"freshness\":\"...\",\"freshSignal\":\"...\",\"gaps\":\"...\",\"ownPosition\":\"...\",\"recommendations\":[\"...\",\"...\",\"...\"]}",
+      "role": "r--h-",
+      "tier": "high",
       "timeoutMs": 300000,
       "type": "agent"
     },
@@ -403,7 +470,7 @@
         "take": "FIRST"
       }
     },
-    "role": "rw-h-"
+    "role": "r--h-"
   },
   {
     "action": {
@@ -549,11 +616,16 @@
         "from": "@response",
         "to": "scout_rejected",
         "when": "gateVerdict == 'index'"
+      },
+      {
+        "from": "@response",
+        "to": "scout_rejected",
+        "when": "gateVerdict == 'catalog'"
       }
     ],
     "id": "t-scout-gate",
     "kind": "map",
-    "label": "Gate: articles above minScore only",
+    "label": "Gate: articles above minScore only (index and catalogue pages rejected free)",
     "metadata": {
       "netId": "scout",
       "sessionId": "dev-support-council"
@@ -700,6 +772,7 @@
         "linksFound": "${input.data.parsedStdout.linksFound}",
         "outcome": "${input.data.parsedStdout.outcome}",
         "pageType": "${input.data.parsedStdout.pageType}",
+        "proseRatio": "${input.data.parsedStdout.proseRatio}",
         "publishedAt": "${input.data.parsedStdout.publishedAt}",
         "queuedAt": "${now()}",
         "recency": "${input.data.parsedStdout.recency}",
@@ -709,7 +782,8 @@
         "spoolQueued": "${input.data.parsedStdout.spoolQueued}",
         "title": "${input.data.parsedStdout.title}",
         "ts": "${input.data.parsedStdout.ts}",
-        "url": "${input.data.parsedStdout.url}"
+        "url": "${input.data.parsedStdout.url}",
+        "wordCount": "${input.data.parsedStdout.wordCount}"
       },
       "type": "map"
     },
@@ -746,7 +820,7 @@
       "out": {
         "host": "research-scout@agentic-net-node:8080",
         "placeId": "p-scout-telemetry",
-        "retain": 500
+        "retain": 1500
       },
       "scout_fetched": {
         "host": "research-scout@agentic-net-node:8080",
@@ -1423,7 +1497,7 @@
       "maxIterations": 8,
       "model": "deepseek-v4-pro:cloud",
       "modelId": "research-scout",
-      "nl": "You are the staff writer for this investigation. One accepted article task has been assembled into the packet below; write the publish-ready draft.\n\nTOPIC: ${config.data.topic}\n${config.data.domainHint}\n\nTHE ASSIGNMENT\ntitle: ${input.data.title}\nwhy it was accepted: ${input.data.rationale}\ncategory: ${input.data.gapCategory}\n\nTHE COMPETITOR PIECE THIS MUST BEAT (${input.data.competitorUrl}):\n${input.data.competitorText}\n\nRELATED ARTICLES ALREADY ON THE OWNER'S SITE (link them with relative paths like /slug/ where they genuinely help the reader; never repeat their content): ${input.data.relatedOwnSlugs}\n\nWrite 1100-1500 words of practical, publish-ready markdown:\n- Open with the reader's actual problem, not a definition.\n- Deliver what the rationale says the competitor stops short of — that is the whole point of this assignment.\n- Structure with ## and ### headings; use tables or numbered steps where they beat prose.\n- Concrete values over vague advice. Plain language. No filler intros, no 'in conclusion'.\n- Do NOT copy or closely paraphrase the competitor's sentences; write from understanding.\n- Include a short FAQ (3 questions) at the end if the topic invites one.\n\nEverything you need is in this prompt — do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as its summary argument (no markdown fences around it):\n{\"kind\":\"draft\",\"taskId\":\"${input.data.taskId}\",\"title\":\"${input.data.title}\",\"gapCategory\":\"${input.data.gapCategory}\",\"competitorUrl\":\"${input.data.competitorUrl}\",\"briefId\":\"${input.data.briefId}\",\"status\":\"draft\",\"wordCount\":\"...\",\"draftMarkdown\":\"...the full article as one JSON string...\"}\n\nCopy taskId, title, gapCategory, competitorUrl and briefId EXACTLY as given — this lane's answer object REPLACES the token, so any field you omit is lost for good. DONE is the only channel that returns an answer: prose outside it is discarded and the whole run is wasted.",
+      "nl": "You are the staff writer for this investigation. One accepted article task has been assembled into the packet below; write the publish-ready draft.\n\nTOPIC: ${config.data.topic}\n${config.data.domainHint}\n\nTHE ASSIGNMENT\ntitle: ${input.data.title}\nwhy it was accepted: ${input.data.rationale}\ncategory: ${input.data.gapCategory}\n\nTHE COMPETITOR PIECE THIS MUST BEAT (${input.data.competitorUrl}):\n${input.data.competitorText}\n\nRELATED ARTICLES ALREADY ON THE OWNER'S SITE (link them with relative paths like /slug/ where they genuinely help the reader; never repeat their content): ${input.data.relatedOwnSlugs}\n\nWrite 1100-1500 words of practical, publish-ready markdown:\n- Open with the reader's actual problem, not a definition.\n- Deliver what the rationale says the competitor stops short of — that is the whole point of this assignment.\n- Structure with ## and ### headings; use tables or numbered steps where they beat prose.\n- Concrete values over vague advice. Plain language. No filler intros, no 'in conclusion'.\n- Do NOT copy or closely paraphrase the competitor's sentences; write from understanding.\n- Include a short FAQ (3 questions) at the end if the topic invites one.\n\nEverything you need is in this prompt — do NOT call THINK and do not query anything. Deliver by calling DONE exactly once, on your FIRST iteration, passing EXACTLY this JSON object as the value of its `message` parameter (the object itself, no markdown fences around it):\n{\"kind\":\"draft\",\"taskId\":\"${input.data.taskId}\",\"title\":\"${input.data.title}\",\"gapCategory\":\"${input.data.gapCategory}\",\"competitorUrl\":\"${input.data.competitorUrl}\",\"briefId\":\"${input.data.briefId}\",\"status\":\"draft\",\"wordCount\":\"...\",\"draftMarkdown\":\"...the full article as one JSON string...\"}\n\nCopy taskId, title, gapCategory, competitorUrl and briefId EXACTLY as given — this lane's answer object REPLACES the token, so any field you omit is lost for good. DONE is the only channel that returns an answer: prose outside it is discarded and the whole run is wasted.",
       "role": "rw-h-",
       "timeoutMs": 300000,
       "type": "agent"
@@ -1469,7 +1543,7 @@
           "env": {
             "MODEL_ID": "research-scout"
           },
-          "timeoutMs": 300000,
+          "timeoutMs": 480000,
           "toolId": "scout-write"
         },
         "command": "invoke",
@@ -1528,7 +1602,7 @@
       "executorId": "agentic-net-executor-default",
       "groupBy": "executor",
       "inputPlace": "input",
-      "timeoutMs": 150000,
+      "timeoutMs": 540000,
       "type": "command"
     },
     "emit": [
@@ -1573,7 +1647,7 @@
       "executorId": "agentic-net-executor-default",
       "groupBy": "executor",
       "inputPlace": "input",
-      "timeoutMs": 360000,
+      "timeoutMs": 540000,
       "type": "command"
     },
     "emit": [

@@ -1,6 +1,6 @@
 [
   {
-    "description": "Fetch one URL with conditional GET; extract, date, score, classify listing-vs-article AND source type; blobstore the text; queue discovered links deduped and depth-capped. 5.0.2 stops the link-spool counters from overwriting the detected sourceType.",
+    "description": "Fetch one URL with conditional GET; extract, date (meta, ld+json, time tag, URL path), score as topic fit x page shape, classify index/catalog/article and source type; blobstore the text; queue discovered links deduped and depth-capped. 5.1.0: shape-aware gate so catalogue and spec pages are rejected before any model call.",
     "file": "scout-fetch.py",
     "id": "scout-fetch",
     "name": "Scout Fetch",
@@ -35,28 +35,28 @@
     "runtime": "python3"
   },
   {
-    "description": "Onboard a website by harvesting its own index: discover the sitemap (robots.txt Sitemap: lines, then conventional locations), walk index files to the article lists, filter non-articles, drop everything the registry knows, queue the rest into the frontier. Consumes p-scout-source-requests onboarding asks. Bounded per run (150/host, 300 total by default) — repeat runs are incremental via the registry.",
+    "description": "Onboard a website by harvesting its own index: discover the sitemap (robots.txt Sitemap: lines, then conventional locations), walk index files to the article lists, filter non-articles, drop everything the registry knows, queue the rest into the frontier. Consumes p-scout-source-requests onboarding asks. Bounded per run (150/host, 300 total by default) \u2014 repeat runs are incremental via the registry.",
     "file": "scout-sitemap.py",
     "id": "scout-sitemap",
     "name": "Scout Sitemap Harvest",
     "runtime": "python3"
   },
   {
-    "description": "Deterministic rollup + expansion tracking: re-buckets findings by current age FIRST, rolls counts by category and SOURCE TYPE, maintains per-host source profiles (p-scout-sources), appends a growth snapshot (p-scout-growth), joins own inventory for trueGaps, and withholds the facts token when the corpus is unchanged and the analysis is fresh — no model call for zero new information.",
+    "description": "Deterministic rollup + expansion tracking. 1.4.0: fresh evidence goes to the analyst as compact cards (summary + key points for every fresh finding, clipped body text only for the newest few), and analysis re-runs after a fallback answer are bounded per day via p-scout-errors.",
     "file": "scout-taxonomy.py",
     "id": "scout-taxonomy",
     "name": "Scout Taxonomy",
     "runtime": "python3"
   },
   {
-    "description": "Draft ONE accepted article task with the local claude binary: deterministic prep, headless claude, markdown stored in the blobstore and filed as a revisioned draft token. Env TASK_ID drafts a named task (always writes); WRITER_MODEL picks the claude model alias.",
+    "description": "Draft ONE accepted article task with the local claude binary from a KNOWLEDGE PACK ranked across the whole corpus (competitor piece + best passages from other sources + cards), stored as its own blob; the article goes to the blobstore and the draft token carries only preview, outline, counts and blob urns. Env TASK_ID drafts a named task (always writes); WRITER_MODEL picks the claude model alias.",
     "file": "scout-write.py",
     "id": "scout-write",
     "name": "Scout Write (Claude Code)",
     "runtime": "python3"
   },
   {
-    "description": "The same staff writer, driven by the dashboard for ONE named task and a named model: the lane passes TASK_ID and WRITER_MODEL, so a human can ask a specific model to draft a specific assignment. On demand only — nothing schedules it. Blob-backed and revisioned, so the earlier draft survives for comparison.",
+    "description": "The same knowledge-pack writer, driven by the dashboard for ONE named task and a named model (TASK_ID + WRITER_MODEL). On demand only; blob-backed and revisioned; the draft token stays small.",
     "file": "scout-write.py",
     "id": "scout-write-fable",
     "name": "Scout Write (named model, on demand)",

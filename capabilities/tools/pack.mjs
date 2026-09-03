@@ -577,6 +577,12 @@ async function cmdVerify(a) {
   for (const [idx, c] of (spec.cases ?? []).entries()) {
     const caseId = `${runId}-${idx + 1}`;
     process.stdout.write(`case ${c.name} ... `);
+    if (!c.inject || !c.await) {
+      // A prose case documents an invariant a human (or a reviewer agent) checks; it has
+      // nothing to inject or await, so it is reported, never counted as a failure.
+      console.log(`MANUAL CHECK — ${c.check ?? c.why ?? '(no check text)'}`);
+      continue;
+    }
     try {
       if (c.seed) {
         await callTool('add_tokens', {

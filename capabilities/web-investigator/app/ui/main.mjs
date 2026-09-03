@@ -43,6 +43,20 @@ const slug = (s) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48) || 'item';
+// Blob text is fetched straight from the blobstore: same host as the page, port 8090 — the
+// rule Studio's own blob viewer uses. The store sends read-only CORS headers for exactly this.
+const blobUrl = (urn) =>
+  `${location.protocol}//${location.hostname}:8090/api/blobs/${String(urn).replace(/^urn:agenticos:blob:/, '')}`;
+async function readBlob(urn) {
+  if (!urn) throw new Error('this draft has no blob pointer');
+  const r = await fetch(blobUrl(urn));
+  if (!r.ok) throw new Error(`blobstore answered ${r.status}`);
+  const raw = await r.text();
+  // The writer stores a provenance header, a blank line, then the article.
+  const cut = raw.indexOf('\n\n');
+  return cut > 0 && cut < 400 ? raw.slice(cut + 2) : raw;
+}
+
 const newestFirst = (tokens, field) =>
   [...tokens].sort((a, b) =>
     String(b.properties?.[field] ?? '').localeCompare(String(a.properties?.[field] ?? '')));
@@ -523,19 +537,29 @@ class WebInvestigatorDashboard extends HTMLElement {
     if (!drafts.length) return '';
     const rows = newestFirst(drafts, 'ts').map((d, i) => {
       const p = d.properties;
-      const md = String(p.draftMarkdown || '');
+      // Drafts filed before 1.4 carried the article inline; newer ones keep it in the blob and
+      // the token holds only a preview, the outline and the pointers.
+      const inline = String(p.draftMarkdown || '');
       const writer = String(p.writerModel || '').trim();
-      return `<details class="digest">
+      const outline = arr(p.outline);
+      const hosts = arr(p.sourceHosts);
+      return `<details class="digest" data-draft="${i}">
         <summary>${esc(p.title)} <span class="badge">${esc(p.wordCount || '?')} words</span>${
           writer && writer !== 'default' ? ` <span class="badge ok">${esc(writer)}</span>` : ''}${
-          Number(p.revision) > 1 ? ` <span class="badge">rev ${esc(p.revision)}</span>` : ''}</summary>
-        <div class="acts" style="margin:6px 0"><button data-draft-copy="${i}">Copy markdown</button></div>
-        ${p.blobUrn ? `<div class="meta">stored as <code>${esc(p.blobUrn)}</code></div>` : ''}
-        <p style="white-space:pre-wrap;font-family:var(--mono,monospace);font-size:12px;max-height:340px;overflow:auto">${esc(md)}</p>
+          Number(p.revision) > 1 ? ` <span class="badge">rev ${esc(p.revision)}</span>` : ''}${
+          p.sourcesUsed ? ` <span class="badge">${esc(p.sourcesUsed)} sources</span>` : ''}</summary>
+        <div class="acts" style="margin:6px 0">
+          ${inline ? '' : `<button data-draft-open="${i}">Open article</button>`}
+          <button data-draft-copy="${i}">Copy markdown</button>
+          ${p.knowledgeBlobUrn ? `<button data-draft-knowledge="${i}" title="The evidence pack the writer was given">What the writer saw</button>` : ''}
+        </div>
+        ${p.blobUrn ? `<div class="meta">stored as <code>${esc(p.blobUrn)}</code>${hosts.length ? ` · evidence from ${esc(hosts.join(', '))}` : ''}</div>` : ''}
+        ${outline.length ? `<div class="meta">${outline.map(esc).join(' · ')}</div>` : ''}
+        <p class="draft-body" style="white-space:pre-wrap;font-family:var(--mono,monospace);font-size:12px;max-height:340px;overflow:auto">${esc(inline || p.preview || '')}${!inline && p.preview ? ' …' : ''}</p>
       </details>`;
     }).join('');
     return `<div class="card"><h3>Drafts</h3>
-      <p class="sub">Written by a staff-writer lane from the task's evidence, and kept as a blob. Copy, publish, then mark the task Done. A badge names the model when it was not the default writer.</p>
+      <p class="sub">Written by a staff-writer lane from a knowledge pack drawn across the corpus, and kept as a blob — the token only describes it. Open, copy, publish, then mark the task Done. A badge names the model when it was not the default writer.</p>
       ${rows}</div>`;
   }
 
@@ -637,13 +661,37 @@ class WebInvestigatorDashboard extends HTMLElement {
       if (url) { this._invoke('queue-url', { url: String(url) }, `url:${slug(String(url))}`); ev.target.reset(); }
     });
     const drafts = newestFirst(this._stores.drafts || [], 'ts');
+    const draftText = (p) => (p?.draftMarkdown ? Promise.resolve(String(p.draftMarkdown)) : readBlob(p?.blobUrn));
+    for (const b of wrap.querySelectorAll('[data-draft-open]')) {
+      b.addEventListener('click', async () => {
+        const i = Number(b.dataset.draftOpen);
+        const box = wrap.querySelector(`details[data-draft="${i}"] .draft-body`);
+        b.disabled = true;
+        try {
+          box.textContent = await draftText(drafts[i]?.properties);
+          box.style.maxHeight = '70vh';
+          b.textContent = 'Opened';
+        } catch (e) {
+          b.disabled = false;
+          this._toast(`Could not read the article blob: ${e?.message || e}`, true);
+        }
+      });
+    }
     for (const b of wrap.querySelectorAll('[data-draft-copy]')) {
-      b.addEventListener('click', () => {
-        const md = String(drafts[Number(b.dataset.draftCopy)]?.properties?.draftMarkdown || '');
+      b.addEventListener('click', async () => {
+        let md = '';
+        try { md = await draftText(drafts[Number(b.dataset.draftCopy)]?.properties); }
+        catch (e) { this._toast(`Could not read the article blob: ${e?.message || e}`, true); return; }
         navigator.clipboard?.writeText(md).then(
           () => this._toast('Markdown copied.'),
           () => this._toast('Clipboard unavailable in this context.', true),
         );
+      });
+    }
+    for (const b of wrap.querySelectorAll('[data-draft-knowledge]')) {
+      b.addEventListener('click', () => {
+        const urn = drafts[Number(b.dataset.draftKnowledge)]?.properties?.knowledgeBlobUrn;
+        if (urn) window.open(blobUrl(urn), '_blank', 'noopener');
       });
     }
     wrap.querySelector('[data-form="source"]')?.addEventListener('submit', (ev) => {

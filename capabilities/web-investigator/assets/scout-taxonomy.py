@@ -26,9 +26,18 @@ BUCKETS = {"brand-new": "p-find-brand-new", "recent": "p-find-recent", "archive"
 TOP_TITLES = 3
 BLOBS = os.environ.get("BLOB_URL", "http://127.0.0.1:8090").rstrip("/")
 FRESH_RECENCIES = ("brand-new", "recent")   # what "actively publishing" means here
-FRESH_MAX_ARTICLES = 12                      # bound the fan-out; freshness is a short list by design
-FRESH_CHARS = 2500                           # per article
-FRESH_TOTAL_CHARS = 26000                    # hard ceiling for the whole bundle
+# Fresh evidence is COMPACT: every fresh finding goes in as a card (the summary and key points
+# written at classification time), and only the newest few also carry clipped body text. The
+# analyst sees the whole fresh field instead of twelve bodies, for fewer tokens.
+FRESH_MAX_CARDS = 40
+FRESH_TEXT_ARTICLES = 6
+FRESH_CHARS = 1800                           # per article body
+FRESH_TOTAL_CHARS = 12000                    # hard ceiling for all body text
+# A fallback answer from the analysis lane (no DONE call) is filed to p-scout-errors by the
+# retry lane, which re-issues this rollup. Bounded: after this many fallbacks in one day the
+# facts token is withheld, so a model that will not follow the contract cannot burn all night.
+MAX_ANALYSIS_RETRIES = 3
+ERRORS_PLACE = "p-scout-errors"
 OWNED_PLACE = "p-scout-owned"                # the owner's OWN inventory (slugs, never crawled)
 SOURCES_PLACE = "p-scout-sources"            # one profile token per host (replaced per run)
 GROWTH_PLACE = "p-scout-growth"              # append-only expansion snapshots
@@ -82,6 +91,17 @@ def rows(place, limit=2000):
 
 
 SENTENCE = re.compile(r"[A-Z][^.!?]{60,}?[.!?](?:\s|$)")
+
+
+def key_points(v):
+    """keyPoints arrive as a JSON string (node stores properties as strings) or a list."""
+    if isinstance(v, list):
+        return [str(x)[:160] for x in v][:5]
+    try:
+        parsed = json.loads(v or "[]")
+        return [str(x)[:160] for x in parsed][:5] if isinstance(parsed, list) else [str(parsed)[:160]]
+    except Exception:
+        return [x.strip()[:160] for x in str(v or "").split(";") if x.strip()][:5]
 
 
 def article_body(text, title):
@@ -318,25 +338,26 @@ def main():
     fresh_rows = sorted(
         [f for f in findings if f.get("_recency") in FRESH_RECENCIES],
         key=lambda f: str(f.get("publishedAt") or ""), reverse=True)
-    fresh_articles, used, skipped = [], 0, 0
-    for f in fresh_rows[:FRESH_MAX_ARTICLES]:
-        text = article_body(blob_text(f.get("blobUrn", "")), f.get("title", ""))
-        if not text:
-            skipped += 1
-            continue
-        room = min(FRESH_CHARS, FRESH_TOTAL_CHARS - used)
-        if room < 400:
-            skipped += 1
-            continue
-        clipped = text[:room]
-        used += len(clipped)
-        fresh_articles.append({
+    fresh_articles, used, skipped, with_text = [], 0, 0, 0
+    for i, f in enumerate(fresh_rows[:FRESH_MAX_CARDS]):
+        card = {
             "url": f.get("url", ""), "title": f.get("title", ""),
             "publishedAt": f.get("publishedAt", ""), "recency": f["_recency"],
             "category": (f.get("category") or "").lower(), "host": host_of(f.get("url", "")),
-            "truncated": len(clipped) < len(text), "text": clipped,
+            "summary": str(f.get("summary") or "")[:400], "keyPoints": key_points(f.get("keyPoints")),
             "coveredByOwn": f["_covered"], "closestOwnSlug": f["_ownMatch"], "ownScore": f["_ownScore"],
-        })
+        }
+        if i < FRESH_TEXT_ARTICLES:
+            text = article_body(blob_text(f.get("blobUrn", "")), f.get("title", ""))
+            room = min(FRESH_CHARS, FRESH_TOTAL_CHARS - used)
+            if text and room >= 400:
+                clipped = text[:room]
+                used += len(clipped)
+                with_text += 1
+                card.update(text=clipped, truncated=len(clipped) < len(text))
+            else:
+                skipped += 1
+        fresh_articles.append(card)
 
     facts = {
         "kind": "facts",
@@ -347,7 +368,8 @@ def main():
         "categories": cat_facts,
         "competitors": per_host,
         "coverageGaps": gaps,
-        "freshTextArticles": len(fresh_articles),
+        "freshCards": len(fresh_articles),
+        "freshTextArticles": with_text,
         "freshTextSkipped": skipped,
         "sources": {
             "hosts": src_profiles,
@@ -425,7 +447,19 @@ def main():
             digest_recent = newest >= week_ago
         except Exception:
             digest_recent = False
-    skip_digest = unchanged and digest_recent
+    # A retry lane re-issues this rollup after the analysis lane answered without DONE. That
+    # run exists precisely because the CURRENT corpus has no analysis, so the unchanged/fresh
+    # rule must not swallow it; only the daily bound may.
+    retry_reason = (os.environ.get("RETRY_REASON") or "").strip()
+    forced = bool(retry_reason and retry_reason.lower() not in ("null", "none"))
+    fallbacks_today = sum(1 for e in rows(ERRORS_PLACE)
+                          if e.get("reason") == "analysis-fallback"
+                          and str(e.get("filedAt") or "")[:10] == ts[:10])
+    exhausted = fallbacks_today >= MAX_ANALYSIS_RETRIES
+    skip_digest = exhausted or (not forced and unchanged and digest_recent)
+    summary["analysisFallbacksToday"] = fallbacks_today
+    if forced:
+        summary["retryReason"] = retry_reason
 
     try:
         api("POST", "/api/runtime/places/p-scout-taxonomy/tokens/deleteAll?modelId=" + MODEL)
@@ -433,7 +467,9 @@ def main():
             api("POST", "/api/runtime/places/p-scout-taxonomy/tokens/bulk?modelId=" + MODEL,
                 {"tokens": cat_tokens})
         if skip_digest:
-            summary["digest"] = "skipped: corpus unchanged and analysis fresh (<7d)"
+            summary["digest"] = (("skipped: analysis fell back %d times today; no more re-runs "
+                                  "until tomorrow" % fallbacks_today) if exhausted
+                                 else "skipped: corpus unchanged and analysis fresh (<7d)")
             raise StopIteration  # jump past the facts write; category tokens are already in
         # The digest lane binds exactly this token; everything it needs is inside it as
         # one JSON string, so the agent needs no extra queries.
@@ -443,7 +479,8 @@ def main():
                                        # Kept separate from factsJson: numbers are measured,
                                        # this is evidence. The digest cites them differently.
                                        "freshTextJson": json.dumps(fresh_articles),
-                                       "freshTextArticles": len(fresh_articles),
+                                       "freshCards": len(fresh_articles),
+                                       "freshTextArticles": with_text,
                                        "freshTextChars": used,
                                        "ownArticles": len(owned),
                                        "ownUncovered": sum(1 for f in findings if not f["_covered"]),
@@ -458,7 +495,8 @@ def main():
     summary.update(sourcesByType=dict(by_type),
                    categories=len(by_cat), competitors=len(per_host),
                    recencySplit=facts["recencySplit"],
-                   freshTextArticles=len(fresh_articles), freshTextChars=used,
+                   freshCards=len(fresh_articles),
+                   freshTextArticles=with_text, freshTextChars=used,
                    freshTextSkipped=skipped, ownArticles=len(owned),
                    ownCovered=sum(1 for f in findings if f["_covered"]),
                    ownUncovered=sum(1 for f in findings if not f["_covered"]))
