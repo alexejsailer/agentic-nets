@@ -52,7 +52,7 @@
           "argv": [
             "digest",
             "${req.data.sha}",
-            "${repo.data.repoId}"
+            "${req.data.repoId}"
           ],
           "env": {
             "MODEL_ID": "hermann"

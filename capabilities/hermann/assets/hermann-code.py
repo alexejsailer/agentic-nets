@@ -52,6 +52,7 @@ P = {
     "reports": "p-hermann-factor-reports",
     "scorecard": "p-hermann-scorecard",
     "cards": "p-hermann-cards",
+    "coders": "p-hermann-coders",
     "goal": "p-hermann-goal",
     "adr": "p-hermann-adr",
     "prompts": "p-hermann-prompts",
@@ -128,10 +129,18 @@ def api(method, path, body=None, timeout=30):
 
 
 def put_token(place, data, name=None):
+    """Append a token. A token NAME must be unique within its place (the node answers 500 to a
+    duplicate), so a named write that is refused is retried once with a timestamp suffix."""
     body = {"data": data}
     if name:
         body["name"] = name
-    return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    try:
+        return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    except RuntimeError as e:
+        if name and "HTTP 500" in str(e):
+            body["name"] = "%s-%s" % (name, now().replace(":", "").replace("-", ""))
+            return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+        raise
 
 
 def decode(data):
@@ -502,25 +511,60 @@ def surefire_counts(root):
     return tests, fails + errors
 
 
-def run_coder(prompt, root, cfg, timeout_s):
-    model = str(cfg.get("claudeModel") or "sonnet")
-    tools = str(cfg.get("claudeAllowedTools") or DEFAULT_TOOLS)
-    max_turns = str(as_int(cfg.get("claudeMaxTurns"), 80))
-    cmd = ["claude", "-p", "--model", model, "--allowedTools", tools, "--max-turns", max_turns, "--no-session-persistence", "--output-format", "json"]
+BUILTIN_CLAUDE = {
+    "agentId": "claude-code", "title": "Claude Code (headless)", "binary": "claude",
+    "command": ["claude", "-p", "--model", "${model}", "--allowedTools", "${allowedTools}", "--max-turns", "${maxTurns}", "--no-session-persistence", "--output-format", "json"],
+    "promptVia": "stdin", "resultFormat": "claude-json", "defaultModel": "claude-opus-5", "allowedTools": DEFAULT_TOOLS, "maxTurns": "80", "timeoutMin": "45",
+}
+
+
+def resolve_agent(cfg):
+    """The coding agent: a definition token from p-hermann-coders chosen by config.coderAgent, with
+    config overrides for model, tools, turns and timeout. Falls back to the built-in Claude Code."""
+    defs = {}
+    for t in query(P["coders"], "FROM $", 20):
+        d = t.get("data") or {}
+        if d.get("agentId"):
+            defs[d["agentId"]] = d
+    agent_id = str(cfg.get("coderAgent") or "claude-code")
+    a = defs.get(agent_id) or (BUILTIN_CLAUDE if agent_id == "claude-code" else None)
+    if not a:
+        raise RuntimeError("coding agent '%s' is not defined in p-hermann-coders (known: %s)" % (agent_id, ", ".join(sorted(defs)) or "none"))
+    model = str(cfg.get("coderModel") or cfg.get("claudeModel") or a.get("defaultModel") or "")
+    tools = str(cfg.get("coderAllowedTools") or a.get("allowedTools") or DEFAULT_TOOLS)
+    turns = str(cfg.get("coderMaxTurns") or a.get("maxTurns") or "80")
+    timeout_min = as_int(cfg.get("coderTimeoutMin") or cfg.get("implementTimeoutMin") or a.get("timeoutMin"), 45)
+    argv = [str(x).replace("${model}", model).replace("${allowedTools}", tools).replace("${maxTurns}", turns) for x in as_list(a.get("command"))]
+    if not argv:
+        raise RuntimeError("coding agent '%s' has no command" % agent_id)
+    if not which(argv[0]):
+        raise RuntimeError("coding agent binary '%s' is not on the executor host" % argv[0])
+    return {"agentId": a.get("agentId"), "title": a.get("title", a.get("agentId")), "argv": argv, "model": model, "resultFormat": a.get("resultFormat", "text"),
+            "promptVia": a.get("promptVia", "stdin"), "timeoutSec": timeout_min * 60}
+
+
+def run_coder(prompt, root, cfg, agent):
     env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
     env["GITEA_TOKEN"] = ""  # the coder never sees the git host token
+    argv = list(agent["argv"])
+    stdin_text = prompt
+    if agent["promptVia"] == "argv":
+        argv.append(prompt); stdin_text = None
     started = time.time()
-    rc, o, e = run(cmd, cwd=root, timeout=timeout_s, env=env, check=False, input_text=prompt)
+    rc, o, e = run(argv, cwd=root, timeout=agent["timeoutSec"], env=env, check=False, input_text=stdin_text)
     duration = round(time.time() - started)
     result_text, cost, turns, is_error = "", "", "", rc != 0
-    try:
-        j = json.loads(o.strip().splitlines()[-1]) if o.strip() else {}
-        result_text = str(j.get("result", ""))
-        cost = str(j.get("total_cost_usd", ""))
-        turns = str(j.get("num_turns", ""))
-        is_error = bool(j.get("is_error", False)) or rc != 0
-    except (ValueError, IndexError):
-        result_text = (o or e)[-3000:]
+    if agent["resultFormat"] == "claude-json":
+        try:
+            j = json.loads(o.strip().splitlines()[-1]) if o.strip() else {}
+            result_text = str(j.get("result", ""))
+            cost = str(j.get("total_cost_usd", ""))
+            turns = str(j.get("num_turns", ""))
+            is_error = bool(j.get("is_error", False)) or rc != 0
+        except (ValueError, IndexError):
+            result_text = (o or e)[-3000:]
+    else:
+        result_text = (o or "")[-6000:] or (e or "")[-3000:]
     summary = {"summary": "", "filesChanged": [], "testsAdded": [], "notes": ""}
     m = re.search(r"HERMANN_RESULT:\s*(\{.*\})", result_text, re.S)
     if m:
@@ -574,9 +618,10 @@ def implement(spec_id=None, run_id=None):
         if ver and ver.get("status") == "fail":
             extra.append("## Verification failed\n" + "\n".join("- " + str(x) for x in as_list(ver.get("evidence"))))
     prompt = build_prompt(s, rp, extra)
-    journal(LANE, "code", "coder starts on %s (%s, attempt %d, branch %s)" % (spec_id, s.get("title", "")[:80], attempt, branch), specId=spec_id, runId=run_id)
+    agent = resolve_agent(cfg)
+    journal(LANE, "code", "%s (%s) starts on %s (%s, attempt %d, branch %s)" % (agent["title"], agent["model"], spec_id, s.get("title", "")[:80], attempt, branch), specId=spec_id, runId=run_id)
     started = now()
-    coder = run_coder(prompt, root, cfg, as_int(cfg.get("implementTimeoutMin"), 45) * 60)
+    coder = run_coder(prompt, root, cfg, agent)
     rc, o, e = run(["./mvnw", "-q", "-B", "verify"], cwd=root, timeout=1500, check=False)
     tests, failed = surefire_counts(root)
     build_ok = rc == 0
@@ -604,20 +649,21 @@ def implement(spec_id=None, run_id=None):
         except OSError:
             pass
     data = {
-        "at": now(), "startedAt": started, "runId": run_id, "specId": spec_id, "iterationId": s.get("iterationId", ""), "attempt": str(attempt),
+        "at": now(), "startedAt": started, "runId": run_id, "specId": spec_id, "iterationId": s.get("iterationId", ""), "attempt": str(attempt), "repoId": rp.get("repoId", ""),
         "branch": branch, "headSha": sha, "prIndex": pr_index, "prUrl": pr_url, "filesChanged": changed[:60], "diffStat": stat.strip(),
         "testsRun": str(tests), "testsFailed": str(failed), "buildOk": str(build_ok).lower(),
         "buildTail": "" if build_ok else (e or o)[-2500:],
         "coderSummary": str(coder["summary"].get("summary", ""))[:1200], "coderNotes": str(coder["summary"].get("notes", ""))[:800],
         "coderTestsAdded": as_list(coder["summary"].get("testsAdded")), "coderTurns": coder["turns"], "coderCostUsd": coder["costUsd"],
+        "coderAgent": agent["agentId"], "coderModel": agent["model"],
         "coderDurationSec": str(coder["durationSec"]), "coderError": str(coder["isError"]).lower(),
         "status": "pr-open" if build_ok else "failed", "title": s.get("title", ""),
     }
     record_run(data)
     if build_ok:
         put_token(P["verify_cmd"], command_token("hermann-verify", ["verify", run_id], stage="verify", timeout_ms=2400000, runId=run_id, specId=spec_id), name="verify-%s" % run_id)
-    journal(LANE, "code", "%s attempt %d: %d files, %d tests (%d failed), build %s, PR %s, coder %ss/%s turns" % (
-        spec_id, attempt, len(changed), tests, failed, "green" if build_ok else "RED", pr_url or "not opened", coder["durationSec"], coder["turns"] or "?"),
+    journal(LANE, "code", "%s attempt %d: %d files, %d tests (%d failed), build %s, PR %s, %s/%s %ss/%s turns" % (
+        spec_id, attempt, len(changed), tests, failed, "green" if build_ok else "RED", pr_url or "not opened", agent["agentId"], agent["model"], coder["durationSec"], coder["turns"] or "?"),
         runId=run_id, specId=spec_id, status=data["status"])
     return {"success": build_ok, "runId": run_id, "branch": branch, "pr": pr_url, "tests": tests, "failed": failed, "files": len(changed), "coderSec": coder["durationSec"]}
 

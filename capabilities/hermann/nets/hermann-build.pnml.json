@@ -39,144 +39,150 @@
       },
       "a-hermann-build-07": {
         "id": "a-hermann-build-07",
-        "source": "t-hermann-code-cmd",
-        "target": "p-hermann-build-log",
+        "source": "p-hermann-coders",
+        "target": "t-hermann-code-cmd",
         "weight": 1
       },
       "a-hermann-build-08": {
         "id": "a-hermann-build-08",
         "source": "t-hermann-code-cmd",
-        "target": "p-hermann-runs",
+        "target": "p-hermann-build-log",
         "weight": 1
       },
       "a-hermann-build-09": {
         "id": "a-hermann-build-09",
         "source": "t-hermann-code-cmd",
-        "target": "p-hermann-verify-cmd",
+        "target": "p-hermann-runs",
         "weight": 1
       },
       "a-hermann-build-10": {
         "id": "a-hermann-build-10",
         "source": "t-hermann-code-cmd",
-        "target": "p-hermann-journal",
+        "target": "p-hermann-verify-cmd",
         "weight": 1
       },
       "a-hermann-build-11": {
         "id": "a-hermann-build-11",
         "source": "t-hermann-code-cmd",
-        "target": "p-hermann-errors",
+        "target": "p-hermann-journal",
         "weight": 1
       },
       "a-hermann-build-12": {
         "id": "a-hermann-build-12",
-        "source": "p-hermann-verify-cmd",
-        "target": "t-hermann-verify-cmd",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-errors",
         "weight": 1
       },
       "a-hermann-build-13": {
         "id": "a-hermann-build-13",
-        "source": "t-hermann-verify-cmd",
-        "target": "p-hermann-build-log",
+        "source": "p-hermann-verify-cmd",
+        "target": "t-hermann-verify-cmd",
         "weight": 1
       },
       "a-hermann-build-14": {
         "id": "a-hermann-build-14",
         "source": "t-hermann-verify-cmd",
-        "target": "p-hermann-verification",
+        "target": "p-hermann-build-log",
         "weight": 1
       },
       "a-hermann-build-15": {
         "id": "a-hermann-build-15",
         "source": "t-hermann-verify-cmd",
-        "target": "p-hermann-review-cmd",
+        "target": "p-hermann-verification",
         "weight": 1
       },
       "a-hermann-build-16": {
         "id": "a-hermann-build-16",
-        "source": "p-hermann-review-cmd",
-        "target": "t-hermann-diff-cmd",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-review-cmd",
         "weight": 1
       },
       "a-hermann-build-17": {
         "id": "a-hermann-build-17",
-        "source": "t-hermann-diff-cmd",
-        "target": "p-hermann-build-log",
+        "source": "p-hermann-review-cmd",
+        "target": "t-hermann-diff-cmd",
         "weight": 1
       },
       "a-hermann-build-18": {
         "id": "a-hermann-build-18",
         "source": "t-hermann-diff-cmd",
-        "target": "p-hermann-context",
+        "target": "p-hermann-build-log",
         "weight": 1
       },
       "a-hermann-build-19": {
         "id": "a-hermann-build-19",
-        "source": "p-hermann-context",
-        "target": "t-hermann-review",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-context",
         "weight": 1
       },
       "a-hermann-build-20": {
         "id": "a-hermann-build-20",
-        "source": "t-hermann-review",
-        "target": "p-hermann-reviews",
+        "source": "p-hermann-context",
+        "target": "t-hermann-review",
         "weight": 1
       },
       "a-hermann-build-21": {
         "id": "a-hermann-build-21",
         "source": "t-hermann-review",
-        "target": "p-hermann-llm-errors",
+        "target": "p-hermann-reviews",
         "weight": 1
       },
       "a-hermann-build-22": {
         "id": "a-hermann-build-22",
-        "source": "p-hermann-decisions",
-        "target": "t-hermann-merge-prep",
+        "source": "t-hermann-review",
+        "target": "p-hermann-llm-errors",
         "weight": 1
       },
       "a-hermann-build-23": {
         "id": "a-hermann-build-23",
-        "source": "t-hermann-merge-prep",
-        "target": "p-hermann-release-cmd",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-merge-prep",
         "weight": 1
       },
       "a-hermann-build-24": {
         "id": "a-hermann-build-24",
-        "source": "p-hermann-release-cmd",
-        "target": "t-hermann-merge-cmd",
+        "source": "t-hermann-merge-prep",
+        "target": "p-hermann-release-cmd",
         "weight": 1
       },
       "a-hermann-build-25": {
         "id": "a-hermann-build-25",
-        "source": "t-hermann-merge-cmd",
-        "target": "p-hermann-build-log",
+        "source": "p-hermann-release-cmd",
+        "target": "t-hermann-merge-cmd",
         "weight": 1
       },
       "a-hermann-build-26": {
         "id": "a-hermann-build-26",
         "source": "t-hermann-merge-cmd",
-        "target": "p-hermann-runs",
+        "target": "p-hermann-build-log",
         "weight": 1
       },
       "a-hermann-build-27": {
         "id": "a-hermann-build-27",
         "source": "t-hermann-merge-cmd",
-        "target": "p-hermann-specs",
+        "target": "p-hermann-runs",
         "weight": 1
       },
       "a-hermann-build-28": {
         "id": "a-hermann-build-28",
         "source": "t-hermann-merge-cmd",
-        "target": "p-hermann-repo",
+        "target": "p-hermann-specs",
         "weight": 1
       },
       "a-hermann-build-29": {
         "id": "a-hermann-build-29",
         "source": "t-hermann-merge-cmd",
-        "target": "p-hermann-audit-request",
+        "target": "p-hermann-repo",
         "weight": 1
       },
       "a-hermann-build-30": {
         "id": "a-hermann-build-30",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-build-31": {
+        "id": "a-hermann-build-31",
         "source": "t-hermann-merge-cmd",
         "target": "p-hermann-iterate",
         "weight": 1
@@ -190,13 +196,13 @@
         "label": "Audit requests",
         "tokens": 0,
         "x": 100,
-        "y": 610
+        "y": 780
       },
       "p-hermann-build-log": {
         "id": "p-hermann-build-log",
         "label": "Build command results",
         "tokens": 0,
-        "x": 1200,
+        "x": 980,
         "y": 270
       },
       "p-hermann-code-cmd": {
@@ -206,11 +212,18 @@
         "x": 540,
         "y": 100
       },
+      "p-hermann-coders": {
+        "id": "p-hermann-coders",
+        "label": "Coding agent definitions (seeded; edit to change the command, choose in the app)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
       "p-hermann-context": {
         "id": "p-hermann-context",
         "label": "Briefs for the judgement lanes",
         "tokens": 0,
-        "x": 760,
+        "x": 980,
         "y": 440
       },
       "p-hermann-decisions": {
@@ -224,49 +237,49 @@
         "id": "p-hermann-errors",
         "label": "Errors",
         "tokens": 0,
-        "x": 320,
+        "x": 100,
         "y": 270
       },
       "p-hermann-iterate": {
         "id": "p-hermann-iterate",
         "label": "Iteration triggers",
         "tokens": 0,
-        "x": 100,
+        "x": 320,
         "y": 780
       },
       "p-hermann-journal": {
         "id": "p-hermann-journal",
         "label": "Journal",
         "tokens": 0,
-        "x": 540,
+        "x": 320,
         "y": 270
       },
       "p-hermann-llm-errors": {
         "id": "p-hermann-llm-errors",
         "label": "Answers that missed their contract",
         "tokens": 0,
-        "x": 1200,
+        "x": 980,
         "y": 610
       },
       "p-hermann-release-cmd": {
         "id": "p-hermann-release-cmd",
         "label": "Release commands (merge)",
         "tokens": 0,
-        "x": 760,
+        "x": 540,
         "y": 610
       },
       "p-hermann-repo": {
         "id": "p-hermann-repo",
         "label": "The service repository record",
         "tokens": 0,
-        "x": 320,
+        "x": 100,
         "y": 610
       },
       "p-hermann-review-cmd": {
         "id": "p-hermann-review-cmd",
         "label": "Review brief commands",
         "tokens": 0,
-        "x": 320,
+        "x": 540,
         "y": 440
       },
       "p-hermann-reviews": {
@@ -274,13 +287,13 @@
         "label": "Review verdicts",
         "tokens": 0,
         "x": 1200,
-        "y": 440
+        "y": 610
       },
       "p-hermann-runs": {
         "id": "p-hermann-runs",
         "label": "Runs: branch, pull request, tests, coder summary",
         "tokens": 0,
-        "x": 980,
+        "x": 760,
         "y": 270
       },
       "p-hermann-specs": {
@@ -294,14 +307,14 @@
         "id": "p-hermann-verification",
         "label": "Verification results (tests, image, startup, shutdown, logs)",
         "tokens": 0,
-        "x": 100,
+        "x": 320,
         "y": 440
       },
       "p-hermann-verify-cmd": {
         "id": "p-hermann-verify-cmd",
         "label": "Verification commands",
         "tokens": 0,
-        "x": 760,
+        "x": 540,
         "y": 270
       }
     },
@@ -322,37 +335,37 @@
         "id": "t-hermann-code-cmd",
         "label": "Coder: implement the spec on a branch",
         "x": 1200,
-        "y": 100
+        "y": 270
       },
       "t-hermann-diff-cmd": {
         "id": "t-hermann-diff-cmd",
         "label": "Review brief from the diff",
-        "x": 540,
+        "x": 760,
         "y": 440
       },
       "t-hermann-merge-cmd": {
         "id": "t-hermann-merge-cmd",
         "label": "Merge, tag, audit, next iteration",
-        "x": 540,
+        "x": 320,
         "y": 610
       },
       "t-hermann-merge-prep": {
         "id": "t-hermann-merge-prep",
         "label": "Merge decision to release command",
-        "x": 980,
+        "x": 760,
         "y": 610
       },
       "t-hermann-review": {
         "id": "t-hermann-review",
         "label": "Review the pull request against the spec",
-        "x": 980,
+        "x": 1200,
         "y": 440
       },
       "t-hermann-verify-cmd": {
         "id": "t-hermann-verify-cmd",
         "label": "Verify: tests, image, container, probes, shutdown",
         "x": 100,
-        "y": 270
+        "y": 440
       }
     }
   }

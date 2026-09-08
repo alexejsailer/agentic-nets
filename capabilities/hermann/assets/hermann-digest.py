@@ -48,6 +48,7 @@ P = {
     "reports": "p-hermann-factor-reports",
     "scorecard": "p-hermann-scorecard",
     "cards": "p-hermann-cards",
+    "coders": "p-hermann-coders",
     "goal": "p-hermann-goal",
     "adr": "p-hermann-adr",
     "prompts": "p-hermann-prompts",
@@ -124,10 +125,18 @@ def api(method, path, body=None, timeout=30):
 
 
 def put_token(place, data, name=None):
+    """Append a token. A token NAME must be unique within its place (the node answers 500 to a
+    duplicate), so a named write that is refused is retried once with a timestamp suffix."""
     body = {"data": data}
     if name:
         body["name"] = name
-    return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    try:
+        return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    except RuntimeError as e:
+        if name and "HTTP 500" in str(e):
+            body["name"] = "%s-%s" % (name, now().replace(":", "").replace("-", ""))
+            return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+        raise
 
 
 def decode(data):
@@ -478,7 +487,7 @@ def commits(root, n=10):
 def digest(argv):
     sha_arg = argv[1] if len(argv) > 1 and not argv[1].startswith("${") else ""
     repo_arg = argv[2] if len(argv) > 2 and not argv[2].startswith("${") else ""
-    rp = repo(repo_arg) if repo_arg else repo()
+    rp = (repo(repo_arg) if repo_arg else {}) or repo()
     if not rp or not rp.get("localPath"):
         raise RuntimeError("no bootstrapped repository recorded in p-hermann-repo")
     root = rp["localPath"]

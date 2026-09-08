@@ -83,12 +83,11 @@ details summary { cursor: pointer; color: var(--muted); }
 .empty { color: var(--muted); padding: 24px; text-align: center; }
 `;
 
-const ROLES = ['config', 'goal', 'adr', 'cards', 'infra', 'repo', 'iterate', 'prompts', 'responses', 'specs', 'decisions', 'runs',
+const ROLES = ['config', 'goal', 'adr', 'cards', 'coders', 'infra', 'repo', 'iterate', 'prompts', 'responses', 'specs', 'decisions', 'runs',
   'verification', 'reviews', 'scorecard', 'reports', 'journal', 'errors', 'llm-errors', 'setup-cmd', 'audit-request'];
 const CONFIG_FIELDS = [
   ['artifactId', 'Service name (artifactId, repository)'], ['groupId', 'Group id'], ['packageName', 'Package (empty = derived)'], ['description', 'Description'],
   ['javaVersion', 'Java'], ['bootVersion', 'Spring Boot ("current" = current GA)'], ['dependencies', 'Initializr dependencies (comma list)'],
-  ['claudeModel', 'Coder model'], ['claudeMaxTurns', 'Coder max turns'], ['implementTimeoutMin', 'Coder timeout (minutes)'],
   ['giteaImage', 'Git host image'], ['giteaPort', 'Git host port'], ['hermannHome', 'Working directory'],
 ];
 
@@ -203,7 +202,10 @@ class HermannApp extends HTMLElement {
     return `<label>${esc(label)}</label>${kind === 'textarea' ? `<textarea data-f="${name}" placeholder="${esc(ph)}">${esc(v)}</textarea>` : `<input data-f="${name}" value="${esc(v)}" placeholder="${esc(ph)}">`}`;
   }
   _wire(root) {
-    root.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('input', () => { this._form[el.dataset.f] = el.value; }));
+    root.querySelectorAll('[data-f]').forEach((el) => {
+      el.addEventListener('input', () => { this._form[el.dataset.f] = el.value; });
+      if (el.tagName === 'SELECT') el.addEventListener('change', () => { this._form[el.dataset.f] = el.value; this._render(); });
+    });
     root.querySelectorAll('[data-act]').forEach((el) => el.addEventListener('click', () => this._onAct(el.dataset.act, el.dataset.arg)));
     root.querySelectorAll('.opt[data-opt]').forEach((el) => el.addEventListener('click', (ev) => {
       if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
@@ -217,13 +219,14 @@ class HermannApp extends HTMLElement {
   _setup() {
     const cfg = this._config(), infra = this._infra(), repo = this._repo();
     const tools = obj(infra?.tools), gitea = obj(infra?.gitea), docker = obj(infra?.docker);
+    const coders = props(this._s.coders).filter((c) => c.agentId);
     return `<div class="grid">
       <div class="card"><h2>Infrastructure ${infra ? `<span class="pill ${isTrue(infra.ok) ? 'ok' : 'bad'}">${isTrue(infra.ok) ? 'ok' : 'problems'}</span>` : ''}</h2>
         ${infra ? `<div class="muted">measured ${esc(when(infra.at))}</div>
         <table><tr><th>Docker</th><td>${esc(docker.version || 'not reachable')}</td></tr>
         <tr><th>Git host</th><td>${esc(gitea.state || 'absent')} ${gitea.version ? 'gitea ' + esc(gitea.version) : ''} ${infra.giteaUrl ? link(infra.giteaUrl, infra.giteaUrl) : ''}</td></tr>
         <tr><th>Java</th><td>${esc(tools.java || '')}</td></tr><tr><th>Maven</th><td>${esc(tools.maven || '')}</td></tr>
-        <tr><th>Coder</th><td>${esc(tools.claude || 'claude missing')}</td></tr>
+        <tr><th>Coding agents</th><td>claude ${tools.claude ? esc(tools.claude) : '✗'} · codex ${tools.codex ? esc(tools.codex) : '✗'}</td></tr>
         <tr><th>Scanners</th><td>${['trivy', 'semgrep', 'gitleaks'].map((t) => `${t} ${tools[t] ? '✓' : '✗'}`).join(' · ')}</td></tr>
         <tr><th>Disk free</th><td>${esc(infra.diskFreeGb || '?')} GB</td></tr></table>
         ${arr(infra.problems).length ? `<ul>${arr(infra.problems).map((p) => `<li class="muted">${esc(p)}</li>`).join('')}</ul>` : ''}` : '<div class="muted">Not measured yet.</div>'}
@@ -235,6 +238,15 @@ class HermannApp extends HTMLElement {
         <tr><th>Last merge</th><td>${esc(repo.lastMergedSpec || 'none')} ${repo.lastMergedAt ? esc(when(repo.lastMergedAt)) : ''}</td></tr></table>` : '<div class="muted">No service bootstrapped. Set the service name below, provision the git host, then bootstrap.</div>'}
         <div class="row"><button class="act" data-act="bootstrap-service" ${repo ? 'disabled' : ''}>Bootstrap service</button>
         <button class="act secondary" data-act="run-audit" ${repo ? '' : 'disabled'}>Run twelve-factor audit</button></div></div>
+      <div class="card"><h2>Coding agent</h2>
+        <div class="muted">Which headless agent the coder lane spawns for an approved spec. Definitions live in the coders place of the build net; installers edit those tokens, operators choose here.</div>
+        <label>Agent</label><select data-f="cfg.coderAgent">${coders.map((c) => `<option value="${esc(c.agentId)}" ${(this._form['cfg.coderAgent'] ?? cfg.coderAgent ?? 'claude-code') === c.agentId ? 'selected' : ''}>${esc(c.title || c.agentId)}${c.binary && tools[c.binary] === '' ? ' (binary missing)' : ''}</option>`).join('')}</select>
+        ${coders.filter((c) => c.agentId === (this._form['cfg.coderAgent'] ?? cfg.coderAgent ?? 'claude-code')).map((c) => `<div class="muted" style="margin-top:6px">${esc(c.description || '')}<br><span class="mono">${esc(arr(c.command).join(' '))}</span><br>models: ${esc(arr(c.models).join(', ') || c.defaultModel || '')}</div>`).join('')}
+        ${this._field('cfg.coderModel', 'Model (empty = the agent default)', cfg.coderModel)}
+        ${this._field('cfg.coderMaxTurns', 'Max turns (empty = the agent default)', cfg.coderMaxTurns)}
+        ${this._field('cfg.coderTimeoutMin', 'Timeout in minutes (empty = the agent default)', cfg.coderTimeoutMin)}
+        ${this._field('cfg.coderAllowedTools', 'Allowed tools (empty = the agent default)', cfg.coderAllowedTools, 'textarea')}
+        <div class="row"><button class="act" data-act="set-config">Save coding agent</button></div></div>
       <div class="card"><h2>Configuration</h2>
         ${CONFIG_FIELDS.map(([k, l]) => this._field('cfg.' + k, l, cfg[k])).join('')}
         <div class="row"><button class="act" data-act="set-config">Save configuration</button><span class="muted">${cfg.updatedAt ? 'saved ' + esc(when(cfg.updatedAt)) : ''}</span></div></div>
@@ -310,7 +322,7 @@ class HermannApp extends HTMLElement {
         <table><tr><th>Branch</th><td class="mono">${esc(run.branch)} @ ${esc(String(run.headSha || '').slice(0, 7))}</td></tr>
         <tr><th>Pull request</th><td>${run.prUrl ? link(run.prUrl, '#' + run.prIndex) : 'not opened'}</td></tr>
         <tr><th>Build</th><td>${isTrue(run.buildOk) ? 'green' : 'RED'}: ${esc(run.testsRun)} tests, ${esc(run.testsFailed)} failed; ${esc(run.diffStat)}</td></tr>
-        <tr><th>Coder</th><td>${esc(run.coderDurationSec)}s, ${esc(run.coderTurns || '?')} turns${run.coderCostUsd ? `, $${Number(run.coderCostUsd).toFixed(2)}` : ''}</td></tr>
+        <tr><th>Coder</th><td>${run.coderAgent ? esc(run.coderAgent) + (run.coderModel ? ' / ' + esc(run.coderModel) : '') + ': ' : ''}${esc(run.coderDurationSec)}s, ${esc(run.coderTurns || '?')} turns${run.coderCostUsd ? `, $${Number(run.coderCostUsd).toFixed(2)}` : ''}</td></tr>
         <tr><th>Verification</th><td>${v ? `<span class="pill ${v.status === 'pass' ? 'ok' : 'bad'}">${esc(v.status)}</span> ${esc(v.testsRun)} tests, startup ${esc(v.startupSeconds)}s, shutdown ${esc(v.shutdownSeconds)}s, logs ${isTrue(v.logsStructured) ? 'structured' : 'unstructured'}` : (isTrue(run.buildOk) ? 'running…' : 'skipped')}</td></tr>
         <tr><th>Review</th><td>${r ? `<span class="pill ${r.verdict === 'approve' ? 'ok' : 'warn'}">${esc(r.verdict)}</span> ${esc(r.summary)}` : (v?.status === 'pass' ? 'running…' : '')}</td></tr></table>
         <details><summary>Coder summary and notes</summary><div>${esc(run.coderSummary)}</div><div class="muted">${esc(run.coderNotes || '')}</div>${run.buildTail ? `<div class="mono">${esc(run.buildTail)}</div>` : ''}</details>
@@ -354,6 +366,7 @@ class HermannApp extends HTMLElement {
       case 'set-config': {
         const input = { updatedAt: at, status: 'ready' };
         for (const [k] of CONFIG_FIELDS) input[k] = this._form['cfg.' + k] ?? cfg[k] ?? '';
+        for (const k of ['coderAgent', 'coderModel', 'coderMaxTurns', 'coderTimeoutMin', 'coderAllowedTools']) input[k] = this._form['cfg.' + k] ?? cfg[k] ?? (k === 'coderAgent' ? 'claude-code' : '');
         for (const k of ['giteaSshPort', 'giteaUser', 'giteaContainer', 'giteaVolume', 'blockingSeverity']) if (cfg[k]) input[k] = cfg[k];
         if (arr(cfg.tokenLanes).length) input.tokenLanes = arr(cfg.tokenLanes);
         return this._invoke('set-config', input, act);

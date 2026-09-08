@@ -337,7 +337,8 @@
           "factors",
           "tests",
           "outOfScope",
-          "status"
+          "status",
+          "repoId"
         ],
         "retries": 1,
         "types": {
@@ -354,7 +355,7 @@
       "autoEmit": true,
       "maxIterations": 1,
       "modelId": "hermann",
-      "nl": "You are Hermann, writing the spec for the iteration the person chose. Read the brief, then reply with ONE JSON object and nothing else. The spec is the contract the coder implements and the reviewer checks: every acceptance criterion must be testable; configuration comes from environment variables; schema changes are versioned Flyway migrations; the whole spec fits one pull request.\n\n${ctx.data.brief}\n\nReply with exactly this shape: {\"specId\": \"<specId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"promptId\": \"<promptId from the brief>\", \"title\": \"<imperative, under 70 characters>\", \"summary\": \"<three sentences>\", \"story\": \"As a <user>, I want <capability>, so that <value>.\", \"acceptance\": [\"Given ..., when ..., then ...\"], \"api\": [\"<METHOD /path: request, response, status codes>\"], \"data\": [\"<table or entity change and its migration name>\"], \"config\": [{\"name\": \"ENV_NAME\", \"purpose\": \"...\", \"default\": \"...\"}], \"factors\": [\"<factor number: how it is touched>\"], \"tests\": [\"<test class: what it proves>\"], \"outOfScope\": [\"...\"], \"risks\": [\"...\"], \"status\": \"draft\", \"at\": \"<now from the brief>\"}",
+      "nl": "You are Hermann, writing the spec for the iteration the person chose. Read the brief, then reply with ONE JSON object and nothing else. The spec is the contract the coder implements and the reviewer checks: every acceptance criterion must be testable; configuration comes from environment variables; schema changes are versioned Flyway migrations; the whole spec fits one pull request.\n\n${ctx.data.brief}\n\nReply with exactly this shape: {\"specId\": \"<specId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"promptId\": \"<promptId from the brief>\", \"repoId\": \"<repoId from the brief>\", \"title\": \"<imperative, under 70 characters>\", \"summary\": \"<three sentences>\", \"story\": \"As a <user>, I want <capability>, so that <value>.\", \"acceptance\": [\"Given ..., when ..., then ...\"], \"api\": [\"<METHOD /path: request, response, status codes>\"], \"data\": [\"<table or entity change and its migration name>\"], \"config\": [{\"name\": \"ENV_NAME\", \"purpose\": \"...\", \"default\": \"...\"}], \"factors\": [\"<factor number: how it is touched>\"], \"tests\": [\"<test class: what it proves>\"], \"outOfScope\": [\"...\"], \"risks\": [\"...\"], \"status\": \"draft\", \"at\": \"<now from the brief>\"}",
       "oneShot": true,
       "role": "r",
       "sessionId": "agent-hermann",

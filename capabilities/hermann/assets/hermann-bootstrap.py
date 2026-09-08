@@ -55,6 +55,7 @@ P = {
     "reports": "p-hermann-factor-reports",
     "scorecard": "p-hermann-scorecard",
     "cards": "p-hermann-cards",
+    "coders": "p-hermann-coders",
     "goal": "p-hermann-goal",
     "adr": "p-hermann-adr",
     "prompts": "p-hermann-prompts",
@@ -131,10 +132,18 @@ def api(method, path, body=None, timeout=30):
 
 
 def put_token(place, data, name=None):
+    """Append a token. A token NAME must be unique within its place (the node answers 500 to a
+    duplicate), so a named write that is refused is retried once with a timestamp suffix."""
     body = {"data": data}
     if name:
         body["name"] = name
-    return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    try:
+        return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    except RuntimeError as e:
+        if name and "HTTP 500" in str(e):
+            body["name"] = "%s-%s" % (name, now().replace(":", "").replace("-", ""))
+            return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+        raise
 
 
 def decode(data):
@@ -759,6 +768,13 @@ def bootstrap(argv):
         raise RuntimeError("the generated project does not build:\n" + (e or o)[-2500:])
     jar = [f for f in os.listdir(os.path.join(root, "target")) if f.endswith(".jar") and not f.endswith("-sources.jar")]
     body, created = ensure_repo(name, cfg)
+    for t in query(P["repo"], 'FROM $ WHERE $.status == "bootstrapped" LIMIT 20', 20):
+        d = t.get("data") or {}
+        if d.get("repoId") and d.get("repoId") != name:
+            d["status"] = "archived"; d["archivedAt"] = now(); d["updatedAt"] = d.get("updatedAt", "")
+            delete_token(P["repo"], t["id"])
+            put_token(P["repo"], d, name="repo-%s" % d["repoId"])
+            journal(LANE, "bootstrap", "repository %s archived; Hermann now works on %s" % (d["repoId"], name))
     git(["init", "-b", "main"], cwd=root)
     git(["add", "-A"], cwd=root)
     git(["commit", "-q", "-m", "Bootstrap %s: Spring Boot %s on Java %s, twelve-factor from the first commit" % (name, boot, java)], cwd=root)

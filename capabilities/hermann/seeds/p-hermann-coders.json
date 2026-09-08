@@ -1,0 +1,34 @@
+[
+  {
+    "name": "coder-claude-code",
+    "agentId": "claude-code",
+    "title": "Claude Code (headless)",
+    "binary": "claude",
+    "description": "Anthropic's Claude Code run headless by the executor: the brief on stdin, least-privilege tools, JSON result. Default for Hermann.",
+    "command": ["claude", "-p", "--model", "${model}", "--allowedTools", "${allowedTools}", "--max-turns", "${maxTurns}", "--no-session-persistence", "--output-format", "json"],
+    "promptVia": "stdin",
+    "resultFormat": "claude-json",
+    "defaultModel": "claude-opus-5",
+    "models": ["claude-opus-5", "claude-sonnet-5", "opus", "sonnet"],
+    "allowedTools": "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)",
+    "maxTurns": "80",
+    "timeoutMin": "45",
+    "notes": "Placeholders: ${model}, ${allowedTools}, ${maxTurns}. The prompt is piped on stdin (a quoted -p argument can lose its quotes through the executor chain)."
+  },
+  {
+    "name": "coder-codex",
+    "agentId": "codex",
+    "title": "OpenAI Codex CLI (headless)",
+    "binary": "codex",
+    "description": "OpenAI's Codex CLI in non-interactive exec mode with a workspace-write sandbox; the brief on stdin, plain-text result. Present on the host when check-infra reports it; not exercised by Hermann's own proof.",
+    "command": ["codex", "exec", "--model", "${model}", "--sandbox", "workspace-write", "--skip-git-repo-check", "-"],
+    "promptVia": "stdin",
+    "resultFormat": "text",
+    "defaultModel": "gpt-5-codex",
+    "models": ["gpt-5-codex", "o4-mini"],
+    "allowedTools": "",
+    "maxTurns": "",
+    "timeoutMin": "45",
+    "notes": "Codex has no allowed-tools flag; the sandbox limits it to the repository. Edit this token to change the command."
+  }
+]

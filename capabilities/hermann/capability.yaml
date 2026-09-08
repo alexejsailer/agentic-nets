@@ -70,6 +70,13 @@ config:
   - key: p-hermann-goal
     seed: seeds/p-hermann-goal.json
     description: The overall goal, principles and constraints; edited in the application.
+  - key: p-hermann-coders
+    seed: seeds/p-hermann-coders.json
+    description: >-
+      The headless coding agents Hermann can spawn from the coder lane (command template with
+      ${model}/${allowedTools}/${maxTurns} placeholders, prompt via stdin, result format). Ships
+      with Claude Code (default, Claude Opus 5) and Codex CLI; edit the tokens to add or change one,
+      choose in the application (config.coderAgent, coderModel).
   - key: p-hermann-cards
     seed: seeds/p-hermann-cards.json
     description: The twelve factor cards (rule, Spring Boot practice, check, fix) Hermann reads when he specs and implements.

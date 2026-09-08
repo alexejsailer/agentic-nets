@@ -48,6 +48,7 @@ P = {
     "reports": "p-hermann-factor-reports",
     "scorecard": "p-hermann-scorecard",
     "cards": "p-hermann-cards",
+    "coders": "p-hermann-coders",
     "goal": "p-hermann-goal",
     "adr": "p-hermann-adr",
     "prompts": "p-hermann-prompts",
@@ -124,10 +125,18 @@ def api(method, path, body=None, timeout=30):
 
 
 def put_token(place, data, name=None):
+    """Append a token. A token NAME must be unique within its place (the node answers 500 to a
+    duplicate), so a named write that is refused is retried once with a timestamp suffix."""
     body = {"data": data}
     if name:
         body["name"] = name
-    return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    try:
+        return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+    except RuntimeError as e:
+        if name and "HTTP 500" in str(e):
+            body["name"] = "%s-%s" % (name, now().replace(":", "").replace("-", ""))
+            return api("POST", "/api/runtime/places/%s/tokens?modelId=%s" % (place, MODEL), body)
+        raise
 
 
 def decode(data):
@@ -499,9 +508,13 @@ def risk_section():
     return txt + "\n"
 
 
-def history_section():
+def history_section(repo_id=None):
     specs = [t.get("data") or {} for t in query(P["specs"], "FROM $", 200)]
     runs = [t.get("data") or {} for t in query(P["runs"], "FROM $", 200)]
+    if repo_id:
+        # Specs carry the repoId Hermann copied from their brief; older ones (before repoId existed) are kept.
+        specs = [x for x in specs if not x.get("repoId") or x.get("repoId") == repo_id]
+        runs = [r for r in runs if not r.get("repoId") or r.get("repoId") == repo_id]
     runs.sort(key=lambda r: str(r.get("at", "")), reverse=True)
     prompts = [t.get("data") or {} for t in query(P["prompts"], "FROM $", 100)]
     txt = "## SPECS SO FAR (merged ones are DONE: never propose them again)\n" + lines([
@@ -536,7 +549,7 @@ def propose(iteration_id):
     brief = "\n".join([
         "# BRIEF FOR HERMANN: what should the next iteration be?",
         "iterationId: %s\npromptId to use: %s\nnow: %s" % (iteration_id, prompt_id, now()),
-        goal_txt, adr_section(), service_txt, quality_section(), risk_section(), history_section()[0], cards_section(),
+        goal_txt, adr_section(), service_txt, quality_section(), risk_section(), history_section((rp or {}).get("repoId"))[0], cards_section(),
     ])
     revision = envv("REVISION_TEXT")
     if revision:
@@ -562,8 +575,9 @@ def spec(iteration_id, prompt_id):
         o = as_dict(o) if not isinstance(o, dict) else o
         if str(o.get("value")) in selected:
             chosen.append("%s: %s (%s)" % (o.get("value"), o.get("label"), str(o.get("description", ""))[:400]))
-    history, specs = history_section()
-    spec_id = "spec-%03d" % (len(specs) + 1)
+    history, specs = history_section((rp or {}).get("repoId"))
+    all_specs = query(P["specs"], "FROM $", 300)
+    spec_id = "spec-%03d" % (len(all_specs) + 1)
     choice = "## THE DECISION THIS SPEC IMPLEMENTS\nHermann asked (%s, mode %s): %s\n" % (prompt_id, pr.get("mode", "?"), pr.get("question", "?"))
     choice += "The person chose:\n%s\n" % (lines(chosen) if chosen else "- (no option selected)")
     if text:
@@ -572,7 +586,7 @@ def spec(iteration_id, prompt_id):
         choice += "Notes: %s\n" % notes[:1000]
     brief = "\n".join([
         "# BRIEF FOR HERMANN: write the spec",
-        "iterationId: %s\npromptId: %s\nspecId to use: %s\nnow: %s" % (iteration_id, prompt_id, spec_id, now()),
+        "iterationId: %s\npromptId: %s\nspecId to use: %s\nrepoId to use: %s\nnow: %s" % (iteration_id, prompt_id, spec_id, (rp or {}).get("repoId", ""), now()),
         choice, goal_txt, adr_section(), service_txt, quality_section(), history, cards_section(),
     ])
     data = {"at": now(), "iterationId": iteration_id, "purpose": "spec", "promptId": prompt_id, "specId": spec_id, "goalStatus": goal_status,

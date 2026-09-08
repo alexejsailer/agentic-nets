@@ -128,7 +128,7 @@
       "timeoutMs": 2700000,
       "type": "command"
     },
-    "description": "Spawns Claude Code inside the repository with the goal, principles, decisions, spec and factor practices as its brief and least-privilege tools; then runs the authoritative verify, commits, pushes, opens the pull request and queues verification. The git host token comes from the vault; the coder never sees it.",
+    "description": "Spawns the configured headless coding agent (p-hermann-coders, chosen by config.coderAgent; Claude Code with Claude Opus 5 by default) inside the repository with the goal, principles, decisions, spec and factor practices as its brief and least-privilege tools; then runs the authoritative verify, commits, pushes, opens the pull request and queues verification. The git host token comes from the vault; the coder never sees it.",
     "emit": [
       {
         "from": "@result",
@@ -167,6 +167,14 @@
       }
     },
     "presets": {
+      "coders": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-coders",
+        "take": "FIRST"
+      },
       "input": {
         "arcql": "FROM $ LIMIT 1",
         "consume": true,
