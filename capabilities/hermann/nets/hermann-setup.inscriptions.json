@@ -1,0 +1,146 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "health"
+          ],
+          "env": {
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 120000,
+          "toolId": "hermann-infra"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "infra-health-${now()}",
+        "kind": "command",
+        "stage": "health"
+      },
+      "type": "map"
+    },
+    "description": "Every hour, file a health command so p-hermann-infra always holds a fresh measurement of what the executor host can do. The goal and the cards are read optionally so the canvas shows where they enter the net.",
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-infra-tick",
+    "kind": "map",
+    "label": "Infrastructure health tick (hourly)",
+    "metadata": {
+      "netId": "hermann-setup",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-setup-cmd"
+      }
+    },
+    "presets": {
+      "cards": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-cards",
+        "take": "FIRST"
+      },
+      "config": {
+        "arcql": "FROM $ WHERE $.configId == \"hermann\" LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-config",
+        "take": "FIRST"
+      },
+      "goal": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-goal",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 7 * * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 2400000,
+      "type": "command"
+    },
+    "description": "Executes one setup command token on the executor host: hermann-infra health, hermann-git provision|create-repo|protect, hermann-bootstrap bootstrap. The git host token (GITEA_TOKEN) is injected from the vault into this lane's environment.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-setup-cmd",
+    "kind": "command",
+    "label": "Run a setup process",
+    "metadata": {
+      "netId": "hermann-setup",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_request": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-request"
+      },
+      "errors": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-errors"
+      },
+      "infra": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-infra"
+      },
+      "journal": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-journal"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-setup-log",
+        "retain": 200
+      },
+      "repo": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-repo"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-setup-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

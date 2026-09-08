@@ -7,6 +7,7 @@
  * works against staging, a server compose, or the Desktop app without extra APIs.
  *
  *   build     — compile compact nets/*.net.json sources -> full .pnml.json + .inscriptions.json
+ *               (kinds map|http|agent|command; schedule, retain, answerSchema/autoEmit/group pass through)
  *               (arcs derived from reads/writes, deterministic auto-layout, boilerplate defaults,
  *                charters read from markdown files, ${master} substituted)
  *   export    — running session -> pack directory (nets/, seeds/, manifest.runtime.json)
@@ -173,7 +174,7 @@ function compileNet(dir, srcPath) {
       const w = norm(wv);
       notePlace(w.place);
       arc(t.id, w.place);
-      postsets[alias] = { placeId: w.place, host, ...(w.capacity ? { capacity: w.capacity } : {}) };
+      postsets[alias] = { placeId: w.place, host, ...(w.capacity ? { capacity: w.capacity } : {}), ...(w.retain ? { retain: w.retain } : {}) };
     }
 
     let action;
@@ -202,15 +203,35 @@ function compileNet(dir, srcPath) {
         modelId: model,
         role: ag.role ?? 'rw',
         maxIterations: ag.maxIterations ?? 12,
-        autoEmit: false,
+        autoEmit: ag.autoEmit ?? false,
+        ...(ag.answerSchema ? { answerSchema: ag.answerSchema } : {}),
+        ...(ag.group ? { group: ag.group } : {}),
+        ...(ag.allowedTools ? { allowedTools: ag.allowedTools } : {}),
+        ...(ag.oneShot !== undefined ? { oneShot: ag.oneShot } : {}),
         ...(ag.tier ? { tier: ag.tier } : {}),
         sessionId: session,
         ...(ag.requireWritesTo ? { requireWritesTo: ag.requireWritesTo } : {}),
         nl,
       };
       emit ??= [];
+    } else if (t.kind === 'command') {
+      // The input alias holds ready-made command tokens (script by toolId, or exec); the executor
+      // runs them on the host named by executorId. Postsets beyond the log are declared outputs
+      // that the script itself writes through master (the canvas shows them, no emit targets them).
+      const c = t.command ?? {};
+      const inputAlias = c.input ?? Object.keys(presets)[0];
+      action = {
+        type: 'command',
+        inputPlace: inputAlias,
+        executorId: c.executorId ?? 'agentic-net-executor-default',
+        dispatch: [{ channel: 'default', executor: 'bash' }],
+        await: 'ALL',
+        groupBy: 'executor',
+        timeoutMs: c.timeoutMs ?? 600000,
+      };
+      emit ??= postsets.log ? [{ from: '@result', to: 'log' }] : [];
     } else {
-      throw new Error(`${t.id}: unsupported kind '${t.kind}' in compact source (map|http|agent)`);
+      throw new Error(`${t.id}: unsupported kind '${t.kind}' in compact source (map|http|agent|command)`);
     }
 
     return {
@@ -223,7 +244,8 @@ function compileNet(dir, srcPath) {
       postsets,
       action,
       emit,
-      mode: 'SINGLE',
+      ...(t.schedule ? { schedule: t.schedule } : {}),
+      mode: t.mode ?? 'SINGLE',
       metadata: { sessionId: session, netId },
     };
   });

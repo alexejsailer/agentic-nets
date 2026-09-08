@@ -1,0 +1,359 @@
+{
+  "net": {
+    "arcs": {
+      "a-hermann-build-01": {
+        "id": "a-hermann-build-01",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-approve-prep",
+        "weight": 1
+      },
+      "a-hermann-build-02": {
+        "id": "a-hermann-build-02",
+        "source": "t-hermann-approve-prep",
+        "target": "p-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-03": {
+        "id": "a-hermann-build-03",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-changes-prep",
+        "weight": 1
+      },
+      "a-hermann-build-04": {
+        "id": "a-hermann-build-04",
+        "source": "t-hermann-changes-prep",
+        "target": "p-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-05": {
+        "id": "a-hermann-build-05",
+        "source": "p-hermann-code-cmd",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-06": {
+        "id": "a-hermann-build-06",
+        "source": "p-hermann-specs",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-07": {
+        "id": "a-hermann-build-07",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-build-08": {
+        "id": "a-hermann-build-08",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-runs",
+        "weight": 1
+      },
+      "a-hermann-build-09": {
+        "id": "a-hermann-build-09",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-verify-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-10": {
+        "id": "a-hermann-build-10",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-build-11": {
+        "id": "a-hermann-build-11",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-errors",
+        "weight": 1
+      },
+      "a-hermann-build-12": {
+        "id": "a-hermann-build-12",
+        "source": "p-hermann-verify-cmd",
+        "target": "t-hermann-verify-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-13": {
+        "id": "a-hermann-build-13",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-build-14": {
+        "id": "a-hermann-build-14",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-verification",
+        "weight": 1
+      },
+      "a-hermann-build-15": {
+        "id": "a-hermann-build-15",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-review-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-16": {
+        "id": "a-hermann-build-16",
+        "source": "p-hermann-review-cmd",
+        "target": "t-hermann-diff-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-17": {
+        "id": "a-hermann-build-17",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-build-18": {
+        "id": "a-hermann-build-18",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-build-19": {
+        "id": "a-hermann-build-19",
+        "source": "p-hermann-context",
+        "target": "t-hermann-review",
+        "weight": 1
+      },
+      "a-hermann-build-20": {
+        "id": "a-hermann-build-20",
+        "source": "t-hermann-review",
+        "target": "p-hermann-reviews",
+        "weight": 1
+      },
+      "a-hermann-build-21": {
+        "id": "a-hermann-build-21",
+        "source": "t-hermann-review",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-build-22": {
+        "id": "a-hermann-build-22",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-merge-prep",
+        "weight": 1
+      },
+      "a-hermann-build-23": {
+        "id": "a-hermann-build-23",
+        "source": "t-hermann-merge-prep",
+        "target": "p-hermann-release-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-24": {
+        "id": "a-hermann-build-24",
+        "source": "p-hermann-release-cmd",
+        "target": "t-hermann-merge-cmd",
+        "weight": 1
+      },
+      "a-hermann-build-25": {
+        "id": "a-hermann-build-25",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-build-26": {
+        "id": "a-hermann-build-26",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-runs",
+        "weight": 1
+      },
+      "a-hermann-build-27": {
+        "id": "a-hermann-build-27",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-specs",
+        "weight": 1
+      },
+      "a-hermann-build-28": {
+        "id": "a-hermann-build-28",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-repo",
+        "weight": 1
+      },
+      "a-hermann-build-29": {
+        "id": "a-hermann-build-29",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-build-30": {
+        "id": "a-hermann-build-30",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-iterate",
+        "weight": 1
+      }
+    },
+    "description": "The iteration loop's building half. An approved spec spawns the coder on a feature branch and opens a pull request; verification proves it in a clean worktree, an image and a running container; the diff digest feeds the review; the person merges or requests changes; the merge tags, audits and starts the next iteration.",
+    "id": "hermann-build",
+    "places": {
+      "p-hermann-audit-request": {
+        "id": "p-hermann-audit-request",
+        "label": "Audit requests",
+        "tokens": 0,
+        "x": 100,
+        "y": 610
+      },
+      "p-hermann-build-log": {
+        "id": "p-hermann-build-log",
+        "label": "Build command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-hermann-code-cmd": {
+        "id": "p-hermann-code-cmd",
+        "label": "Coder commands (code, revise)",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "Briefs for the judgement lanes",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-hermann-decisions": {
+        "id": "p-hermann-decisions",
+        "label": "The person's decisions (spec approval, merge, changes)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-hermann-errors": {
+        "id": "p-hermann-errors",
+        "label": "Errors",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-hermann-iterate": {
+        "id": "p-hermann-iterate",
+        "label": "Iteration triggers",
+        "tokens": 0,
+        "x": 100,
+        "y": 780
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-hermann-release-cmd": {
+        "id": "p-hermann-release-cmd",
+        "label": "Release commands (merge)",
+        "tokens": 0,
+        "x": 760,
+        "y": 610
+      },
+      "p-hermann-repo": {
+        "id": "p-hermann-repo",
+        "label": "The service repository record",
+        "tokens": 0,
+        "x": 320,
+        "y": 610
+      },
+      "p-hermann-review-cmd": {
+        "id": "p-hermann-review-cmd",
+        "label": "Review brief commands",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      },
+      "p-hermann-reviews": {
+        "id": "p-hermann-reviews",
+        "label": "Review verdicts",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-hermann-runs": {
+        "id": "p-hermann-runs",
+        "label": "Runs: branch, pull request, tests, coder summary",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-hermann-specs": {
+        "id": "p-hermann-specs",
+        "label": "Specs",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-hermann-verification": {
+        "id": "p-hermann-verification",
+        "label": "Verification results (tests, image, startup, shutdown, logs)",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-hermann-verify-cmd": {
+        "id": "p-hermann-verify-cmd",
+        "label": "Verification commands",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      }
+    },
+    "transitions": {
+      "t-hermann-approve-prep": {
+        "id": "t-hermann-approve-prep",
+        "label": "Approved spec to coder command",
+        "x": 320,
+        "y": 100
+      },
+      "t-hermann-changes-prep": {
+        "id": "t-hermann-changes-prep",
+        "label": "Requested changes to coder command",
+        "x": 760,
+        "y": 100
+      },
+      "t-hermann-code-cmd": {
+        "id": "t-hermann-code-cmd",
+        "label": "Coder: implement the spec on a branch",
+        "x": 1200,
+        "y": 100
+      },
+      "t-hermann-diff-cmd": {
+        "id": "t-hermann-diff-cmd",
+        "label": "Review brief from the diff",
+        "x": 540,
+        "y": 440
+      },
+      "t-hermann-merge-cmd": {
+        "id": "t-hermann-merge-cmd",
+        "label": "Merge, tag, audit, next iteration",
+        "x": 540,
+        "y": 610
+      },
+      "t-hermann-merge-prep": {
+        "id": "t-hermann-merge-prep",
+        "label": "Merge decision to release command",
+        "x": 980,
+        "y": 610
+      },
+      "t-hermann-review": {
+        "id": "t-hermann-review",
+        "label": "Review the pull request against the spec",
+        "x": 980,
+        "y": 440
+      },
+      "t-hermann-verify-cmd": {
+        "id": "t-hermann-verify-cmd",
+        "label": "Verify: tests, image, container, probes, shutdown",
+        "x": 100,
+        "y": 270
+      }
+    }
+  }
+}

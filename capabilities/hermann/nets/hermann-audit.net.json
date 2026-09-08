@@ -1,0 +1,78 @@
+{
+  "net": "hermann-audit",
+  "model": "hermann",
+  "session": "agent-hermann",
+  "description": "The twelve factors, measured. An audit request (bootstrap, merge, weekly cron) becomes a repository digest; the digest queues twelve factor checks, one lane per factor, each scoring 0 to 3 with evidence and a fix recipe; the check that completes the set queues the scorecard.",
+  "places": {
+    "p-hermann-audit-request": "Audit requests",
+    "p-hermann-repo": "The service repository record",
+    "p-hermann-audit-cmd": "Audit commands (digest, scorecard)",
+    "p-hermann-factor-cmd": "Factor check commands (one token per factor)",
+    "p-hermann-audit-log": "Audit command results",
+    "p-hermann-repo-digest": "Repository digest per commit",
+    "p-hermann-factor-reports": "Factor reports (score, evidence, fix) per commit",
+    "p-hermann-scorecard": "Twelve-factor scorecard per commit",
+    "p-hermann-cards": "The twelve factor cards"
+  },
+  "transitions": [
+    {
+      "id": "t-hermann-audit-cron",
+      "kind": "map",
+      "label": "Weekly audit (Monday 06:30)",
+      "schedule": {"type": "cron", "cron": "0 30 6 * * MON", "timezone": "Europe/Berlin"},
+      "reads": {"repo": {"place": "p-hermann-repo", "arcql": "FROM $ WHERE $.status == \"bootstrapped\" LIMIT 1", "consume": false}},
+      "writes": {"req": "p-hermann-audit-request"},
+      "template": {"at": "${now()}", "reason": "weekly", "repoId": "${repo.data.repoId}", "sha": ""}
+    },
+    {
+      "id": "t-hermann-audit-prep",
+      "kind": "map",
+      "label": "Audit request to digest command",
+      "reads": {
+        "req": {"place": "p-hermann-audit-request", "arcql": "FROM $ LIMIT 1"},
+        "repo": {"place": "p-hermann-repo", "arcql": "FROM $ WHERE $.status == \"bootstrapped\" LIMIT 1", "consume": false}
+      },
+      "writes": {"cmd": "p-hermann-audit-cmd"},
+      "template": {
+        "kind": "command", "id": "digest-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "digest", "reason": "${req.data.reason}", "filedAt": "${now()}",
+        "args": {"toolId": "hermann-digest", "argv": ["digest", "${req.data.sha}", "${repo.data.repoId}"], "env": {"MODEL_ID": "hermann"}, "timeoutMs": 600000}
+      }
+    },
+    {
+      "id": "t-hermann-digest-cmd",
+      "kind": "command",
+      "label": "Repository digest",
+      "description": "Measures the repository once per audit (tree, pom, resources, Dockerfile, compose, tests, migrations, commits) and queues the twelve factor checks.",
+      "reads": {"input": {"place": "p-hermann-audit-cmd", "arcql": "FROM $ WHERE $.stage == \"digest\" LIMIT 1"}},
+      "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "digest": "p-hermann-repo-digest", "factor_cmd": "p-hermann-factor-cmd"},
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 600000}
+    },
+    {"id": "t-hermann-f01-codebase", "kind": "command", "label": "I. Codebase", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"01\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f02-dependencies", "kind": "command", "label": "II. Dependencies", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"02\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f03-config", "kind": "command", "label": "III. Config", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"03\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f04-backing-services", "kind": "command", "label": "IV. Backing services", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"04\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f05-build-release-run", "kind": "command", "label": "V. Build, release, run", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"05\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f06-processes", "kind": "command", "label": "VI. Processes", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"06\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f07-port-binding", "kind": "command", "label": "VII. Port binding", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"07\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f08-concurrency", "kind": "command", "label": "VIII. Concurrency", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"08\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f09-disposability", "kind": "command", "label": "IX. Disposability", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"09\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f10-dev-prod-parity", "kind": "command", "label": "X. Dev/prod parity", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"10\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f11-logs", "kind": "command", "label": "XI. Logs", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"11\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {"id": "t-hermann-f12-admin-processes", "kind": "command", "label": "XII. Admin processes", "reads": {"input": {"place": "p-hermann-factor-cmd", "arcql": "FROM $ WHERE $.factor == \"12\" LIMIT 1"}}, "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "reports": "p-hermann-factor-reports", "audit_cmd": "p-hermann-audit-cmd"}, "emit": [{"from": "@result", "to": "log"}], "command": {"timeoutMs": 900000}},
+    {
+      "id": "t-hermann-scorecard-cmd",
+      "kind": "command",
+      "label": "Scorecard",
+      "description": "Aggregates the twelve reports of one commit into a scorecard (total of 36, grade, failing and weak factors). Idempotent per commit.",
+      "reads": {
+        "input": {"place": "p-hermann-audit-cmd", "arcql": "FROM $ WHERE $.stage == \"scorecard\" LIMIT 1"},
+        "cards": {"place": "p-hermann-cards", "arcql": "FROM $ LIMIT 1", "consume": false, "optional": true}
+      },
+      "writes": {"log": {"place": "p-hermann-audit-log", "retain": 300}, "scorecard": "p-hermann-scorecard"},
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 300000}
+    }
+  ]
+}

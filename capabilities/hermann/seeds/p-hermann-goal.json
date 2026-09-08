@@ -1,0 +1,16 @@
+[
+  {
+    "name": "hermann-goal",
+    "goalId": "g-1",
+    "status": "draft",
+    "title": "REPLACE ME: what this service is for, in one line",
+    "description": "REPLACE ME: who uses it, what it must do, what it must never do. Hermann reads this before every proposal and every spec.",
+    "principles": [
+      "Twelve-factor: config from the environment, stateless processes, stdout logs, one-off admin processes",
+      "Small, reviewable pull requests; every change ships with tests",
+      "No secret in the codebase, ever"
+    ],
+    "constraints": [],
+    "updatedAt": "2026-09-07T00:00:00Z"
+  }
+]

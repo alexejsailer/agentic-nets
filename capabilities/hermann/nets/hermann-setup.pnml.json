@@ -1,0 +1,160 @@
+{
+  "net": {
+    "arcs": {
+      "a-hermann-setup-01": {
+        "id": "a-hermann-setup-01",
+        "source": "p-hermann-config",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-setup-02": {
+        "id": "a-hermann-setup-02",
+        "source": "p-hermann-goal",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-setup-03": {
+        "id": "a-hermann-setup-03",
+        "source": "p-hermann-cards",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-setup-04": {
+        "id": "a-hermann-setup-04",
+        "source": "t-hermann-infra-tick",
+        "target": "p-hermann-setup-cmd",
+        "weight": 1
+      },
+      "a-hermann-setup-05": {
+        "id": "a-hermann-setup-05",
+        "source": "p-hermann-setup-cmd",
+        "target": "t-hermann-setup-cmd",
+        "weight": 1
+      },
+      "a-hermann-setup-06": {
+        "id": "a-hermann-setup-06",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-setup-log",
+        "weight": 1
+      },
+      "a-hermann-setup-07": {
+        "id": "a-hermann-setup-07",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-infra",
+        "weight": 1
+      },
+      "a-hermann-setup-08": {
+        "id": "a-hermann-setup-08",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-repo",
+        "weight": 1
+      },
+      "a-hermann-setup-09": {
+        "id": "a-hermann-setup-09",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-setup-10": {
+        "id": "a-hermann-setup-10",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-errors",
+        "weight": 1
+      },
+      "a-hermann-setup-11": {
+        "id": "a-hermann-setup-11",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      }
+    },
+    "description": "Configuration and infrastructure: the config token, an hourly infrastructure health tick, and one command lane that runs Hermann's setup processes (health, git host provisioning, repository creation, bootstrap) as one-off scripts. The declared outputs are the places those scripts write through master.",
+    "id": "hermann-setup",
+    "places": {
+      "p-hermann-audit-request": {
+        "id": "p-hermann-audit-request",
+        "label": "Audit requests (bootstrap, merge, weekly)",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-hermann-cards": {
+        "id": "p-hermann-cards",
+        "label": "The twelve factor cards (seeded knowledge)",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-hermann-config": {
+        "id": "p-hermann-config",
+        "label": "Hermann config (seeded, edited in the app)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-hermann-errors": {
+        "id": "p-hermann-errors",
+        "label": "Errors",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-hermann-goal": {
+        "id": "p-hermann-goal",
+        "label": "Goal and principles (seeded placeholder, edited in the app)",
+        "tokens": 0,
+        "x": 320,
+        "y": 100
+      },
+      "p-hermann-infra": {
+        "id": "p-hermann-infra",
+        "label": "Infrastructure health (docker, git host, toolchain)",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "Journal: every lane writes what it did",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-hermann-repo": {
+        "id": "p-hermann-repo",
+        "label": "The service repository record",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-hermann-setup-cmd": {
+        "id": "p-hermann-setup-cmd",
+        "label": "Setup commands: health, provision, create-repo, bootstrap",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-hermann-setup-log": {
+        "id": "p-hermann-setup-log",
+        "label": "Setup command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      }
+    },
+    "transitions": {
+      "t-hermann-infra-tick": {
+        "id": "t-hermann-infra-tick",
+        "label": "Infrastructure health tick (hourly)",
+        "x": 760,
+        "y": 100
+      },
+      "t-hermann-setup-cmd": {
+        "id": "t-hermann-setup-cmd",
+        "label": "Run a setup process",
+        "x": 1200,
+        "y": 100
+      }
+    }
+  }
+}

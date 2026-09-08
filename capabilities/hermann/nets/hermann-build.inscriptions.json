@@ -1,0 +1,495 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "code",
+            "${dec.data.specId}"
+          ],
+          "env": {
+            "DECISION_NOTES": "${dec.data.notes}",
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 2700000,
+          "toolId": "hermann-code"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "code-${now()}",
+        "kind": "command",
+        "specId": "${dec.data.specId}",
+        "stage": "code"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-approve-prep",
+    "kind": "map",
+    "label": "Approved spec to coder command",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-code-cmd"
+      }
+    },
+    "presets": {
+      "dec": {
+        "arcql": "FROM $ WHERE $.kind == \"spec-approval\" AND $.verdict == \"approved\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-decisions",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "revise",
+            "${dec.data.runId}"
+          ],
+          "env": {
+            "DECISION_NOTES": "${dec.data.notes}",
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 2700000,
+          "toolId": "hermann-code"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "revise-${now()}",
+        "kind": "command",
+        "runId": "${dec.data.runId}",
+        "stage": "revise"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-changes-prep",
+    "kind": "map",
+    "label": "Requested changes to coder command",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-code-cmd"
+      }
+    },
+    "presets": {
+      "dec": {
+        "arcql": "FROM $ WHERE $.kind == \"merge\" AND $.verdict == \"changes\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-decisions",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 2700000,
+      "type": "command"
+    },
+    "description": "Spawns Claude Code inside the repository with the goal, principles, decisions, spec and factor practices as its brief and least-privilege tools; then runs the authoritative verify, commits, pushes, opens the pull request and queues verification. The git host token comes from the vault; the coder never sees it.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-code-cmd",
+    "kind": "command",
+    "label": "Coder: implement the spec on a branch",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-errors"
+      },
+      "journal": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-journal"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-build-log",
+        "retain": 300
+      },
+      "runs": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-runs"
+      },
+      "verify_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-verify-cmd"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-code-cmd",
+        "take": "FIRST"
+      },
+      "spec": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-specs",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 2400000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-verify-cmd",
+    "kind": "command",
+    "label": "Verify: tests, image, container, probes, shutdown",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-build-log",
+        "retain": 300
+      },
+      "review_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-review-cmd"
+      },
+      "verification": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-verification"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-verify-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-diff-cmd",
+    "kind": "command",
+    "label": "Review brief from the diff",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "context": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-context"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-build-log",
+        "retain": 300
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-review-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "runId",
+          "specId",
+          "verdict",
+          "summary",
+          "acceptanceMet"
+        ],
+        "retries": 1,
+        "types": {
+          "acceptanceMet": "array",
+          "acceptanceMissing": "array",
+          "points": "array",
+          "verdict": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "hermann",
+      "nl": "You are Hermann reviewing your own pull request against the spec, the accepted decisions and the twelve factors. Read the brief; the verification numbers in it are measured, trust them. Reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nVerdict \"approve\" only when every acceptance criterion is met by the diff and its tests, nothing out of scope was touched, and no factor regressed (no literal configuration, no local state, no file logging, no unversioned schema change). Otherwise \"changes\" with concrete, actionable points. Always include acceptanceMissing and points, as empty arrays when there is nothing to report.\n\nReply with exactly this shape: {\"runId\": \"<runId from the brief>\", \"specId\": \"<specId from the brief>\", \"verdict\": \"approve|changes\", \"summary\": \"<three sentences>\", \"acceptanceMet\": [\"...\"], \"acceptanceMissing\": [\"...\"], \"points\": [{\"severity\": \"must|should|nit\", \"file\": \"<path or general>\", \"comment\": \"<what to change and why>\"}], \"factorsChecked\": [\"...\"], \"at\": \"<now from the brief>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-hermann",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "reviews",
+        "when": "verdict == 'approve' OR verdict == 'changes'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "verdict != 'approve' AND verdict != 'changes'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-hermann-review",
+    "kind": "agent",
+    "label": "Review the pull request against the spec",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-llm-errors",
+        "retain": 100
+      },
+      "reviews": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-reviews"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"review\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "merge",
+            "${dec.data.runId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 600000,
+          "toolId": "hermann-release"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "merge-${now()}",
+        "kind": "command",
+        "runId": "${dec.data.runId}",
+        "stage": "merge"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-merge-prep",
+    "kind": "map",
+    "label": "Merge decision to release command",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-release-cmd"
+      }
+    },
+    "presets": {
+      "dec": {
+        "arcql": "FROM $ WHERE $.kind == \"merge\" AND $.verdict == \"merge\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-decisions",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 600000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-merge-cmd",
+    "kind": "command",
+    "label": "Merge, tag, audit, next iteration",
+    "metadata": {
+      "netId": "hermann-build",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_request": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-request"
+      },
+      "iterate": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-iterate"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-build-log",
+        "retain": 300
+      },
+      "repo": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-repo"
+      },
+      "runs": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-runs"
+      },
+      "specs": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-specs"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-release-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

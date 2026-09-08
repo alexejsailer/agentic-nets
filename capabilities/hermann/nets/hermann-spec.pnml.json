@@ -1,0 +1,220 @@
+{
+  "net": {
+    "arcs": {
+      "a-hermann-spec-01": {
+        "id": "a-hermann-spec-01",
+        "source": "p-hermann-iterate",
+        "target": "t-hermann-iterate-prep",
+        "weight": 1
+      },
+      "a-hermann-spec-02": {
+        "id": "a-hermann-spec-02",
+        "source": "p-hermann-adr",
+        "target": "t-hermann-iterate-prep",
+        "weight": 1
+      },
+      "a-hermann-spec-03": {
+        "id": "a-hermann-spec-03",
+        "source": "t-hermann-iterate-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-spec-04": {
+        "id": "a-hermann-spec-04",
+        "source": "p-hermann-context-cmd",
+        "target": "t-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-spec-05": {
+        "id": "a-hermann-spec-05",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-spec-log",
+        "weight": 1
+      },
+      "a-hermann-spec-06": {
+        "id": "a-hermann-spec-06",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-spec-07": {
+        "id": "a-hermann-spec-07",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-spec-08": {
+        "id": "a-hermann-spec-08",
+        "source": "p-hermann-context",
+        "target": "t-hermann-propose",
+        "weight": 1
+      },
+      "a-hermann-spec-09": {
+        "id": "a-hermann-spec-09",
+        "source": "t-hermann-propose",
+        "target": "p-hermann-prompts",
+        "weight": 1
+      },
+      "a-hermann-spec-10": {
+        "id": "a-hermann-spec-10",
+        "source": "t-hermann-propose",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-spec-11": {
+        "id": "a-hermann-spec-11",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-answer-prep",
+        "weight": 1
+      },
+      "a-hermann-spec-12": {
+        "id": "a-hermann-spec-12",
+        "source": "t-hermann-answer-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-spec-13": {
+        "id": "a-hermann-spec-13",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-revise-prep",
+        "weight": 1
+      },
+      "a-hermann-spec-14": {
+        "id": "a-hermann-spec-14",
+        "source": "t-hermann-revise-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-spec-15": {
+        "id": "a-hermann-spec-15",
+        "source": "p-hermann-context",
+        "target": "t-hermann-spec",
+        "weight": 1
+      },
+      "a-hermann-spec-16": {
+        "id": "a-hermann-spec-16",
+        "source": "t-hermann-spec",
+        "target": "p-hermann-specs",
+        "weight": 1
+      },
+      "a-hermann-spec-17": {
+        "id": "a-hermann-spec-17",
+        "source": "t-hermann-spec",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      }
+    },
+    "description": "The iteration loop's judgement half. An iteration trigger becomes a measured brief; Hermann proposes the next iteration as a choice, an interview or a goal definition; the person answers in the application; the answer becomes a spec brief; Hermann writes the spec. Bounded one-shot LLM fires with answer contracts; scripts render every brief.",
+    "id": "hermann-spec",
+    "places": {
+      "p-hermann-adr": {
+        "id": "p-hermann-adr",
+        "label": "Architecture decision records",
+        "tokens": 0,
+        "x": 320,
+        "y": 100
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "Briefs for the judgement lanes",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-hermann-context-cmd": {
+        "id": "p-hermann-context-cmd",
+        "label": "Context commands (propose, spec briefs)",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      },
+      "p-hermann-iterate": {
+        "id": "p-hermann-iterate",
+        "label": "Iteration triggers (app, merge)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-hermann-prompts": {
+        "id": "p-hermann-prompts",
+        "label": "Hermann's questions: choices, interviews, goal requests",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-hermann-responses": {
+        "id": "p-hermann-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-hermann-spec-log": {
+        "id": "p-hermann-spec-log",
+        "label": "Context command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-hermann-specs": {
+        "id": "p-hermann-specs",
+        "label": "Specs (draft, approved, merged)",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      }
+    },
+    "transitions": {
+      "t-hermann-answer-prep": {
+        "id": "t-hermann-answer-prep",
+        "label": "Answer to spec brief",
+        "x": 100,
+        "y": 440
+      },
+      "t-hermann-context-cmd": {
+        "id": "t-hermann-context-cmd",
+        "label": "Render a brief",
+        "x": 980,
+        "y": 100
+      },
+      "t-hermann-iterate-prep": {
+        "id": "t-hermann-iterate-prep",
+        "label": "Iteration trigger to proposal brief",
+        "x": 540,
+        "y": 100
+      },
+      "t-hermann-propose": {
+        "id": "t-hermann-propose",
+        "label": "Propose the next iteration (choice, interview or goal)",
+        "x": 760,
+        "y": 270
+      },
+      "t-hermann-revise-prep": {
+        "id": "t-hermann-revise-prep",
+        "label": "Reshaped question to a new proposal brief",
+        "x": 320,
+        "y": 440
+      },
+      "t-hermann-spec": {
+        "id": "t-hermann-spec",
+        "label": "Write the spec",
+        "x": 540,
+        "y": 440
+      }
+    }
+  }
+}

@@ -1,0 +1,413 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "context",
+            "propose",
+            "${it.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 300000,
+          "toolId": "hermann-context"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "ctx-propose-${now()}",
+        "iterationId": "${it.data.iterationId}",
+        "kind": "command",
+        "stage": "propose"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-iterate-prep",
+    "kind": "map",
+    "label": "Iteration trigger to proposal brief",
+    "metadata": {
+      "netId": "hermann-spec",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-context-cmd"
+      }
+    },
+    "presets": {
+      "adr": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-adr",
+        "take": "FIRST"
+      },
+      "it": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-iterate",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "description": "hermann-context renders the goal, principles, decisions, service state, scorecard, risks, upgrades and history into one brief token; for a spec brief it adds the person's answer.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-context-cmd",
+    "kind": "command",
+    "label": "Render a brief",
+    "metadata": {
+      "netId": "hermann-spec",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "context": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-context"
+      },
+      "journal": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-journal"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-spec-log",
+        "retain": 200
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-context-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "promptId",
+          "iterationId",
+          "mode",
+          "question",
+          "options",
+          "rationale"
+        ],
+        "retries": 1,
+        "types": {
+          "mode": "string",
+          "options": "array",
+          "question": "string",
+          "rationale": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "hermann",
+      "nl": "You are Hermann, a twelve-factor Spring Boot developer, deciding with the person what the next iteration is. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the goal is NOT DEFINED: ask the person to define the goal; give 3 options that are example goal statements for this kind of service which they can adapt; the question asks for the goal in one line plus a paragraph.\n- \"interview\" when the next step cannot be chosen without information only the person has (users, domain rules, integrations, non-functional needs): ask at most 3 precise questions; each question is an option {value: \"q1\", label: <the question>, description: <why the answer matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete next iterations, each a small, complete, testable increment that fits one pull request. Prefer, in this order: a failing or weak twelve-factor factor, an open blocking risk, an upgrade proposal, then the goal's most valuable missing capability. Never repeat a merged spec or an earlier proposal verbatim. Each option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, effort: \"S|M|L\", risk: \"low|medium|high\", factors: [<factor numbers touched>], recommended: true|false}. Exactly one option is recommended.\n\nReply with exactly this shape: {\"promptId\": \"<promptId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"mode\": \"choice|interview|goal\", \"question\": \"<the question to the person, one sentence>\", \"context\": \"<two sentences: scorecard, last merge, what is missing>\", \"options\": [...], \"allowFreeText\": true, \"rationale\": \"<why these options, two sentences>\", \"at\": \"<now from the brief>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-hermann",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "prompts",
+        "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-hermann-propose",
+    "kind": "agent",
+    "label": "Propose the next iteration (choice, interview or goal)",
+    "metadata": {
+      "netId": "hermann-spec",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-llm-errors",
+        "retain": 100
+      },
+      "prompts": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-prompts"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"propose\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "context",
+            "spec",
+            "${resp.data.iterationId}",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann",
+            "RESPONSE_NOTES": "${resp.data.notes}",
+            "RESPONSE_SELECTED": "${resp.data.selected}",
+            "RESPONSE_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "hermann-context"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "ctx-spec-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "promptId": "${resp.data.promptId}",
+        "stage": "spec"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-answer-prep",
+    "kind": "map",
+    "label": "Answer to spec brief",
+    "metadata": {
+      "netId": "hermann-spec",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-context-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "context",
+            "propose",
+            "${resp.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann",
+            "REVISION_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "hermann-context"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "ctx-revise-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "stage": "propose"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-revise-prep",
+    "kind": "map",
+    "label": "Reshaped question to a new proposal brief",
+    "metadata": {
+      "netId": "hermann-spec",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-context-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "specId",
+          "iterationId",
+          "promptId",
+          "title",
+          "summary",
+          "story",
+          "acceptance",
+          "api",
+          "data",
+          "config",
+          "factors",
+          "tests",
+          "outOfScope",
+          "status"
+        ],
+        "retries": 1,
+        "types": {
+          "acceptance": "array",
+          "api": "array",
+          "config": "array",
+          "data": "array",
+          "factors": "array",
+          "outOfScope": "array",
+          "tests": "array",
+          "title": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "hermann",
+      "nl": "You are Hermann, writing the spec for the iteration the person chose. Read the brief, then reply with ONE JSON object and nothing else. The spec is the contract the coder implements and the reviewer checks: every acceptance criterion must be testable; configuration comes from environment variables; schema changes are versioned Flyway migrations; the whole spec fits one pull request.\n\n${ctx.data.brief}\n\nReply with exactly this shape: {\"specId\": \"<specId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"promptId\": \"<promptId from the brief>\", \"title\": \"<imperative, under 70 characters>\", \"summary\": \"<three sentences>\", \"story\": \"As a <user>, I want <capability>, so that <value>.\", \"acceptance\": [\"Given ..., when ..., then ...\"], \"api\": [\"<METHOD /path: request, response, status codes>\"], \"data\": [\"<table or entity change and its migration name>\"], \"config\": [{\"name\": \"ENV_NAME\", \"purpose\": \"...\", \"default\": \"...\"}], \"factors\": [\"<factor number: how it is touched>\"], \"tests\": [\"<test class: what it proves>\"], \"outOfScope\": [\"...\"], \"risks\": [\"...\"], \"status\": \"draft\", \"at\": \"<now from the brief>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-hermann",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "specs",
+        "when": "status == 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "status != 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-hermann-spec",
+    "kind": "agent",
+    "label": "Write the spec",
+    "metadata": {
+      "netId": "hermann-spec",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-llm-errors",
+        "retain": 100
+      },
+      "specs": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-specs"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"spec\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  }
+]

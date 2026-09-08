@@ -1,0 +1,89 @@
+apiVersion: agentic-nets.com/capability/v1
+name: hermann
+version: 0.1.0
+displayName: Hermann
+domain: engineering
+description: >-
+  Hermann is a twelve-factor Spring Boot developer. He provisions his own git host on the Docker
+  host, bootstraps a service that is twelve-factor from the first commit, measures every factor
+  with a deterministic check per factor, proposes what to do next as choices or questions, writes
+  specs from the answers, implements them with a spawned Claude Code instance inside the spec,
+  verifies, reviews, and merges through pull requests. Scripts measure, bounded LLM fires judge,
+  the coder codes inside a contract; the application on top is where the goal, the principles and
+  every iteration decision live.
+tags: [agents, capability-pack, developer, spring-boot, twelve-factor]
+engineMin: "2.58.0"
+
+entry:
+  inbox: p-hermann-goal
+  outbox: p-hermann-runs
+  correlationField: specId
+
+nets:
+  - name: hermann-setup
+    pnml: nets/hermann-setup.pnml.json
+    inscriptions: nets/hermann-setup.inscriptions.json
+    role: configuration
+  - name: hermann-audit
+    pnml: nets/hermann-audit.pnml.json
+    inscriptions: nets/hermann-audit.inscriptions.json
+    role: twelve-factor-audit
+  - name: hermann-spec
+    pnml: nets/hermann-spec.pnml.json
+    inscriptions: nets/hermann-spec.inscriptions.json
+    role: iteration-judgement
+  - name: hermann-build
+    pnml: nets/hermann-build.pnml.json
+    inscriptions: nets/hermann-build.inscriptions.json
+    role: iteration-build
+
+# Scripts ship from assets/index.json (the packager reads it); this list is the human index.
+scripts:
+  - id: hermann-infra
+    file: assets/hermann-infra.py
+  - id: hermann-git
+    file: assets/hermann-git.py
+  - id: hermann-bootstrap
+    file: assets/hermann-bootstrap.py
+  - id: hermann-digest
+    file: assets/hermann-digest.py
+  - id: hermann-audit
+    file: assets/hermann-audit.py
+  - id: hermann-context
+    file: assets/hermann-context.py
+  - id: hermann-code
+    file: assets/hermann-code.py
+  - id: hermann-verify
+    file: assets/hermann-verify.py
+  - id: hermann-diff
+    file: assets/hermann-diff.py
+  - id: hermann-release
+    file: assets/hermann-release.py
+
+config:
+  - key: p-hermann-config
+    seed: seeds/p-hermann-config.json
+    description: >-
+      Hermann's own configuration: git host image and ports, Java and Boot policy, the service's
+      groupId/artifactId/package/dependencies, the lanes that receive the git host token, the
+      blocking scan severity, the coder model and timeout. artifactId ships as REPLACE ME.
+  - key: p-hermann-goal
+    seed: seeds/p-hermann-goal.json
+    description: The overall goal, principles and constraints; edited in the application.
+  - key: p-hermann-cards
+    seed: seeds/p-hermann-cards.json
+    description: The twelve factor cards (rule, Spring Boot practice, check, fix) Hermann reads when he specs and implements.
+
+credentials:
+  - key: GITEA_TOKEN
+    transition: t-hermann-setup-cmd
+    required: false
+    description: >-
+      Minted by `hermann-git provision` and stored in the vault for every lane in config.tokenLanes;
+      never in a token. Re-run provisioning to rotate.
+
+install:
+  targetModelDefault: hermann
+  sessionId: agent-hermann
+
+verify: verify/smoke.json

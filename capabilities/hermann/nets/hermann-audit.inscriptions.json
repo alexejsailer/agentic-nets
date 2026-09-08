@@ -1,0 +1,889 @@
+[
+  {
+    "action": {
+      "template": {
+        "at": "${now()}",
+        "reason": "weekly",
+        "repoId": "${repo.data.repoId}",
+        "sha": ""
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "req"
+      }
+    ],
+    "id": "t-hermann-audit-cron",
+    "kind": "map",
+    "label": "Weekly audit (Monday 06:30)",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "req": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-request"
+      }
+    },
+    "presets": {
+      "repo": {
+        "arcql": "FROM $ WHERE $.status == \"bootstrapped\" LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-repo",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 30 6 * * MON",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "digest",
+            "${req.data.sha}",
+            "${repo.data.repoId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 600000,
+          "toolId": "hermann-digest"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "digest-${now()}",
+        "kind": "command",
+        "reason": "${req.data.reason}",
+        "stage": "digest"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-audit-prep",
+    "kind": "map",
+    "label": "Audit request to digest command",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      }
+    },
+    "presets": {
+      "repo": {
+        "arcql": "FROM $ WHERE $.status == \"bootstrapped\" LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-repo",
+        "take": "FIRST"
+      },
+      "req": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-audit-request",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 600000,
+      "type": "command"
+    },
+    "description": "Measures the repository once per audit (tree, pom, resources, Dockerfile, compose, tests, migrations, commits) and queues the twelve factor checks.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-digest-cmd",
+    "kind": "command",
+    "label": "Repository digest",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "digest": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-repo-digest"
+      },
+      "factor_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"digest\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-audit-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f01-codebase",
+    "kind": "command",
+    "label": "I. Codebase",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"01\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f02-dependencies",
+    "kind": "command",
+    "label": "II. Dependencies",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"02\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f03-config",
+    "kind": "command",
+    "label": "III. Config",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"03\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f04-backing-services",
+    "kind": "command",
+    "label": "IV. Backing services",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"04\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f05-build-release-run",
+    "kind": "command",
+    "label": "V. Build, release, run",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"05\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f06-processes",
+    "kind": "command",
+    "label": "VI. Processes",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"06\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f07-port-binding",
+    "kind": "command",
+    "label": "VII. Port binding",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"07\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f08-concurrency",
+    "kind": "command",
+    "label": "VIII. Concurrency",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"08\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f09-disposability",
+    "kind": "command",
+    "label": "IX. Disposability",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"09\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f10-dev-prod-parity",
+    "kind": "command",
+    "label": "X. Dev/prod parity",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"10\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f11-logs",
+    "kind": "command",
+    "label": "XI. Logs",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"11\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-f12-admin-processes",
+    "kind": "command",
+    "label": "XII. Admin processes",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "audit_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-cmd"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "reports": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-factor-reports"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.factor == \"12\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-factor-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "description": "Aggregates the twelve reports of one commit into a scorecard (total of 36, grade, failing and weak factors). Idempotent per commit.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-scorecard-cmd",
+    "kind": "command",
+    "label": "Scorecard",
+    "metadata": {
+      "netId": "hermann-audit",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-audit-log",
+        "retain": 300
+      },
+      "scorecard": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-scorecard"
+      }
+    },
+    "presets": {
+      "cards": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-cards",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"scorecard\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-audit-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

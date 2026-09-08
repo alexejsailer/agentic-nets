@@ -1,0 +1,55 @@
+{
+  "net": "hermann-setup",
+  "model": "hermann",
+  "session": "agent-hermann",
+  "description": "Configuration and infrastructure: the config token, an hourly infrastructure health tick, and one command lane that runs Hermann's setup processes (health, git host provisioning, repository creation, bootstrap) as one-off scripts. The declared outputs are the places those scripts write through master.",
+  "places": {
+    "p-hermann-config": "Hermann config (seeded, edited in the app)",
+    "p-hermann-goal": "Goal and principles (seeded placeholder, edited in the app)",
+    "p-hermann-cards": "The twelve factor cards (seeded knowledge)",
+    "p-hermann-setup-cmd": "Setup commands: health, provision, create-repo, bootstrap",
+    "p-hermann-setup-log": "Setup command results",
+    "p-hermann-infra": "Infrastructure health (docker, git host, toolchain)",
+    "p-hermann-repo": "The service repository record",
+    "p-hermann-journal": "Journal: every lane writes what it did",
+    "p-hermann-errors": "Errors",
+    "p-hermann-audit-request": "Audit requests (bootstrap, merge, weekly)"
+  },
+  "transitions": [
+    {
+      "id": "t-hermann-infra-tick",
+      "kind": "map",
+      "label": "Infrastructure health tick (hourly)",
+      "description": "Every hour, file a health command so p-hermann-infra always holds a fresh measurement of what the executor host can do. The goal and the cards are read optionally so the canvas shows where they enter the net.",
+      "schedule": {"type": "cron", "cron": "0 7 * * * *", "timezone": "Europe/Berlin"},
+      "reads": {
+        "config": {"place": "p-hermann-config", "arcql": "FROM $ WHERE $.configId == \"hermann\" LIMIT 1", "consume": false},
+        "goal": {"place": "p-hermann-goal", "arcql": "FROM $ LIMIT 1", "consume": false, "optional": true},
+        "cards": {"place": "p-hermann-cards", "arcql": "FROM $ LIMIT 1", "consume": false, "optional": true}
+      },
+      "writes": {"cmd": "p-hermann-setup-cmd"},
+      "template": {
+        "kind": "command", "id": "infra-health-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "health", "filedAt": "${now()}",
+        "args": {"toolId": "hermann-infra", "argv": ["health"], "env": {"MODEL_ID": "hermann"}, "timeoutMs": 120000}
+      }
+    },
+    {
+      "id": "t-hermann-setup-cmd",
+      "kind": "command",
+      "label": "Run a setup process",
+      "description": "Executes one setup command token on the executor host: hermann-infra health, hermann-git provision|create-repo|protect, hermann-bootstrap bootstrap. The git host token (GITEA_TOKEN) is injected from the vault into this lane's environment.",
+      "reads": {"input": {"place": "p-hermann-setup-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-hermann-setup-log", "retain": 200},
+        "infra": "p-hermann-infra",
+        "repo": "p-hermann-repo",
+        "journal": "p-hermann-journal",
+        "errors": "p-hermann-errors",
+        "audit_request": "p-hermann-audit-request"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 2400000}
+    }
+  ]
+}

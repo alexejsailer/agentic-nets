@@ -1,0 +1,318 @@
+{
+  "net": "hermann-build",
+  "model": "hermann",
+  "session": "agent-hermann",
+  "description": "The iteration loop's building half. An approved spec spawns the coder on a feature branch and opens a pull request; verification proves it in a clean worktree, an image and a running container; the diff digest feeds the review; the person merges or requests changes; the merge tags, audits and starts the next iteration.",
+  "places": {
+    "p-hermann-decisions": "The person's decisions (spec approval, merge, changes)",
+    "p-hermann-code-cmd": "Coder commands (code, revise)",
+    "p-hermann-verify-cmd": "Verification commands",
+    "p-hermann-review-cmd": "Review brief commands",
+    "p-hermann-release-cmd": "Release commands (merge)",
+    "p-hermann-build-log": "Build command results",
+    "p-hermann-runs": "Runs: branch, pull request, tests, coder summary",
+    "p-hermann-verification": "Verification results (tests, image, startup, shutdown, logs)",
+    "p-hermann-context": "Briefs for the judgement lanes",
+    "p-hermann-reviews": "Review verdicts",
+    "p-hermann-specs": "Specs",
+    "p-hermann-repo": "The service repository record",
+    "p-hermann-audit-request": "Audit requests",
+    "p-hermann-iterate": "Iteration triggers",
+    "p-hermann-llm-errors": "Answers that missed their contract",
+    "p-hermann-journal": "Journal",
+    "p-hermann-errors": "Errors"
+  },
+  "transitions": [
+    {
+      "id": "t-hermann-approve-prep",
+      "kind": "map",
+      "label": "Approved spec to coder command",
+      "reads": {
+        "dec": {
+          "place": "p-hermann-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"spec-approval\" AND $.verdict == \"approved\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-hermann-code-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "code-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "code",
+        "specId": "${dec.data.specId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "hermann-code",
+          "argv": [
+            "code",
+            "${dec.data.specId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann",
+            "DECISION_NOTES": "${dec.data.notes}"
+          },
+          "timeoutMs": 2700000
+        }
+      }
+    },
+    {
+      "id": "t-hermann-changes-prep",
+      "kind": "map",
+      "label": "Requested changes to coder command",
+      "reads": {
+        "dec": {
+          "place": "p-hermann-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"merge\" AND $.verdict == \"changes\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-hermann-code-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "revise-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "revise",
+        "runId": "${dec.data.runId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "hermann-code",
+          "argv": [
+            "revise",
+            "${dec.data.runId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann",
+            "DECISION_NOTES": "${dec.data.notes}"
+          },
+          "timeoutMs": 2700000
+        }
+      }
+    },
+    {
+      "id": "t-hermann-code-cmd",
+      "kind": "command",
+      "label": "Coder: implement the spec on a branch",
+      "description": "Spawns Claude Code inside the repository with the goal, principles, decisions, spec and factor practices as its brief and least-privilege tools; then runs the authoritative verify, commits, pushes, opens the pull request and queues verification. The git host token comes from the vault; the coder never sees it.",
+      "reads": {
+        "input": {
+          "place": "p-hermann-code-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        },
+        "spec": {
+          "place": "p-hermann-specs",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-build-log",
+          "retain": 300
+        },
+        "runs": "p-hermann-runs",
+        "verify_cmd": "p-hermann-verify-cmd",
+        "journal": "p-hermann-journal",
+        "errors": "p-hermann-errors"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 2700000
+      }
+    },
+    {
+      "id": "t-hermann-verify-cmd",
+      "kind": "command",
+      "label": "Verify: tests, image, container, probes, shutdown",
+      "reads": {
+        "input": {
+          "place": "p-hermann-verify-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-build-log",
+          "retain": 300
+        },
+        "verification": "p-hermann-verification",
+        "review_cmd": "p-hermann-review-cmd"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 2400000
+      }
+    },
+    {
+      "id": "t-hermann-diff-cmd",
+      "kind": "command",
+      "label": "Review brief from the diff",
+      "reads": {
+        "input": {
+          "place": "p-hermann-review-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-build-log",
+          "retain": 300
+        },
+        "context": "p-hermann-context"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 300000
+      }
+    },
+    {
+      "id": "t-hermann-review",
+      "kind": "agent",
+      "label": "Review the pull request against the spec",
+      "reads": {
+        "ctx": {
+          "place": "p-hermann-context",
+          "arcql": "FROM $ WHERE $.purpose == \"review\" LIMIT 1",
+          "ttl": 600000
+        }
+      },
+      "writes": {
+        "reviews": "p-hermann-reviews",
+        "errors": {
+          "place": "p-hermann-llm-errors",
+          "retain": 100
+        }
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "runId",
+            "specId",
+            "verdict",
+            "summary",
+            "acceptanceMet"
+          ],
+          "types": {
+            "points": "array",
+            "acceptanceMet": "array",
+            "acceptanceMissing": "array",
+            "verdict": "string"
+          },
+          "retries": 1
+        },
+        "nl": "You are Hermann reviewing your own pull request against the spec, the accepted decisions and the twelve factors. Read the brief; the verification numbers in it are measured, trust them. Reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nVerdict \"approve\" only when every acceptance criterion is met by the diff and its tests, nothing out of scope was touched, and no factor regressed (no literal configuration, no local state, no file logging, no unversioned schema change). Otherwise \"changes\" with concrete, actionable points. Always include acceptanceMissing and points, as empty arrays when there is nothing to report.\n\nReply with exactly this shape: {\"runId\": \"<runId from the brief>\", \"specId\": \"<specId from the brief>\", \"verdict\": \"approve|changes\", \"summary\": \"<three sentences>\", \"acceptanceMet\": [\"...\"], \"acceptanceMissing\": [\"...\"], \"points\": [{\"severity\": \"must|should|nit\", \"file\": \"<path or general>\", \"comment\": \"<what to change and why>\"}], \"factorsChecked\": [\"...\"], \"at\": \"<now from the brief>\"}",
+        "oneShot": true
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "reviews",
+          "when": "verdict == 'approve' OR verdict == 'changes'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "verdict != 'approve' AND verdict != 'changes'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-hermann-merge-prep",
+      "kind": "map",
+      "label": "Merge decision to release command",
+      "reads": {
+        "dec": {
+          "place": "p-hermann-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"merge\" AND $.verdict == \"merge\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-hermann-release-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "merge-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "merge",
+        "runId": "${dec.data.runId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "hermann-release",
+          "argv": [
+            "merge",
+            "${dec.data.runId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann"
+          },
+          "timeoutMs": 600000
+        }
+      }
+    },
+    {
+      "id": "t-hermann-merge-cmd",
+      "kind": "command",
+      "label": "Merge, tag, audit, next iteration",
+      "reads": {
+        "input": {
+          "place": "p-hermann-release-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-build-log",
+          "retain": 300
+        },
+        "runs": "p-hermann-runs",
+        "specs": "p-hermann-specs",
+        "repo": "p-hermann-repo",
+        "audit_request": "p-hermann-audit-request",
+        "iterate": "p-hermann-iterate"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 600000
+      }
+    }
+  ]
+}

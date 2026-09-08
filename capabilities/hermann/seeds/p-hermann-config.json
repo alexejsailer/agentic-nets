@@ -1,0 +1,37 @@
+[
+  {
+    "name": "hermann-config",
+    "configId": "hermann",
+    "status": "draft",
+    "hermannHome": "~/hermann",
+    "giteaImage": "gitea/gitea:1.24",
+    "giteaContainer": "hermann-gitea",
+    "giteaVolume": "hermann-gitea",
+    "giteaPort": "3300",
+    "giteaSshPort": "3322",
+    "giteaUser": "hermann",
+    "javaVersion": "21",
+    "bootVersion": "current",
+    "groupId": "dev.hermann",
+    "artifactId": "REPLACE ME",
+    "packageName": "",
+    "description": "",
+    "dependencies": "web,actuator,validation,data-jpa,postgresql,flyway,testcontainers,docker-compose",
+    "tokenLanes": [
+      "t-hermann-setup-cmd",
+      "t-hermann-digest-cmd",
+      "t-hermann-code-cmd",
+      "t-hermann-verify-cmd",
+      "t-hermann-diff-cmd",
+      "t-hermann-merge-cmd",
+      "t-hermann-scan-cmd",
+      "t-hermann-versions-cmd"
+    ],
+    "blockingSeverity": "HIGH",
+    "claudeModel": "sonnet",
+    "implementTimeoutMin": "45",
+    "notes": "artifactId is the repository and service name (lowercase, dashes). bootVersion 'current' resolves to the current GA line at bootstrap. tokenLanes receive the git host token from the vault when the host is provisioned. claudeModel/claudeMaxTurns/implementTimeoutMin bound the coder; claudeAllowedTools empty = the least-privilege default list.",
+    "claudeAllowedTools": "",
+    "claudeMaxTurns": "80"
+  }
+]

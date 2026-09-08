@@ -1,0 +1,7 @@
+{
+  "name": "hermann",
+  "displayName": "Hermann",
+  "domain": "engineering",
+  "description": "A twelve-factor Spring Boot developer: provisions a git host, bootstraps a service that is twelve-factor from the first commit, measures every factor, proposes the next iteration as choices or questions, writes specs from the answers, implements with a spawned coder inside the spec, verifies, reviews and merges through pull requests.",
+  "entry": {"inbox": "p-hermann-goal", "outbox": "p-hermann-runs", "correlationField": "specId"}
+}

@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {"name": "scripts registered", "check": "the target model's local tool catalog contains hermann-infra, hermann-git, hermann-bootstrap, hermann-digest and hermann-audit", "why": "command lanes invoke by toolId, resolved per model; a missing entry fails at fire time"},
+    {"name": "config seeded once", "check": "p-hermann-config holds one token with configId hermann; a reinstall does not add a second", "why": "seeds are templates; a place that already holds a token keeps it"},
+    {"name": "twelve factor lanes", "check": "t-hermann-f01-codebase through t-hermann-f12-admin-processes exist, each reading p-hermann-factor-cmd filtered by its factor", "why": "one lane per factor is the visible contract of the audit"},
+    {"name": "setup lane sees the token", "check": "after provisioning, list_transition_credentials on t-hermann-setup-cmd names GITEA_TOKEN", "why": "the git lanes fail loudly without it; the token never appears in a token"},
+    {"name": "bootstrap requests an audit", "check": "after bootstrap, p-hermann-audit-request receives one token and p-hermann-scorecard gains one scorecard for the head commit within minutes", "why": "the first scorecard is the proof the pipeline runs end to end"}
+  ]
+}
