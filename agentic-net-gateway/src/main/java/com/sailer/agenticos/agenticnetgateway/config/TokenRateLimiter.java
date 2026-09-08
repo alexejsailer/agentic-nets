@@ -54,7 +54,7 @@ public class TokenRateLimiter extends OncePerRequestFilter {
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
-        String uri = request.getRequestURI();
+        String uri = GatewayRequestPaths.effectivePath(request);
         if (uri == null) {
             return true;
         }

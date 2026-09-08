@@ -39,6 +39,21 @@ class ReadonlyEnforcementFilterTest {
     }
 
     @Test
+    void vaultCredentialsGet_readonlyScope_isRejected() throws Exception {
+        // A readonly token must never read plaintext transition secrets, even via a GET.
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("GET", "/vault-api/vault/default/transitions/t-x/credentials");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, never()).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(res.getContentAsString()).contains("readonly_scope");
+    }
+
+    @Test
     void getRequest_readonlyScope_isAllowed() throws Exception {
         authenticate("agenticos readonly");
         MockHttpServletRequest req = request("GET", "/api/models");

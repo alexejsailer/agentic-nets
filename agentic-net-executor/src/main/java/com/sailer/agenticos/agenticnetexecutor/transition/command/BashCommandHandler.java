@@ -269,6 +269,7 @@ public class BashCommandHandler implements CommandHandler {
             pb.directory(dir);
         }
 
+        ExecutorEnvScrubber.scrub(pb.environment());
         if (env != null && !env.isEmpty()) {
             pb.environment().putAll(env);
         }
@@ -313,6 +314,7 @@ public class BashCommandHandler implements CommandHandler {
                 pb.directory(dir);
             }
 
+            ExecutorEnvScrubber.scrub(pb.environment());
             if (env != null && !env.isEmpty()) {
                 pb.environment().putAll(env);
             }

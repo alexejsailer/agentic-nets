@@ -72,7 +72,7 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
+        String uri = GatewayRequestPaths.effectivePath(request);
         if (uri == null) return true;
         return !(uri.startsWith("/api/")
                 || uri.startsWith("/node-api/")
@@ -82,7 +82,15 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        if (SAFE_METHODS.contains(request.getMethod().toUpperCase())) {
+        String path = GatewayRequestPaths.effectivePath(request);
+        boolean safeMethod = SAFE_METHODS.contains(request.getMethod().toUpperCase());
+
+        // Vault is the one exception to "GET is always safe": GET /vault-api/**/credentials
+        // returns PLAINTEXT transition secrets. A readonly monitoring token must never reach the
+        // vault proxy at all, on any method. This is checked before the safe-method short-circuit.
+        boolean vaultPath = path != null && path.startsWith("/vault-api/");
+
+        if (safeMethod && !vaultPath) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -100,13 +108,30 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
             return;
         }
 
-        if ("POST".equalsIgnoreCase(request.getMethod()) && isReadonlyAllowedPost(request.getRequestURI())) {
+        // Readonly + vault-api (any method): always deny — raw secrets are not a read-only view.
+        if (vaultPath) {
+            logger.info("Rejecting {} {} for readonly subject={} (vault credentials are not readonly-accessible)",
+                    request.getMethod(), path, jwt.getSubject());
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType("application/json");
+            response.getWriter().write(
+                    "{\"error\":\"readonly_scope\","
+                            + "\"message\":\"Vault credentials are not accessible with a read-only token.\"}");
+            return;
+        }
+
+        if (safeMethod) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if ("POST".equalsIgnoreCase(request.getMethod()) && isReadonlyAllowedPost(GatewayRequestPaths.effectivePath(request))) {
             filterChain.doFilter(request, response);
             return;
         }
 
         logger.info("Rejecting {} {} for readonly subject={}",
-                request.getMethod(), request.getRequestURI(), jwt.getSubject());
+                request.getMethod(), GatewayRequestPaths.effectivePath(request), jwt.getSubject());
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType("application/json");
         response.getWriter().write(

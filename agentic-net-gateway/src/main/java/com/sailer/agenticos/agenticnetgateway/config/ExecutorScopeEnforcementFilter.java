@@ -52,7 +52,7 @@ public class ExecutorScopeEnforcementFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
+        String uri = GatewayRequestPaths.effectivePath(request);
         if (uri == null) return true;
         return !(uri.startsWith("/api/")
                 || uri.startsWith("/node-api/")
@@ -75,13 +75,13 @@ public class ExecutorScopeEnforcementFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (isExecutorAllowed(request.getMethod(), request.getRequestURI())) {
+        if (isExecutorAllowed(request.getMethod(), GatewayRequestPaths.effectivePath(request))) {
             filterChain.doFilter(request, response);
             return;
         }
 
         logger.info("Rejecting {} {} for executor subject={}",
-                request.getMethod(), request.getRequestURI(), jwt.getSubject());
+                request.getMethod(), GatewayRequestPaths.effectivePath(request), jwt.getSubject());
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType("application/json");
         response.getWriter().write(

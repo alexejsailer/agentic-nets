@@ -10,6 +10,7 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createServer as createHttpServer } from 'node:http';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { loadConfig, ConfigError } from '../src/config.js';
 import { AppContext } from '../src/context.js';
 import { log } from '../src/logger.js';
@@ -50,7 +51,13 @@ async function main(): Promise<void> {
         return;
       }
       const auth = req.headers.authorization ?? '';
-      if (auth !== `Bearer ${config.httpToken}`) {
+      // Constant-time bearer comparison (hash both to a fixed length so neither the token
+      // value nor its length leaks through timing). A missing configured token denies all.
+      const expected = config.httpToken ? `Bearer ${config.httpToken}` : '';
+      const authOk = expected.length > 0 && timingSafeEqual(
+        createHash('sha256').update(auth).digest(),
+        createHash('sha256').update(expected).digest());
+      if (!authOk) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'unauthorized' }));
         return;

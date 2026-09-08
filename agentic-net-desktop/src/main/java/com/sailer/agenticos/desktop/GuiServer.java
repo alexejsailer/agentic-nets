@@ -151,6 +151,14 @@ public final class GuiServer {
             sendError(exchange, 401, "{\"error\":\"unauthorized\"}");
             return;
         }
+        // Writing provider keys and the LLM base URL, then restarting master, is an admin action.
+        // gatewayAccepts only proves the token is valid (a readonly token passes a GET probe), so
+        // additionally require the admin scope. The token was already signature-validated by the
+        // gateway above, so reading its scope claim from the payload is safe here.
+        if (!hasAdminScope(auth)) {
+            sendError(exchange, 403, "{\"error\":\"forbidden\",\"message\":\"admin scope required\"}");
+            return;
+        }
         if (!"/desktop-api/llm-settings".equals(path)) {
             sendError(exchange, 404, "{\"error\":\"not found\"}");
             return;
@@ -168,6 +176,36 @@ public final class GuiServer {
             Thread.ofVirtual().start(masterRestarter);
         } else {
             sendError(exchange, 405, "{\"error\":\"method not allowed\"}");
+        }
+    }
+
+    /**
+     * True when the bearer's {@code scope} claim contains {@code admin}. The JWT was already
+     * validated by the gateway in {@link #gatewayAccepts}, so this only reads the payload — it does
+     * not re-verify the signature (the launcher holds no JWKS). Fails closed on any parse error.
+     */
+    static boolean hasAdminScope(String authorizationHeader) {
+        try {
+            String jwt = authorizationHeader.substring("Bearer ".length()).trim();
+            String[] parts = jwt.split("\\.");
+            if (parts.length < 2) {
+                return false;
+            }
+            String payload = new String(
+                java.util.Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8);
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"scope\"\\s*:\\s*\"([^\"]*)\"").matcher(payload);
+            if (!m.find()) {
+                return false;
+            }
+            for (String s : m.group(1).split("\\s+")) {
+                if ("admin".equals(s)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 

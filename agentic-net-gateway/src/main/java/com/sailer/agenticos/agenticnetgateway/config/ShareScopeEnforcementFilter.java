@@ -87,7 +87,7 @@ public class ShareScopeEnforcementFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
+        String uri = GatewayRequestPaths.effectivePath(request);
         if (uri == null) return true;
         return !(uri.startsWith("/api/")
                 || uri.startsWith("/node-api/")
@@ -124,7 +124,7 @@ public class ShareScopeEnforcementFilter extends OncePerRequestFilter {
         }
 
         logger.info("Rejecting {} {} for share subject={} model={}",
-                request.getMethod(), request.getRequestURI(), jwt.getSubject(), claimedModel);
+                request.getMethod(), GatewayRequestPaths.effectivePath(request), jwt.getSubject(), claimedModel);
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType("application/json");
         response.getWriter().write(
@@ -136,7 +136,7 @@ public class ShareScopeEnforcementFilter extends OncePerRequestFilter {
                                           String claimedContainer, String claimedSession,
                                           String claimedNet, String tabs) {
         String method = request.getMethod();
-        String uri = request.getRequestURI();
+        String uri = GatewayRequestPaths.effectivePath(request);
         if (uri == null || method == null) return false;
         for (Rule rule : ALLOWED) {
             if (!rule.method().equalsIgnoreCase(method)) {

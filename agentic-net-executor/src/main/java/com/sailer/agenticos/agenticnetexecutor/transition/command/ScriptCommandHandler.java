@@ -162,6 +162,7 @@ public class ScriptCommandHandler implements CommandHandler {
                 }
                 pb.directory(dir);
             }
+            ExecutorEnvScrubber.scrub(pb.environment());
             JsonNode env = args.get("env");
             if (env != null && env.isObject()) {
                 env.fields().forEachRemaining(e -> {
