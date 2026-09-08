@@ -21,6 +21,12 @@ export async function startChatBridge(): Promise<void> {
   const profile = resolveProfile(getActiveProfile(cliConfig));
   const chatConfig = loadChatConfig();
 
+  if (process.env['TELEGRAM_BOT_ENABLED']?.toLowerCase() === 'false') {
+    log.warn('TELEGRAM_BOT_ENABLED=false — idling without polling Telegram.');
+    await new Promise<void>(() => { /* idle forever */ });
+    return;
+  }
+
   if (!chatConfig.telegram?.bot_token) {
     log.warn(
       'Telegram bot not configured — idling.\n\n' +
@@ -37,6 +43,17 @@ export async function startChatBridge(): Promise<void> {
   }
 
   const tgConfig = chatConfig.telegram;
+
+  if (tgConfig.allowed_user_ids.length === 0) {
+    // SECURITY: the bot drives an admin-scoped gateway credential. Never start an open bot.
+    log.error(
+      'Refusing to start: no Telegram allowlist configured. Set TELEGRAM_BOT_ALLOWED_CHAT_IDS ' +
+      '(comma-separated Telegram user ids) so only those users can talk to this bot. ' +
+      'Container stays alive so the operator can fix the config and restart.',
+    );
+    await new Promise<void>(() => { /* idle forever */ });
+    return;
+  }
 
   const profileName = cliConfig.active_profile || 'local';
   const gateway = new GatewayClient({
@@ -57,7 +74,7 @@ export async function startChatBridge(): Promise<void> {
 
   const telegram = new TelegramChannel(
     tgConfig.bot_token,
-    { allowedUserIds: tgConfig.allowed_user_ids },
+    { allowedUserIds: tgConfig.allowed_user_ids, allowedPersonas: tgConfig.allowed_personas ?? [] },
     personaClient,
     stateStore,
   );
@@ -74,7 +91,8 @@ export async function startChatBridge(): Promise<void> {
   log.info(`  Gateway:  ${profile.gateway_url}`);
   log.info(`  Persona:  ${defaultPersona}`);
   log.info(`  Model:    ${defaultModelId}`);
-  log.info(`  Allowed:  ${tgConfig.allowed_user_ids.length > 0 ? tgConfig.allowed_user_ids.join(', ') : '(any)'}`);
+  log.info(`  Allowed:  ${tgConfig.allowed_user_ids.join(', ')}`);
+  log.info(`  Personas: ${(tgConfig.allowed_personas ?? []).length > 0 ? tgConfig.allowed_personas!.join(', ') : '(any registered persona)'}`);
 
   await telegram.start();
 }

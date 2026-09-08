@@ -13,9 +13,10 @@ Telegram front-end for AgenticNets. Wraps the CLI agent loop so a Telegram chat 
 
 | Var | Default | Purpose |
 |---|---|---|
-| `TELEGRAM_BOT_ENABLED` | `false` | Gate — set `true` to start polling |
-| `TELEGRAM_BOT_TOKEN` | *(required when enabled)* | BotFather token |
-| `TELEGRAM_ALLOWED_CHAT_IDS` | *(optional)* | Comma-separated allowlist |
+| `TELEGRAM_BOT_ENABLED` | `true` | Set `false` to idle without polling (the token alone otherwise enables the bot) |
+| `TELEGRAM_BOT_TOKEN` | *(required)* | BotFather token |
+| `TELEGRAM_BOT_ALLOWED_CHAT_IDS` | *(required)* | Comma-separated Telegram user-id allowlist. **The bot refuses to start when empty** — it holds an admin-scoped gateway credential, so it never runs open. (`TELEGRAM_ALLOWED_CHAT_IDS` is accepted as an alias.) |
+| `TELEGRAM_ALLOWED_PERSONAS` | *(optional)* | Comma-separated persona ids users may switch to with `/persona`; unset = any registered persona |
 | `AGENTICOS_GATEWAY_URL` | `http://localhost:8083` | Gateway to route agent calls through |
 | `AGENTICOS_PROVIDER` | `claude-code` | LLM provider (see CLI README) |
 | `CHAT_SESSION_TTL_MINUTES` | `240` | Idle TTL before a chat session expires |

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import YAML from 'yaml';
@@ -166,8 +166,9 @@ export function ensureConfigDir(): void {
     mkdirSync(CONFIG_DIR, { recursive: true });
   }
   if (!existsSync(TOKENS_DIR)) {
-    mkdirSync(TOKENS_DIR, { recursive: true });
+    mkdirSync(TOKENS_DIR, { recursive: true, mode: 0o700 });
   }
+  try { chmodSync(TOKENS_DIR, 0o700); } catch { /* best effort */ }
 }
 
 export function getConfigDir(): string {
@@ -196,7 +197,8 @@ export function loadConfig(): AgenticNetOSConfig {
 export function saveConfig(config: AgenticNetOSConfig): void {
   ensureConfigDir();
   const content = YAML.stringify(config, { indent: 2 });
-  writeFileSync(CONFIG_FILE, content, 'utf-8');
+  writeFileSync(CONFIG_FILE, content, { encoding: 'utf-8', mode: 0o600 });
+  try { chmodSync(CONFIG_FILE, 0o600); } catch { /* best effort */ }
 }
 
 export function getActiveProfile(config: AgenticNetOSConfig): ProfileConfig {

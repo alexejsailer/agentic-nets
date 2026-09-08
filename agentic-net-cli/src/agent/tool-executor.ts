@@ -1,4 +1,5 @@
 import type { AgentTool } from './tools.js';
+import { assertNotSsrf } from '../util/ssrf.js';
 import type { GatewayClient } from '../gateway/client.js';
 import type { LlmProvider } from '../llm/provider.js';
 import type { AgentEvent } from './runtime.js';
@@ -1709,6 +1710,12 @@ export class ToolExecutor {
   }
 
   private async executeHttpCall(params: Record<string, any>): Promise<ToolResult> {
+    // SECURITY (SSRF): the URL is LLM/token-influenced; refuse internal targets (see util/ssrf.ts).
+    try {
+      await assertNotSsrf(String(params.url ?? ''));
+    } catch (err: any) {
+      return { success: false, error: err?.message ?? 'HTTP_CALL refused' };
+    }
     const result = await this.client.directCall(
       params.method,
       params.url,

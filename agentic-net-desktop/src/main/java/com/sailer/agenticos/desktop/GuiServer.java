@@ -314,6 +314,7 @@ public final class GuiServer {
     private void sendJson(HttpExchange exchange, int status, String json) throws IOException {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
+        hardenHeaders(exchange);
         exchange.getResponseHeaders().set("Cache-Control", "no-store");
         exchange.sendResponseHeaders(status, bytes.length);
         exchange.getResponseBody().write(bytes);
@@ -393,6 +394,7 @@ public final class GuiServer {
             """.formatted(jwt.group(1), ttl.group(1), target);
         byte[] bytes = page.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+        hardenHeaders(exchange);
         exchange.getResponseHeaders().set("Cache-Control", "no-store");
         exchange.sendResponseHeaders(200, bytes.length);
         exchange.getResponseBody().write(bytes);
@@ -410,6 +412,7 @@ public final class GuiServer {
             return;
         }
         exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+        hardenHeaders(exchange);
         exchange.sendResponseHeaders(200, page.length);
         if (!"HEAD".equals(exchange.getRequestMethod())) {
             exchange.getResponseBody().write(page);
@@ -469,6 +472,21 @@ public final class GuiServer {
         }
     }
 
+
+    /**
+     * Browser hardening for every response the launcher serves. frame-ancestors/X-Frame-Options stop
+     * a hostile page from framing Studio (the drive-by that turned a docs-viewer XSS into admin-JWT
+     * theft); nosniff and no-referrer are cheap defence in depth. The CSP deliberately does NOT
+     * restrict script/style sources, so the Angular bundle and Monaco keep working unchanged.
+     */
+    private static void hardenHeaders(HttpExchange exchange) {
+        var h = exchange.getResponseHeaders();
+        h.set("X-Frame-Options", "DENY");
+        h.set("X-Content-Type-Options", "nosniff");
+        h.set("Referrer-Policy", "no-referrer");
+        h.set("Content-Security-Policy", "frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
+    }
+
     private void serveStatic(HttpExchange exchange, String rawPath) throws IOException {
         if (!"GET".equals(exchange.getRequestMethod()) && !"HEAD".equals(exchange.getRequestMethod())) {
             sendError(exchange, 405, "{\"error\":\"method not allowed\"}");
@@ -488,6 +506,7 @@ public final class GuiServer {
         String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1) : "";
         String contentType = CONTENT_TYPES.getOrDefault(ext.toLowerCase(Locale.ROOT), "application/octet-stream");
         exchange.getResponseHeaders().set("Content-Type", contentType);
+        hardenHeaders(exchange);
         long size = Files.size(file);
         if ("HEAD".equals(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(200, -1);
@@ -503,6 +522,7 @@ public final class GuiServer {
         try {
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
+        hardenHeaders(exchange);
             exchange.sendResponseHeaders(status, bytes.length);
             exchange.getResponseBody().write(bytes);
         } catch (IOException ignored) {

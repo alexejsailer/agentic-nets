@@ -55,10 +55,12 @@ export class GatewayClient {
     return this.request<T>(method, `${this.gatewayUrl}/node-api${path}`, body, query);
   }
 
-  /** Direct call to any URL (no gateway prefix, no auth). */
+  /** Direct call to any URL (no gateway prefix, no auth). Redirects are NOT followed: a 3xx to an
+   *  internal address would bypass the caller's SSRF check, so the agent sees the 3xx instead. */
   async directCall<T = any>(method: string, url: string, body?: any, headers?: Record<string, string>): Promise<T> {
     const res = await fetch(url, {
       method,
+      redirect: 'manual',
       body: body ? JSON.stringify(body) : undefined,
       headers: {
         'Content-Type': 'application/json',

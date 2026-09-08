@@ -493,7 +493,10 @@ public class MasterProxyController {
             String lower = name.toLowerCase();
             if (!HOP_BY_HOP.contains(lower)
                     && !REQUEST_ONLY_EXCLUDE.contains(lower)
-                    && !"authorization".equalsIgnoreCase(name)) {
+                    && !"authorization".equalsIgnoreCase(name)
+                    // The gateway is the trust boundary for the internal secret and any other
+                    // X-Agenticos-* control headers: a client must never be able to supply them.
+                    && !lower.startsWith("x-agenticos-")) {
                 Enumeration<String> values = request.getHeaders(name);
                 while (values.hasMoreElements()) {
                     headers.add(name, values.nextElement());

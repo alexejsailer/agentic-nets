@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, unlinkSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { getTokensDir, ensureConfigDir } from '../config/config.js';
 import { log } from '../util/logger.js';
@@ -24,7 +24,11 @@ class TokenStore {
 
   saveToken(profile: string, token: StoredToken): void {
     ensureConfigDir();
-    writeFileSync(this.tokenFile(profile), JSON.stringify(token, null, 2), 'utf-8');
+    const file = this.tokenFile(profile);
+    // The bearer is an admin credential: owner-only on disk (mode applies on create; chmod fixes
+    // files written earlier with the umask default).
+    writeFileSync(file, JSON.stringify(token, null, 2), { encoding: 'utf-8', mode: 0o600 });
+    try { chmodSync(file, 0o600); } catch { /* best effort on non-POSIX filesystems */ }
   }
 
   removeToken(profile: string): void {

@@ -16,4 +16,6 @@ export interface MessageSender {
 
 export interface ChannelSecurityConfig {
   allowedUserIds: string[];
+  /** Optional persona allowlist for /persona; when set, other personas are refused. */
+  allowedPersonas?: string[];
 }

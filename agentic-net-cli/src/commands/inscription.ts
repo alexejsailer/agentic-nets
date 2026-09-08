@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
@@ -137,14 +137,16 @@ export function registerInscriptionCommand(program: Command, getContext: () => {
       } catch { /* use default */ }
 
       // Write to temp file
-      const tmpFile = join(tmpdir(), `agenticos-inscription-${transitionId}.json`);
+      const safeId = String(transitionId).replace(/[^A-Za-z0-9._-]/g, '_');
+      const tmpFile = join(tmpdir(), `agenticos-inscription-${safeId}.json`);
       writeFileSync(tmpFile, currentJson, 'utf-8');
 
       // Open in editor
       const editor = process.env['EDITOR'] || process.env['VISUAL'] || 'vi';
-      try {
-        execSync(`${editor} ${tmpFile}`, { stdio: 'inherit' });
-      } catch {
+      // No shell: $EDITOR may carry arguments ("code --wait"); the file path is never interpolated.
+      const [editorCmd, ...editorArgs] = editor.split(/\s+/).filter(Boolean);
+      const edit = spawnSync(editorCmd, [...editorArgs, tmpFile], { stdio: 'inherit' });
+      if (edit.status !== 0) {
         outputError('Editor exited with error.');
         return;
       }

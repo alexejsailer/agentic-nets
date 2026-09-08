@@ -58,6 +58,11 @@ public class TokenRateLimiter extends OncePerRequestFilter {
         if (uri == null) {
             return true;
         }
+        // Normalise a trailing slash so a framework default (optional trailing-slash matching) can
+        // never route /oauth2/token/ to the controller while the limiter looks the other way.
+        if (uri.length() > 1 && uri.endsWith("/")) {
+            uri = uri.substring(0, uri.length() - 1);
+        }
         return !("/oauth2/token".equals(uri) || "/oauth2/share".equals(uri));
     }
 

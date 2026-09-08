@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { execSync, spawn } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { outputSuccess, outputError, outputTable, outputInfo } from '../render/output.js';
@@ -29,7 +29,7 @@ export function registerServiceCommand(program: Command): void {
     .action(() => {
       try {
         const script = findAgenticosScript();
-        execSync(`bash ${script} status`, { stdio: 'inherit' });
+        spawnSync('bash', [script, 'status'], { stdio: 'inherit' });
       } catch (err: any) {
         outputError(`Failed to get status: ${err.message}`);
       }
@@ -42,8 +42,7 @@ export function registerServiceCommand(program: Command): void {
     .action((services: string[]) => {
       try {
         const script = findAgenticosScript();
-        const args = services.length > 0 ? services.join(' ') : '';
-        execSync(`bash ${script} start ${args}`, { stdio: 'inherit' });
+        spawnSync('bash', [script, 'start', ...services], { stdio: 'inherit' });
       } catch (err: any) {
         outputError(`Failed to start: ${err.message}`);
       }
@@ -56,8 +55,7 @@ export function registerServiceCommand(program: Command): void {
     .action((services: string[]) => {
       try {
         const script = findAgenticosScript();
-        const args = services.length > 0 ? services.join(' ') : '';
-        execSync(`bash ${script} stop ${args}`, { stdio: 'inherit' });
+        spawnSync('bash', [script, 'stop', ...services], { stdio: 'inherit' });
       } catch (err: any) {
         outputError(`Failed to stop: ${err.message}`);
       }

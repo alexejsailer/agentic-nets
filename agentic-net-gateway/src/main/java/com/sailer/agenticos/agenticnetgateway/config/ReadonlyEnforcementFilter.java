@@ -65,6 +65,22 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
      * the master proxy ({@code /api/proxy/arcql/{modelId}/query}), and the runtime place query
      * ({@code /api/runtime/places/{placeId}/tokens/query}).
      */
+    /**
+     * Routes a readonly token may NEVER reach, on any HTTP method. "GET is safe" does not hold for
+     * them: the executor poll/discover endpoints fire lanes, reserve tokens and return PLAINTEXT
+     * credentials; the SSE agent-stream endpoints run a full tool-using agent loop (builder,
+     * operator, genesis personas hold write/execute/docker roles); the universal assistant executes
+     * with READ_WRITE; and /vault-api returns raw secrets.
+     */
+    private static final Pattern READONLY_PRIVILEGED = Pattern.compile(
+            "^/vault-api/.*"
+            + "|^/api/transitions/(poll|discover)$"
+            + "|^/api/transitions/[^/]+/credentials$"
+            + "|^/api/transitions/tokens/.*"
+            + "|^/api/assistant/universal/.*"
+            + "|^/api/assistant/p/(?!domain-expert-readonly/)[^/]+/[^/]+/chat/.*/agent-stream$"
+            + "|^/api/agent-action/.*|^/api/agent-executor/.*");
+
     private static final Pattern READONLY_ARCQL_QUERY = Pattern.compile(
             "^/(api|node-api)/arcql/query/[^/]+$"
             + "|^/api/proxy/arcql/[^/]+/query$"
@@ -85,12 +101,11 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
         String path = GatewayRequestPaths.effectivePath(request);
         boolean safeMethod = SAFE_METHODS.contains(request.getMethod().toUpperCase());
 
-        // Vault is the one exception to "GET is always safe": GET /vault-api/**/credentials
-        // returns PLAINTEXT transition secrets. A readonly monitoring token must never reach the
-        // vault proxy at all, on any method. This is checked before the safe-method short-circuit.
-        boolean vaultPath = path != null && path.startsWith("/vault-api/");
+        // Privileged routes (vault secrets, executor protocol, agent loops) are checked on every
+        // method; only ordinary GETs take the cheap short-circuit below.
+        boolean privilegedPath = path != null && READONLY_PRIVILEGED.matcher(path).matches();
 
-        if (safeMethod && !vaultPath) {
+        if (safeMethod && !privilegedPath) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -103,20 +118,29 @@ public class ReadonlyEnforcementFilter extends OncePerRequestFilter {
 
         Jwt jwt = jwtAuth.getToken();
         String scope = jwt.getClaimAsString("scope");
-        if (scope == null || !containsToken(scope, READONLY_SCOPE)) {
+        // Fail closed: a token without a scope claim is not "unconstrained", it is unknown.
+        if (scope == null || scope.isBlank()) {
+            logger.info("Rejecting {} {} for subject={}: token carries no scope", request.getMethod(), path,
+                    jwt.getSubject());
+            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"missing_scope\",\"message\":\"Token has no scope claim.\"}");
+            return;
+        }
+        if (!containsToken(scope, READONLY_SCOPE)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Readonly + vault-api (any method): always deny — raw secrets are not a read-only view.
-        if (vaultPath) {
-            logger.info("Rejecting {} {} for readonly subject={} (vault credentials are not readonly-accessible)",
+        // Readonly + privileged route (any method): always deny.
+        if (privilegedPath) {
+            logger.info("Rejecting {} {} for readonly subject={} (privileged route: secrets, executor protocol or agent loop)",
                     request.getMethod(), path, jwt.getSubject());
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType("application/json");
             response.getWriter().write(
                     "{\"error\":\"readonly_scope\","
-                            + "\"message\":\"Vault credentials are not accessible with a read-only token.\"}");
+                            + "\"message\":\"This route is not accessible with a read-only token.\"}");
             return;
         }
 

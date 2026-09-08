@@ -121,7 +121,8 @@ public class VaultProxyController {
             String name = names.nextElement();
             // Strip hop-by-hop AND authorization (vault uses its own token auth)
             if (!HOP_BY_HOP.contains(name.toLowerCase())
-                    && !"authorization".equalsIgnoreCase(name)) {
+                    && !"authorization".equalsIgnoreCase(name)
+                    && !name.toLowerCase().startsWith("x-agenticos-")) {
                 Enumeration<String> values = request.getHeaders(name);
                 while (values.hasMoreElements()) {
                     headers.add(name, values.nextElement());

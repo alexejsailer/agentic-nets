@@ -38,9 +38,15 @@ jobs:
       - name: Resolve version
         id: ver
         shell: pwsh
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          $v = "${{ github.event.inputs.version }}"
-          if (-not $v) { $v = "${{ github.event.release.tag_name }}".TrimStart("v") }
+          # Values come in through env (never interpolated into the script) so a crafted tag or
+          # input cannot inject PowerShell.
+          $v = $env:INPUT_VERSION
+          if (-not $v) { $v = "$env:RELEASE_TAG".TrimStart("v") }
+          if ($v -notmatch '^[0-9A-Za-z._-]+$') { throw "Invalid version: $v" }
           "version=$v" >> $env:GITHUB_OUTPUT
 
       - name: Put WiX on PATH (preinstalled on windows runners)

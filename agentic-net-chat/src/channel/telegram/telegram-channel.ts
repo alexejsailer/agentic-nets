@@ -161,8 +161,16 @@ export class TelegramChannel {
   }
 
   private isAllowed(userId: number): boolean {
-    if (this.security.allowedUserIds.length === 0) return true;
+    // SECURITY: fail CLOSED. This bot holds an admin-scoped gateway credential, so an empty
+    // allowlist must admit nobody, not everybody (index.ts refuses to start without one).
+    if (this.security.allowedUserIds.length === 0) return false;
     return this.security.allowedUserIds.includes(String(userId));
+  }
+
+  private isPersonaAllowed(personaId: string): boolean {
+    const list = this.security.allowedPersonas;
+    if (!list || list.length === 0) return true;
+    return list.includes(personaId);
   }
 
   private setupHandlers(): void {
@@ -230,6 +238,10 @@ export class TelegramChannel {
       if (!arg) {
         const state = this.stateStore.get(chatId);
         await ctx.reply(`Current persona: ${state.persona}\nUse /personas to list, /persona <id> to switch.`);
+        return;
+      }
+      if (!this.isPersonaAllowed(arg)) {
+        await ctx.reply(`Persona "${arg}" is not enabled for this bot (TELEGRAM_ALLOWED_PERSONAS).`);
         return;
       }
       const state = this.stateStore.setPersona(chatId, arg);

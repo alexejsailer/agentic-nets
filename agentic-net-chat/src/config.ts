@@ -6,6 +6,7 @@ import YAML from 'yaml';
 export interface TelegramChatConfig {
   bot_token: string;
   allowed_user_ids: string[];
+    allowed_personas?: string[];
   session_prefix: string;
 }
 
@@ -49,14 +50,21 @@ export function loadChatConfig(): ChatConfig {
     //   1. TELEGRAM_BOT_ALLOWED_CHAT_IDS — the canonical name (matches the
     //      env var used by deployment/.env.template and docker-compose.yml).
     //   2. TELEGRAM_ALLOWED_USERS — legacy fallback (pre-2.5.1).
+    //   3. TELEGRAM_ALLOWED_CHAT_IDS — the name the README documented; accepted so an operator
+    //      who followed it does not silently deploy an open bot.
     const allowlistRaw =
       process.env['TELEGRAM_BOT_ALLOWED_CHAT_IDS'] ??
+      process.env['TELEGRAM_ALLOWED_CHAT_IDS'] ??
       process.env['TELEGRAM_ALLOWED_USERS'] ??
       '';
+    const personasRaw = process.env['TELEGRAM_ALLOWED_PERSONAS'] ?? '';
     chatConfig.telegram = {
       bot_token: process.env['TELEGRAM_BOT_TOKEN']!,
       allowed_user_ids: allowlistRaw
         ? allowlistRaw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+        : [],
+      allowed_personas: personasRaw
+        ? personasRaw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
         : [],
       session_prefix: 'tg',
     };
