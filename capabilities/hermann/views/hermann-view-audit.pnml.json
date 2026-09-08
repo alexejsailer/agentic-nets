@@ -1,0 +1,537 @@
+{
+  "net": {
+    "id": "hermann-view-audit",
+    "description": "Designtime view: the twelve factor audit, digest, twelve lanes, scorecard",
+    "places": {
+      "p-hermann-audit-cmd": {
+        "id": "p-hermann-audit-cmd",
+        "label": "audit commands",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-hermann-audit-log": {
+        "id": "p-hermann-audit-log",
+        "label": "audit log",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 290.0
+      },
+      "p-hermann-audit-request": {
+        "id": "p-hermann-audit-request",
+        "label": "audit requests",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-hermann-cards": {
+        "id": "p-hermann-cards",
+        "label": "twelve factor cards",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-hermann-factor-cmd": {
+        "id": "p-hermann-factor-cmd",
+        "label": "factor commands",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-hermann-factor-reports": {
+        "id": "p-hermann-factor-reports",
+        "label": "factor reports",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 390.0
+      },
+      "p-hermann-repo": {
+        "id": "p-hermann-repo",
+        "label": "repository record",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-hermann-repo-digest": {
+        "id": "p-hermann-repo-digest",
+        "label": "repo digest",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-hermann-scorecard": {
+        "id": "p-hermann-scorecard",
+        "label": "scorecard",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      }
+    },
+    "transitions": {
+      "t-hermann-audit-cron": {
+        "id": "t-hermann-audit-cron",
+        "label": "weekly audit",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-hermann-audit-prep": {
+        "id": "t-hermann-audit-prep",
+        "label": "request to digest",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-hermann-digest-cmd": {
+        "id": "t-hermann-digest-cmd",
+        "label": "repository digest",
+        "x": 985.0,
+        "y": 290.0
+      },
+      "t-hermann-f01-codebase": {
+        "id": "t-hermann-f01-codebase",
+        "label": "I codebase",
+        "x": 1335.0,
+        "y": 90.0
+      },
+      "t-hermann-f02-dependencies": {
+        "id": "t-hermann-f02-dependencies",
+        "label": "II dependencies",
+        "x": 1335.0,
+        "y": 190.0
+      },
+      "t-hermann-f03-config": {
+        "id": "t-hermann-f03-config",
+        "label": "III config",
+        "x": 1335.0,
+        "y": 290.0
+      },
+      "t-hermann-f04-backing-services": {
+        "id": "t-hermann-f04-backing-services",
+        "label": "IV backing services",
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "t-hermann-f05-build-release-run": {
+        "id": "t-hermann-f05-build-release-run",
+        "label": "V build release run",
+        "x": 1335.0,
+        "y": 490.0
+      },
+      "t-hermann-f06-processes": {
+        "id": "t-hermann-f06-processes",
+        "label": "VI processes",
+        "x": 1335.0,
+        "y": 590.0
+      },
+      "t-hermann-f07-port-binding": {
+        "id": "t-hermann-f07-port-binding",
+        "label": "VII port binding",
+        "x": 1510.0,
+        "y": 90.0
+      },
+      "t-hermann-f08-concurrency": {
+        "id": "t-hermann-f08-concurrency",
+        "label": "VIII concurrency",
+        "x": 1510.0,
+        "y": 190.0
+      },
+      "t-hermann-f09-disposability": {
+        "id": "t-hermann-f09-disposability",
+        "label": "IX disposability",
+        "x": 1510.0,
+        "y": 290.0
+      },
+      "t-hermann-f10-dev-prod-parity": {
+        "id": "t-hermann-f10-dev-prod-parity",
+        "label": "X dev prod parity",
+        "x": 1510.0,
+        "y": 390.0
+      },
+      "t-hermann-f11-logs": {
+        "id": "t-hermann-f11-logs",
+        "label": "XI logs",
+        "x": 1510.0,
+        "y": 490.0
+      },
+      "t-hermann-f12-admin-processes": {
+        "id": "t-hermann-f12-admin-processes",
+        "label": "XII admin processes",
+        "x": 1510.0,
+        "y": 590.0
+      },
+      "t-hermann-scorecard-cmd": {
+        "id": "t-hermann-scorecard-cmd",
+        "label": "scorecard",
+        "x": 985.0,
+        "y": 390.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-audit-01": {
+        "id": "a-hermann-view-audit-01",
+        "source": "p-hermann-repo",
+        "target": "t-hermann-audit-cron",
+        "weight": 1
+      },
+      "a-hermann-view-audit-02": {
+        "id": "a-hermann-view-audit-02",
+        "source": "t-hermann-audit-cron",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-view-audit-03": {
+        "id": "a-hermann-view-audit-03",
+        "source": "p-hermann-audit-request",
+        "target": "t-hermann-audit-prep",
+        "weight": 1
+      },
+      "a-hermann-view-audit-04": {
+        "id": "a-hermann-view-audit-04",
+        "source": "p-hermann-repo",
+        "target": "t-hermann-audit-prep",
+        "weight": 1
+      },
+      "a-hermann-view-audit-05": {
+        "id": "a-hermann-view-audit-05",
+        "source": "t-hermann-audit-prep",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-06": {
+        "id": "a-hermann-view-audit-06",
+        "source": "p-hermann-audit-cmd",
+        "target": "t-hermann-digest-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-07": {
+        "id": "a-hermann-view-audit-07",
+        "source": "t-hermann-digest-cmd",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-08": {
+        "id": "a-hermann-view-audit-08",
+        "source": "t-hermann-digest-cmd",
+        "target": "p-hermann-repo-digest",
+        "weight": 1
+      },
+      "a-hermann-view-audit-09": {
+        "id": "a-hermann-view-audit-09",
+        "source": "t-hermann-digest-cmd",
+        "target": "p-hermann-factor-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-10": {
+        "id": "a-hermann-view-audit-10",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f01-codebase",
+        "weight": 1
+      },
+      "a-hermann-view-audit-11": {
+        "id": "a-hermann-view-audit-11",
+        "source": "t-hermann-f01-codebase",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-12": {
+        "id": "a-hermann-view-audit-12",
+        "source": "t-hermann-f01-codebase",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-13": {
+        "id": "a-hermann-view-audit-13",
+        "source": "t-hermann-f01-codebase",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-14": {
+        "id": "a-hermann-view-audit-14",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f02-dependencies",
+        "weight": 1
+      },
+      "a-hermann-view-audit-15": {
+        "id": "a-hermann-view-audit-15",
+        "source": "t-hermann-f02-dependencies",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-16": {
+        "id": "a-hermann-view-audit-16",
+        "source": "t-hermann-f02-dependencies",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-17": {
+        "id": "a-hermann-view-audit-17",
+        "source": "t-hermann-f02-dependencies",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-18": {
+        "id": "a-hermann-view-audit-18",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f03-config",
+        "weight": 1
+      },
+      "a-hermann-view-audit-19": {
+        "id": "a-hermann-view-audit-19",
+        "source": "t-hermann-f03-config",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-20": {
+        "id": "a-hermann-view-audit-20",
+        "source": "t-hermann-f03-config",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-21": {
+        "id": "a-hermann-view-audit-21",
+        "source": "t-hermann-f03-config",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-22": {
+        "id": "a-hermann-view-audit-22",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f04-backing-services",
+        "weight": 1
+      },
+      "a-hermann-view-audit-23": {
+        "id": "a-hermann-view-audit-23",
+        "source": "t-hermann-f04-backing-services",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-24": {
+        "id": "a-hermann-view-audit-24",
+        "source": "t-hermann-f04-backing-services",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-25": {
+        "id": "a-hermann-view-audit-25",
+        "source": "t-hermann-f04-backing-services",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-26": {
+        "id": "a-hermann-view-audit-26",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f05-build-release-run",
+        "weight": 1
+      },
+      "a-hermann-view-audit-27": {
+        "id": "a-hermann-view-audit-27",
+        "source": "t-hermann-f05-build-release-run",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-28": {
+        "id": "a-hermann-view-audit-28",
+        "source": "t-hermann-f05-build-release-run",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-29": {
+        "id": "a-hermann-view-audit-29",
+        "source": "t-hermann-f05-build-release-run",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-30": {
+        "id": "a-hermann-view-audit-30",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f06-processes",
+        "weight": 1
+      },
+      "a-hermann-view-audit-31": {
+        "id": "a-hermann-view-audit-31",
+        "source": "t-hermann-f06-processes",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-32": {
+        "id": "a-hermann-view-audit-32",
+        "source": "t-hermann-f06-processes",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-33": {
+        "id": "a-hermann-view-audit-33",
+        "source": "t-hermann-f06-processes",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-34": {
+        "id": "a-hermann-view-audit-34",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f07-port-binding",
+        "weight": 1
+      },
+      "a-hermann-view-audit-35": {
+        "id": "a-hermann-view-audit-35",
+        "source": "t-hermann-f07-port-binding",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-36": {
+        "id": "a-hermann-view-audit-36",
+        "source": "t-hermann-f07-port-binding",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-37": {
+        "id": "a-hermann-view-audit-37",
+        "source": "t-hermann-f07-port-binding",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-38": {
+        "id": "a-hermann-view-audit-38",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f08-concurrency",
+        "weight": 1
+      },
+      "a-hermann-view-audit-39": {
+        "id": "a-hermann-view-audit-39",
+        "source": "t-hermann-f08-concurrency",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-40": {
+        "id": "a-hermann-view-audit-40",
+        "source": "t-hermann-f08-concurrency",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-41": {
+        "id": "a-hermann-view-audit-41",
+        "source": "t-hermann-f08-concurrency",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-42": {
+        "id": "a-hermann-view-audit-42",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f09-disposability",
+        "weight": 1
+      },
+      "a-hermann-view-audit-43": {
+        "id": "a-hermann-view-audit-43",
+        "source": "t-hermann-f09-disposability",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-44": {
+        "id": "a-hermann-view-audit-44",
+        "source": "t-hermann-f09-disposability",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-45": {
+        "id": "a-hermann-view-audit-45",
+        "source": "t-hermann-f09-disposability",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-46": {
+        "id": "a-hermann-view-audit-46",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f10-dev-prod-parity",
+        "weight": 1
+      },
+      "a-hermann-view-audit-47": {
+        "id": "a-hermann-view-audit-47",
+        "source": "t-hermann-f10-dev-prod-parity",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-48": {
+        "id": "a-hermann-view-audit-48",
+        "source": "t-hermann-f10-dev-prod-parity",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-49": {
+        "id": "a-hermann-view-audit-49",
+        "source": "t-hermann-f10-dev-prod-parity",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-50": {
+        "id": "a-hermann-view-audit-50",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f11-logs",
+        "weight": 1
+      },
+      "a-hermann-view-audit-51": {
+        "id": "a-hermann-view-audit-51",
+        "source": "t-hermann-f11-logs",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-52": {
+        "id": "a-hermann-view-audit-52",
+        "source": "t-hermann-f11-logs",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-53": {
+        "id": "a-hermann-view-audit-53",
+        "source": "t-hermann-f11-logs",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-54": {
+        "id": "a-hermann-view-audit-54",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f12-admin-processes",
+        "weight": 1
+      },
+      "a-hermann-view-audit-55": {
+        "id": "a-hermann-view-audit-55",
+        "source": "t-hermann-f12-admin-processes",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-56": {
+        "id": "a-hermann-view-audit-56",
+        "source": "t-hermann-f12-admin-processes",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-view-audit-57": {
+        "id": "a-hermann-view-audit-57",
+        "source": "t-hermann-f12-admin-processes",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-58": {
+        "id": "a-hermann-view-audit-58",
+        "source": "p-hermann-audit-cmd",
+        "target": "t-hermann-scorecard-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-59": {
+        "id": "a-hermann-view-audit-59",
+        "source": "p-hermann-cards",
+        "target": "t-hermann-scorecard-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-audit-60": {
+        "id": "a-hermann-view-audit-60",
+        "source": "t-hermann-scorecard-cmd",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-view-audit-61": {
+        "id": "a-hermann-view-audit-61",
+        "source": "t-hermann-scorecard-cmd",
+        "target": "p-hermann-scorecard",
+        "weight": 1
+      }
+    }
+  }
+}

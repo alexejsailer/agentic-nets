@@ -1,0 +1,1429 @@
+{
+  "net": {
+    "id": "hermann-full",
+    "description": "Designtime view of Hermann: every lane of the five nets in one drawing",
+    "places": {
+      "p-hermann-adr": {
+        "id": "p-hermann-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 240.0
+      },
+      "p-hermann-audit-cmd": {
+        "id": "p-hermann-audit-cmd",
+        "label": "audit commands",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 490.0
+      },
+      "p-hermann-audit-log": {
+        "id": "p-hermann-audit-log",
+        "label": "audit log",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 440.0
+      },
+      "p-hermann-audit-request": {
+        "id": "p-hermann-audit-request",
+        "label": "audit requests",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 590.0
+      },
+      "p-hermann-brain-cmd": {
+        "id": "p-hermann-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 190.0
+      },
+      "p-hermann-brain-log": {
+        "id": "p-hermann-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 140.0
+      },
+      "p-hermann-build-log": {
+        "id": "p-hermann-build-log",
+        "label": "build log",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 340.0
+      },
+      "p-hermann-cards": {
+        "id": "p-hermann-cards",
+        "label": "twelve factor cards",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 90.0
+      },
+      "p-hermann-code-cmd": {
+        "id": "p-hermann-code-cmd",
+        "label": "coder commands",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 290.0
+      },
+      "p-hermann-coders": {
+        "id": "p-hermann-coders",
+        "label": "coder definitions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-hermann-config": {
+        "id": "p-hermann-config",
+        "label": "config",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 490.0
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 190.0
+      },
+      "p-hermann-context-cmd": {
+        "id": "p-hermann-context-cmd",
+        "label": "brief commands",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 190.0
+      },
+      "p-hermann-curation": {
+        "id": "p-hermann-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 90.0
+      },
+      "p-hermann-curations": {
+        "id": "p-hermann-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 190.0
+      },
+      "p-hermann-decisions": {
+        "id": "p-hermann-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-hermann-errors": {
+        "id": "p-hermann-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 390.0
+      },
+      "p-hermann-factor-cmd": {
+        "id": "p-hermann-factor-cmd",
+        "label": "factor commands",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 490.0
+      },
+      "p-hermann-factor-reports": {
+        "id": "p-hermann-factor-reports",
+        "label": "factor reports",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 540.0
+      },
+      "p-hermann-goal": {
+        "id": "p-hermann-goal",
+        "label": "goal and principles",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 590.0
+      },
+      "p-hermann-infra": {
+        "id": "p-hermann-infra",
+        "label": "infra health",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-hermann-iterate": {
+        "id": "p-hermann-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 490.0
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 240.0
+      },
+      "p-hermann-knowledge": {
+        "id": "p-hermann-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 340.0
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 390.0
+      },
+      "p-hermann-map": {
+        "id": "p-hermann-map",
+        "label": "component map",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 290.0
+      },
+      "p-hermann-plan": {
+        "id": "p-hermann-plan",
+        "label": "the plan",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 440.0
+      },
+      "p-hermann-prompts": {
+        "id": "p-hermann-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 540.0
+      },
+      "p-hermann-release-cmd": {
+        "id": "p-hermann-release-cmd",
+        "label": "release commands",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 390.0
+      },
+      "p-hermann-repo": {
+        "id": "p-hermann-repo",
+        "label": "repository record",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-hermann-repo-digest": {
+        "id": "p-hermann-repo-digest",
+        "label": "repo digest",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 590.0
+      },
+      "p-hermann-responses": {
+        "id": "p-hermann-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 190.0
+      },
+      "p-hermann-review-cmd": {
+        "id": "p-hermann-review-cmd",
+        "label": "review commands",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 290.0
+      },
+      "p-hermann-reviews": {
+        "id": "p-hermann-reviews",
+        "label": "review verdicts",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 290.0
+      },
+      "p-hermann-runs": {
+        "id": "p-hermann-runs",
+        "label": "runs",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 190.0
+      },
+      "p-hermann-scorecard": {
+        "id": "p-hermann-scorecard",
+        "label": "scorecard",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 90.0
+      },
+      "p-hermann-setup-cmd": {
+        "id": "p-hermann-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 490.0
+      },
+      "p-hermann-setup-log": {
+        "id": "p-hermann-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      },
+      "p-hermann-signals": {
+        "id": "p-hermann-signals",
+        "label": "signals per run",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 390.0
+      },
+      "p-hermann-spec-log": {
+        "id": "p-hermann-spec-log",
+        "label": "brief log",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 140.0
+      },
+      "p-hermann-specs": {
+        "id": "p-hermann-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 490.0
+      },
+      "p-hermann-verification": {
+        "id": "p-hermann-verification",
+        "label": "verification results",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 390.0
+      },
+      "p-hermann-verify-cmd": {
+        "id": "p-hermann-verify-cmd",
+        "label": "verify commands",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 290.0
+      }
+    },
+    "transitions": {
+      "t-hermann-answer-knowledge-prep": {
+        "id": "t-hermann-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 285.0,
+        "y": 190.0
+      },
+      "t-hermann-answer-prep": {
+        "id": "t-hermann-answer-prep",
+        "label": "answer to brief",
+        "x": 285.0,
+        "y": 290.0
+      },
+      "t-hermann-apply-cmd": {
+        "id": "t-hermann-apply-cmd",
+        "label": "apply",
+        "x": 1685.0,
+        "y": 290.0
+      },
+      "t-hermann-apply-prep": {
+        "id": "t-hermann-apply-prep",
+        "label": "curation to apply",
+        "x": 1685.0,
+        "y": 190.0
+      },
+      "t-hermann-approve-prep": {
+        "id": "t-hermann-approve-prep",
+        "label": "approval to coder",
+        "x": 285.0,
+        "y": 490.0
+      },
+      "t-hermann-audit-cron": {
+        "id": "t-hermann-audit-cron",
+        "label": "weekly audit",
+        "x": 1335.0,
+        "y": 540.0
+      },
+      "t-hermann-audit-prep": {
+        "id": "t-hermann-audit-prep",
+        "label": "request to digest",
+        "x": 1685.0,
+        "y": 490.0
+      },
+      "t-hermann-changes-prep": {
+        "id": "t-hermann-changes-prep",
+        "label": "changes to coder",
+        "x": 460.0,
+        "y": 240.0
+      },
+      "t-hermann-code-cmd": {
+        "id": "t-hermann-code-cmd",
+        "label": "coder, headless",
+        "x": 1685.0,
+        "y": 390.0
+      },
+      "t-hermann-context-cmd": {
+        "id": "t-hermann-context-cmd",
+        "label": "render the brief",
+        "x": 2560.0,
+        "y": 140.0
+      },
+      "t-hermann-curate": {
+        "id": "t-hermann-curate",
+        "label": "curate, one shot",
+        "x": 1335.0,
+        "y": 140.0
+      },
+      "t-hermann-curate-cmd": {
+        "id": "t-hermann-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 810.0,
+        "y": 190.0
+      },
+      "t-hermann-diff-cmd": {
+        "id": "t-hermann-diff-cmd",
+        "label": "review brief from diff",
+        "x": 2560.0,
+        "y": 240.0
+      },
+      "t-hermann-digest-cmd": {
+        "id": "t-hermann-digest-cmd",
+        "label": "repository digest",
+        "x": 2210.0,
+        "y": 490.0
+      },
+      "t-hermann-f01-codebase": {
+        "id": "t-hermann-f01-codebase",
+        "label": "I codebase",
+        "x": 2560.0,
+        "y": 340.0
+      },
+      "t-hermann-f02-dependencies": {
+        "id": "t-hermann-f02-dependencies",
+        "label": "II dependencies",
+        "x": 2560.0,
+        "y": 440.0
+      },
+      "t-hermann-f03-config": {
+        "id": "t-hermann-f03-config",
+        "label": "III config",
+        "x": 2560.0,
+        "y": 540.0
+      },
+      "t-hermann-f04-backing-services": {
+        "id": "t-hermann-f04-backing-services",
+        "label": "IV backing services",
+        "x": 2735.0,
+        "y": 140.0
+      },
+      "t-hermann-f05-build-release-run": {
+        "id": "t-hermann-f05-build-release-run",
+        "label": "V build release run",
+        "x": 2735.0,
+        "y": 240.0
+      },
+      "t-hermann-f06-processes": {
+        "id": "t-hermann-f06-processes",
+        "label": "VI processes",
+        "x": 2735.0,
+        "y": 340.0
+      },
+      "t-hermann-f07-port-binding": {
+        "id": "t-hermann-f07-port-binding",
+        "label": "VII port binding",
+        "x": 2735.0,
+        "y": 440.0
+      },
+      "t-hermann-f08-concurrency": {
+        "id": "t-hermann-f08-concurrency",
+        "label": "VIII concurrency",
+        "x": 2735.0,
+        "y": 540.0
+      },
+      "t-hermann-f09-disposability": {
+        "id": "t-hermann-f09-disposability",
+        "label": "IX disposability",
+        "x": 2910.0,
+        "y": 190.0
+      },
+      "t-hermann-f10-dev-prod-parity": {
+        "id": "t-hermann-f10-dev-prod-parity",
+        "label": "X dev prod parity",
+        "x": 2910.0,
+        "y": 290.0
+      },
+      "t-hermann-f11-logs": {
+        "id": "t-hermann-f11-logs",
+        "label": "XI logs",
+        "x": 2910.0,
+        "y": 390.0
+      },
+      "t-hermann-f12-admin-processes": {
+        "id": "t-hermann-f12-admin-processes",
+        "label": "XII admin processes",
+        "x": 2910.0,
+        "y": 490.0
+      },
+      "t-hermann-infra-tick": {
+        "id": "t-hermann-infra-tick",
+        "label": "health tick, hourly",
+        "x": 460.0,
+        "y": 440.0
+      },
+      "t-hermann-iterate-prep": {
+        "id": "t-hermann-iterate-prep",
+        "label": "trigger to brief",
+        "x": 2210.0,
+        "y": 190.0
+      },
+      "t-hermann-merge-cmd": {
+        "id": "t-hermann-merge-cmd",
+        "label": "merge, tag, next",
+        "x": 810.0,
+        "y": 390.0
+      },
+      "t-hermann-merge-prep": {
+        "id": "t-hermann-merge-prep",
+        "label": "merge to release",
+        "x": 460.0,
+        "y": 340.0
+      },
+      "t-hermann-observe-cmd": {
+        "id": "t-hermann-observe-cmd",
+        "label": "observe",
+        "x": 810.0,
+        "y": 290.0
+      },
+      "t-hermann-propose": {
+        "id": "t-hermann-propose",
+        "label": "propose, agent",
+        "x": 1335.0,
+        "y": 340.0
+      },
+      "t-hermann-review": {
+        "id": "t-hermann-review",
+        "label": "review, agent",
+        "x": 1335.0,
+        "y": 240.0
+      },
+      "t-hermann-revise-prep": {
+        "id": "t-hermann-revise-prep",
+        "label": "reshape to brief",
+        "x": 285.0,
+        "y": 390.0
+      },
+      "t-hermann-scorecard-cmd": {
+        "id": "t-hermann-scorecard-cmd",
+        "label": "scorecard",
+        "x": 2210.0,
+        "y": 290.0
+      },
+      "t-hermann-setup-cmd": {
+        "id": "t-hermann-setup-cmd",
+        "label": "setup process",
+        "x": 810.0,
+        "y": 490.0
+      },
+      "t-hermann-spec": {
+        "id": "t-hermann-spec",
+        "label": "write the spec, agent",
+        "x": 1335.0,
+        "y": 440.0
+      },
+      "t-hermann-verify-cmd": {
+        "id": "t-hermann-verify-cmd",
+        "label": "verify",
+        "x": 2210.0,
+        "y": 390.0
+      }
+    },
+    "arcs": {
+      "a-hermann-full-01": {
+        "id": "a-hermann-full-01",
+        "source": "p-hermann-repo",
+        "target": "t-hermann-audit-cron",
+        "weight": 1
+      },
+      "a-hermann-full-02": {
+        "id": "a-hermann-full-02",
+        "source": "t-hermann-audit-cron",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-full-03": {
+        "id": "a-hermann-full-03",
+        "source": "p-hermann-audit-request",
+        "target": "t-hermann-audit-prep",
+        "weight": 1
+      },
+      "a-hermann-full-04": {
+        "id": "a-hermann-full-04",
+        "source": "p-hermann-repo",
+        "target": "t-hermann-audit-prep",
+        "weight": 1
+      },
+      "a-hermann-full-05": {
+        "id": "a-hermann-full-05",
+        "source": "t-hermann-audit-prep",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-06": {
+        "id": "a-hermann-full-06",
+        "source": "p-hermann-audit-cmd",
+        "target": "t-hermann-digest-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-07": {
+        "id": "a-hermann-full-07",
+        "source": "t-hermann-digest-cmd",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-08": {
+        "id": "a-hermann-full-08",
+        "source": "t-hermann-digest-cmd",
+        "target": "p-hermann-repo-digest",
+        "weight": 1
+      },
+      "a-hermann-full-09": {
+        "id": "a-hermann-full-09",
+        "source": "t-hermann-digest-cmd",
+        "target": "p-hermann-factor-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-10": {
+        "id": "a-hermann-full-10",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f01-codebase",
+        "weight": 1
+      },
+      "a-hermann-full-11": {
+        "id": "a-hermann-full-11",
+        "source": "t-hermann-f01-codebase",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-12": {
+        "id": "a-hermann-full-12",
+        "source": "t-hermann-f01-codebase",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-13": {
+        "id": "a-hermann-full-13",
+        "source": "t-hermann-f01-codebase",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-14": {
+        "id": "a-hermann-full-14",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f02-dependencies",
+        "weight": 1
+      },
+      "a-hermann-full-15": {
+        "id": "a-hermann-full-15",
+        "source": "t-hermann-f02-dependencies",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-16": {
+        "id": "a-hermann-full-16",
+        "source": "t-hermann-f02-dependencies",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-17": {
+        "id": "a-hermann-full-17",
+        "source": "t-hermann-f02-dependencies",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-18": {
+        "id": "a-hermann-full-18",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f03-config",
+        "weight": 1
+      },
+      "a-hermann-full-19": {
+        "id": "a-hermann-full-19",
+        "source": "t-hermann-f03-config",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-20": {
+        "id": "a-hermann-full-20",
+        "source": "t-hermann-f03-config",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-21": {
+        "id": "a-hermann-full-21",
+        "source": "t-hermann-f03-config",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-22": {
+        "id": "a-hermann-full-22",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f04-backing-services",
+        "weight": 1
+      },
+      "a-hermann-full-23": {
+        "id": "a-hermann-full-23",
+        "source": "t-hermann-f04-backing-services",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-24": {
+        "id": "a-hermann-full-24",
+        "source": "t-hermann-f04-backing-services",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-25": {
+        "id": "a-hermann-full-25",
+        "source": "t-hermann-f04-backing-services",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-26": {
+        "id": "a-hermann-full-26",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f05-build-release-run",
+        "weight": 1
+      },
+      "a-hermann-full-27": {
+        "id": "a-hermann-full-27",
+        "source": "t-hermann-f05-build-release-run",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-28": {
+        "id": "a-hermann-full-28",
+        "source": "t-hermann-f05-build-release-run",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-29": {
+        "id": "a-hermann-full-29",
+        "source": "t-hermann-f05-build-release-run",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-30": {
+        "id": "a-hermann-full-30",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f06-processes",
+        "weight": 1
+      },
+      "a-hermann-full-31": {
+        "id": "a-hermann-full-31",
+        "source": "t-hermann-f06-processes",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-32": {
+        "id": "a-hermann-full-32",
+        "source": "t-hermann-f06-processes",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-33": {
+        "id": "a-hermann-full-33",
+        "source": "t-hermann-f06-processes",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-34": {
+        "id": "a-hermann-full-34",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f07-port-binding",
+        "weight": 1
+      },
+      "a-hermann-full-35": {
+        "id": "a-hermann-full-35",
+        "source": "t-hermann-f07-port-binding",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-36": {
+        "id": "a-hermann-full-36",
+        "source": "t-hermann-f07-port-binding",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-37": {
+        "id": "a-hermann-full-37",
+        "source": "t-hermann-f07-port-binding",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-38": {
+        "id": "a-hermann-full-38",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f08-concurrency",
+        "weight": 1
+      },
+      "a-hermann-full-39": {
+        "id": "a-hermann-full-39",
+        "source": "t-hermann-f08-concurrency",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-40": {
+        "id": "a-hermann-full-40",
+        "source": "t-hermann-f08-concurrency",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-41": {
+        "id": "a-hermann-full-41",
+        "source": "t-hermann-f08-concurrency",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-42": {
+        "id": "a-hermann-full-42",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f09-disposability",
+        "weight": 1
+      },
+      "a-hermann-full-43": {
+        "id": "a-hermann-full-43",
+        "source": "t-hermann-f09-disposability",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-44": {
+        "id": "a-hermann-full-44",
+        "source": "t-hermann-f09-disposability",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-45": {
+        "id": "a-hermann-full-45",
+        "source": "t-hermann-f09-disposability",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-46": {
+        "id": "a-hermann-full-46",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f10-dev-prod-parity",
+        "weight": 1
+      },
+      "a-hermann-full-47": {
+        "id": "a-hermann-full-47",
+        "source": "t-hermann-f10-dev-prod-parity",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-48": {
+        "id": "a-hermann-full-48",
+        "source": "t-hermann-f10-dev-prod-parity",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-49": {
+        "id": "a-hermann-full-49",
+        "source": "t-hermann-f10-dev-prod-parity",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-50": {
+        "id": "a-hermann-full-50",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f11-logs",
+        "weight": 1
+      },
+      "a-hermann-full-51": {
+        "id": "a-hermann-full-51",
+        "source": "t-hermann-f11-logs",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-52": {
+        "id": "a-hermann-full-52",
+        "source": "t-hermann-f11-logs",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-53": {
+        "id": "a-hermann-full-53",
+        "source": "t-hermann-f11-logs",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-54": {
+        "id": "a-hermann-full-54",
+        "source": "p-hermann-factor-cmd",
+        "target": "t-hermann-f12-admin-processes",
+        "weight": 1
+      },
+      "a-hermann-full-55": {
+        "id": "a-hermann-full-55",
+        "source": "t-hermann-f12-admin-processes",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-56": {
+        "id": "a-hermann-full-56",
+        "source": "t-hermann-f12-admin-processes",
+        "target": "p-hermann-factor-reports",
+        "weight": 1
+      },
+      "a-hermann-full-57": {
+        "id": "a-hermann-full-57",
+        "source": "t-hermann-f12-admin-processes",
+        "target": "p-hermann-audit-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-58": {
+        "id": "a-hermann-full-58",
+        "source": "p-hermann-audit-cmd",
+        "target": "t-hermann-scorecard-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-59": {
+        "id": "a-hermann-full-59",
+        "source": "p-hermann-cards",
+        "target": "t-hermann-scorecard-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-60": {
+        "id": "a-hermann-full-60",
+        "source": "t-hermann-scorecard-cmd",
+        "target": "p-hermann-audit-log",
+        "weight": 1
+      },
+      "a-hermann-full-61": {
+        "id": "a-hermann-full-61",
+        "source": "t-hermann-scorecard-cmd",
+        "target": "p-hermann-scorecard",
+        "weight": 1
+      },
+      "a-hermann-full-62": {
+        "id": "a-hermann-full-62",
+        "source": "p-hermann-brain-cmd",
+        "target": "t-hermann-observe-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-63": {
+        "id": "a-hermann-full-63",
+        "source": "p-hermann-runs",
+        "target": "t-hermann-observe-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-64": {
+        "id": "a-hermann-full-64",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-brain-log",
+        "weight": 1
+      },
+      "a-hermann-full-65": {
+        "id": "a-hermann-full-65",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-signals",
+        "weight": 1
+      },
+      "a-hermann-full-66": {
+        "id": "a-hermann-full-66",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-map",
+        "weight": 1
+      },
+      "a-hermann-full-67": {
+        "id": "a-hermann-full-67",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-full-68": {
+        "id": "a-hermann-full-68",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-brain-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-69": {
+        "id": "a-hermann-full-69",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-full-70": {
+        "id": "a-hermann-full-70",
+        "source": "p-hermann-context",
+        "target": "t-hermann-curate",
+        "weight": 1
+      },
+      "a-hermann-full-71": {
+        "id": "a-hermann-full-71",
+        "source": "t-hermann-curate",
+        "target": "p-hermann-curation",
+        "weight": 1
+      },
+      "a-hermann-full-72": {
+        "id": "a-hermann-full-72",
+        "source": "t-hermann-curate",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-full-73": {
+        "id": "a-hermann-full-73",
+        "source": "t-hermann-curate",
+        "target": "p-hermann-curations",
+        "weight": 1
+      },
+      "a-hermann-full-74": {
+        "id": "a-hermann-full-74",
+        "source": "p-hermann-brain-cmd",
+        "target": "t-hermann-curate-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-75": {
+        "id": "a-hermann-full-75",
+        "source": "t-hermann-curate-cmd",
+        "target": "p-hermann-brain-log",
+        "weight": 1
+      },
+      "a-hermann-full-76": {
+        "id": "a-hermann-full-76",
+        "source": "t-hermann-curate-cmd",
+        "target": "p-hermann-curation",
+        "weight": 1
+      },
+      "a-hermann-full-77": {
+        "id": "a-hermann-full-77",
+        "source": "t-hermann-curate-cmd",
+        "target": "p-hermann-curations",
+        "weight": 1
+      },
+      "a-hermann-full-78": {
+        "id": "a-hermann-full-78",
+        "source": "p-hermann-curation",
+        "target": "t-hermann-apply-prep",
+        "weight": 1
+      },
+      "a-hermann-full-79": {
+        "id": "a-hermann-full-79",
+        "source": "t-hermann-apply-prep",
+        "target": "p-hermann-brain-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-80": {
+        "id": "a-hermann-full-80",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-hermann-full-81": {
+        "id": "a-hermann-full-81",
+        "source": "t-hermann-answer-knowledge-prep",
+        "target": "p-hermann-brain-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-82": {
+        "id": "a-hermann-full-82",
+        "source": "p-hermann-brain-cmd",
+        "target": "t-hermann-apply-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-83": {
+        "id": "a-hermann-full-83",
+        "source": "p-hermann-curations",
+        "target": "t-hermann-apply-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-84": {
+        "id": "a-hermann-full-84",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-brain-log",
+        "weight": 1
+      },
+      "a-hermann-full-85": {
+        "id": "a-hermann-full-85",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-knowledge",
+        "weight": 1
+      },
+      "a-hermann-full-86": {
+        "id": "a-hermann-full-86",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-plan",
+        "weight": 1
+      },
+      "a-hermann-full-87": {
+        "id": "a-hermann-full-87",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-adr",
+        "weight": 1
+      },
+      "a-hermann-full-88": {
+        "id": "a-hermann-full-88",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-prompts",
+        "weight": 1
+      },
+      "a-hermann-full-89": {
+        "id": "a-hermann-full-89",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-full-90": {
+        "id": "a-hermann-full-90",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-approve-prep",
+        "weight": 1
+      },
+      "a-hermann-full-91": {
+        "id": "a-hermann-full-91",
+        "source": "t-hermann-approve-prep",
+        "target": "p-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-92": {
+        "id": "a-hermann-full-92",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-changes-prep",
+        "weight": 1
+      },
+      "a-hermann-full-93": {
+        "id": "a-hermann-full-93",
+        "source": "t-hermann-changes-prep",
+        "target": "p-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-94": {
+        "id": "a-hermann-full-94",
+        "source": "p-hermann-code-cmd",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-95": {
+        "id": "a-hermann-full-95",
+        "source": "p-hermann-specs",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-96": {
+        "id": "a-hermann-full-96",
+        "source": "p-hermann-coders",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-97": {
+        "id": "a-hermann-full-97",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-full-98": {
+        "id": "a-hermann-full-98",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-runs",
+        "weight": 1
+      },
+      "a-hermann-full-99": {
+        "id": "a-hermann-full-99",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-verify-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-100": {
+        "id": "a-hermann-full-100",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-full-101": {
+        "id": "a-hermann-full-101",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-errors",
+        "weight": 1
+      },
+      "a-hermann-full-102": {
+        "id": "a-hermann-full-102",
+        "source": "p-hermann-verify-cmd",
+        "target": "t-hermann-verify-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-103": {
+        "id": "a-hermann-full-103",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-full-104": {
+        "id": "a-hermann-full-104",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-verification",
+        "weight": 1
+      },
+      "a-hermann-full-105": {
+        "id": "a-hermann-full-105",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-review-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-106": {
+        "id": "a-hermann-full-106",
+        "source": "p-hermann-review-cmd",
+        "target": "t-hermann-diff-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-107": {
+        "id": "a-hermann-full-107",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-full-108": {
+        "id": "a-hermann-full-108",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-full-109": {
+        "id": "a-hermann-full-109",
+        "source": "p-hermann-context",
+        "target": "t-hermann-review",
+        "weight": 1
+      },
+      "a-hermann-full-110": {
+        "id": "a-hermann-full-110",
+        "source": "t-hermann-review",
+        "target": "p-hermann-reviews",
+        "weight": 1
+      },
+      "a-hermann-full-111": {
+        "id": "a-hermann-full-111",
+        "source": "t-hermann-review",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-full-112": {
+        "id": "a-hermann-full-112",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-merge-prep",
+        "weight": 1
+      },
+      "a-hermann-full-113": {
+        "id": "a-hermann-full-113",
+        "source": "t-hermann-merge-prep",
+        "target": "p-hermann-release-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-114": {
+        "id": "a-hermann-full-114",
+        "source": "p-hermann-release-cmd",
+        "target": "t-hermann-merge-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-115": {
+        "id": "a-hermann-full-115",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-full-116": {
+        "id": "a-hermann-full-116",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-runs",
+        "weight": 1
+      },
+      "a-hermann-full-117": {
+        "id": "a-hermann-full-117",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-specs",
+        "weight": 1
+      },
+      "a-hermann-full-118": {
+        "id": "a-hermann-full-118",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-repo",
+        "weight": 1
+      },
+      "a-hermann-full-119": {
+        "id": "a-hermann-full-119",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-full-120": {
+        "id": "a-hermann-full-120",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-iterate",
+        "weight": 1
+      },
+      "a-hermann-full-121": {
+        "id": "a-hermann-full-121",
+        "source": "p-hermann-config",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-full-122": {
+        "id": "a-hermann-full-122",
+        "source": "p-hermann-goal",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-full-123": {
+        "id": "a-hermann-full-123",
+        "source": "p-hermann-cards",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-full-124": {
+        "id": "a-hermann-full-124",
+        "source": "t-hermann-infra-tick",
+        "target": "p-hermann-setup-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-125": {
+        "id": "a-hermann-full-125",
+        "source": "p-hermann-setup-cmd",
+        "target": "t-hermann-setup-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-126": {
+        "id": "a-hermann-full-126",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-setup-log",
+        "weight": 1
+      },
+      "a-hermann-full-127": {
+        "id": "a-hermann-full-127",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-infra",
+        "weight": 1
+      },
+      "a-hermann-full-128": {
+        "id": "a-hermann-full-128",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-repo",
+        "weight": 1
+      },
+      "a-hermann-full-129": {
+        "id": "a-hermann-full-129",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-full-130": {
+        "id": "a-hermann-full-130",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-errors",
+        "weight": 1
+      },
+      "a-hermann-full-131": {
+        "id": "a-hermann-full-131",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-full-132": {
+        "id": "a-hermann-full-132",
+        "source": "p-hermann-iterate",
+        "target": "t-hermann-iterate-prep",
+        "weight": 1
+      },
+      "a-hermann-full-133": {
+        "id": "a-hermann-full-133",
+        "source": "p-hermann-adr",
+        "target": "t-hermann-iterate-prep",
+        "weight": 1
+      },
+      "a-hermann-full-134": {
+        "id": "a-hermann-full-134",
+        "source": "t-hermann-iterate-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-135": {
+        "id": "a-hermann-full-135",
+        "source": "p-hermann-context-cmd",
+        "target": "t-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-136": {
+        "id": "a-hermann-full-136",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-spec-log",
+        "weight": 1
+      },
+      "a-hermann-full-137": {
+        "id": "a-hermann-full-137",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-full-138": {
+        "id": "a-hermann-full-138",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-full-139": {
+        "id": "a-hermann-full-139",
+        "source": "p-hermann-context",
+        "target": "t-hermann-propose",
+        "weight": 1
+      },
+      "a-hermann-full-140": {
+        "id": "a-hermann-full-140",
+        "source": "t-hermann-propose",
+        "target": "p-hermann-prompts",
+        "weight": 1
+      },
+      "a-hermann-full-141": {
+        "id": "a-hermann-full-141",
+        "source": "t-hermann-propose",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-full-142": {
+        "id": "a-hermann-full-142",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-answer-prep",
+        "weight": 1
+      },
+      "a-hermann-full-143": {
+        "id": "a-hermann-full-143",
+        "source": "t-hermann-answer-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-144": {
+        "id": "a-hermann-full-144",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-revise-prep",
+        "weight": 1
+      },
+      "a-hermann-full-145": {
+        "id": "a-hermann-full-145",
+        "source": "t-hermann-revise-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-full-146": {
+        "id": "a-hermann-full-146",
+        "source": "p-hermann-context",
+        "target": "t-hermann-spec",
+        "weight": 1
+      },
+      "a-hermann-full-147": {
+        "id": "a-hermann-full-147",
+        "source": "t-hermann-spec",
+        "target": "p-hermann-specs",
+        "weight": 1
+      },
+      "a-hermann-full-148": {
+        "id": "a-hermann-full-148",
+        "source": "t-hermann-spec",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      }
+    }
+  }
+}

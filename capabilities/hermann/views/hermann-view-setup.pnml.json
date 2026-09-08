@@ -1,0 +1,160 @@
+{
+  "net": {
+    "id": "hermann-view-setup",
+    "description": "Designtime view: stage 0, provision the git host and bootstrap the service",
+    "places": {
+      "p-hermann-audit-request": {
+        "id": "p-hermann-audit-request",
+        "label": "audit requests",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-hermann-cards": {
+        "id": "p-hermann-cards",
+        "label": "twelve factor cards",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 240.0
+      },
+      "p-hermann-config": {
+        "id": "p-hermann-config",
+        "label": "config",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-hermann-errors": {
+        "id": "p-hermann-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-hermann-goal": {
+        "id": "p-hermann-goal",
+        "label": "goal and principles",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 440.0
+      },
+      "p-hermann-infra": {
+        "id": "p-hermann-infra",
+        "label": "infra health",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-hermann-repo": {
+        "id": "p-hermann-repo",
+        "label": "repository record",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-hermann-setup-cmd": {
+        "id": "p-hermann-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-hermann-setup-log": {
+        "id": "p-hermann-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 590.0
+      }
+    },
+    "transitions": {
+      "t-hermann-infra-tick": {
+        "id": "t-hermann-infra-tick",
+        "label": "health tick, hourly",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-hermann-setup-cmd": {
+        "id": "t-hermann-setup-cmd",
+        "label": "setup process",
+        "x": 635.0,
+        "y": 340.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-setup-01": {
+        "id": "a-hermann-view-setup-01",
+        "source": "p-hermann-config",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-view-setup-02": {
+        "id": "a-hermann-view-setup-02",
+        "source": "p-hermann-goal",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-view-setup-03": {
+        "id": "a-hermann-view-setup-03",
+        "source": "p-hermann-cards",
+        "target": "t-hermann-infra-tick",
+        "weight": 1
+      },
+      "a-hermann-view-setup-04": {
+        "id": "a-hermann-view-setup-04",
+        "source": "t-hermann-infra-tick",
+        "target": "p-hermann-setup-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-setup-05": {
+        "id": "a-hermann-view-setup-05",
+        "source": "p-hermann-setup-cmd",
+        "target": "t-hermann-setup-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-setup-06": {
+        "id": "a-hermann-view-setup-06",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-setup-log",
+        "weight": 1
+      },
+      "a-hermann-view-setup-07": {
+        "id": "a-hermann-view-setup-07",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-infra",
+        "weight": 1
+      },
+      "a-hermann-view-setup-08": {
+        "id": "a-hermann-view-setup-08",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-repo",
+        "weight": 1
+      },
+      "a-hermann-view-setup-09": {
+        "id": "a-hermann-view-setup-09",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-view-setup-10": {
+        "id": "a-hermann-view-setup-10",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-errors",
+        "weight": 1
+      },
+      "a-hermann-view-setup-11": {
+        "id": "a-hermann-view-setup-11",
+        "source": "t-hermann-setup-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      }
+    }
+  }
+}

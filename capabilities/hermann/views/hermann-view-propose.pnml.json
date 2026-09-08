@@ -1,0 +1,171 @@
+{
+  "net": {
+    "id": "hermann-view-propose",
+    "description": "Designtime view: stage 1, propose the next iteration as a choice, an interview or a goal request",
+    "places": {
+      "p-hermann-adr": {
+        "id": "p-hermann-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 90.0
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-hermann-context-cmd": {
+        "id": "p-hermann-context-cmd",
+        "label": "brief commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 190.0
+      },
+      "p-hermann-iterate": {
+        "id": "p-hermann-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 140.0
+      },
+      "p-hermann-prompts": {
+        "id": "p-hermann-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-hermann-responses": {
+        "id": "p-hermann-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 190.0
+      },
+      "p-hermann-spec-log": {
+        "id": "p-hermann-spec-log",
+        "label": "brief log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      }
+    },
+    "transitions": {
+      "t-hermann-context-cmd": {
+        "id": "t-hermann-context-cmd",
+        "label": "render the brief",
+        "x": 635.0,
+        "y": 190.0
+      },
+      "t-hermann-iterate-prep": {
+        "id": "t-hermann-iterate-prep",
+        "label": "trigger to brief",
+        "x": 285.0,
+        "y": 140.0
+      },
+      "t-hermann-propose": {
+        "id": "t-hermann-propose",
+        "label": "propose, agent",
+        "x": 985.0,
+        "y": 190.0
+      },
+      "t-hermann-revise-prep": {
+        "id": "t-hermann-revise-prep",
+        "label": "reshape to brief",
+        "x": 285.0,
+        "y": 240.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-propose-01": {
+        "id": "a-hermann-view-propose-01",
+        "source": "p-hermann-iterate",
+        "target": "t-hermann-iterate-prep",
+        "weight": 1
+      },
+      "a-hermann-view-propose-02": {
+        "id": "a-hermann-view-propose-02",
+        "source": "p-hermann-adr",
+        "target": "t-hermann-iterate-prep",
+        "weight": 1
+      },
+      "a-hermann-view-propose-03": {
+        "id": "a-hermann-view-propose-03",
+        "source": "t-hermann-iterate-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-propose-04": {
+        "id": "a-hermann-view-propose-04",
+        "source": "p-hermann-context-cmd",
+        "target": "t-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-propose-05": {
+        "id": "a-hermann-view-propose-05",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-spec-log",
+        "weight": 1
+      },
+      "a-hermann-view-propose-06": {
+        "id": "a-hermann-view-propose-06",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-view-propose-07": {
+        "id": "a-hermann-view-propose-07",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-view-propose-08": {
+        "id": "a-hermann-view-propose-08",
+        "source": "p-hermann-context",
+        "target": "t-hermann-propose",
+        "weight": 1
+      },
+      "a-hermann-view-propose-09": {
+        "id": "a-hermann-view-propose-09",
+        "source": "t-hermann-propose",
+        "target": "p-hermann-prompts",
+        "weight": 1
+      },
+      "a-hermann-view-propose-10": {
+        "id": "a-hermann-view-propose-10",
+        "source": "t-hermann-propose",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-view-propose-11": {
+        "id": "a-hermann-view-propose-11",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-revise-prep",
+        "weight": 1
+      },
+      "a-hermann-view-propose-12": {
+        "id": "a-hermann-view-propose-12",
+        "source": "t-hermann-revise-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      }
+    }
+  }
+}

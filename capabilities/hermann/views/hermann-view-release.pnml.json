@@ -1,0 +1,159 @@
+{
+  "net": {
+    "id": "hermann-view-release",
+    "description": "Designtime view: stage 4, merge and tag, or send the coder back",
+    "places": {
+      "p-hermann-audit-request": {
+        "id": "p-hermann-audit-request",
+        "label": "audit requests",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-hermann-build-log": {
+        "id": "p-hermann-build-log",
+        "label": "build log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-hermann-code-cmd": {
+        "id": "p-hermann-code-cmd",
+        "label": "coder commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-hermann-decisions": {
+        "id": "p-hermann-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-hermann-iterate": {
+        "id": "p-hermann-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      },
+      "p-hermann-release-cmd": {
+        "id": "p-hermann-release-cmd",
+        "label": "release commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 390.0
+      },
+      "p-hermann-repo": {
+        "id": "p-hermann-repo",
+        "label": "repository record",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-hermann-runs": {
+        "id": "p-hermann-runs",
+        "label": "runs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-hermann-specs": {
+        "id": "p-hermann-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 590.0
+      }
+    },
+    "transitions": {
+      "t-hermann-changes-prep": {
+        "id": "t-hermann-changes-prep",
+        "label": "changes to coder",
+        "x": 285.0,
+        "y": 290.0
+      },
+      "t-hermann-merge-cmd": {
+        "id": "t-hermann-merge-cmd",
+        "label": "merge, tag, next",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-hermann-merge-prep": {
+        "id": "t-hermann-merge-prep",
+        "label": "merge to release",
+        "x": 285.0,
+        "y": 390.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-release-01": {
+        "id": "a-hermann-view-release-01",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-changes-prep",
+        "weight": 1
+      },
+      "a-hermann-view-release-02": {
+        "id": "a-hermann-view-release-02",
+        "source": "t-hermann-changes-prep",
+        "target": "p-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-release-03": {
+        "id": "a-hermann-view-release-03",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-merge-prep",
+        "weight": 1
+      },
+      "a-hermann-view-release-04": {
+        "id": "a-hermann-view-release-04",
+        "source": "t-hermann-merge-prep",
+        "target": "p-hermann-release-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-release-05": {
+        "id": "a-hermann-view-release-05",
+        "source": "p-hermann-release-cmd",
+        "target": "t-hermann-merge-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-release-06": {
+        "id": "a-hermann-view-release-06",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-view-release-07": {
+        "id": "a-hermann-view-release-07",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-runs",
+        "weight": 1
+      },
+      "a-hermann-view-release-08": {
+        "id": "a-hermann-view-release-08",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-specs",
+        "weight": 1
+      },
+      "a-hermann-view-release-09": {
+        "id": "a-hermann-view-release-09",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-repo",
+        "weight": 1
+      },
+      "a-hermann-view-release-10": {
+        "id": "a-hermann-view-release-10",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-audit-request",
+        "weight": 1
+      },
+      "a-hermann-view-release-11": {
+        "id": "a-hermann-view-release-11",
+        "source": "t-hermann-merge-cmd",
+        "target": "p-hermann-iterate",
+        "weight": 1
+      }
+    }
+  }
+}

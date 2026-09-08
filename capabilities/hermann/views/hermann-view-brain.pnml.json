@@ -1,0 +1,321 @@
+{
+  "net": {
+    "id": "hermann-view-brain",
+    "description": "Designtime view: the brain, observe, curate, apply, answer",
+    "places": {
+      "p-hermann-adr": {
+        "id": "p-hermann-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 190.0
+      },
+      "p-hermann-brain-cmd": {
+        "id": "p-hermann-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-hermann-brain-log": {
+        "id": "p-hermann-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 90.0
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 240.0
+      },
+      "p-hermann-curation": {
+        "id": "p-hermann-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-hermann-curations": {
+        "id": "p-hermann-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 290.0
+      },
+      "p-hermann-knowledge": {
+        "id": "p-hermann-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 390.0
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      },
+      "p-hermann-map": {
+        "id": "p-hermann-map",
+        "label": "component map",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-hermann-plan": {
+        "id": "p-hermann-plan",
+        "label": "the plan",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 490.0
+      },
+      "p-hermann-prompts": {
+        "id": "p-hermann-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 590.0
+      },
+      "p-hermann-responses": {
+        "id": "p-hermann-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-hermann-runs": {
+        "id": "p-hermann-runs",
+        "label": "runs",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-hermann-signals": {
+        "id": "p-hermann-signals",
+        "label": "signals per run",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 440.0
+      }
+    },
+    "transitions": {
+      "t-hermann-answer-knowledge-prep": {
+        "id": "t-hermann-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-hermann-apply-cmd": {
+        "id": "t-hermann-apply-cmd",
+        "label": "apply",
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "t-hermann-apply-prep": {
+        "id": "t-hermann-apply-prep",
+        "label": "curation to apply",
+        "x": 1335.0,
+        "y": 290.0
+      },
+      "t-hermann-curate": {
+        "id": "t-hermann-curate",
+        "label": "curate, one shot",
+        "x": 985.0,
+        "y": 340.0
+      },
+      "t-hermann-curate-cmd": {
+        "id": "t-hermann-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 635.0,
+        "y": 290.0
+      },
+      "t-hermann-observe-cmd": {
+        "id": "t-hermann-observe-cmd",
+        "label": "observe",
+        "x": 635.0,
+        "y": 390.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-brain-01": {
+        "id": "a-hermann-view-brain-01",
+        "source": "p-hermann-brain-cmd",
+        "target": "t-hermann-observe-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-02": {
+        "id": "a-hermann-view-brain-02",
+        "source": "p-hermann-runs",
+        "target": "t-hermann-observe-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-03": {
+        "id": "a-hermann-view-brain-03",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-brain-log",
+        "weight": 1
+      },
+      "a-hermann-view-brain-04": {
+        "id": "a-hermann-view-brain-04",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-signals",
+        "weight": 1
+      },
+      "a-hermann-view-brain-05": {
+        "id": "a-hermann-view-brain-05",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-map",
+        "weight": 1
+      },
+      "a-hermann-view-brain-06": {
+        "id": "a-hermann-view-brain-06",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-view-brain-07": {
+        "id": "a-hermann-view-brain-07",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-brain-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-08": {
+        "id": "a-hermann-view-brain-08",
+        "source": "t-hermann-observe-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-view-brain-09": {
+        "id": "a-hermann-view-brain-09",
+        "source": "p-hermann-context",
+        "target": "t-hermann-curate",
+        "weight": 1
+      },
+      "a-hermann-view-brain-10": {
+        "id": "a-hermann-view-brain-10",
+        "source": "t-hermann-curate",
+        "target": "p-hermann-curation",
+        "weight": 1
+      },
+      "a-hermann-view-brain-11": {
+        "id": "a-hermann-view-brain-11",
+        "source": "t-hermann-curate",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      },
+      "a-hermann-view-brain-12": {
+        "id": "a-hermann-view-brain-12",
+        "source": "t-hermann-curate",
+        "target": "p-hermann-curations",
+        "weight": 1
+      },
+      "a-hermann-view-brain-13": {
+        "id": "a-hermann-view-brain-13",
+        "source": "p-hermann-brain-cmd",
+        "target": "t-hermann-curate-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-14": {
+        "id": "a-hermann-view-brain-14",
+        "source": "t-hermann-curate-cmd",
+        "target": "p-hermann-brain-log",
+        "weight": 1
+      },
+      "a-hermann-view-brain-15": {
+        "id": "a-hermann-view-brain-15",
+        "source": "t-hermann-curate-cmd",
+        "target": "p-hermann-curation",
+        "weight": 1
+      },
+      "a-hermann-view-brain-16": {
+        "id": "a-hermann-view-brain-16",
+        "source": "t-hermann-curate-cmd",
+        "target": "p-hermann-curations",
+        "weight": 1
+      },
+      "a-hermann-view-brain-17": {
+        "id": "a-hermann-view-brain-17",
+        "source": "p-hermann-curation",
+        "target": "t-hermann-apply-prep",
+        "weight": 1
+      },
+      "a-hermann-view-brain-18": {
+        "id": "a-hermann-view-brain-18",
+        "source": "t-hermann-apply-prep",
+        "target": "p-hermann-brain-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-19": {
+        "id": "a-hermann-view-brain-19",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-hermann-view-brain-20": {
+        "id": "a-hermann-view-brain-20",
+        "source": "t-hermann-answer-knowledge-prep",
+        "target": "p-hermann-brain-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-21": {
+        "id": "a-hermann-view-brain-21",
+        "source": "p-hermann-brain-cmd",
+        "target": "t-hermann-apply-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-22": {
+        "id": "a-hermann-view-brain-22",
+        "source": "p-hermann-curations",
+        "target": "t-hermann-apply-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-brain-23": {
+        "id": "a-hermann-view-brain-23",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-brain-log",
+        "weight": 1
+      },
+      "a-hermann-view-brain-24": {
+        "id": "a-hermann-view-brain-24",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-knowledge",
+        "weight": 1
+      },
+      "a-hermann-view-brain-25": {
+        "id": "a-hermann-view-brain-25",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-plan",
+        "weight": 1
+      },
+      "a-hermann-view-brain-26": {
+        "id": "a-hermann-view-brain-26",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-adr",
+        "weight": 1
+      },
+      "a-hermann-view-brain-27": {
+        "id": "a-hermann-view-brain-27",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-prompts",
+        "weight": 1
+      },
+      "a-hermann-view-brain-28": {
+        "id": "a-hermann-view-brain-28",
+        "source": "t-hermann-apply-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      }
+    }
+  }
+}

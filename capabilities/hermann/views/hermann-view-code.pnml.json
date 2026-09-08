@@ -1,0 +1,235 @@
+{
+  "net": {
+    "id": "hermann-view-code",
+    "description": "Designtime view: stage 3, the coder implements the spec, verify and review",
+    "places": {
+      "p-hermann-build-log": {
+        "id": "p-hermann-build-log",
+        "label": "build log",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 290.0
+      },
+      "p-hermann-code-cmd": {
+        "id": "p-hermann-code-cmd",
+        "label": "coder commands",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 140.0
+      },
+      "p-hermann-coders": {
+        "id": "p-hermann-coders",
+        "label": "coder definitions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 240.0
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 190.0
+      },
+      "p-hermann-errors": {
+        "id": "p-hermann-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 90.0
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 190.0
+      },
+      "p-hermann-review-cmd": {
+        "id": "p-hermann-review-cmd",
+        "label": "review commands",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-hermann-reviews": {
+        "id": "p-hermann-reviews",
+        "label": "review verdicts",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 290.0
+      },
+      "p-hermann-runs": {
+        "id": "p-hermann-runs",
+        "label": "runs",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 190.0
+      },
+      "p-hermann-specs": {
+        "id": "p-hermann-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-hermann-verification": {
+        "id": "p-hermann-verification",
+        "label": "verification results",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-hermann-verify-cmd": {
+        "id": "p-hermann-verify-cmd",
+        "label": "verify commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 390.0
+      }
+    },
+    "transitions": {
+      "t-hermann-code-cmd": {
+        "id": "t-hermann-code-cmd",
+        "label": "coder, headless",
+        "x": 285.0,
+        "y": 240.0
+      },
+      "t-hermann-diff-cmd": {
+        "id": "t-hermann-diff-cmd",
+        "label": "review brief from diff",
+        "x": 985.0,
+        "y": 240.0
+      },
+      "t-hermann-review": {
+        "id": "t-hermann-review",
+        "label": "review, agent",
+        "x": 1335.0,
+        "y": 240.0
+      },
+      "t-hermann-verify-cmd": {
+        "id": "t-hermann-verify-cmd",
+        "label": "verify",
+        "x": 635.0,
+        "y": 240.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-code-01": {
+        "id": "a-hermann-view-code-01",
+        "source": "p-hermann-code-cmd",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-02": {
+        "id": "a-hermann-view-code-02",
+        "source": "p-hermann-specs",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-03": {
+        "id": "a-hermann-view-code-03",
+        "source": "p-hermann-coders",
+        "target": "t-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-04": {
+        "id": "a-hermann-view-code-04",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-view-code-05": {
+        "id": "a-hermann-view-code-05",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-runs",
+        "weight": 1
+      },
+      "a-hermann-view-code-06": {
+        "id": "a-hermann-view-code-06",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-verify-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-07": {
+        "id": "a-hermann-view-code-07",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-view-code-08": {
+        "id": "a-hermann-view-code-08",
+        "source": "t-hermann-code-cmd",
+        "target": "p-hermann-errors",
+        "weight": 1
+      },
+      "a-hermann-view-code-09": {
+        "id": "a-hermann-view-code-09",
+        "source": "p-hermann-verify-cmd",
+        "target": "t-hermann-verify-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-10": {
+        "id": "a-hermann-view-code-10",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-view-code-11": {
+        "id": "a-hermann-view-code-11",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-verification",
+        "weight": 1
+      },
+      "a-hermann-view-code-12": {
+        "id": "a-hermann-view-code-12",
+        "source": "t-hermann-verify-cmd",
+        "target": "p-hermann-review-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-13": {
+        "id": "a-hermann-view-code-13",
+        "source": "p-hermann-review-cmd",
+        "target": "t-hermann-diff-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-code-14": {
+        "id": "a-hermann-view-code-14",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-build-log",
+        "weight": 1
+      },
+      "a-hermann-view-code-15": {
+        "id": "a-hermann-view-code-15",
+        "source": "t-hermann-diff-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-view-code-16": {
+        "id": "a-hermann-view-code-16",
+        "source": "p-hermann-context",
+        "target": "t-hermann-review",
+        "weight": 1
+      },
+      "a-hermann-view-code-17": {
+        "id": "a-hermann-view-code-17",
+        "source": "t-hermann-review",
+        "target": "p-hermann-reviews",
+        "weight": 1
+      },
+      "a-hermann-view-code-18": {
+        "id": "a-hermann-view-code-18",
+        "source": "t-hermann-review",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "net": {
+    "id": "hermann-view-spec",
+    "description": "Designtime view: stage 2, the person answers, the spec is written, the person approves",
+    "places": {
+      "p-hermann-code-cmd": {
+        "id": "p-hermann-code-cmd",
+        "label": "coder commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 240.0
+      },
+      "p-hermann-context": {
+        "id": "p-hermann-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-hermann-context-cmd": {
+        "id": "p-hermann-context-cmd",
+        "label": "brief commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 140.0
+      },
+      "p-hermann-decisions": {
+        "id": "p-hermann-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 240.0
+      },
+      "p-hermann-journal": {
+        "id": "p-hermann-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-hermann-llm-errors": {
+        "id": "p-hermann-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 140.0
+      },
+      "p-hermann-responses": {
+        "id": "p-hermann-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 140.0
+      },
+      "p-hermann-spec-log": {
+        "id": "p-hermann-spec-log",
+        "label": "brief log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-hermann-specs": {
+        "id": "p-hermann-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      }
+    },
+    "transitions": {
+      "t-hermann-answer-prep": {
+        "id": "t-hermann-answer-prep",
+        "label": "answer to brief",
+        "x": 285.0,
+        "y": 140.0
+      },
+      "t-hermann-approve-prep": {
+        "id": "t-hermann-approve-prep",
+        "label": "approval to coder",
+        "x": 285.0,
+        "y": 240.0
+      },
+      "t-hermann-context-cmd": {
+        "id": "t-hermann-context-cmd",
+        "label": "render the brief",
+        "x": 635.0,
+        "y": 190.0
+      },
+      "t-hermann-spec": {
+        "id": "t-hermann-spec",
+        "label": "write the spec, agent",
+        "x": 985.0,
+        "y": 190.0
+      }
+    },
+    "arcs": {
+      "a-hermann-view-spec-01": {
+        "id": "a-hermann-view-spec-01",
+        "source": "p-hermann-decisions",
+        "target": "t-hermann-approve-prep",
+        "weight": 1
+      },
+      "a-hermann-view-spec-02": {
+        "id": "a-hermann-view-spec-02",
+        "source": "t-hermann-approve-prep",
+        "target": "p-hermann-code-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-spec-03": {
+        "id": "a-hermann-view-spec-03",
+        "source": "p-hermann-context-cmd",
+        "target": "t-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-spec-04": {
+        "id": "a-hermann-view-spec-04",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-spec-log",
+        "weight": 1
+      },
+      "a-hermann-view-spec-05": {
+        "id": "a-hermann-view-spec-05",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-context",
+        "weight": 1
+      },
+      "a-hermann-view-spec-06": {
+        "id": "a-hermann-view-spec-06",
+        "source": "t-hermann-context-cmd",
+        "target": "p-hermann-journal",
+        "weight": 1
+      },
+      "a-hermann-view-spec-07": {
+        "id": "a-hermann-view-spec-07",
+        "source": "p-hermann-responses",
+        "target": "t-hermann-answer-prep",
+        "weight": 1
+      },
+      "a-hermann-view-spec-08": {
+        "id": "a-hermann-view-spec-08",
+        "source": "t-hermann-answer-prep",
+        "target": "p-hermann-context-cmd",
+        "weight": 1
+      },
+      "a-hermann-view-spec-09": {
+        "id": "a-hermann-view-spec-09",
+        "source": "p-hermann-context",
+        "target": "t-hermann-spec",
+        "weight": 1
+      },
+      "a-hermann-view-spec-10": {
+        "id": "a-hermann-view-spec-10",
+        "source": "t-hermann-spec",
+        "target": "p-hermann-specs",
+        "weight": 1
+      },
+      "a-hermann-view-spec-11": {
+        "id": "a-hermann-view-spec-11",
+        "source": "t-hermann-spec",
+        "target": "p-hermann-llm-errors",
+        "weight": 1
+      }
+    }
+  }
+}
