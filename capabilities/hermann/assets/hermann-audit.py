@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 
 # >>> shared: hermannlib (generated, do not edit here)
 """Shared library for the Hermann scripts. Inlined into every hermann-*.py by
@@ -768,10 +769,21 @@ def factor(argv):
     report = write_report(num, sha, repo_id, score, ev, fix)
     done = len({(t.get("data") or {}).get("factor") for t in query(P["reports"], 'FROM $ WHERE $.sha == "%s" LIMIT 50' % sha, 50)})
     queued = False
-    if done >= 12 and not query(P["audit_cmd"], 'FROM $ WHERE $.stage == "scorecard" AND $.sha == "%s" LIMIT 1' % sha, 1):
-        put_token(P["audit_cmd"], command_token("hermann-audit", ["scorecard", sha, repo_id], stage="scorecard", timeout_ms=300000, sha=sha, repoId=repo_id),
-                  name="scorecard-req-%s" % sha[:7])
-        queued = True
+    if done >= 12:
+        # Several factor lanes can finish in the same second; the request is idempotent per commit and
+        # a concurrent write may be refused by the node, so retry briefly and treat "exists" as done.
+        import random
+        for attempt in range(4):
+            if query(P["audit_cmd"], 'FROM $ WHERE $.stage == "scorecard" AND $.sha == "%s" LIMIT 1' % sha, 1) or query(P["scorecard"], 'FROM $ WHERE $.sha == "%s" LIMIT 1' % sha, 1):
+                break
+            try:
+                put_token(P["audit_cmd"], command_token("hermann-audit", ["scorecard", sha, repo_id], stage="scorecard", timeout_ms=300000, sha=sha, repoId=repo_id),
+                          name="scorecard-req-%s" % sha[:7])
+                queued = True
+                break
+            except RuntimeError as e:
+                log("scorecard request attempt %d refused: %s" % (attempt + 1, str(e)[:120]))
+                time.sleep(0.3 + random.random() * 0.9)
     journal("t-hermann-f%s-%s" % (num, report["key"]), "factor", "factor %s %s: %s/3 (%s)%s" % (num, report["name"], score, report["status"], "; scorecard queued" if queued else ""), sha=sha, factor=num, score=str(score))
     return {"success": True, "factor": num, "score": score, "status": report["status"], "reportsDone": done, "scorecardQueued": queued}
 
