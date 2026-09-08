@@ -1,0 +1,273 @@
+{
+  "net": "hermann-brain",
+  "model": "hermann",
+  "session": "agent-hermann",
+  "description": "The brain: a curated, bounded model of the project kept from what reality produces. After every merge a script collects the signals (coder notes, review, verification, diff, scorecard) and rebuilds the component map; a curator (a one-shot model call, or a headless agent in curate mode, chosen by config.brainAgent) answers a contract: facts to add and retire, the plan, decisions to propose, questions for the person; a script applies it deterministically. Every brief reads the brain.",
+  "places": {
+    "p-hermann-brain-cmd": "Brain commands (observe, curate, apply, answer)",
+    "p-hermann-brain-log": "Brain command results",
+    "p-hermann-signals": "Signals per merged run",
+    "p-hermann-context": "Briefs for the judgement lanes",
+    "p-hermann-curation": "Curations (the curator's answer)",
+    "p-hermann-knowledge": "Knowledge facts: kind, scope, source, confidence, active or retired",
+    "p-hermann-map": "Component map per commit (measured)",
+    "p-hermann-plan": "The plan: remaining increments toward the goal",
+    "p-hermann-adr": "Architecture decision records (the brain proposes, the person decides)",
+    "p-hermann-prompts": "Questions for the person",
+    "p-hermann-responses": "The person's answers",
+    "p-hermann-runs": "Runs",
+    "p-hermann-llm-errors": "Answers that missed their contract",
+    "p-hermann-journal": "Journal",
+    "p-hermann-curations": "Curation archive (every curation as answered, kept)"
+  },
+  "transitions": [
+    {
+      "id": "t-hermann-observe-cmd",
+      "kind": "command",
+      "label": "Observe: signals of a merged run, component map",
+      "reads": {
+        "input": {
+          "place": "p-hermann-brain-cmd",
+          "arcql": "FROM $ WHERE $.stage == \"observe\" LIMIT 1"
+        },
+        "runs": {
+          "place": "p-hermann-runs",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-brain-log",
+          "retain": 200
+        },
+        "signals": "p-hermann-signals",
+        "map": "p-hermann-map",
+        "context": "p-hermann-context",
+        "brain_cmd": "p-hermann-brain-cmd",
+        "journal": "p-hermann-journal"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "t-hermann-curate",
+      "kind": "agent",
+      "label": "Curate (one-shot model call)",
+      "reads": {
+        "ctx": {
+          "place": "p-hermann-context",
+          "arcql": "FROM $ WHERE $.purpose == \"curate\" LIMIT 1",
+          "ttl": 600000
+        }
+      },
+      "writes": {
+        "curation": "p-hermann-curation",
+        "errors": {
+          "place": "p-hermann-llm-errors",
+          "retain": 100
+        },
+        "archive": {
+          "place": "p-hermann-curations",
+          "retain": 50
+        }
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "curationId",
+            "runId",
+            "addFacts",
+            "plan",
+            "summary"
+          ],
+          "types": {
+            "addFacts": "array",
+            "plan": "object",
+            "summary": "string"
+          },
+          "retries": 1
+        },
+        "nl": "You are Hermann's brain, curating what the project knows after one merged iteration. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nRules: facts must be specific and sourced from the brief (a class, a config key, a package, a measured number); prefer few good facts over many; mark as platform what is true for the stack and reusable in other projects, as project what is about this codebase; propose a decision for every choice the coder made that constrains future work; keep the plan as the remaining increments toward the goal in dependency order, marking what is merged; ask a question only when the next increment genuinely depends on the answer. Always include every array, empty when there is nothing.\n\nReply with exactly this shape: {\"curationId\": \"<from the brief>\", \"runId\": \"<from the brief>\", \"addFacts\": [{\"kind\": \"platform|convention|decision|gap|risk|question\", \"scope\": \"project|platform\", \"text\": \"<one specific, checkable sentence>\", \"source\": \"<runId, specId or file>\", \"confidence\": \"high|medium|low\"}], \"retireFacts\": [\"<factId>\"], \"plan\": {\"increments\": [{\"id\": \"inc-1\", \"title\": \"<one line>\", \"status\": \"planned|in-progress|merged|dropped\", \"dependsOn\": [\"inc-0\"], \"specId\": \"<specId or empty>\"}]}, \"proposedDecisions\": [{\"title\": \"<short>\", \"context\": \"<why it came up>\", \"decision\": \"<what was decided>\", \"consequences\": \"<what it constrains>\"}], \"questions\": [{\"question\": \"<what only the person can answer>\", \"why\": \"<what depends on it>\"}], \"summary\": \"<three sentences>\"}"
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "archive",
+          "when": "summary != ''"
+        },
+        {
+          "from": "@response",
+          "to": "curation",
+          "when": "summary != ''"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "summary == ''"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-hermann-curate-cmd",
+      "kind": "command",
+      "label": "Curate (headless agent, may read the repository)",
+      "reads": {
+        "input": {
+          "place": "p-hermann-brain-cmd",
+          "arcql": "FROM $ WHERE $.stage == \"curate\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-brain-log",
+          "retain": 200
+        },
+        "curation": "p-hermann-curation",
+        "archive": {
+          "place": "p-hermann-curations",
+          "retain": 50
+        }
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 1800000
+      }
+    },
+    {
+      "id": "t-hermann-apply-prep",
+      "kind": "map",
+      "label": "Curation to apply command",
+      "reads": {
+        "cur": {
+          "place": "p-hermann-curation",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-hermann-brain-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "apply-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "apply",
+        "curationId": "${cur.data.curationId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "hermann-brain",
+          "argv": [
+            "apply",
+            "${cur.data.curationId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann",
+            "CURATION_ID": "${cur.data.curationId}",
+            "RUN_ID": "${cur.data.runId}"
+          },
+          "timeoutMs": 300000
+        }
+      }
+    },
+    {
+      "id": "t-hermann-answer-knowledge-prep",
+      "kind": "map",
+      "label": "A person's answer to a brain question",
+      "reads": {
+        "resp": {
+          "place": "p-hermann-responses",
+          "arcql": "FROM $ WHERE $.intent == \"knowledge\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-hermann-brain-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "answer-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "answer",
+        "promptId": "${resp.data.promptId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "hermann-brain",
+          "argv": [
+            "answer",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "MODEL_ID": "hermann",
+            "PROMPT_ID": "${resp.data.promptId}",
+            "ANSWER_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 120000
+        }
+      }
+    },
+    {
+      "id": "t-hermann-apply-cmd",
+      "kind": "command",
+      "label": "Apply: knowledge, plan, proposed decisions, questions",
+      "reads": {
+        "input": {
+          "place": "p-hermann-brain-cmd",
+          "arcql": "FROM $ WHERE $.stage == \"apply\" OR $.stage == \"answer\" LIMIT 1"
+        },
+        "archive": {
+          "place": "p-hermann-curations",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-hermann-brain-log",
+          "retain": 200
+        },
+        "knowledge": "p-hermann-knowledge",
+        "plan": "p-hermann-plan",
+        "adr": "p-hermann-adr",
+        "prompts": "p-hermann-prompts",
+        "journal": "p-hermann-journal"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 300000
+      }
+    }
+  ]
+}

@@ -69,6 +69,13 @@ P = {
     "review_cmd": "p-hermann-review-cmd",
     "release_cmd": "p-hermann-release-cmd",
     "llm_errors": "p-hermann-llm-errors",
+    "brain_cmd": "p-hermann-brain-cmd",
+    "signals": "p-hermann-signals",
+    "curation": "p-hermann-curation",
+    "knowledge": "p-hermann-knowledge",
+    "map": "p-hermann-map",
+    "plan": "p-hermann-plan",
+    "curations": "p-hermann-curations",
 }
 
 
@@ -225,10 +232,12 @@ def which(name):
 
 
 def as_list(v):
+    """A list value as a list. Elements that are objects or lists stay structured (a spec's
+    config entries are objects); only scalars are normalised to strings."""
     if v is None:
         return []
     if isinstance(v, list):
-        return [str(x) for x in v]
+        return [x if isinstance(x, (dict, list)) else str(x) for x in v]
     s = str(v).strip()
     if not s:
         return []
@@ -420,6 +429,77 @@ def command_token(tool_id, argv, stage=None, timeout_ms=600000, **extra):
     return tok
 
 
+import re as _re
+import time as _time
+DEFAULT_TOOLS = "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)"
+
+
+BUILTIN_CLAUDE = {
+    "agentId": "claude-code", "title": "Claude Code (headless)", "binary": "claude",
+    "command": ["claude", "-p", "--model", "${model}", "--allowedTools", "${allowedTools}", "--max-turns", "${maxTurns}", "--no-session-persistence", "--output-format", "json"],
+    "promptVia": "stdin", "resultFormat": "claude-json", "defaultModel": "claude-opus-5", "allowedTools": DEFAULT_TOOLS, "maxTurns": "80", "timeoutMin": "45",
+}
+
+
+def resolve_agent(cfg, agent_key="coderAgent", model_key="coderModel"):
+    """A headless agent: a definition token from p-hermann-coders chosen by config[agent_key], with
+    config overrides for model, tools, turns and timeout. Falls back to the built-in Claude Code."""
+    defs = {}
+    for t in query(P["coders"], "FROM $", 20):
+        d = t.get("data") or {}
+        if d.get("agentId"):
+            defs[d["agentId"]] = d
+    agent_id = str(cfg.get(agent_key) or "claude-code")
+    a = defs.get(agent_id) or (BUILTIN_CLAUDE if agent_id == "claude-code" else None)
+    if not a:
+        raise RuntimeError("coding agent '%s' is not defined in p-hermann-coders (known: %s)" % (agent_id, ", ".join(sorted(defs)) or "none"))
+    model = str(cfg.get(model_key) or a.get("defaultModel") or "")
+    tools = str(cfg.get("coderAllowedTools") or a.get("allowedTools") or DEFAULT_TOOLS)
+    turns = str(cfg.get("coderMaxTurns") or a.get("maxTurns") or "80")
+    timeout_min = as_int(cfg.get("coderTimeoutMin") or cfg.get("implementTimeoutMin") or a.get("timeoutMin"), 45)
+    argv = [str(x).replace("${model}", model).replace("${allowedTools}", tools).replace("${maxTurns}", turns) for x in as_list(a.get("command"))]
+    if not argv:
+        raise RuntimeError("coding agent '%s' has no command" % agent_id)
+    if not which(argv[0]):
+        raise RuntimeError("coding agent binary '%s' is not on the executor host" % argv[0])
+    return {"agentId": a.get("agentId"), "title": a.get("title", a.get("agentId")), "argv": argv, "model": model, "resultFormat": a.get("resultFormat", "text"),
+            "promptVia": a.get("promptVia", "stdin"), "timeoutSec": timeout_min * 60}
+
+
+def run_headless(prompt, root, cfg, agent):
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    env["GITEA_TOKEN"] = ""  # the coder never sees the git host token
+    argv = list(agent["argv"])
+    stdin_text = prompt
+    if agent["promptVia"] == "argv":
+        argv.append(prompt); stdin_text = None
+    started = _time.time()
+    rc, o, e = run(argv, cwd=root, timeout=agent["timeoutSec"], env=env, check=False, input_text=stdin_text)
+    duration = round(_time.time() - started)
+    result_text, cost, turns, is_error = "", "", "", rc != 0
+    if agent["resultFormat"] == "claude-json":
+        try:
+            j = json.loads(o.strip().splitlines()[-1]) if o.strip() else {}
+            result_text = str(j.get("result", ""))
+            cost = str(j.get("total_cost_usd", ""))
+            turns = str(j.get("num_turns", ""))
+            is_error = bool(j.get("is_error", False)) or rc != 0
+        except (ValueError, IndexError):
+            result_text = (o or e)[-3000:]
+    else:
+        result_text = (o or "")[-6000:] or (e or "")[-3000:]
+    summary = {"summary": "", "filesChanged": [], "testsAdded": [], "notes": ""}
+    m = _re.search(r"HERMANN_RESULT:\s*(\{.*\})", result_text, re.S)
+    if m:
+        try:
+            summary.update(json.loads(m.group(1)))
+        except ValueError:
+            summary["notes"] = "result line was not valid JSON"
+    if not summary.get("summary"):
+        summary["summary"] = result_text[-800:].strip()
+    return {"rc": rc, "isError": is_error, "durationSec": duration, "costUsd": cost, "turns": turns, "summary": summary, "stderr": (e or "")[-1500:]}
+
+
 def main_guard(lane, fn, argv):
     """Run a script entry point; on failure write an error token and exit non-zero."""
     try:
@@ -529,6 +609,28 @@ def history_section(repo_id=None):
     return txt + "\n", specs
 
 
+def brain_sections(for_spec=False):
+    """What the brain knows: the plan (proposal brief) and the curated facts (both briefs), bounded."""
+    facts = [t.get("data") or {} for t in query(P["knowledge"], 'FROM $ WHERE $.status == "active"', 300)]
+    facts.sort(key=lambda f: str(f.get("factId", "")))
+    kinds = ("decision", "convention", "platform", "answer", "gap", "risk") if for_spec else ("decision", "gap", "risk", "answer", "convention")
+    rows = [f for f in facts if f.get("kind") in kinds][:36]
+    txt = "## WHAT THE BRAIN KNOWS (curated facts, newest curation wins)\n" + (lines(["[%s|%s] %s" % (f.get("kind"), f.get("confidence", "?"), str(f.get("text", ""))[:220]) for f in rows], 36) if rows else "- (no curated facts yet)")
+    p = latest(P["plan"], "at")
+    if p and not for_spec:
+        incs = []
+        for inc in as_list(p.get("increments")):
+            inc = as_dict(inc) if not isinstance(inc, dict) else inc
+            incs.append("%s [%s] %s%s" % (inc.get("id", "?"), inc.get("status", "?"), str(inc.get("title", ""))[:110], (" (after %s)" % ", ".join(as_list(inc.get("dependsOn")))) if as_list(inc.get("dependsOn")) else ""))
+        txt += "\n\n## THE PLAN (curated after the last merge; prefer its next planned increments, deviate only with a reason)\n" + lines(incs, 20)
+    m = latest(P["map"], "at")
+    if m and for_spec:
+        txt += "\n\n## THE COMPONENT MAP (measured)\nsummary: %s\nendpoints: %s\ntables: %s\nmigrations: %s\nenv vars: %s" % (
+            m.get("summary", ""), ", ".join(as_list(m.get("endpoints"))[:30]) or "none", ", ".join(as_list(m.get("tables"))) or "none",
+            ", ".join(as_list(m.get("migrations"))) or "none", ", ".join(as_list(m.get("envVars"))[:30]) or "none")
+    return txt
+
+
 def cards_section(only_factors=None):
     cards = [t.get("data") or {} for t in query(P["cards"], "FROM $", 20)]
     cards.sort(key=lambda c: str(c.get("factor", "")))
@@ -549,13 +651,13 @@ def propose(iteration_id):
     brief = "\n".join([
         "# BRIEF FOR HERMANN: what should the next iteration be?",
         "iterationId: %s\npromptId to use: %s\nnow: %s" % (iteration_id, prompt_id, now()),
-        goal_txt, adr_section(), service_txt, quality_section(), risk_section(), history_section((rp or {}).get("repoId"))[0], cards_section(),
+        goal_txt, adr_section(), service_txt, quality_section(), risk_section(), brain_sections(), history_section((rp or {}).get("repoId"))[0], cards_section(),
     ])
     revision = envv("REVISION_TEXT")
     if revision:
         brief += "\n## THE PERSON RESHAPED THE LAST QUESTION\n%s\nAsk again, taking this into account.\n" % revision[:1500]
     data = {"at": now(), "iterationId": iteration_id, "purpose": "propose", "promptId": prompt_id, "goalStatus": goal_status,
-            "repoId": (rp or {}).get("repoId", ""), "sha": (rp or {}).get("headSha", ""), "brief": brief[:14000]}
+            "repoId": (rp or {}).get("repoId", ""), "sha": (rp or {}).get("headSha", ""), "brief": brief[:18000]}
     put_token(P["context"], data, name="ctx-propose-%s" % iteration_id)
     journal(LANE, "context", "proposal brief for %s: goal %s, %d chars" % (iteration_id, goal_status, len(brief)), iterationId=iteration_id)
     return {"success": True, "iterationId": iteration_id, "goalStatus": goal_status, "chars": len(brief)}
@@ -587,10 +689,10 @@ def spec(iteration_id, prompt_id):
     brief = "\n".join([
         "# BRIEF FOR HERMANN: write the spec",
         "iterationId: %s\npromptId: %s\nspecId to use: %s\nrepoId to use: %s\nnow: %s" % (iteration_id, prompt_id, spec_id, (rp or {}).get("repoId", ""), now()),
-        choice, goal_txt, adr_section(), service_txt, quality_section(), history, cards_section(),
+        choice, goal_txt, adr_section(), service_txt, brain_sections(for_spec=True), quality_section(), history, cards_section(),
     ])
     data = {"at": now(), "iterationId": iteration_id, "purpose": "spec", "promptId": prompt_id, "specId": spec_id, "goalStatus": goal_status,
-            "repoId": (rp or {}).get("repoId", ""), "sha": (rp or {}).get("headSha", ""), "selected": selected, "responseText": text, "brief": brief[:14000]}
+            "repoId": (rp or {}).get("repoId", ""), "sha": (rp or {}).get("headSha", ""), "selected": selected, "responseText": text, "brief": brief[:18000]}
     put_token(P["context"], data, name="ctx-spec-%s" % spec_id)
     put_token(P["responses"], {"at": now(), "promptId": prompt_id, "iterationId": iteration_id, "intent": "answered", "selected": selected,
                                "text": text, "notes": notes, "specId": spec_id, "by": "hermann"}, name="receipt-%s" % prompt_id)

@@ -67,6 +67,13 @@ P = {
     "review_cmd": "p-hermann-review-cmd",
     "release_cmd": "p-hermann-release-cmd",
     "llm_errors": "p-hermann-llm-errors",
+    "brain_cmd": "p-hermann-brain-cmd",
+    "signals": "p-hermann-signals",
+    "curation": "p-hermann-curation",
+    "knowledge": "p-hermann-knowledge",
+    "map": "p-hermann-map",
+    "plan": "p-hermann-plan",
+    "curations": "p-hermann-curations",
 }
 
 
@@ -223,10 +230,12 @@ def which(name):
 
 
 def as_list(v):
+    """A list value as a list. Elements that are objects or lists stay structured (a spec's
+    config entries are objects); only scalars are normalised to strings."""
     if v is None:
         return []
     if isinstance(v, list):
-        return [str(x) for x in v]
+        return [x if isinstance(x, (dict, list)) else str(x) for x in v]
     s = str(v).strip()
     if not s:
         return []
@@ -418,6 +427,77 @@ def command_token(tool_id, argv, stage=None, timeout_ms=600000, **extra):
     return tok
 
 
+import re as _re
+import time as _time
+DEFAULT_TOOLS = "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)"
+
+
+BUILTIN_CLAUDE = {
+    "agentId": "claude-code", "title": "Claude Code (headless)", "binary": "claude",
+    "command": ["claude", "-p", "--model", "${model}", "--allowedTools", "${allowedTools}", "--max-turns", "${maxTurns}", "--no-session-persistence", "--output-format", "json"],
+    "promptVia": "stdin", "resultFormat": "claude-json", "defaultModel": "claude-opus-5", "allowedTools": DEFAULT_TOOLS, "maxTurns": "80", "timeoutMin": "45",
+}
+
+
+def resolve_agent(cfg, agent_key="coderAgent", model_key="coderModel"):
+    """A headless agent: a definition token from p-hermann-coders chosen by config[agent_key], with
+    config overrides for model, tools, turns and timeout. Falls back to the built-in Claude Code."""
+    defs = {}
+    for t in query(P["coders"], "FROM $", 20):
+        d = t.get("data") or {}
+        if d.get("agentId"):
+            defs[d["agentId"]] = d
+    agent_id = str(cfg.get(agent_key) or "claude-code")
+    a = defs.get(agent_id) or (BUILTIN_CLAUDE if agent_id == "claude-code" else None)
+    if not a:
+        raise RuntimeError("coding agent '%s' is not defined in p-hermann-coders (known: %s)" % (agent_id, ", ".join(sorted(defs)) or "none"))
+    model = str(cfg.get(model_key) or a.get("defaultModel") or "")
+    tools = str(cfg.get("coderAllowedTools") or a.get("allowedTools") or DEFAULT_TOOLS)
+    turns = str(cfg.get("coderMaxTurns") or a.get("maxTurns") or "80")
+    timeout_min = as_int(cfg.get("coderTimeoutMin") or cfg.get("implementTimeoutMin") or a.get("timeoutMin"), 45)
+    argv = [str(x).replace("${model}", model).replace("${allowedTools}", tools).replace("${maxTurns}", turns) for x in as_list(a.get("command"))]
+    if not argv:
+        raise RuntimeError("coding agent '%s' has no command" % agent_id)
+    if not which(argv[0]):
+        raise RuntimeError("coding agent binary '%s' is not on the executor host" % argv[0])
+    return {"agentId": a.get("agentId"), "title": a.get("title", a.get("agentId")), "argv": argv, "model": model, "resultFormat": a.get("resultFormat", "text"),
+            "promptVia": a.get("promptVia", "stdin"), "timeoutSec": timeout_min * 60}
+
+
+def run_headless(prompt, root, cfg, agent):
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    env["GITEA_TOKEN"] = ""  # the coder never sees the git host token
+    argv = list(agent["argv"])
+    stdin_text = prompt
+    if agent["promptVia"] == "argv":
+        argv.append(prompt); stdin_text = None
+    started = _time.time()
+    rc, o, e = run(argv, cwd=root, timeout=agent["timeoutSec"], env=env, check=False, input_text=stdin_text)
+    duration = round(_time.time() - started)
+    result_text, cost, turns, is_error = "", "", "", rc != 0
+    if agent["resultFormat"] == "claude-json":
+        try:
+            j = json.loads(o.strip().splitlines()[-1]) if o.strip() else {}
+            result_text = str(j.get("result", ""))
+            cost = str(j.get("total_cost_usd", ""))
+            turns = str(j.get("num_turns", ""))
+            is_error = bool(j.get("is_error", False)) or rc != 0
+        except (ValueError, IndexError):
+            result_text = (o or e)[-3000:]
+    else:
+        result_text = (o or "")[-6000:] or (e or "")[-3000:]
+    summary = {"summary": "", "filesChanged": [], "testsAdded": [], "notes": ""}
+    m = _re.search(r"HERMANN_RESULT:\s*(\{.*\})", result_text, re.S)
+    if m:
+        try:
+            summary.update(json.loads(m.group(1)))
+        except ValueError:
+            summary["notes"] = "result line was not valid JSON"
+    if not summary.get("summary"):
+        summary["summary"] = result_text[-800:].strip()
+    return {"rc": rc, "isError": is_error, "durationSec": duration, "costUsd": cost, "turns": turns, "summary": summary, "stderr": (e or "")[-1500:]}
+
+
 def main_guard(lane, fn, argv):
     """Run a script entry point; on failure write an error token and exit non-zero."""
     try:
@@ -457,7 +537,7 @@ def diff(run_id):
     ver = latest(P["verification"], "at", 'FROM $ WHERE $.runId == "%s"' % run_id)
     root = rp["localPath"]
     base = "origin/%s" % rp.get("defaultBranch", "main")
-    git(["fetch", "-q", "origin"], cwd=root)
+    git(["fetch", "-q", "--prune", "origin"], cwd=root)
     head = "origin/%s" % r.get("branch", "")
     rc, stat, _ = run(["git", "diff", "--stat", "%s...%s" % (base, head)], cwd=root, check=False)
     d = bounded_diff(root, base, head)

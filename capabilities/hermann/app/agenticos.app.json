@@ -2,7 +2,7 @@
   "name": "hermann",
   "displayName": "Hermann",
   "version": "0.1.0",
-  "description": "Drive Hermann, the twelve-factor Spring Boot developer: set the goal and the architecture principles, answer his proposals (a choice, an interview or a goal definition) each iteration, approve specs, merge pull requests, and watch the scorecard, the runs and the journal.",
+  "description": "Drive Hermann, the twelve-factor Spring Boot developer: set the goal and the architecture principles, answer his proposals (a choice, an interview or a goal definition) each iteration, approve specs, merge pull requests, and watch the brain (what he knows and plans), the scorecard, the runs and the journal.",
   "author": "AgenticNetOS",
   "tags": [
     "application",
@@ -157,6 +157,36 @@
         "placeId": "p-hermann-audit-request",
         "required": true,
         "description": "Audit requests."
+      },
+      {
+        "role": "knowledge",
+        "placeId": "p-hermann-knowledge",
+        "required": true,
+        "description": "Curated facts: kind, scope, source, confidence, active or retired."
+      },
+      {
+        "role": "plan",
+        "placeId": "p-hermann-plan",
+        "required": true,
+        "description": "The plan: remaining increments toward the goal."
+      },
+      {
+        "role": "map",
+        "placeId": "p-hermann-map",
+        "required": true,
+        "description": "The measured component map per commit."
+      },
+      {
+        "role": "brain-cmd",
+        "placeId": "p-hermann-brain-cmd",
+        "required": true,
+        "description": "Brain commands (observe, curate, apply, answer)."
+      },
+      {
+        "role": "curations",
+        "placeId": "p-hermann-curations",
+        "required": true,
+        "description": "Curation archive: every curation as the curator answered it."
       }
     ],
     "actions": [
@@ -571,6 +601,12 @@
             },
             "coderTimeoutMin": {
               "type": "string"
+            },
+            "brainAgent": {
+              "type": "string"
+            },
+            "brainModel": {
+              "type": "string"
             }
           }
         }
@@ -656,6 +692,27 @@
             }
           }
         }
+      },
+      {
+        "name": "curate-now",
+        "targetRole": "brain-cmd",
+        "description": "Observe the last merged run and curate the brain now.",
+        "command": {
+          "role": "brain-cmd",
+          "toolId": "hermann-brain",
+          "argv": [
+            "observe",
+            "latest"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 600000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
       }
     ],
     "permissions": {
@@ -681,7 +738,12 @@
         "errors",
         "llm-errors",
         "setup-cmd",
-        "audit-request"
+        "audit-request",
+        "knowledge",
+        "plan",
+        "map",
+        "brain-cmd",
+        "curations"
       ],
       "watchStores": [
         "prompts",
@@ -693,7 +755,9 @@
         "scorecard",
         "infra",
         "repo",
-        "errors"
+        "errors",
+        "knowledge",
+        "plan"
       ],
       "actions": [
         "start-iteration",
@@ -709,7 +773,8 @@
         "check-infra",
         "provision-git-host",
         "bootstrap-service",
-        "run-audit"
+        "run-audit",
+        "curate-now"
       ]
     }
   }

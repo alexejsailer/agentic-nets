@@ -28,11 +28,13 @@
       "t-hermann-versions-cmd"
     ],
     "blockingSeverity": "HIGH",
-    "notes": "artifactId is the repository and service name (lowercase, dashes). bootVersion 'current' resolves to the current GA line at bootstrap. tokenLanes receive the git host token from the vault when the host is provisioned. coderAgent selects a definition from p-hermann-coders; coderModel/coderMaxTurns/coderAllowedTools/coderTimeoutMin override that definition (empty = the definition's default).",
+    "notes": "artifactId is the repository and service name (lowercase, dashes). bootVersion 'current' resolves to the current GA line at bootstrap. tokenLanes receive the git host token from the vault when the host is provisioned. coderAgent selects a definition from p-hermann-coders; coderModel/coderMaxTurns/coderAllowedTools/coderTimeoutMin override that definition (empty = the definition's default). brainAgent selects the curator: llm = the one-shot lane; an agent id from p-hermann-coders runs the same contract headless in the repository.",
     "coderAgent": "claude-code",
     "coderModel": "claude-opus-5",
     "coderMaxTurns": "80",
     "coderAllowedTools": "",
-    "coderTimeoutMin": "45"
+    "coderTimeoutMin": "45",
+    "brainAgent": "llm",
+    "brainModel": ""
   }
 ]

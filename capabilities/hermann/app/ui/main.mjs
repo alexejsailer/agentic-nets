@@ -83,7 +83,7 @@ details summary { cursor: pointer; color: var(--muted); }
 .empty { color: var(--muted); padding: 24px; text-align: center; }
 `;
 
-const ROLES = ['config', 'goal', 'adr', 'cards', 'coders', 'infra', 'repo', 'iterate', 'prompts', 'responses', 'specs', 'decisions', 'runs',
+const ROLES = ['config', 'goal', 'adr', 'cards', 'coders', 'knowledge', 'plan', 'map', 'infra', 'repo', 'iterate', 'prompts', 'responses', 'specs', 'decisions', 'runs',
   'verification', 'reviews', 'scorecard', 'reports', 'journal', 'errors', 'llm-errors', 'setup-cmd', 'audit-request'];
 const CONFIG_FIELDS = [
   ['artifactId', 'Service name (artifactId, repository)'], ['groupId', 'Group id'], ['packageName', 'Package (empty = derived)'], ['description', 'Description'],
@@ -109,7 +109,7 @@ class HermannApp extends HTMLElement {
   async _boot() {
     this.shadowRoot.innerHTML = `<style>${CSS}</style><div class="wrap"><div class="empty">Loading Hermann…</div></div>`;
     await this._load(ROLES);
-    for (const role of ['prompts', 'specs', 'runs', 'verification', 'reviews', 'journal']) {
+    for (const role of ['prompts', 'specs', 'runs', 'verification', 'reviews', 'journal', 'knowledge', 'plan']) {
       try {
         this._unsubs.push(this._rt.watchStore(role, (ev) => { this._s[role] = ev.tokens; this._render(); }, 15000));
       } catch { /* watch not granted: the sweep covers it */ }
@@ -194,8 +194,8 @@ class HermannApp extends HTMLElement {
       sc ? `scorecard ${sc.total}/36 grade ${sc.grade}` : 'no scorecard',
       this._working(),
     ].filter(Boolean).join(' · ');
-    const tabs = [['setup', 'Setup'], ['goal', 'Goal & Architecture'], ['next', 'Next iteration'], ['work', 'Work'], ['quality', 'Quality'], ['journal', 'Journal']];
-    const body = { setup: this._setup, goal: this._goalTab, next: this._next, work: this._work, quality: this._quality, journal: this._journal }[this._tab].call(this);
+    const tabs = [['setup', 'Setup'], ['goal', 'Goal & Architecture'], ['next', 'Next iteration'], ['work', 'Work'], ['brain', 'Brain'], ['quality', 'Quality'], ['journal', 'Journal']];
+    const body = { setup: this._setup, goal: this._goalTab, next: this._next, work: this._work, brain: this._brain, quality: this._quality, journal: this._journal }[this._tab].call(this);
     root.innerHTML = `<style>${CSS}</style><div class="wrap">
       <header><h1>Hermann</h1><span class="status">${esc(status)}</span></header>
       <nav>${tabs.map(([k, l]) => `<button data-tab="${k}" class="${k === this._tab ? 'on' : ''}">${l}${k === 'next' && awaiting ? `<span class="n">${awaiting}</span>` : ''}</button>`).join('')}</nav>
@@ -252,7 +252,11 @@ class HermannApp extends HTMLElement {
         ${this._field('cfg.coderMaxTurns', 'Max turns (empty = the agent default)', cfg.coderMaxTurns)}
         ${this._field('cfg.coderTimeoutMin', 'Timeout in minutes (empty = the agent default)', cfg.coderTimeoutMin)}
         ${this._field('cfg.coderAllowedTools', 'Allowed tools (empty = the agent default)', cfg.coderAllowedTools, 'textarea')}
-        <div class="row"><button class="act" data-act="set-config">Save coding agent</button></div></div>
+        <h3>The brain's curator</h3>
+        <div class="muted">Who curates what the project knows after each merge: the one-shot lane (cheap, reads the brief) or a headless agent that may also read the repository.</div>
+        <label>Curator</label><select data-f="cfg.brainAgent"><option value="llm" ${(this._form['cfg.brainAgent'] ?? cfg.brainAgent ?? 'llm') === 'llm' ? 'selected' : ''}>One-shot model call (the curate lane)</option>${coders.map((c) => `<option value="${esc(c.agentId)}" ${(this._form['cfg.brainAgent'] ?? cfg.brainAgent) === c.agentId ? 'selected' : ''}>${esc(c.title || c.agentId)}, headless in the repository</option>`).join('')}</select>
+        ${this._field('cfg.brainModel', 'Curator model (empty = the agent default)', cfg.brainModel)}
+        <div class="row"><button class="act" data-act="set-config">Save coding agent and curator</button></div></div>
       <div class="card"><h2>Configuration</h2>
         ${CONFIG_FIELDS.map(([k, l]) => this._field('cfg.' + k, l, cfg[k])).join('')}
         <div class="row"><button class="act" data-act="set-config">Save configuration</button><span class="muted">${cfg.updatedAt ? 'saved ' + esc(when(cfg.updatedAt)) : ''}</span></div></div>
@@ -287,7 +291,7 @@ class HermannApp extends HTMLElement {
       const options = arr(prompt.options);
       const selected = new Set(arr(this._form.__selected || '[]'));
       const mode = String(prompt.mode || 'choice');
-      parts.push(`<div class="card"><h2>${mode === 'goal' ? 'Hermann needs the goal' : mode === 'interview' ? 'Hermann has questions' : 'Hermann proposes the next iteration'} <span class="pill">${esc(prompt.promptId)}</span></h2>
+      parts.push(`<div class="card"><h2>${prompt.kind === 'brain' ? 'The brain has a question' : mode === 'goal' ? 'Hermann needs the goal' : mode === 'interview' ? 'Hermann has questions' : 'Hermann proposes the next iteration'} <span class="pill">${esc(prompt.promptId)}</span></h2>
         <div>${esc(prompt.question)}</div>${prompt.context ? `<div class="muted" style="margin-top:6px">${esc(prompt.context)}</div>` : ''}
         ${mode === 'goal' ? `<div class="row"><span class="muted">Define the goal in the Goal tab, then answer here (or paste one of the examples).</span></div>` : ''}
         ${options.map((o) => mode === 'interview'
@@ -340,6 +344,26 @@ class HermannApp extends HTMLElement {
     }).join('')}</div>`;
   }
 
+  _brain() {
+    const plan = newest(props(this._s.plan), 'at')[0] || null;
+    const facts = props(this._s.knowledge).filter((f) => f.status === 'active').sort((a, b) => String(a.factId).localeCompare(String(b.factId)));
+    const retired = props(this._s.knowledge).filter((f) => f.status === 'retired').length;
+    const map = newest(props(this._s.map), 'at')[0] || null;
+    const proposed = this._adrs().filter((a) => a.status === 'proposed');
+    const kinds = ['decision', 'answer', 'convention', 'platform', 'gap', 'risk', 'question'];
+    const pill = (st) => `<span class="pill ${st === 'merged' ? 'ok' : st === 'in-progress' ? 'warn' : st === 'dropped' ? 'bad' : ''}">${esc(st)}</span>`;
+    return `<div class="grid">
+      <div class="card"><h2>The plan ${plan ? `<span class="muted">curated ${esc(when(plan.at))}</span>` : ''}</h2>
+        ${plan ? `<div class="muted">${esc(plan.summary || '')}</div><table>${arr(plan.increments).map((i) => `<tr><td>${esc(i.id)}</td><td>${esc(i.title)}${arr(i.dependsOn).length ? `<div class="muted">after ${esc(arr(i.dependsOn).join(', '))}</div>` : ''}</td><td>${pill(i.status)}${i.specId ? ` <span class="pill">${esc(i.specId)}</span>` : ''}</td></tr>`).join('')}</table>` : '<div class="muted">No plan yet. The brain writes one after the first curation.</div>'}
+        ${proposed.length ? `<div class="row"><span class="muted">${proposed.length} decision${proposed.length > 1 ? 's' : ''} proposed by the brain, waiting in Goal & Architecture.</span></div>` : ''}
+        <div class="row"><button class="act secondary" data-act="curate-now">Curate now (observe the last merge)</button></div></div>
+      <div class="card"><h2>What Hermann knows <span class="pill">${facts.length} active</span> ${retired ? `<span class="pill">${retired} retired</span>` : ''}</h2>
+        ${facts.length ? kinds.filter((k) => facts.some((f) => f.kind === k)).map((k) => `<h3>${esc(k)}</h3><ul>${facts.filter((f) => f.kind === k).map((f) => `<li>${esc(f.text)} <span class="muted">(${esc(f.scope)}, ${esc(f.confidence)}, ${esc(f.source)})</span></li>`).join('')}</ul>`).join('') : '<div class="muted">Nothing curated yet. Every merge produces signals; the curator turns them into facts with a source and a confidence.</div>'}</div>
+      <div class="card"><h2>The component map ${map ? `<span class="muted">${esc(String(map.sha7 || ''))} · ${esc(when(map.at))}</span>` : ''}</h2>
+        ${map ? `<div>${esc(map.summary)}</div><h3>Endpoints</h3><ul>${arr(map.endpoints).map((e) => `<li class="mono">${esc(e)}</li>`).join('') || '<li class="muted">none</li>'}</ul><h3>Tables and migrations</h3><div>${esc(arr(map.tables).join(', ') || 'none')}</div><div class="muted">${esc(arr(map.migrations).join(', '))}</div><h3>Environment variables</h3><div class="mono">${esc(arr(map.envVars).join(' '))}</div><details><summary>Components (${arr(map.components).length})</summary><ul>${arr(map.components).map((c) => `<li><b>${esc(c.className)}</b> <span class="muted">${esc(c.kind)}</span>${c.table ? ` table ${esc(c.table)}` : ''}${arr(c.endpoints).length ? ` <span class="mono">${esc(arr(c.endpoints).join(', '))}</span>` : ''}</li>`).join('')}</ul></details>` : '<div class="muted">No map yet.</div>'}</div>
+    </div>`;
+  }
+
   _quality() {
     const sc = this._scorecard(), cards = props(this._s.cards).sort((a, b) => String(a.factor).localeCompare(String(b.factor)));
     const reports = sc ? props(this._s.reports).filter((r) => r.sha === sc.sha) : [];
@@ -366,14 +390,14 @@ class HermannApp extends HTMLElement {
     const f = (k) => String(this._form[k] ?? '').trim();
     const cfg = this._config(), g = this._goal();
     switch (act) {
-      case 'check-infra': case 'provision-git-host': case 'bootstrap-service':
+      case 'check-infra': case 'provision-git-host': case 'bootstrap-service': case 'curate-now':
         return this._invoke(act, {}, act);
       case 'run-audit':
         return this._invoke('run-audit', { at, repoId: this._repo()?.repoId || '' }, act);
       case 'set-config': {
         const input = { updatedAt: at, status: 'ready' };
         for (const [k] of CONFIG_FIELDS) input[k] = this._form['cfg.' + k] ?? cfg[k] ?? '';
-        for (const k of ['coderAgent', 'coderModel', 'coderMaxTurns', 'coderTimeoutMin', 'coderAllowedTools']) input[k] = this._form['cfg.' + k] ?? cfg[k] ?? (k === 'coderAgent' ? 'claude-code' : '');
+        for (const k of ['coderAgent', 'coderModel', 'coderMaxTurns', 'coderTimeoutMin', 'coderAllowedTools', 'brainAgent', 'brainModel']) input[k] = this._form['cfg.' + k] ?? cfg[k] ?? (k === 'coderAgent' ? 'claude-code' : k === 'brainAgent' ? 'llm' : '');
         for (const k of ['giteaSshPort', 'giteaUser', 'giteaContainer', 'giteaVolume', 'blockingSeverity']) if (cfg[k]) input[k] = cfg[k];
         if (arr(cfg.tokenLanes).length) input.tokenLanes = arr(cfg.tokenLanes);
         return this._invoke('set-config', input, act);
@@ -397,7 +421,7 @@ class HermannApp extends HTMLElement {
         return this._invoke('start-iteration', { iterationId: `it-${stamp()}`, at }, act);
       case 'respond': case 'revise': case 'reject-prompt': {
         const p = this._openPrompt(); if (!p) return;
-        const intent = act === 'respond' ? 'answer' : act === 'revise' ? 'revise' : 'reject';
+        const intent = act === 'respond' ? (p.kind === 'brain' ? 'knowledge' : 'answer') : act === 'revise' ? 'revise' : 'reject';
         let selected = arr(this._form.__selected || '[]');
         let text = f('resp.text');
         if (p.mode === 'interview' && intent === 'answer') {

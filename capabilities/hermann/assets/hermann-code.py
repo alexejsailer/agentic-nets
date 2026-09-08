@@ -73,6 +73,13 @@ P = {
     "review_cmd": "p-hermann-review-cmd",
     "release_cmd": "p-hermann-release-cmd",
     "llm_errors": "p-hermann-llm-errors",
+    "brain_cmd": "p-hermann-brain-cmd",
+    "signals": "p-hermann-signals",
+    "curation": "p-hermann-curation",
+    "knowledge": "p-hermann-knowledge",
+    "map": "p-hermann-map",
+    "plan": "p-hermann-plan",
+    "curations": "p-hermann-curations",
 }
 
 
@@ -229,10 +236,12 @@ def which(name):
 
 
 def as_list(v):
+    """A list value as a list. Elements that are objects or lists stay structured (a spec's
+    config entries are objects); only scalars are normalised to strings."""
     if v is None:
         return []
     if isinstance(v, list):
-        return [str(x) for x in v]
+        return [x if isinstance(x, (dict, list)) else str(x) for x in v]
     s = str(v).strip()
     if not s:
         return []
@@ -424,6 +433,77 @@ def command_token(tool_id, argv, stage=None, timeout_ms=600000, **extra):
     return tok
 
 
+import re as _re
+import time as _time
+DEFAULT_TOOLS = "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)"
+
+
+BUILTIN_CLAUDE = {
+    "agentId": "claude-code", "title": "Claude Code (headless)", "binary": "claude",
+    "command": ["claude", "-p", "--model", "${model}", "--allowedTools", "${allowedTools}", "--max-turns", "${maxTurns}", "--no-session-persistence", "--output-format", "json"],
+    "promptVia": "stdin", "resultFormat": "claude-json", "defaultModel": "claude-opus-5", "allowedTools": DEFAULT_TOOLS, "maxTurns": "80", "timeoutMin": "45",
+}
+
+
+def resolve_agent(cfg, agent_key="coderAgent", model_key="coderModel"):
+    """A headless agent: a definition token from p-hermann-coders chosen by config[agent_key], with
+    config overrides for model, tools, turns and timeout. Falls back to the built-in Claude Code."""
+    defs = {}
+    for t in query(P["coders"], "FROM $", 20):
+        d = t.get("data") or {}
+        if d.get("agentId"):
+            defs[d["agentId"]] = d
+    agent_id = str(cfg.get(agent_key) or "claude-code")
+    a = defs.get(agent_id) or (BUILTIN_CLAUDE if agent_id == "claude-code" else None)
+    if not a:
+        raise RuntimeError("coding agent '%s' is not defined in p-hermann-coders (known: %s)" % (agent_id, ", ".join(sorted(defs)) or "none"))
+    model = str(cfg.get(model_key) or a.get("defaultModel") or "")
+    tools = str(cfg.get("coderAllowedTools") or a.get("allowedTools") or DEFAULT_TOOLS)
+    turns = str(cfg.get("coderMaxTurns") or a.get("maxTurns") or "80")
+    timeout_min = as_int(cfg.get("coderTimeoutMin") or cfg.get("implementTimeoutMin") or a.get("timeoutMin"), 45)
+    argv = [str(x).replace("${model}", model).replace("${allowedTools}", tools).replace("${maxTurns}", turns) for x in as_list(a.get("command"))]
+    if not argv:
+        raise RuntimeError("coding agent '%s' has no command" % agent_id)
+    if not which(argv[0]):
+        raise RuntimeError("coding agent binary '%s' is not on the executor host" % argv[0])
+    return {"agentId": a.get("agentId"), "title": a.get("title", a.get("agentId")), "argv": argv, "model": model, "resultFormat": a.get("resultFormat", "text"),
+            "promptVia": a.get("promptVia", "stdin"), "timeoutSec": timeout_min * 60}
+
+
+def run_headless(prompt, root, cfg, agent):
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+    env["GITEA_TOKEN"] = ""  # the coder never sees the git host token
+    argv = list(agent["argv"])
+    stdin_text = prompt
+    if agent["promptVia"] == "argv":
+        argv.append(prompt); stdin_text = None
+    started = _time.time()
+    rc, o, e = run(argv, cwd=root, timeout=agent["timeoutSec"], env=env, check=False, input_text=stdin_text)
+    duration = round(_time.time() - started)
+    result_text, cost, turns, is_error = "", "", "", rc != 0
+    if agent["resultFormat"] == "claude-json":
+        try:
+            j = json.loads(o.strip().splitlines()[-1]) if o.strip() else {}
+            result_text = str(j.get("result", ""))
+            cost = str(j.get("total_cost_usd", ""))
+            turns = str(j.get("num_turns", ""))
+            is_error = bool(j.get("is_error", False)) or rc != 0
+        except (ValueError, IndexError):
+            result_text = (o or e)[-3000:]
+    else:
+        result_text = (o or "")[-6000:] or (e or "")[-3000:]
+    summary = {"summary": "", "filesChanged": [], "testsAdded": [], "notes": ""}
+    m = _re.search(r"HERMANN_RESULT:\s*(\{.*\})", result_text, re.S)
+    if m:
+        try:
+            summary.update(json.loads(m.group(1)))
+        except ValueError:
+            summary["notes"] = "result line was not valid JSON"
+    if not summary.get("summary"):
+        summary["summary"] = result_text[-800:].strip()
+    return {"rc": rc, "isError": is_error, "durationSec": duration, "costUsd": cost, "turns": turns, "summary": summary, "stderr": (e or "")[-1500:]}
+
+
 def main_guard(lane, fn, argv):
     """Run a script entry point; on failure write an error token and exit non-zero."""
     try:
@@ -438,9 +518,6 @@ def main_guard(lane, fn, argv):
 # <<< shared: hermannlib
 
 LANE = "t-hermann-code-cmd"
-DEFAULT_TOOLS = "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)"
-
-
 def spec_by_id(spec_id):
     s = one(P["specs"], 'FROM $ WHERE $.specId == "%s" LIMIT 1' % spec_id)
     if not s:
@@ -475,6 +552,38 @@ def render_spec(s):
     return txt
 
 
+def curated_knowledge(limit=30):
+    facts = [t.get("data") or {} for t in query(P["knowledge"], 'FROM $ WHERE $.status == "active"', 300)]
+    order = {"decision": 0, "answer": 1, "convention": 2, "platform": 3, "gap": 4, "risk": 5, "question": 6}
+    facts.sort(key=lambda f: (order.get(f.get("kind"), 9), str(f.get("factId", ""))))
+    rows = [f for f in facts if f.get("kind") != "question"][:limit]
+    return "\n".join("- [%s] %s" % (f.get("kind"), str(f.get("text", ""))[:260]) for f in rows) or "- nothing curated yet"
+
+
+def component_map_text():
+    m = latest(P["map"], "at")
+    if not m:
+        return "- no map yet"
+    comps = []
+    for c in as_list(m.get("components"))[:40]:
+        c = as_dict(c) if not isinstance(c, dict) else c
+        extra = (" endpoints: " + ", ".join(as_list(c.get("endpoints")))) if c.get("endpoints") else ((" table: " + str(c.get("table"))) if c.get("table") else "")
+        comps.append("- %s (%s, %s)%s" % (c.get("className"), c.get("kind"), c.get("file"), extra))
+    return "summary: %s\n%s\nmigrations: %s\nenv vars: %s" % (m.get("summary", ""), "\n".join(comps), ", ".join(as_list(m.get("migrations"))), ", ".join(as_list(m.get("envVars"))[:30]))
+
+
+def earlier_notes(rp):
+    """The coder notes of merged runs on this repository, newest first: the platform-specific facts
+    one run paid for (moved packages, API changes, conventions) so the next run does not pay again."""
+    runs = [t.get("data") or {} for t in query(P["runs"], 'FROM $ WHERE $.status == "merged" LIMIT 100', 100)]
+    runs = [r for r in runs if (not r.get("repoId") or r.get("repoId") == rp.get("repoId")) and str(r.get("coderNotes", "")).strip()]
+    runs.sort(key=lambda r: str(r.get("mergedAt") or r.get("at", "")), reverse=True)
+    lines = []
+    for r in runs[:5]:
+        lines.append("- after %s (%s): %s" % (r.get("specId"), str(r.get("title", ""))[:60], str(r.get("coderNotes", ""))[:900]))
+    return "\n".join(lines)
+
+
 def build_prompt(s, rp, extra_sections):
     g = latest(P["goal"], "updatedAt") or one(P["goal"])
     accepted_adrs = adrs("accepted")
@@ -488,6 +597,9 @@ def build_prompt(s, rp, extra_sections):
         "## Accepted architecture decisions\n" + ("\n".join("- %s: %s" % (a.get("title"), a.get("decision")) for a in accepted_adrs) or "- none yet"),
         "## The spec\n" + render_spec(s),
         "## Twelve-factor practice you must keep\n" + "\n".join("- %s: %s" % (c.get("title"), c.get("practice")) for c in cards),
+        "## What earlier runs in this repository learned (read before you start)\n" + (earlier_notes(rp) or "- nothing recorded yet"),
+        "## What the brain knows (curated facts; decisions are binding, answers come from the person)\n" + curated_knowledge(),
+        "## The component map (measured from the last commit)\n" + component_map_text(),
         "## Rules\n"
         "- Work only inside this repository. Keep the change minimal and complete: every acceptance criterion gets a test.\n"
         "- Configuration values come from environment variables bound in application.yml with ${NAME:default}; never a literal credential or hostname.\n"
@@ -511,72 +623,6 @@ def surefire_counts(root):
     return tests, fails + errors
 
 
-BUILTIN_CLAUDE = {
-    "agentId": "claude-code", "title": "Claude Code (headless)", "binary": "claude",
-    "command": ["claude", "-p", "--model", "${model}", "--allowedTools", "${allowedTools}", "--max-turns", "${maxTurns}", "--no-session-persistence", "--output-format", "json"],
-    "promptVia": "stdin", "resultFormat": "claude-json", "defaultModel": "claude-opus-5", "allowedTools": DEFAULT_TOOLS, "maxTurns": "80", "timeoutMin": "45",
-}
-
-
-def resolve_agent(cfg):
-    """The coding agent: a definition token from p-hermann-coders chosen by config.coderAgent, with
-    config overrides for model, tools, turns and timeout. Falls back to the built-in Claude Code."""
-    defs = {}
-    for t in query(P["coders"], "FROM $", 20):
-        d = t.get("data") or {}
-        if d.get("agentId"):
-            defs[d["agentId"]] = d
-    agent_id = str(cfg.get("coderAgent") or "claude-code")
-    a = defs.get(agent_id) or (BUILTIN_CLAUDE if agent_id == "claude-code" else None)
-    if not a:
-        raise RuntimeError("coding agent '%s' is not defined in p-hermann-coders (known: %s)" % (agent_id, ", ".join(sorted(defs)) or "none"))
-    model = str(cfg.get("coderModel") or cfg.get("claudeModel") or a.get("defaultModel") or "")
-    tools = str(cfg.get("coderAllowedTools") or a.get("allowedTools") or DEFAULT_TOOLS)
-    turns = str(cfg.get("coderMaxTurns") or a.get("maxTurns") or "80")
-    timeout_min = as_int(cfg.get("coderTimeoutMin") or cfg.get("implementTimeoutMin") or a.get("timeoutMin"), 45)
-    argv = [str(x).replace("${model}", model).replace("${allowedTools}", tools).replace("${maxTurns}", turns) for x in as_list(a.get("command"))]
-    if not argv:
-        raise RuntimeError("coding agent '%s' has no command" % agent_id)
-    if not which(argv[0]):
-        raise RuntimeError("coding agent binary '%s' is not on the executor host" % argv[0])
-    return {"agentId": a.get("agentId"), "title": a.get("title", a.get("agentId")), "argv": argv, "model": model, "resultFormat": a.get("resultFormat", "text"),
-            "promptVia": a.get("promptVia", "stdin"), "timeoutSec": timeout_min * 60}
-
-
-def run_coder(prompt, root, cfg, agent):
-    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
-    env["GITEA_TOKEN"] = ""  # the coder never sees the git host token
-    argv = list(agent["argv"])
-    stdin_text = prompt
-    if agent["promptVia"] == "argv":
-        argv.append(prompt); stdin_text = None
-    started = time.time()
-    rc, o, e = run(argv, cwd=root, timeout=agent["timeoutSec"], env=env, check=False, input_text=stdin_text)
-    duration = round(time.time() - started)
-    result_text, cost, turns, is_error = "", "", "", rc != 0
-    if agent["resultFormat"] == "claude-json":
-        try:
-            j = json.loads(o.strip().splitlines()[-1]) if o.strip() else {}
-            result_text = str(j.get("result", ""))
-            cost = str(j.get("total_cost_usd", ""))
-            turns = str(j.get("num_turns", ""))
-            is_error = bool(j.get("is_error", False)) or rc != 0
-        except (ValueError, IndexError):
-            result_text = (o or e)[-3000:]
-    else:
-        result_text = (o or "")[-6000:] or (e or "")[-3000:]
-    summary = {"summary": "", "filesChanged": [], "testsAdded": [], "notes": ""}
-    m = re.search(r"HERMANN_RESULT:\s*(\{.*\})", result_text, re.S)
-    if m:
-        try:
-            summary.update(json.loads(m.group(1)))
-        except ValueError:
-            summary["notes"] = "result line was not valid JSON"
-    if not summary.get("summary"):
-        summary["summary"] = result_text[-800:].strip()
-    return {"rc": rc, "isError": is_error, "durationSec": duration, "costUsd": cost, "turns": turns, "summary": summary, "stderr": (e or "")[-1500:]}
-
-
 def record_run(data):
     for t in query(P["runs"], 'FROM $ WHERE $.runId == "%s" LIMIT 5' % data["runId"], 5):
         delete_token(P["runs"], t["id"])
@@ -595,7 +641,7 @@ def implement(spec_id=None, run_id=None):
     attempt = as_int((previous or {}).get("attempt"), 0) + 1
     run_id = run_id or "run-%s-%s" % (spec_id, now().replace(":", "").replace("-", "")[:15])
     branch = (previous or {}).get("branch") or "feat/%s" % spec_id
-    git(["fetch", "-q", "origin"], cwd=root)
+    git(["fetch", "-q", "--prune", "origin"], cwd=root)
     if previous:
         git(["checkout", "-q", "-B", branch, "origin/%s" % branch], cwd=root)
     else:
@@ -624,7 +670,7 @@ def implement(spec_id=None, run_id=None):
     record_run({**(previous or {}), "at": now(), "startedAt": started, "runId": run_id, "specId": spec_id, "iterationId": s.get("iterationId", ""),
                 "attempt": str(attempt), "repoId": rp.get("repoId", ""), "branch": branch, "status": "coding", "title": s.get("title", ""),
                 "coderAgent": agent["agentId"], "coderModel": agent["model"]})
-    coder = run_coder(prompt, root, cfg, agent)
+    coder = run_headless(prompt, root, cfg, agent)
     rc, o, e = run(["./mvnw", "-q", "-B", "verify"], cwd=root, timeout=1500, check=False)
     tests, failed = surefire_counts(root)
     build_ok = rc == 0

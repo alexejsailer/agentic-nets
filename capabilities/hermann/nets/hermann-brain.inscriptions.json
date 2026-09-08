@@ -1,0 +1,411 @@
+[
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 600000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-observe-cmd",
+    "kind": "command",
+    "label": "Observe: signals of a merged run, component map",
+    "metadata": {
+      "netId": "hermann-brain",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "brain_cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-brain-cmd"
+      },
+      "context": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-context"
+      },
+      "journal": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-journal"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-brain-log",
+        "retain": 200
+      },
+      "map": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-map"
+      },
+      "signals": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-signals"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"observe\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-brain-cmd",
+        "take": "FIRST"
+      },
+      "runs": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-runs",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "curationId",
+          "runId",
+          "addFacts",
+          "plan",
+          "summary"
+        ],
+        "retries": 1,
+        "types": {
+          "addFacts": "array",
+          "plan": "object",
+          "summary": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "hermann",
+      "nl": "You are Hermann's brain, curating what the project knows after one merged iteration. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nRules: facts must be specific and sourced from the brief (a class, a config key, a package, a measured number); prefer few good facts over many; mark as platform what is true for the stack and reusable in other projects, as project what is about this codebase; propose a decision for every choice the coder made that constrains future work; keep the plan as the remaining increments toward the goal in dependency order, marking what is merged; ask a question only when the next increment genuinely depends on the answer. Always include every array, empty when there is nothing.\n\nReply with exactly this shape: {\"curationId\": \"<from the brief>\", \"runId\": \"<from the brief>\", \"addFacts\": [{\"kind\": \"platform|convention|decision|gap|risk|question\", \"scope\": \"project|platform\", \"text\": \"<one specific, checkable sentence>\", \"source\": \"<runId, specId or file>\", \"confidence\": \"high|medium|low\"}], \"retireFacts\": [\"<factId>\"], \"plan\": {\"increments\": [{\"id\": \"inc-1\", \"title\": \"<one line>\", \"status\": \"planned|in-progress|merged|dropped\", \"dependsOn\": [\"inc-0\"], \"specId\": \"<specId or empty>\"}]}, \"proposedDecisions\": [{\"title\": \"<short>\", \"context\": \"<why it came up>\", \"decision\": \"<what was decided>\", \"consequences\": \"<what it constrains>\"}], \"questions\": [{\"question\": \"<what only the person can answer>\", \"why\": \"<what depends on it>\"}], \"summary\": \"<three sentences>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-hermann",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "archive",
+        "when": "summary != ''"
+      },
+      {
+        "from": "@response",
+        "to": "curation",
+        "when": "summary != ''"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "summary == ''"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-hermann-curate",
+    "kind": "agent",
+    "label": "Curate (one-shot model call)",
+    "metadata": {
+      "netId": "hermann-brain",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "archive": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-curations",
+        "retain": 50
+      },
+      "curation": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-curation"
+      },
+      "errors": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-llm-errors",
+        "retain": 100
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"curate\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 1800000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-curate-cmd",
+    "kind": "command",
+    "label": "Curate (headless agent, may read the repository)",
+    "metadata": {
+      "netId": "hermann-brain",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "archive": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-curations",
+        "retain": 50
+      },
+      "curation": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-curation"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-brain-log",
+        "retain": 200
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"curate\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-brain-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "apply",
+            "${cur.data.curationId}"
+          ],
+          "env": {
+            "CURATION_ID": "${cur.data.curationId}",
+            "MODEL_ID": "hermann",
+            "RUN_ID": "${cur.data.runId}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "hermann-brain"
+        },
+        "command": "invoke",
+        "curationId": "${cur.data.curationId}",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "apply-${now()}",
+        "kind": "command",
+        "stage": "apply"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-apply-prep",
+    "kind": "map",
+    "label": "Curation to apply command",
+    "metadata": {
+      "netId": "hermann-brain",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-brain-cmd"
+      }
+    },
+    "presets": {
+      "cur": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-curation",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "answer",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "ANSWER_TEXT": "${resp.data.text}",
+            "MODEL_ID": "hermann",
+            "PROMPT_ID": "${resp.data.promptId}"
+          },
+          "timeoutMs": 120000,
+          "toolId": "hermann-brain"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "answer-${now()}",
+        "kind": "command",
+        "promptId": "${resp.data.promptId}",
+        "stage": "answer"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-hermann-answer-knowledge-prep",
+    "kind": "map",
+    "label": "A person's answer to a brain question",
+    "metadata": {
+      "netId": "hermann-brain",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-brain-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"knowledge\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-hermann-apply-cmd",
+    "kind": "command",
+    "label": "Apply: knowledge, plan, proposed decisions, questions",
+    "metadata": {
+      "netId": "hermann-brain",
+      "sessionId": "agent-hermann"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "adr": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-adr"
+      },
+      "journal": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-journal"
+      },
+      "knowledge": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-knowledge"
+      },
+      "log": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-brain-log",
+        "retain": 200
+      },
+      "plan": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-plan"
+      },
+      "prompts": {
+        "host": "hermann@agentic-net-node:8080",
+        "placeId": "p-hermann-prompts"
+      }
+    },
+    "presets": {
+      "archive": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-hermann-curations",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"apply\" OR $.stage == \"answer\" LIMIT 1",
+        "consume": true,
+        "host": "hermann@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-hermann-brain-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]
