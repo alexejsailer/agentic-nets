@@ -592,6 +592,8 @@ def spec(iteration_id, prompt_id):
     data = {"at": now(), "iterationId": iteration_id, "purpose": "spec", "promptId": prompt_id, "specId": spec_id, "goalStatus": goal_status,
             "repoId": (rp or {}).get("repoId", ""), "sha": (rp or {}).get("headSha", ""), "selected": selected, "responseText": text, "brief": brief[:14000]}
     put_token(P["context"], data, name="ctx-spec-%s" % spec_id)
+    put_token(P["responses"], {"at": now(), "promptId": prompt_id, "iterationId": iteration_id, "intent": "answered", "selected": selected,
+                               "text": text, "notes": notes, "specId": spec_id, "by": "hermann"}, name="receipt-%s" % prompt_id)
     journal(LANE, "context", "spec brief %s for %s from %s (%s)" % (spec_id, iteration_id, prompt_id, ", ".join(selected) or "free text"), iterationId=iteration_id)
     return {"success": True, "specId": spec_id, "chosen": selected, "chars": len(brief)}
 

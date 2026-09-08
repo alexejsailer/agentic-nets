@@ -621,6 +621,9 @@ def implement(spec_id=None, run_id=None):
     agent = resolve_agent(cfg)
     journal(LANE, "code", "%s (%s) starts on %s (%s, attempt %d, branch %s)" % (agent["title"], agent["model"], spec_id, s.get("title", "")[:80], attempt, branch), specId=spec_id, runId=run_id)
     started = now()
+    record_run({**(previous or {}), "at": now(), "startedAt": started, "runId": run_id, "specId": spec_id, "iterationId": s.get("iterationId", ""),
+                "attempt": str(attempt), "repoId": rp.get("repoId", ""), "branch": branch, "status": "coding", "title": s.get("title", ""),
+                "coderAgent": agent["agentId"], "coderModel": agent["model"]})
     coder = run_coder(prompt, root, cfg, agent)
     rc, o, e = run(["./mvnw", "-q", "-B", "verify"], cwd=root, timeout=1500, check=False)
     tests, failed = surefire_counts(root)

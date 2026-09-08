@@ -151,15 +151,20 @@ class HermannApp extends HTMLElement {
   _repo() { return newest(props(this._s.repo), 'updatedAt')[0] || null; }
   _scorecard() { return newest(props(this._s.scorecard), 'at')[0] || null; }
   _openPrompt() {
-    const answered = new Set(props(this._s.responses).map((r) => r.promptId));
-    const open = props(this._s.prompts).filter((p) => p.promptId && !answered.has(p.promptId));
-    return newest(open, 'at')[0] || open[open.length - 1] || null;
+    // Answers are consumed by the net; what survives is the receipt Hermann writes when he briefs the
+    // spec, the spec itself (promptId), a rejection, or a newer prompt of the same iteration (a reshape).
+    const answered = new Set([...props(this._s.responses).map((r) => r.promptId), ...props(this._s.specs).map((sp) => sp.promptId)]);
+    const latestPerIteration = new Map();
+    for (const p of newest(props(this._s.prompts), 'at').reverse()) if (p.promptId) latestPerIteration.set(p.iterationId || p.promptId, p);
+    const open = [...latestPerIteration.values()].filter((p) => !answered.has(p.promptId));
+    return newest(open, 'at')[0] || null;
   }
   _decisionsFor(kind, key) { return props(this._s.decisions).filter((d) => d.kind === kind && d[key]); }
   _draftSpec() {
-    const decided = new Set(this._decisionsFor('spec-approval', 'specId').map((d) => d.specId));
+    // An approval is consumed by the net and becomes a run; a rejection stays as a decision.
+    const decided = new Set([...this._decisionsFor('spec-approval', 'specId').map((d) => d.specId), ...props(this._s.runs).map((r) => r.specId)]);
     const drafts = props(this._s.specs).filter((s) => s.specId && s.status === 'draft' && !decided.has(s.specId));
-    return drafts[drafts.length - 1] || null;
+    return newest(drafts, 'at')[0] || drafts[drafts.length - 1] || null;
   }
   _runs() {
     const ver = props(this._s.verification), rev = props(this._s.reviews), dec = this._decisionsFor('merge', 'runId');
@@ -171,10 +176,11 @@ class HermannApp extends HTMLElement {
     }));
   }
   _working() {
+    if (props(this._s.runs).some((r) => r.status === 'coding')) return 'The coder is implementing the spec';
     const j = newest(props(this._s.journal), 'at')[0];
     if (!j) return '';
     const stage = String(j.stage || '');
-    const inFlight = { context: 'Hermann is thinking about the next iteration', code: /starts/.test(j.summary || '') ? 'The coder is implementing the spec' : '', verify: /verifying/.test(j.summary || '') ? 'Verification is running' : '' }[stage];
+    const inFlight = { context: 'Hermann is thinking about the next iteration', verify: /verifying/.test(j.summary || '') ? 'Verification is running' : '' }[stage];
     return inFlight || '';
   }
 
@@ -182,7 +188,7 @@ class HermannApp extends HTMLElement {
   _render() {
     const root = this.shadowRoot;
     const g = this._goal(), repo = this._repo(), sc = this._scorecard(), prompt = this._openPrompt(), draft = this._draftSpec();
-    const awaiting = (prompt ? 1 : 0) + (draft ? 1 : 0) + this._runs().filter((x) => x.run.status === 'pr-open' && x.verification?.status === 'pass' && !x.decisions.length).length;
+    const awaiting = (prompt ? 1 : 0) + (draft ? 1 : 0) + this._runs().filter((x) => x.run.status === 'pr-open' && x.verification?.status === 'pass').length;
     const status = [
       repo ? `${repo.repoId} @ ${String(repo.headSha || '').slice(0, 7)} (Boot ${repo.bootVersion}, Java ${repo.javaVersion})` : 'no service yet',
       sc ? `scorecard ${sc.total}/36 grade ${sc.grade}` : 'no scorecard',
@@ -315,15 +321,16 @@ class HermannApp extends HTMLElement {
     const rows = this._runs();
     if (!rows.length) return '<div class="card"><div class="muted">No runs yet. Approve a spec in Next iteration.</div></div>';
     return `<div class="grid">${rows.map(({ run, verification: v, review: r, decisions: d }) => {
-      const merged = run.status === 'merged' || d.some((x) => x.verdict === 'merge');
-      const changes = d.some((x) => x.verdict === 'changes');
-      const canMerge = !merged && run.status === 'pr-open' && v?.status === 'pass';
-      return `<div class="card"><h2>${esc(run.specId)} <span class="muted">${esc(run.title || '')}</span> <span class="pill ${merged ? 'ok' : run.status === 'failed' ? 'bad' : 'warn'}">${esc(merged ? 'merged' : run.status)}</span> <span class="pill">attempt ${esc(run.attempt)}</span></h2>
+      const merged = run.status === 'merged';
+      const coding = run.status === 'coding';
+      const changes = d.some((x) => x.verdict === 'changes') || coding;
+      const canMerge = !merged && !coding && run.status === 'pr-open' && v?.status === 'pass';
+      return `<div class="card"><h2>${esc(run.specId)} <span class="muted">${esc(run.title || '')}</span> <span class="pill ${merged ? 'ok' : run.status === 'failed' ? 'bad' : 'warn'}">${esc(coding ? 'coding…' : run.status)}</span> <span class="pill">attempt ${esc(run.attempt)}</span>${run.repoId ? ` <span class="pill">${esc(run.repoId)}</span>` : ''}</h2>
         <table><tr><th>Branch</th><td class="mono">${esc(run.branch)} @ ${esc(String(run.headSha || '').slice(0, 7))}</td></tr>
         <tr><th>Pull request</th><td>${run.prUrl ? link(run.prUrl, '#' + run.prIndex) : 'not opened'}</td></tr>
-        <tr><th>Build</th><td>${isTrue(run.buildOk) ? 'green' : 'RED'}: ${esc(run.testsRun)} tests, ${esc(run.testsFailed)} failed; ${esc(run.diffStat)}</td></tr>
+        <tr><th>Build</th><td>${coding ? 'the coder is working…' : `${isTrue(run.buildOk) ? 'green' : 'RED'}: ${esc(run.testsRun)} tests, ${esc(run.testsFailed)} failed; ${esc(run.diffStat)}`}</td></tr>
         <tr><th>Coder</th><td>${run.coderAgent ? esc(run.coderAgent) + (run.coderModel ? ' / ' + esc(run.coderModel) : '') + ': ' : ''}${esc(run.coderDurationSec)}s, ${esc(run.coderTurns || '?')} turns${run.coderCostUsd ? `, $${Number(run.coderCostUsd).toFixed(2)}` : ''}</td></tr>
-        <tr><th>Verification</th><td>${v ? `<span class="pill ${v.status === 'pass' ? 'ok' : 'bad'}">${esc(v.status)}</span> ${esc(v.testsRun)} tests, startup ${esc(v.startupSeconds)}s, shutdown ${esc(v.shutdownSeconds)}s, logs ${isTrue(v.logsStructured) ? 'structured' : 'unstructured'}` : (isTrue(run.buildOk) ? 'running…' : 'skipped')}</td></tr>
+        <tr><th>Verification</th><td>${v ? `<span class="pill ${v.status === 'pass' ? 'ok' : 'bad'}">${esc(v.status)}</span> ${esc(v.testsRun)} tests, startup ${esc(v.startupSeconds)}s, shutdown ${esc(v.shutdownSeconds)}s, logs ${isTrue(v.logsStructured) ? 'structured' : 'unstructured'}` : (coding ? '' : isTrue(run.buildOk) ? 'running…' : 'skipped')}</td></tr>
         <tr><th>Review</th><td>${r ? `<span class="pill ${r.verdict === 'approve' ? 'ok' : 'warn'}">${esc(r.verdict)}</span> ${esc(r.summary)}` : (v?.status === 'pass' ? 'running…' : '')}</td></tr></table>
         <details><summary>Coder summary and notes</summary><div>${esc(run.coderSummary)}</div><div class="muted">${esc(run.coderNotes || '')}</div>${run.buildTail ? `<div class="mono">${esc(run.buildTail)}</div>` : ''}</details>
         ${v ? `<details><summary>Verification evidence</summary><ul>${arr(v.evidence).map((e) => `<li>${esc(e)}</li>`).join('')}</ul></details>` : ''}
