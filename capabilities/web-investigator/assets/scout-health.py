@@ -13,6 +13,10 @@ from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 MASTER = os.environ.get("MASTER_URL", "http://127.0.0.1:8082").rstrip("/")
+# Internal service auth: the executor exports AGENTICOS_SERVICE_TOKEN; when the backends
+# require it (X-Service-Auth), attach it to master/blobstore calls. Absent => no header
+# (unchanged on stacks that do not enforce it). External crawl requests never get it.
+SERVICE_TOKEN = os.environ.get("AGENTICOS_SERVICE_TOKEN", "").strip()
 MODEL = os.environ.get("MODEL_ID", "research-scout")
 WINDOW = int(os.environ.get("WINDOW") or 1000)
 MIN_HOST_ATTEMPTS = 3     # below this a host's failure rate is noise
@@ -22,6 +26,8 @@ def api(method, path, body=None, timeout=25):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(MASTER + path, data=data, method=method)
     req.add_header("Content-Type", "application/json")
+    if SERVICE_TOKEN:
+        req.add_header("X-Service-Auth", "Bearer " + SERVICE_TOKEN)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read().decode("utf-8", "replace")
     return json.loads(raw) if raw.strip() else {}

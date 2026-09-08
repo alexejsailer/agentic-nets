@@ -38,6 +38,10 @@ CATALOG_PROSE_RATIO = 0.3
 POLICY_PLACE = "p-scout-source-policy"
 
 MASTER = os.environ.get("MASTER_URL", "http://127.0.0.1:8082").rstrip("/")
+# Internal service auth: the executor exports AGENTICOS_SERVICE_TOKEN; when the backends
+# require it (X-Service-Auth), attach it to master/blobstore calls. Absent => no header
+# (unchanged on stacks that do not enforce it). External crawl requests never get it.
+SERVICE_TOKEN = os.environ.get("AGENTICOS_SERVICE_TOKEN", "").strip()
 BLOBS = os.environ.get("BLOB_URL", "http://127.0.0.1:8090").rstrip("/")
 MODEL = os.environ.get("MODEL_ID", "research-scout")
 
@@ -50,6 +54,8 @@ def api(method, path, body=None, timeout=15):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(MASTER + path, data=data, method=method)
     req.add_header("Content-Type", "application/json")
+    if SERVICE_TOKEN:
+        req.add_header("X-Service-Auth", "Bearer " + SERVICE_TOKEN)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read().decode("utf-8", "replace")
     return json.loads(raw) if raw.strip() else {}
@@ -94,6 +100,8 @@ def registry_upsert(url, etag, last_mod, outcome, prev_id=""):
 def put_blob(text):
     req = urllib.request.Request(BLOBS + "/api/blobs", data=text.encode("utf-8"), method="POST")
     req.add_header("Content-Type", "text/plain; charset=utf-8")  # omit and the body is mangled
+    if SERVICE_TOKEN:
+        req.add_header("X-Service-Auth", "Bearer " + SERVICE_TOKEN)
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read().decode())
 

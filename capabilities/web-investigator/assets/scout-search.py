@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 MASTER = os.environ.get("MASTER_URL", "http://127.0.0.1:8082").rstrip("/")
+# Internal service auth for MASTER only (never the external search providers below).
+SERVICE_TOKEN = os.environ.get("AGENTICOS_SERVICE_TOKEN", "").strip()
 MODEL = os.environ.get("MODEL_ID", "research-scout")
 KEY = os.environ.get("SEARCH_API_KEY", "").strip()
 PROVIDER = (os.environ.get("SEARCH_PROVIDER") or "brave").strip().lower()
@@ -26,6 +28,8 @@ def api(method, path, body=None, timeout=25):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(MASTER + path, data=data, method=method)
     req.add_header("Content-Type", "application/json")
+    if SERVICE_TOKEN:
+        req.add_header("X-Service-Auth", "Bearer " + SERVICE_TOKEN)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read().decode("utf-8", "replace")
     return json.loads(raw) if raw.strip() else {}
