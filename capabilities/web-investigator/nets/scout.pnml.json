@@ -3,7 +3,7 @@
     "arcs": {
       "a-retry-0": {
         "id": "a-retry-0",
-        "source": "p-scout-digest",
+        "source": "p-scout-errors",
         "target": "t-scout-analysis-retry",
         "weight": 1
       },
@@ -469,18 +469,6 @@
         "target": "p-scout-health-log",
         "weight": 1
       },
-      "a-t-scout-write-in": {
-        "id": "a-t-scout-write-in",
-        "source": "p-scout-write-queue",
-        "target": "t-scout-write",
-        "weight": 1
-      },
-      "a-t-scout-write-out": {
-        "id": "a-t-scout-write-out",
-        "source": "t-scout-write",
-        "target": "p-scout-drafts",
-        "weight": 1
-      },
       "a-t-scout-write-prep-in": {
         "id": "a-t-scout-write-prep-in",
         "source": "p-scout-write-cmd",
@@ -491,6 +479,102 @@
         "id": "a-t-scout-write-prep-out",
         "source": "t-scout-write-prep",
         "target": "p-scout-health-log",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-fable-cmd-out": {
+        "id": "a-t-scout-app-run-p-scout-fable-cmd-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-fable-cmd",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-recrawl-cmd-out": {
+        "id": "a-t-scout-app-run-p-scout-recrawl-cmd-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-recrawl-cmd",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-sitemap-cmd-out": {
+        "id": "a-t-scout-app-run-p-scout-sitemap-cmd-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-sitemap-cmd",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-usage-cmd-out": {
+        "id": "a-t-scout-app-run-p-scout-usage-cmd-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-usage-cmd",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-write-cmd-out": {
+        "id": "a-t-scout-app-run-p-scout-write-cmd-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-write-cmd",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-errors-out": {
+        "id": "a-t-scout-app-run-p-scout-errors-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
+      "a-t-scout-app-run-p-scout-app-requests-out": {
+        "id": "a-t-scout-app-run-p-scout-app-requests-out",
+        "source": "t-scout-app-run",
+        "target": "p-scout-app-requests",
+        "weight": 1
+      },
+      "a-t-scout-categorize-p-scout-brief-in": {
+        "id": "a-t-scout-categorize-p-scout-brief-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-categorize",
+        "weight": 1
+      },
+      "a-t-scout-categorize-p-scout-errors-out": {
+        "id": "a-t-scout-categorize-p-scout-errors-out",
+        "source": "t-scout-categorize",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
+      "a-t-scout-digest-p-scout-brief-in": {
+        "id": "a-t-scout-digest-p-scout-brief-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-digest",
+        "weight": 1
+      },
+      "a-t-scout-digest-p-scout-errors-out": {
+        "id": "a-t-scout-digest-p-scout-errors-out",
+        "source": "t-scout-digest",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
+      "a-t-scout-fetch-cmd-p-scout-brief-in": {
+        "id": "a-t-scout-fetch-cmd-p-scout-brief-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-fetch-cmd",
+        "weight": 1
+      },
+      "a-t-scout-health-p-scout-health-log-out": {
+        "id": "a-t-scout-health-p-scout-health-log-out",
+        "source": "t-scout-health",
+        "target": "p-scout-health-log",
+        "weight": 1
+      },
+      "a-t-scout-route-p-scout-errors-out": {
+        "id": "a-t-scout-route-p-scout-errors-out",
+        "source": "t-scout-route",
+        "target": "p-scout-errors",
+        "weight": 1
+      },
+      "a-t-scout-route-p-scout-rejected-out": {
+        "id": "a-t-scout-route-p-scout-rejected-out",
+        "source": "t-scout-route",
+        "target": "p-scout-rejected",
+        "weight": 1
+      },
+      "a-t-scout-search-cmd-p-scout-brief-in": {
+        "id": "a-t-scout-search-cmd-p-scout-brief-in",
+        "source": "p-scout-brief",
+        "target": "t-scout-search-cmd",
         "weight": 1
       }
     },
@@ -769,13 +853,6 @@
         "tokens": 0,
         "x": 700,
         "y": 1220
-      },
-      "p-scout-write-queue": {
-        "id": "p-scout-write-queue",
-        "label": "Writing packets (evidence assembled)",
-        "tokens": 0,
-        "x": 1300,
-        "y": 240
       }
     },
     "transitions": {
@@ -970,12 +1047,6 @@
         "label": "Build usage-rollup CommandToken (daily)",
         "x": 900,
         "y": 940
-      },
-      "t-scout-write": {
-        "id": "t-scout-write",
-        "label": "Staff writer: draft the accepted article",
-        "x": 1300,
-        "y": 100
       },
       "t-scout-write-cron": {
         "id": "t-scout-write-cron",

@@ -502,6 +502,14 @@ async function cmdInstall(a) {
         for (const slot of Object.values(set))
           if (slot.host) slot.host = `${model}@${nodeHost}`;
       if (i.action?.type === 'agent') i.action.modelId = model;
+      // Command-lane templates carry the model id as an env literal (MODEL_ID) because a map
+      // template cannot read it from anywhere else; rewrite it to the target model too, so a
+      // pack exported from one model writes its results into the model it is installed in.
+      const srcModel = a['source-model'] ?? i.action?.template?.args?.env?.MODEL_ID;
+      const env = i.action?.template?.args?.env ?? i.action?.template?.command?.args?.env;
+      if (env && typeof env === 'object')
+        for (const [k, v] of Object.entries(env))
+          if (k === 'MODEL_ID' || (srcModel && v === srcModel)) env[k] = model;
       await callTool('SET_INSCRIPTION', { transitionId: i.id, inscription: i, model });
       if (i.kind !== 'link') started.push(i.id);
     }

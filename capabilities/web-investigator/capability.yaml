@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: web-investigator
-version: 1.12.1
+version: 1.13.0
 displayName: Web Investigator
 domain: research
 description: >-
@@ -20,11 +20,10 @@ entry:
   inbox: p-scout-brief
   outbox: p-scout-digest
   correlationField: briefId
-  statuses: [landscape-analysis]
   taskFields:
     required: [briefId, topic, description, categories, mustInclude]
-    optional: [domainHint, mustExclude, denyHosts, allowHosts, minScore, maxDepth, brandNewDays, recentDays, sameHostOnly, searchProvider, ownSitemap]
-  resultFields: [ownedAngles, freshness, freshSignal, gaps, ownPosition, recommendations, totalFindings, freshTextArticles, ownArticles, ownUncovered]
+    optional: [domainHint, mustExclude, denyHosts, allowHosts, minScore, maxDepth, brandNewDays, recentDays, sameHostOnly, searchProvider, ownSitemap, active]   # active "false" pauses classification and analysis; absent means active
+  resultFields: [briefId, generatedAt, freshCards, ownedAngles, freshness, freshSignal, gaps, ownPosition, recommendations, totalFindings, freshTextArticles, ownArticles, ownUncovered]
 
 nets:
   - name: scout
@@ -107,7 +106,7 @@ scripts:
       the blobstore and the draft token carries only preview, outline, counts and blob urns.
       Dedupe by drafts ledger; the task token is never consumed — it belongs to the application
       lifecycle (accepted -> done). Requires Claude Code on the executor host; the stopped
-      t-scout-write agent lane is the API fallback.
+      (the drafts are written by the local writer command lane; there is no API-model fallback lane)
   - id: scout-write-fable
     runtime: python3
     file: assets/scout-write.py
@@ -156,7 +155,7 @@ credentials:
 
 tiers:
   - transition: t-scout-categorize
-    tier: worker    # per-article classification; profiled to research-worker
+    tier: low     # informational only: the installer does not apply this table; the inscription's tier/group are authoritative
   - transition: t-scout-digest
     tier: high      # one synthesis pass over measured facts
 

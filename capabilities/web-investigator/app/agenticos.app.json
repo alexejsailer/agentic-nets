@@ -1,9 +1,9 @@
 {
   "$schema": "../../../agentic-net-apps/schemas/application-package.schema.json",
   "name": "web-investigator",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "displayName": "Web Investigator",
-  "description": "Browse what the investigation crawled \u2014 findings by recency, analyses, gaps, crawl health \u2014 and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
+  "description": "Browse what the investigation crawled — findings by recency, analyses, gaps, crawl health — and record decisions: accept recommendations as article tasks, dismiss, mark covered, steer the crawl.",
   "author": "AgenticNetOS",
   "visibility": "public",
   "tags": [
@@ -12,7 +12,7 @@
     "web-investigator"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "web-investigator-1.6.1.application.json",
+  "output": "web-investigator-1.7.0.application.json",
   "ui": {
     "element": "agenticos-web-investigator-v1",
     "entryFile": "ui/main.mjs",
@@ -44,7 +44,7 @@
       {
         "role": "archive",
         "placeId": "p-find-archive",
-        "required": true,
+        "required": false,
         "description": "Older findings. The view shows the newest slice; query the place for the full corpus."
       },
       {
@@ -132,13 +132,13 @@
         "role": "requests",
         "placeId": "p-scout-app-requests",
         "required": true,
-        "description": "Run-now requests. The net's own lane consumes these and builds the actual command tokens \u2014 the app never executes anything itself."
+        "description": "Run-now requests. The net's own lane consumes these and builds the actual command tokens — the app never executes anything itself."
       },
       {
         "role": "drafts",
         "placeId": "p-scout-drafts",
         "required": false,
-        "description": "Publish-ready drafts written by the staff-writer lane from accepted tasks. The task itself is never consumed \u2014 close it with complete-task once published.",
+        "description": "Publish-ready drafts written by the staff-writer lane from accepted tasks. The task itself is never consumed — close it with complete-task once published.",
         "schema": {
           "type": "object",
           "required": [
@@ -198,10 +198,22 @@
         "description": "One token per day of measured usage: total tokens and fires plus the per-lane breakdown with tier and group, filed by the usage rollup lane (nightly, or Refresh cost)."
       },
       {
-        "role": "usage-cmd",
-        "placeId": "p-scout-usage-cmd",
+        "role": "errors",
+        "placeId": "p-scout-errors",
         "required": false,
-        "description": "Command store of the usage lane: Refresh cost writes a CommandToken here in the same transaction as its request record; t-scout-usage runs it."
+        "description": "Read-only: agent answer mismatches, malformed findings and unknown run requests, newest last. What the retry lane consumes and what the health card counts."
+      },
+      {
+        "role": "rejected",
+        "placeId": "p-scout-rejected",
+        "required": false,
+        "description": "Read-only: every page the deterministic gate or the route lane turned away, with its gateVerdict, pageType and score, so 'why was this page rejected' is answered on the dashboard."
+      },
+      {
+        "role": "health-log",
+        "placeId": "p-scout-health-log",
+        "required": false,
+        "description": "Read-only: the stdout summaries of the command lanes (health, rollup, harvest, recrawl, usage)."
       }
     ],
     "actions": [
@@ -563,40 +575,256 @@
         }
       },
       {
-        "name": "refresh-cost",
-        "targetRole": "requests",
-        "description": "File today's measured usage now. The request token is the audit record; the command token it emits in the same transaction is the work order the usage lane runs.",
+        "name": "create-brief",
+        "targetRole": "brief",
+        "description": "Write the investigation brief. Ships inactive: nothing classifies or analyses until resume-investigation flips it active.",
         "defaults": {
-          "kind": "app-request",
-          "status": "commanded",
-          "run": "usage"
+          "kind": "brief",
+          "active": "false"
         },
         "guard": {
-          "role": "requests",
-          "matchKey": "requestId",
+          "role": "brief",
+          "matchKey": "briefId",
           "exists": false
-        },
-        "command": {
-          "role": "usage-cmd",
-          "toolId": "scout-usage",
-          "env": {
-            "MODEL_ID": "${modelId}",
-            "SINCE": "${input.since}"
-          },
-          "timeoutMs": 60000
         },
         "inputSchema": {
           "type": "object",
           "required": [
-            "requestId"
+            "briefId",
+            "topic",
+            "categories",
+            "mustInclude"
           ],
           "properties": {
-            "requestId": {
+            "topic": {
               "type": "string"
             },
-            "since": {
+            "description": {
+              "type": "string"
+            },
+            "domainHint": {
+              "type": "string"
+            },
+            "categories": {
+              "type": "string"
+            },
+            "mustInclude": {
+              "type": "string"
+            },
+            "denyHosts": {
+              "type": "string"
+            },
+            "ownSitemap": {
+              "type": "string"
+            },
+            "maxDepth": {
+              "type": "string"
+            },
+            "brandNewDays": {
+              "type": "string"
+            },
+            "recentDays": {
+              "type": "string"
+            },
+            "minScore": {
+              "type": "string"
+            },
+            "briefId": {
               "type": "string",
-              "description": "Window, e.g. 24h (default) or 7d"
+              "description": "Stable id of the brief token"
+            }
+          }
+        }
+      },
+      {
+        "name": "update-brief",
+        "targetRole": "decisions",
+        "description": "Edit the brief in place; the decision token is the audit record of what changed.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "brief-updated"
+        },
+        "guard": {
+          "role": "brief",
+          "matchKey": "briefId"
+        },
+        "effects": [
+          {
+            "updateRole": "brief",
+            "matchKey": "briefId",
+            "setFromInput": {
+              "topic": "topic",
+              "description": "description",
+              "domainHint": "domainHint",
+              "categories": "categories",
+              "mustInclude": "mustInclude",
+              "denyHosts": "denyHosts",
+              "ownSitemap": "ownSitemap",
+              "maxDepth": "maxDepth",
+              "brandNewDays": "brandNewDays",
+              "recentDays": "recentDays",
+              "minScore": "minScore"
+            }
+          }
+        ],
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "briefId",
+            "topic",
+            "categories",
+            "mustInclude"
+          ],
+          "properties": {
+            "topic": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "domainHint": {
+              "type": "string"
+            },
+            "categories": {
+              "type": "string"
+            },
+            "mustInclude": {
+              "type": "string"
+            },
+            "denyHosts": {
+              "type": "string"
+            },
+            "ownSitemap": {
+              "type": "string"
+            },
+            "maxDepth": {
+              "type": "string"
+            },
+            "brandNewDays": {
+              "type": "string"
+            },
+            "recentDays": {
+              "type": "string"
+            },
+            "minScore": {
+              "type": "string"
+            },
+            "briefId": {
+              "type": "string",
+              "description": "Stable id of the brief token"
+            }
+          }
+        }
+      },
+      {
+        "name": "pause-investigation",
+        "targetRole": "decisions",
+        "description": "Flip the brief inactive. Every model lane binds the brief only while active != false, so classification and analysis stop at once; the fetch lanes keep draining their queue.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "brief-paused"
+        },
+        "guard": {
+          "role": "brief",
+          "matchKey": "briefId"
+        },
+        "effects": [
+          {
+            "updateRole": "brief",
+            "matchKey": "briefId",
+            "set": {
+              "active": "false"
+            }
+          }
+        ],
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "briefId"
+          ],
+          "properties": {
+            "briefId": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "resume-investigation",
+        "targetRole": "decisions",
+        "description": "Flip the brief active again.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "brief-resumed"
+        },
+        "guard": {
+          "role": "brief",
+          "matchKey": "briefId"
+        },
+        "effects": [
+          {
+            "updateRole": "brief",
+            "matchKey": "briefId",
+            "set": {
+              "active": "true"
+            }
+          }
+        ],
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "briefId"
+          ],
+          "properties": {
+            "briefId": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "reopen-task",
+        "targetRole": "decisions",
+        "description": "Undo Done: the task goes back to accepted.",
+        "defaults": {
+          "kind": "decision",
+          "verdict": "task-reopened"
+        },
+        "guard": {
+          "role": "tasks",
+          "matchKey": "taskId",
+          "where": {
+            "status": [
+              "done"
+            ]
+          }
+        },
+        "effects": [
+          {
+            "updateRole": "tasks",
+            "matchKey": "taskId",
+            "set": {
+              "status": "accepted"
+            }
+          }
+        ],
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "taskId"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
             }
           }
         }
@@ -623,19 +851,17 @@
         "source-requests",
         "policies",
         "usage",
-        "usage-cmd"
+        "errors",
+        "rejected",
+        "health-log"
       ],
       "watchStores": [
-        "brand-new",
-        "recent",
-        "digest",
+        "requests",
         "tasks",
         "decisions",
-        "requests",
         "drafts",
-        "growth",
-        "policies",
-        "usage"
+        "digest",
+        "insights"
       ],
       "actions": [
         "accept-recommendation",
@@ -648,7 +874,11 @@
         "add-source",
         "set-source-policy",
         "review-draft",
-        "refresh-cost"
+        "create-brief",
+        "update-brief",
+        "pause-investigation",
+        "resume-investigation",
+        "reopen-task"
       ]
     },
     "agentProtocol": {
@@ -664,7 +894,7 @@
         "intervalMs": 60000
       },
       "rules": [
-        "Tasks carry their evidence (rationale, competitorUrl, blobUrn) \u2014 read it before writing anything.",
+        "Tasks carry their evidence (rationale, competitorUrl, blobUrn) — read it before writing anything.",
         "Record every outcome through complete-task so the task flips atomically; never edit task tokens directly."
       ]
     },

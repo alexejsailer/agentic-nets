@@ -7,7 +7,7 @@
   "tokenPolicy": "none",
   "manifest": {
     "name": "web-investigator-runtime",
-    "version": "1.6.1",
+    "version": "1.7.0",
     "description": "Runtime net for the Web Investigator application (places only; store ids bind model-global runtime places).",
     "author": "AgenticNetOS",
     "tags": [
@@ -92,11 +92,6 @@
               "x": 230,
               "y": 560
             },
-            "p-scout-write-queue": {
-              "label": "Writing packets",
-              "x": 670,
-              "y": 560
-            },
             "p-scout-write-cmd": {
               "label": "Write-prep CommandTokens",
               "x": 890,
@@ -146,6 +141,24 @@
               "label": "Usage rollup CommandTokens",
               "x": 300,
               "y": 1320
+            },
+            "p-scout-errors": {
+              "label": "Errors (mismatches, malformed, unknown runs)",
+              "x": 200,
+              "y": 1550,
+              "id": "p-scout-errors"
+            },
+            "p-scout-rejected": {
+              "label": "Rejected pages (gate and route)",
+              "x": 520,
+              "y": 1550,
+              "id": "p-scout-rejected"
+            },
+            "p-scout-health-log": {
+              "label": "Command lane summaries",
+              "x": 840,
+              "y": 1550,
+              "id": "p-scout-health-log"
             }
           },
           "transitions": {},

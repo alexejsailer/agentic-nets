@@ -39,6 +39,36 @@
       "name": "digest answers through DONE",
       "check": "tokens in p-scout-digest carry the analysis fields, never a bare {summary, iterationsUsed} object",
       "why": "autoEmit emits the answer object only when the agent calls DONE; a lane that thinks until its iteration budget runs out emits a summary node and the whole billed run is lost"
+    },
+    {
+      "name": "unknown gate verdict is routed, not stranded",
+      "check": "CREATE_TOKEN into p-scout-fetched with gateVerdict \"unknown\" and fire t-scout-gate once: the token lands in p-scout-rejected (its gateVerdict intact) and p-scout-fetched drains to 0",
+      "why": "emit is fan-out and an unmatched token is NOT consumed: it is re-bound every evaluation and blocks the lane head-of-line. The gate's else rule is the complement of the five known verdicts, so any new verdict a script edit introduces is still routed and visible"
+    },
+    {
+      "name": "missing gate verdict is routed too",
+      "check": "CREATE_TOKEN into p-scout-fetched WITHOUT a gateVerdict field and fire t-scout-gate once: it lands in p-scout-rejected",
+      "why": "`!=` against an absent field evaluates true, so the complement rule also catches a malformed token; the health rollup counts these as unroutedVerdicts"
+    },
+    {
+      "name": "out-of-set recency goes to errors",
+      "check": "CREATE_TOKEN into p-scout-analysis with recency \"weird\" and a category from the brief, fire t-scout-route once: it lands in p-scout-errors, none of the p-find-* buckets grows",
+      "why": "the route lane is a complete partition over recency x category; before, an out-of-set recency stranded the finding with its blobUrn"
+    },
+    {
+      "name": "unrelated articles are dropped at the route",
+      "check": "CREATE_TOKEN into p-scout-analysis with category \"unrelated\" and recency \"recent\", fire t-scout-route once: it lands in p-scout-rejected and NOT in p-find-recent",
+      "why": "storing unrelated findings inflated totalFindings and cost a rollup pass; the route lane now diverts them before they become findings"
+    },
+    {
+      "name": "unknown run is filed, and every run leaves a receipt",
+      "check": "CREATE_TOKEN into p-scout-app-requests {status:\"requested\", run:\"bogus\", requestId:\"r1\"} and fire t-scout-app-run once: one token in p-scout-errors, one run-receipt (status dispatched, requestId r1) in p-scout-app-requests, no command token anywhere; then a valid run (e.g. health) yields exactly one command token in its cmd place and one receipt",
+      "why": "the app's buttons were write-only; the receipt is the dashboard's feedback, and a bad request used to block every later request behind it"
+    },
+    {
+      "name": "the classifier's junk goes to errors, not to the analysis place",
+      "check": "CREATE_TOKEN into p-scout-analysis is NOT possible for this path; instead verify the inscription: t-scout-categorize emits `out` only when recency is one of brand-new/recent/archive and `err` for everything else (plus the `when: \"error\"` marker the engine uses for answer-mismatch)",
+      "why": "a run that never calls DONE emits a {summary, iterationsUsed} node; routing it to the error branch keeps the analysis place clean and the retry accounting honest"
     }
   ]
 }

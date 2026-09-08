@@ -167,7 +167,7 @@ lanes do the work. That's also why every click is auditable in the Decision log.
 The crawl itself is *not* scheduled — it runs when you feed it, and neither is the on-demand
 **✍ Fable** writer: a lane that spends a strong model's time should start with a human decision.
 Both writer lanes require the `claude` binary (Claude Code) on the executor host; a stopped
-API-model lane (`t-scout-write`) exists as a fallback.
+Drafts are produced by the local writer command lane; there is no separate API-model fallback lane.
 
 One lane is event-driven rather than scheduled. Both model lanes carry an **answer contract**
 (`answerSchema`): the engine checks the answer at DONE, asks the model for one correction, and

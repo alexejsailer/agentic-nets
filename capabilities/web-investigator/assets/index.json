@@ -1,69 +1,69 @@
 [
   {
-    "description": "Fetch one URL with conditional GET; extract, date, score as topic fit x page shape, classify index/catalog/article and source type; honour the dashboard's per-host policy (ignore skips the fetch, index-only fetches for links only); blobstore the text; queue discovered links deduped and depth-capped.",
+    "description": "Fetch one URL with conditional GET; extract, date, score as topic fit x page shape, classify index/catalog/article and source type; honour the dashboard's per-host policy (ignore skips the fetch, index-only fetches for links only); blobstore the text; queue discovered links deduped and depth-capped. Every URL passes an address gate (http/https only, no private, loopback, link-local or metadata addresses, re-checked on redirects); responses are size-bounded including gzip; redirect loops, robots.txt disallows and refused addresses are recorded as permanent failure classes; the page charset is honoured; links are deduplicated by canonical URL with one existence query; every backend failure rides out as a named field.",
     "file": "scout-fetch.py",
     "id": "scout-fetch",
     "name": "Scout Fetch",
     "runtime": "python3"
   },
   {
-    "description": "Insights are now REPLACED per run instead of accumulating; diagnostics over articles only.",
+    "description": "Insights are now REPLACED per run instead of accumulating; diagnostics over articles only. Gate pass rate is measured from the telemetry rows themselves; adds blob coverage, spool identity, unrouted gate verdicts, unrelated drops and the safety classes; a backend failure is reported as a failed outcome.",
     "file": "scout-health.py",
     "id": "scout-health",
     "name": "Scout Health",
     "runtime": "python3"
   },
   {
-    "description": "Index the OWNER'S own published articles from their sitemap (urls + lastmod only, never page bodies). Writes solely to p-scout-owned so the owner's content can never enter the findings corpus.",
+    "description": "Index the OWNER'S own published articles from their sitemap (urls + lastmod only, never page bodies). Writes solely to p-scout-owned so the owner's content can never enter the findings corpus. Bounded, address-checked fetches; a partial inventory (a child sitemap failed) is never written over the previous one; the inventory is replaced write-then-sweep.",
     "file": "scout-owned.py",
     "id": "scout-owned",
     "name": "Scout Owned Inventory",
     "runtime": "python3"
   },
   {
-    "description": "Re-queue every known source host's root and busiest sections into the frontier; conditional GETs make unchanged pages a 304. Honours brief.denyHosts and the per-host policy log; capped per run.",
+    "description": "Re-queue every known source host's root and busiest sections into the frontier; conditional GETs make unchanged pages a 304. Honours brief.denyHosts and the per-host policy log; capped per run. Entry pages are deduplicated by canonical URL against the frontier.",
     "file": "scout-recrawl.py",
     "id": "scout-recrawl",
     "name": "Scout Recrawl",
     "runtime": "python3"
   },
   {
-    "description": "Widen the crawl via a search API (brave|tavily|serper, whichever key is present). Emits frontierCandidates at depth 0, deduped against the registry and filtered by the brief's denyHosts. Key via $SEARCH_API_KEY, never in a token.",
+    "description": "Widen the crawl via a search API (brave|tavily|serper, whichever key is present). Emits frontierCandidates at depth 0, deduped against the registry and filtered by the brief's denyHosts. Key via $SEARCH_API_KEY, never in a token. Results are deduplicated by canonical URL against the registry and frontier with targeted queries.",
     "file": "scout-search.py",
     "id": "scout-search",
     "name": "Scout Search",
     "runtime": "python3"
   },
   {
-    "description": "Onboard a website by harvesting its own sitemap: robots.txt then conventional locations, index files walked to article lists, non-articles filtered, registry-deduped, bounded per run. Hosts a human set to index-only or ignore are not harvested.",
+    "description": "Onboard a website by harvesting its own sitemap: robots.txt then conventional locations, index files walked to article lists, non-articles filtered, registry-deduped, bounded per run. Hosts a human set to index-only or ignore are not harvested. Sitemap fetches are bounded and address-checked; URLs are deduplicated by canonical URL; each host reports whether its sitemap was parsed, missing or failed to fetch.",
     "file": "scout-sitemap.py",
     "id": "scout-sitemap",
     "name": "Scout Sitemap Harvest",
     "runtime": "python3"
   },
   {
-    "description": "Deterministic rollup + expansion tracking. 1.4.0: fresh evidence goes to the analyst as compact cards (summary + key points for every fresh finding, clipped body text only for the newest few), and analysis re-runs after a fallback answer are bounded per day via p-scout-errors.",
+    "description": "Deterministic rollup + expansion tracking. 1.4.0: fresh evidence goes to the analyst as compact cards (summary + key points for every fresh finding, clipped body text only for the newest few), and analysis re-runs after a fallback answer are bounded per day via p-scout-errors. Carries the brief's briefId onto the facts token, folds categories outside the brief's list into uncategorised, marks the facts as truncated when a bucket read hits its limit, defers while the frontier is non-empty, re-buckets delete-then-create and replaces category and source tokens write-then-sweep.",
     "file": "scout-taxonomy.py",
     "id": "scout-taxonomy",
     "name": "Scout Taxonomy",
     "runtime": "python3"
   },
   {
-    "description": "Put the cost where the decisions are made: read master's measured per-transition usage for the last 24h and file one compact usage-day token (totals, fires, per-lane breakdown with tier/group) into p-scout-usage; keeps 30 days.",
+    "description": "Put the cost where the decisions are made: read master's measured per-transition usage for the last 24h and file one compact usage-day token (totals, fires, per-lane breakdown with tier/group) into p-scout-usage; keeps 30 days. Prints a failed outcome (never an empty success) when the usage endpoint or the place cannot be reached.",
     "file": "scout-usage.py",
     "id": "scout-usage",
     "name": "Scout Usage Rollup",
     "runtime": "python3"
   },
   {
-    "description": "Draft ONE accepted article task with the local claude binary from a KNOWLEDGE PACK ranked across the whole corpus (competitor piece + best passages from other sources + cards), stored as its own blob; the article goes to the blobstore and the draft token carries only preview, outline, counts and blob urns. Env TASK_ID drafts a named task (always writes); WRITER_MODEL picks the claude model alias.",
+    "description": "Draft ONE accepted article task with the local claude binary from a KNOWLEDGE PACK ranked across the whole corpus (competitor piece + best passages from other sources + cards), stored as its own blob; the article goes to the blobstore and the draft token carries only preview, outline, counts and blob urns. Env TASK_ID drafts a named task (always writes); WRITER_MODEL picks the claude model alias. Evidence is fenced as untrusted material and cleaned of control characters and markup; a draft that contains a URL or has no headings is rejected before filing.",
     "file": "scout-write.py",
     "id": "scout-write",
     "name": "Scout Write (Claude Code)",
     "runtime": "python3"
   },
   {
-    "description": "The same knowledge-pack writer, driven by the dashboard for ONE named task and a named model (TASK_ID + WRITER_MODEL). On demand only; blob-backed and revisioned; the draft token stays small.",
+    "description": "The same knowledge-pack writer, driven by the dashboard for ONE named task and a named model (TASK_ID + WRITER_MODEL). On demand only; blob-backed and revisioned; the draft token stays small. Evidence is fenced as untrusted material and cleaned; drafts are validated before filing.",
     "file": "scout-write.py",
     "id": "scout-write-fable",
     "name": "Scout Write (named model, on demand)",

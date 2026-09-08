@@ -1,6 +1,6 @@
 [
   {
-    "active": "true",
+    "active": "false",
     "briefId": "b-example",
     "topic": "REPLACE ME — what you are investigating, in one line",
     "description": "REPLACE ME — what the analysis should tell you. Handed to the digest agent verbatim, so write it as the assignment you want answered.",
