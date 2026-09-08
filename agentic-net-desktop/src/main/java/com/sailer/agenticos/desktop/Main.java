@@ -161,7 +161,7 @@ public final class Main {
         specs.add(new ServiceSpec(
             "vault", "Vault (file store)",
             javaCommand(config, "vault", "agentic-net-vault.jar"),
-            merge(baseEnv(bind, logs), Map.of(
+            merge(baseEnv(bind, logs, config), Map.of(
                 "VAULT_BACKEND", "file",
                 "SERVER_PORT", String.valueOf(DesktopConfig.VAULT_PORT))),
             config.runDir("vault"),
@@ -173,7 +173,7 @@ public final class Main {
         specs.add(new ServiceSpec(
             "blobstore", "Blob store",
             javaCommand(config, "blobstore", "sa-blobstore.jar"),
-            merge(baseEnv(bind, logs), Map.of(
+            merge(baseEnv(bind, logs, config), Map.of(
                 "SPRING_PROFILES_ACTIVE", "single",
                 "SERVER_PORT", String.valueOf(DesktopConfig.BLOBSTORE_PORT),
                 "SA_BLOBSTORE_STORAGE_PATH", config.blobsDir().toAbsolutePath().toString())),
@@ -184,13 +184,13 @@ public final class Main {
         specs.add(new ServiceSpec(
             "node", "Node (data engine)",
             javaCommand(config, "node", "agentic-net-node.jar"),
-            merge(baseEnv(bind, logs), Map.of(
+            merge(baseEnv(bind, logs, config), Map.of(
                 "SERVER_PORT", String.valueOf(DesktopConfig.NODE_PORT))),
             config.runDir("node"),
             "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/health",
             120));
 
-        Map<String, String> masterEnv = merge(baseEnv(bind, logs), Map.of(
+        Map<String, String> masterEnv = merge(baseEnv(bind, logs, config), Map.of(
             "SERVER_PORT", String.valueOf(DesktopConfig.MASTER_PORT),
             "AGENTICOS_DESKTOP_PROFILE", DesktopConfig.PROFILE_NAME,
             "AGENTIC_NET_NODE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/api",
@@ -220,7 +220,7 @@ public final class Main {
         specs.add(new ServiceSpec(
             "gateway", "Gateway (API)",
             javaCommand(config, "gateway", "agentic-net-gateway.jar"),
-            merge(baseEnv(bind, logs), Map.of(
+            merge(baseEnv(bind, logs, config), Map.of(
                 "SERVER_PORT", String.valueOf(DesktopConfig.GATEWAY_PORT),
                 "GATEWAY_JWT_KEY_DIR", config.gatewayJwtDir().toAbsolutePath().toString(),
                 // single-user loopback: day-long Studio sessions instead of hourly re-login
@@ -238,7 +238,7 @@ public final class Main {
             60));
 
         // direct-mode executor (same trust domain on loopback; blank client id disables auth)
-        Map<String, String> executorEnv = merge(baseEnv(bind, logs), executorEnv());
+        Map<String, String> executorEnv = merge(baseEnv(bind, logs, config), executorEnv());
         specs.add(new ServiceSpec(
             "executor", "Executor (commands)",
             javaCommand(config, "executor", "agentic-net-executor.jar"),
@@ -346,9 +346,13 @@ public final class Main {
         }
     }
 
-    private static Map<String, String> baseEnv(String bind, String logs) {
+    private static Map<String, String> baseEnv(String bind, String logs, DesktopConfig config) {
         Map<String, String> env = new LinkedHashMap<>();
         env.put("SERVER_ADDRESS", bind);
+        // Internal service auth: node/master/vault/blobstore require X-Service-Auth, and every
+        // service-to-service client sends it. Reuses the per-install random internal secret, so a
+        // second local user (loopback is shared on macOS/Windows) can no longer drive the backends.
+        env.put("AGENTICOS_SERVICE_TOKEN", config.internalSecret());
         env.put("LOG_PATH", logs);
         env.put("OTEL_SDK_DISABLED", "true");
         String path = enrichedPath(System.getenv("PATH"));

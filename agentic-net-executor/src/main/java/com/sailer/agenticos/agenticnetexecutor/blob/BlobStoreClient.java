@@ -59,6 +59,7 @@ public class BlobStoreClient {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(contentType));
             headers.set("X-Id-Strategy", idStrategy != null ? idStrategy : "timestamp");
+            com.sailer.agenticos.agenticnetexecutor.config.ServiceAuth.apply(headers);
             if (filename != null && !filename.isBlank()) {
                 headers.set("X-Blob-Filename", filename);
             }

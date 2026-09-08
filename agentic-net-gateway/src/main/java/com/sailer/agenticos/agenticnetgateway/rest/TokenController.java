@@ -42,7 +42,8 @@ public class TokenController {
     public ResponseEntity<Map<String, Object>> token(
             @RequestParam("grant_type") String grantType,
             @RequestParam("client_id") String clientId,
-            @RequestParam("client_secret") String clientSecret) {
+            @RequestParam("client_secret") String clientSecret,
+            @RequestParam(value = "executor_id", required = false) String executorId) {
 
         if (props.getClientSecret() == null || props.getClientSecret().isBlank()) {
             logger.error("Token endpoint called but gateway client secret is not configured");
@@ -53,7 +54,7 @@ public class TokenController {
             return ResponseEntity.badRequest().body(Map.of("error", "unsupported_grant_type"));
         }
 
-        String scope = resolveScope(clientId, clientSecret);
+        String scope = resolveScope(clientId, clientSecret, executorId);
         if (scope == null) {
             logger.warn("Invalid client credentials for client_id={}", clientId);
             return ResponseEntity.status(401).body(Map.of("error", "invalid_client"));
@@ -61,13 +62,18 @@ public class TokenController {
 
         long expiresIn = props.getTokenTtlSeconds();
         Instant now = Instant.now();
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .issuer("agenticos")
                 .subject(clientId)
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(expiresIn))
-                .claim("scope", scope)
-                .build();
+                .claim("scope", scope);
+        // Executor identity travels IN the token: the scope filter pins poll/discover to it and the
+        // proxy hands it to master as X-Agenticos-Executor-Id (clients cannot forge that header).
+        if ("agenticos executor".equals(scope) && executorId != null && !executorId.isBlank()) {
+            claimsBuilder.claim("executorId", executorId.trim());
+        }
+        JwtClaimsSet claims = claimsBuilder.build();
 
         String jwt = jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
 
@@ -80,11 +86,16 @@ public class TokenController {
                 "scope", scope));
     }
 
+    /** Back-compatible entry point (no executor identity) used by existing callers and tests. */
+    public ResponseEntity<Map<String, Object>> token(String grantType, String clientId, String clientSecret) {
+        return token(grantType, clientId, clientSecret, null);
+    }
+
     /**
      * Match presented credentials against the configured admin, readonly, or executor client pair.
      * Returns the scope claim to issue, or {@code null} if no match.
      */
-    private String resolveScope(String clientId, String clientSecret) {
+    private String resolveScope(String clientId, String clientSecret, String executorId) {
         if (secureEquals(props.getClientId(), clientId)
                 && secureEquals(props.getClientSecret(), clientSecret)) {
             return "agenticos admin";
@@ -95,11 +106,38 @@ public class TokenController {
                 && secureEquals(readonlySecret, clientSecret)) {
             return "agenticos readonly";
         }
-        String executorSecret = props.getExecutorClientSecret();
-        if (executorSecret != null && !executorSecret.isBlank()
-                && secureEquals(props.getExecutorClientId(), clientId)
-                && secureEquals(executorSecret, clientSecret)) {
-            return "agenticos executor";
+        if (secureEquals(props.getExecutorClientId(), clientId)) {
+            // A pinned executor (its own secret via AGENTICOS_EXECUTOR_SECRET_<ID> or the file
+            // <jwt-key-dir>/executor-<id>-secret) must present THAT secret: the shared executor
+            // secret can then no longer impersonate it. Unpinned executors use the shared secret.
+            String pinned = pinnedExecutorSecret(executorId);
+            if (pinned != null) {
+                return secureEquals(pinned, clientSecret) ? "agenticos executor" : null;
+            }
+            String executorSecret = props.getExecutorClientSecret();
+            if (executorSecret != null && !executorSecret.isBlank() && secureEquals(executorSecret, clientSecret)) {
+                return "agenticos executor";
+            }
+        }
+        return null;
+    }
+
+    /** Per-executor secret lookup: env AGENTICOS_EXECUTOR_SECRET_&lt;ID&gt; (non-alphanumerics -> '_', upper) or a key-dir file. */
+    String pinnedExecutorSecret(String executorId) {
+        if (executorId == null || executorId.isBlank()) return null;
+        String id = executorId.trim();
+        String envKey = "AGENTICOS_EXECUTOR_SECRET_" + id.replaceAll("[^A-Za-z0-9]", "_").toUpperCase(java.util.Locale.ROOT);
+        String fromEnv = System.getenv(envKey);
+        if (fromEnv != null && !fromEnv.isBlank()) return fromEnv.trim();
+        if (!id.matches("[A-Za-z0-9._-]{1,120}")) return null; // never let the id shape a path
+        java.nio.file.Path file = java.nio.file.Path.of(props.getJwtKeyDir(), "executor-" + id + "-secret");
+        try {
+            if (java.nio.file.Files.isRegularFile(file)) {
+                String s = java.nio.file.Files.readString(file).trim();
+                return s.isEmpty() ? null : s;
+            }
+        } catch (java.io.IOException ignored) {
+            // treat as unpinned
         }
         return null;
     }

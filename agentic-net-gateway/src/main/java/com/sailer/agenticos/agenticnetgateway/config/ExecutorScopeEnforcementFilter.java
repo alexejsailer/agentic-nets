@@ -75,7 +75,20 @@ public class ExecutorScopeEnforcementFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (isExecutorAllowed(request.getMethod(), GatewayRequestPaths.effectivePath(request))) {
+        String path = GatewayRequestPaths.effectivePath(request);
+        if (isExecutorAllowed(request.getMethod(), path)) {
+            // Identity binding: a token minted for a specific executor may only poll/discover as it.
+            String bound = jwt.getClaimAsString("executorId");
+            String claimed = request.getParameter("executorId");
+            if (bound != null && !bound.isBlank() && claimed != null && !bound.equals(claimed)) {
+                logger.info("Rejecting {} {}: token is bound to executor '{}' but request claims '{}'",
+                        request.getMethod(), path, bound, claimed);
+                response.setStatus(HttpStatus.FORBIDDEN.value());
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"executor_identity\","
+                        + "\"message\":\"This token is bound to a different executor id.\"}");
+                return;
+            }
             filterChain.doFilter(request, response);
             return;
         }

@@ -107,7 +107,33 @@ public class TokenRateLimiter extends OncePerRequestFilter {
         if (trusted == null || trusted.isBlank()) return false;
         return Arrays.stream(trusted.split(","))
                 .map(String::trim)
-                .anyMatch(remoteAddr::equals);
+                .filter(t -> !t.isEmpty())
+                .anyMatch(t -> t.equals(remoteAddr) || cidrContains(t, remoteAddr));
+    }
+
+    /**
+     * CIDR match (e.g. {@code 172.16.0.0/12} for the Docker bridge a host reverse proxy arrives
+     * from), so the per-client window is keyed on X-Forwarded-For behind a proxy instead of
+     * collapsing every public user into one bucket.
+     */
+    static boolean cidrContains(String cidr, String address) {
+        int slash = cidr.indexOf('/');
+        if (slash < 0) return false;
+        try {
+            byte[] net = java.net.InetAddress.getByName(cidr.substring(0, slash)).getAddress();
+            byte[] addr = java.net.InetAddress.getByName(address).getAddress();
+            int bits = Integer.parseInt(cidr.substring(slash + 1));
+            if (net.length != addr.length || bits < 0 || bits > net.length * 8) return false;
+            for (int i = 0; i < net.length; i++) {
+                int remaining = bits - i * 8;
+                if (remaining <= 0) return true;
+                int mask = remaining >= 8 ? 0xFF : (0xFF << (8 - remaining)) & 0xFF;
+                if ((net[i] & mask) != (addr[i] & mask)) return false;
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void evictStaleEntries() {

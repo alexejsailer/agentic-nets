@@ -143,6 +143,9 @@ public class MasterPollingService {
     private static WebClient.Builder freshDnsWebClientBuilder() {
         int maxBufferBytes = Integer.getInteger("executor.poll.max-buffer-bytes", 16 * 1024 * 1024);
         return WebClient.builder()
+                // Direct mode (master on the trusted network) needs the service token; in gateway
+                // mode the gateway ignores/forwards it. Inert when AGENTICOS_SERVICE_TOKEN is unset.
+                .defaultHeaders(com.sailer.agenticos.agenticnetexecutor.config.ServiceAuth::apply)
                 .exchangeStrategies(org.springframework.web.reactive.function.client.ExchangeStrategies.builder()
                         .codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(maxBufferBytes))
                         .build())
@@ -172,7 +175,10 @@ public class MasterPollingService {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .body(BodyInserters.fromFormData("grant_type", "client_credentials")
                         .with("client_id", clientId)
-                        .with("client_secret", secret))
+                        .with("client_secret", secret)
+                        // Bind the token to THIS executor's identity (gateway pins poll/discover to
+                        // it and stamps it for master); a pinned per-executor secret is used if set.
+                        .with("executor_id", executorId))
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                 .timeout(Duration.ofSeconds(10))

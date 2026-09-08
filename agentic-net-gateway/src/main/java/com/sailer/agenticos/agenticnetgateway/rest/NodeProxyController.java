@@ -176,6 +176,7 @@ public class NodeProxyController {
                 }
             }
         }
+        com.sailer.agenticos.agenticnetgateway.config.ServiceAuth.apply(headers);
         return headers;
     }
 }

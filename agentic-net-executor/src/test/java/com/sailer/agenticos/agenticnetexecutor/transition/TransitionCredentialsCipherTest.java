@@ -95,4 +95,26 @@ class TransitionCredentialsCipherTest {
         TransitionCredentialsCipher cipher = cipherConfiguredWith(KEY);
         assertThrows(NullPointerException.class, () -> cipher.decrypt(null));
     }
+    /** Master now writes AES-256-GCM; the executor must decrypt it and refuse a tampered blob. */
+    @org.junit.jupiter.api.Test
+    void decryptsGcmBlobAndRejectsTampering() throws Exception {
+        String key = "unit-test-shared-credentials-key";
+        byte[] keyBytes = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        byte[] iv = new byte[12];
+        new java.security.SecureRandom().nextBytes(iv);
+        Cipher c = Cipher.getInstance("AES/GCM/NoPadding");
+        c.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new javax.crypto.spec.GCMParameterSpec(128, iv));
+        byte[] ct = c.doFinal("{\"API_TOKEN\":\"gcm-secret\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        EncryptedCredentials blob = new EncryptedCredentials("AES-256-GCM",
+                java.util.Base64.getEncoder().encodeToString(iv), java.util.Base64.getEncoder().encodeToString(ct), "k");
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("agenticos.credentials.key", key);
+        TransitionCredentialsCipher cipher = new TransitionCredentialsCipher(env);
+        org.junit.jupiter.api.Assertions.assertEquals("gcm-secret", cipher.decrypt(blob).get("API_TOKEN"));
+        ct[0] ^= 0x01;
+        EncryptedCredentials tampered = new EncryptedCredentials("AES-256-GCM", blob.iv(),
+                java.util.Base64.getEncoder().encodeToString(ct), "k");
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> cipher.decrypt(tampered));
+    }
 }

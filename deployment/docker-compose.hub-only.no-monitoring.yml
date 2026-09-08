@@ -113,6 +113,7 @@ services:
       init-perms:
         condition: service_completed_successfully
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
@@ -166,6 +167,9 @@ services:
       - path: ./config/llm-providers.env
         required: false
     environment:
+      AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE: ${AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE:-false}
+      AGENTICOS_HUB_TRUSTED_PUBLISHERS: ${AGENTICOS_HUB_TRUSTED_PUBLISHERS:-}
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
       BLOBSTORE_BASE_URL: http://sa-blobstore:8080
@@ -247,6 +251,7 @@ services:
       agentic-net-gateway:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       EXECUTOR_UPSTREAM_URL: ${EXECUTOR_UPSTREAM_URL:-http://agentic-net-gateway:8083}
       EXECUTOR_ID: ${EXECUTOR_ID:-agentic-net-executor-default}
@@ -300,6 +305,7 @@ services:
       agentic-net-gateway:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       EXECUTOR_UPSTREAM_URL: ${EXECUTOR_UPSTREAM_URL:-http://agentic-net-gateway:8083}
       EXECUTOR_ID: ${EXECUTOR_2_ID:-agentic-net-executor-2}
@@ -402,6 +408,7 @@ services:
       openbao:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       # Connection/thread ceilings so an upstream storm cannot translate into unbounded threads.
       # Set here as well as in the vault's application.properties so a deployment running an older
       # published image still gets the ceiling (Spring binds these standard env names natively).
@@ -460,6 +467,7 @@ services:
       agentic-net-master:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       MASTER_URL: http://agentic-net-master:8082
       NODE_URL: http://agentic-net-node:8080
@@ -618,6 +626,7 @@ services:
       init-perms:
         condition: service_completed_successfully
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       LOG_PATH: /app/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318

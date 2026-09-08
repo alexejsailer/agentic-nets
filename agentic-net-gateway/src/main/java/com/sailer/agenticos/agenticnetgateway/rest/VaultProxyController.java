@@ -129,6 +129,7 @@ public class VaultProxyController {
                 }
             }
         }
+        com.sailer.agenticos.agenticnetgateway.config.ServiceAuth.apply(headers);
         return headers;
     }
 }

@@ -19,5 +19,9 @@ COPY package.json .
 RUN npm install --production
 COPY server.js .
 
+# Run unprivileged: node:alpine ships the 'node' user (uid 1000); port 8080 needs no root.
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 8080
 CMD ["node", "server.js"]

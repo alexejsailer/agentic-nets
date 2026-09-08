@@ -503,6 +503,18 @@ public class MasterProxyController {
                 }
             }
         }
+        // Internal service auth for the backend (inert when AGENTICOS_SERVICE_TOKEN is unset).
+        com.sailer.agenticos.agenticnetgateway.config.ServiceAuth.apply(headers);
+        // Executor identity from the JWT (inbound X-Agenticos-* headers were stripped above, so
+        // master can trust this one): master pins poll/deployment/consume/release to it.
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken jwtAuth) {
+            String bound = jwtAuth.getToken().getClaimAsString("executorId");
+            if (bound != null && !bound.isBlank()) {
+                headers.set("X-Agenticos-Executor-Id", bound);
+            }
+        }
         return headers;
     }
 }

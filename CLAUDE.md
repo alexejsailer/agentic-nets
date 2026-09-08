@@ -70,6 +70,16 @@ agentic-nets/
   (scope-enforced to the executor polling protocol only: poll/discover/deployment/tokens emit-consume-release —
   anything else returns `403 executor_scope`). Pin via `AGENTICOS_ADMIN_SECRET` / `AGENTICOS_READONLY_SECRET` /
   `AGENTICOS_EXECUTOR_SECRET`.
+- **Internal service auth** (2.59): set `AGENTICOS_SERVICE_TOKEN` (all services) and node/master/vault/
+  blobstore require `X-Service-Auth: Bearer <token>` on their APIs (health stays open; blob GET-by-id stays
+  open); the gateway proxies, master's node/vault/blob clients, the executor and node's backup sink send it.
+  The Desktop launcher sets it automatically from its per-install internal secret. Unset = open (legacy).
+- **Executor identity**: executors mint tokens with `executor_id`; the JWT carries `executorId`, the gateway
+  pins poll/discover to it and stamps `X-Agenticos-Executor-Id` for master, which refuses deployment/consume/
+  release for another executor's reservations. Pin a specific executor to its own secret with
+  `AGENTICOS_EXECUTOR_SECRET_<ID>` (or `<jwt-key-dir>/executor-<id>-secret`).
+- **Readonly scope** never reaches `/vault-api/**`, the executor protocol (`poll`/`discover`/credentials/
+  tokens), the universal assistant or any non-`domain-expert-readonly` agent-stream, on any method.
 - **Multi-master**: masters self-register (`POST /internal/masters/register` + heartbeat, shared
   `GATEWAY_INTERNAL_SECRET`); routing by modelId, discover/executors fan out. Heartbeat for an unknown master
   returns 404 so the master re-registers after a gateway restart. Blank `MASTER_URL` disables the seed master.

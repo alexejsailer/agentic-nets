@@ -19,7 +19,8 @@ import java.util.Objects;
 
 /**
  * Decrypts encrypted credentials blobs delivered by agentic-net-master during transition deployment.
- * Uses AES-256-CBC with the shared AGENTICOS_CREDENTIALS_KEY.
+ * Decrypts AES-256-GCM blobs (authenticated; what master writes now) and, for credentials stored
+ * before the migration, legacy AES-256-CBC blobs. Shares AGENTICOS_CREDENTIALS_KEY with master.
  *
  * @deprecated Replaced by agentic-net-vault. Only loaded when agenticos.credentials.key is set
  *             for backward compatibility during migration.
@@ -30,7 +31,11 @@ import java.util.Objects;
 public class TransitionCredentialsCipher {
 
     private static final Logger logger = LoggerFactory.getLogger(TransitionCredentialsCipher.class);
-    private static final String CIPHER_ALGO = "AES/CBC/PKCS5Padding";
+    private static final String GCM_ALGO = "AES/GCM/NoPadding";
+    private static final String GCM_LABEL = "AES-256-GCM";
+    private static final int GCM_TAG_BITS = 128;
+    private static final String LEGACY_CBC_ALGO = "AES/CBC/PKCS5Padding";
+    private static final String LEGACY_CBC_LABEL = "AES-256-CBC";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final byte[] keyBytes;
@@ -62,12 +67,18 @@ public class TransitionCredentialsCipher {
         requireKey();
 
         try {
-            Cipher cipher = Cipher.getInstance(CIPHER_ALGO);
-            cipher.init(
-                    Cipher.DECRYPT_MODE,
-                    new SecretKeySpec(keyBytes, "AES"),
-                    new IvParameterSpec(Base64.getDecoder().decode(encrypted.iv()))
-            );
+            byte[] iv = Base64.getDecoder().decode(encrypted.iv());
+            Cipher cipher;
+            if (GCM_LABEL.equals(encrypted.algorithm())) {
+                cipher = Cipher.getInstance(GCM_ALGO);
+                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"),
+                        new javax.crypto.spec.GCMParameterSpec(GCM_TAG_BITS, iv));
+            } else {
+                // Anything else is a pre-migration blob (labels seen in the wild: "AES-256-CBC" and
+                // the raw transformation name); the old code never checked the label at all.
+                cipher = Cipher.getInstance(LEGACY_CBC_ALGO);
+                cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyBytes, "AES"), new IvParameterSpec(iv));
+            }
 
             byte[] plaintext = cipher.doFinal(Base64.getDecoder().decode(encrypted.ciphertext()));
             @SuppressWarnings("unchecked")

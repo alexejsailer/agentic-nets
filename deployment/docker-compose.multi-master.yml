@@ -104,6 +104,7 @@ services:
       init-perms:
         condition: service_completed_successfully
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS: "${AGENTICOS_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://127.0.0.1:*}"
       AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
@@ -155,6 +156,9 @@ services:
       - path: ./config/llm-providers.env
         required: false
     environment:
+      AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE: ${AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE:-false}
+      AGENTICOS_HUB_TRUSTED_PUBLISHERS: ${AGENTICOS_HUB_TRUSTED_PUBLISHERS:-}
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       MASTER_ID: master-1
       MASTER_MODELS: ${MASTER_1_MODELS:-default}
@@ -239,6 +243,9 @@ services:
       - path: ./config/llm-providers.env
         required: false
     environment:
+      AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE: ${AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE:-false}
+      AGENTICOS_HUB_TRUSTED_PUBLISHERS: ${AGENTICOS_HUB_TRUSTED_PUBLISHERS:-}
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       MASTER_ID: master-2
       MASTER_MODELS: ${MASTER_2_MODELS:-default-2}
@@ -318,6 +325,7 @@ services:
       agentic-net-gateway:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       EXECUTOR_UPSTREAM_URL: http://agentic-net-gateway:8083
       EXECUTOR_ID: ${EXECUTOR_ID:-agentic-net-executor-default}
@@ -368,6 +376,7 @@ services:
       agentic-net-gateway:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       EXECUTOR_UPSTREAM_URL: http://agentic-net-gateway:8083
       EXECUTOR_ID: ${EXECUTOR_2_ID:-agentic-net-executor-2}
@@ -467,6 +476,7 @@ services:
       openbao:
         condition: service_healthy
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       # Connection/thread ceilings so an upstream storm cannot translate into unbounded threads.
       # Set here as well as in the vault's application.properties so a deployment running an older
       # published image still gets the ceiling (Spring binds these standard env names natively).
@@ -519,6 +529,7 @@ services:
       init-perms:
         condition: service_completed_successfully
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       # Blank on purpose: with no seed master, routing comes exclusively from
       # the /internal/masters registry the two masters register into.
@@ -605,6 +616,7 @@ services:
       init-perms:
         condition: service_completed_successfully
     environment:
+      AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       LOG_PATH: /app/logs
       OTEL_SDK_DISABLED: "true"
