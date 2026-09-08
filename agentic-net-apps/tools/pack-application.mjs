@@ -14,7 +14,7 @@ if (!args.config) throw new Error('Usage: pack-application.mjs --config path/to/
 const configPath = resolve(process.cwd(), args.config);
 const configDir = dirname(configPath);
 const config = JSON.parse(await readFile(configPath, 'utf8'));
-for (const field of ['name', 'version', 'displayName', 'runtimePackage', 'ui', 'application']) {
+for (const field of ['name', 'version', 'displayName', 'ui', 'application']) {
   if (!config[field]) throw new Error(`agenticos.app.json requires ${field}`);
 }
 if (!/^[a-z][a-z0-9._-]*-[a-z0-9._-]+$/.test(config.ui.element || '')) {
@@ -32,12 +32,9 @@ if (!Array.isArray(config.application.stores) || !config.application.stores.leng
   throw new Error('application.stores must declare at least one semantic store role');
 }
 if (!Array.isArray(config.application.actions)) throw new Error('application.actions must be an array');
-const permissions = config.application.permissions;
-for (const capability of ['readStores', 'watchStores', 'actions']) {
-  if (!Array.isArray(permissions?.[capability])) {
-    throw new Error(`application.permissions.${capability} must be an explicit array`);
-  }
-}
+// permissions are optional: an omitted list defaults to every declared store / action on the
+// server (explicit lists narrow). When present they must only name declared roles and actions.
+const permissions = config.application.permissions || null;
 if (config.ui.isolation && config.ui.isolation !== 'trusted-element') {
   throw new Error('ui.isolation currently supports only trusted-element');
 }
@@ -57,17 +54,36 @@ const sha256 = createHash('sha256').update(source, 'utf8').digest('hex');
 const safe = value => String(value).replace(/[^A-Za-z0-9._-]/g, '-');
 const blobId = `applications/${safe(config.name)}/${safe(config.version)}/${sha256}/main.mjs`;
 const urn = `urn:agenticos:blob:${blobId}`;
-const runtime = JSON.parse(await readFile(resolve(configDir, config.runtimePackage), 'utf8'));
+// The runtime package (the app's own canvas) is optional: a view over a pack's places may
+// ship no net at all and bind its stores to the target model at install.
+const runtime = config.runtimePackage
+  ? JSON.parse(await readFile(resolve(configDir, config.runtimePackage), 'utf8'))
+  : { kind: 'session', nets: [] };
 if (runtime.kind !== 'session') throw new Error('runtimePackage must be kind=session');
-if (!Array.isArray(runtime.nets) || !runtime.nets.length) throw new Error('runtimePackage must carry at least one session net');
-
+if (!Array.isArray(runtime.nets)) runtime.nets = [];
 const placeIds = new Set(runtime.nets.flatMap(entry => Object.keys(entry?.net?.net?.places || {})));
+// Places of the pack the app is a view over: ../nets/*.pnml.json next to the app directory
+// (or config.netsDir). A store must exist in the runtime package, in those nets, or be marked
+// external:true; anything else is a typo that used to become an empty place at install.
+const netsDir = resolve(configDir, config.netsDir || '../nets');
+try {
+  for (const name of await readdir(netsDir)) {
+    if (!name.endsWith('.pnml.json')) continue;
+    const pnml = JSON.parse(await readFile(resolve(netsDir, name), 'utf8'));
+    for (const id of Object.keys(pnml?.net?.places || {})) placeIds.add(id);
+  }
+} catch { /* no pack nets next to this app */ }
 const roles = new Set();
+const unknownPlaces = [];
 for (const store of config.application.stores) {
   if (!store?.role || !store?.placeId) throw new Error('every application store requires role and placeId');
   if (roles.has(store.role)) throw new Error(`duplicate application store role: ${store.role}`);
-  if (!placeIds.has(store.placeId)) throw new Error(`store ${store.role} references missing place ${store.placeId}`);
+  if (!placeIds.has(store.placeId) && store.external !== true) unknownPlaces.push(`${store.role} -> ${store.placeId}`);
   roles.add(store.role);
+}
+if (unknownPlaces.length) {
+  throw new Error(`stores reference places that exist neither in the runtime package nor in ${netsDir}; `
+    + `mark them external:true if the target model provides them: ${unknownPlaces.join(', ')}`);
 }
 const actionNames = new Set();
 for (const action of config.application.actions) {
@@ -120,10 +136,10 @@ for (const action of config.application.actions) {
     }
   }
 }
-for (const role of [...permissions.readStores, ...permissions.watchStores]) {
+for (const role of [...(permissions?.readStores || []), ...(permissions?.watchStores || [])]) {
   if (!roles.has(role)) throw new Error(`permissions reference undeclared store role: ${role}`);
 }
-for (const action of permissions.actions) {
+for (const action of permissions?.actions || []) {
   if (!actionNames.has(action)) throw new Error(`permissions reference undeclared action: ${action}`);
 }
 const agentProtocol = config.application.agentProtocol;

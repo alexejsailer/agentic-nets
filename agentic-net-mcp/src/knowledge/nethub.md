@@ -55,6 +55,41 @@ Canonical local templates include `safe-product-team` (six bounded delivery pers
 command/release authority by default) and `model-steward` (advisory-only model review that writes
 only its own findings and Protocol).
 
+## Capability packages (kind=capability): one artifact for a whole pack
+
+A capability pack (nets, inscriptions, executor scripts, seeds, its contract, and optionally a
+Studio application) is ONE NetHub artifact since this change. Build and publish it from the pack
+directory, then install it anywhere with `hub_install`:
+
+```
+node capabilities/tools/pack.mjs package --dir capabilities/<pack>       # -> <pack>/dist/<name>-<version>.capability.json
+node capabilities/tools/pack.mjs publish --dir capabilities/<pack>       # PUT /api/hub/capabilities/<name>/versions/<version>
+hub_install {name, version, targetModelId}                               # or POST /api/hub/install
+```
+
+What the install does, in order: verifies the stored signature when one is present; binds the
+application's stores to the target model (bound / created / missing; a required store whose place
+is missing fails before anything is imported); imports every net (upsert), rewriting each
+inscription for the target (hosts to the master's own node, session ids, agent model ids, and
+`MODEL_ID` env literals of command lanes); registers the scripts into the model's LOCAL tool
+catalog from the carried blobs (sha256-verified); seeds tokens, skipping any place that already
+holds a token of the same name; writes the `agent-manifest` leaf (the capability contract) and,
+when present, the application manifest into the SAME session; tags the session `agents` and
+`capability-pack`; starts every non-link lane unless `autoStart:false`. The response carries
+`capability {nets, transitions, started, scripts, seeds}`, `application {stores}` and
+`upgrade {from, to, kind}`.
+
+Re-installing a newer version into the same session is an upgrade (nets and inscriptions upserted,
+scripts re-registered, seeds left alone, manifests overwritten); the same version is a reinstall;
+an older version answers 409 `downgrade` unless `allowDowngrade:true`. `DELETE
+/api/applications/{model}/{session}` (Studio: Uninstall) stops and removes the lanes, nets and
+session and keeps runtime places and tokens. `pack.mjs install` still works as the legacy
+client-side path and prints a pointer to this one.
+
+Stores of ANY application may point at places outside its own package: the validator warns, and
+the install binds them to the target model. Permissions default to every declared store and
+action when omitted. Catalog summaries carry `signed` and `keyId`.
+
 ## Self-contained packages — the part that makes installs actually run
 
 A published net used to carry only POINTERS to the tools its inscriptions used (a script's URN, a

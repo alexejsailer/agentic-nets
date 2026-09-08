@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Capability packages** (`capabilities/tools/pack.mjs`). `pack.mjs package --dir <pack>` emits one NetHub artifact (`kind: capability`: nets, inscriptions, script catalog entries with their blobs, seeds, the capability contract, and the pack's Studio application when `app/` exists) to `<pack>/dist/<name>-<version>.capability.json`; `pack.mjs publish` uploads it to `PUT /api/hub/capabilities/{name}/versions/{version}`; `hub_install` (or `POST /api/hub/install`) installs it into any model in one call. `pack.mjs install` remains as the legacy client-side path and prints a pointer.
+- **hub_install** (`agentic-net-mcp`). New optional inputs `autoStart` (capability lanes) and `allowDowngrade` (application and capability upgrades); capability artifacts get their own default session like agent and application templates. `hub_search` shows `signed` and `keyId` when the master provides them.
+- **Application packer** (`agentic-net-apps/tools/pack-application.mjs`, `schemas/application-package.schema.json`). `runtimePackage` and `permissions` are optional; store places are verified against the pack's `../nets/*.pnml.json` (or `netsDir`) in addition to the runtime package, and a store may declare `external: true` for a place the target model provides. The SDK's `readStore(role, {limit, newestFirst})` is typed.
+
+### Changed
+- **Knowledge docs** (`agentic-net-mcp/src/knowledge/nethub.md`, `applications.md`). Document the converged path (pack = NetHub package, `hub_install` the only installer), store binding to model places, permission defaults, upgrade and downgrade semantics, uninstall, and signature visibility.
+
 ## [2.58.0] - 2026-09-03
 
 ### Added

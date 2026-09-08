@@ -14,6 +14,10 @@
  *               hosts + agent modelId normalized to the target model)
  *   uninstall — stop + deregister the pack's transitions, delete its nets, untag the session
  *   verify    — run verify/smoke.json against an installed pack
+ *   package   — emit ONE NetHub artifact (kind capability: nets, inscriptions, scripts + blobs, seeds,
+ *               contract, optional Studio app) to <dir>/dist/<name>-<version>.capability.json
+ *   publish   — PUT that artifact to /api/hub/capabilities/<name>/versions/<version> (AGENTICOS_GATEWAY,
+ *               AGENTICOS_TOKEN or --gateway/--token); install it with hub_install / POST /api/hub/install
  *
  * Env:  AGENTICOS_MCP_URL   e.g. https://host/mcp or http://127.0.0.1:8091/mcp
  *       AGENTICOS_MCP_TOKEN bearer token
@@ -444,6 +448,157 @@ async function cmdExport(a) {
   log('export complete');
 }
 
+// ---------------------------------------------------------------- package (NetHub capability artifact)
+/**
+ * Emit ONE NetHub package (kind "capability") from the pack directory: nets + inscriptions,
+ * script catalog entries with their blobs, seeds, the capability contract (agent-manifest),
+ * and the Studio application when app/ exists. Installed by `hub_install` / POST /api/hub/install,
+ * which replaces the client-side loop of `install` below.
+ */
+function readCapabilityYaml(dir) {
+  const p = join(dir, 'capability.yaml');
+  if (!existsSync(p)) return {};
+  const out = {};
+  for (const line of readFileSync(p, 'utf8').split('\n')) {
+    const m = line.match(/^(name|version|description|engineMin):\s*(.+?)\s*$/);
+    if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+  return out;
+}
+async function cmdPackage(a) {
+  const { createHash } = await import('node:crypto');
+  const dir = a.dir;
+  const cap = readCapabilityYaml(dir);
+  const runtimeManifestPath = join(dir, 'manifest.runtime.json');
+  const rt = existsSync(runtimeManifestPath) ? JSON.parse(readFileSync(runtimeManifestPath, 'utf8')) : {};
+  const name = a.name ?? cap.name ?? rt.name ?? basename(dir);
+  const version = a.version ?? cap.version ?? rt.version ?? '0.0.0';
+  const session = a.session ?? `agent-${name}`;
+  const sha = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
+  const b64 = (text) => Buffer.from(text, 'utf8').toString('base64');
+
+  // nets + inscriptions (+ seeds on the first net; runtime places are model-global)
+  const netsDir = join(dir, 'nets');
+  const nets = [];
+  const placeIds = new Set();
+  for (const f of readdirSync(netsDir).filter((f) => f.endsWith('.pnml.json')).sort()) {
+    const pnml = JSON.parse(readFileSync(join(netsDir, f), 'utf8'));
+    const net = pnml.net;
+    for (const p of Object.keys(net.places ?? {})) placeIds.add(p);
+    const inscFile = join(netsDir, f.replace(/\.pnml\.json$/, '.inscriptions.json'));
+    const inscriptions = {};
+    if (existsSync(inscFile)) {
+      for (const i of JSON.parse(readFileSync(inscFile, 'utf8'))) inscriptions[i.id] = i;
+    }
+    nets.push({ netId: net.id, net: { net: { places: net.places ?? {}, transitions: net.transitions ?? {}, arcs: net.arcs ?? {} } },
+      inscriptions, tokens: {} });
+  }
+  if (!nets.length) throw new Error(`no nets/*.pnml.json in ${dir}`);
+  const seedsDir = join(dir, 'seeds');
+  let seedCount = 0;
+  if (existsSync(seedsDir)) {
+    for (const f of readdirSync(seedsDir).filter((f) => f.endsWith('.json') && f.startsWith('p-')).sort()) {
+      const place = basename(f, '.json');
+      const tokens = JSON.parse(readFileSync(join(seedsDir, f), 'utf8'));
+      nets[0].tokens[place] = tokens.map((t, i) => ({ name: t.name ?? `${place}-seed-${i + 1}`, ...t }));
+      seedCount += tokens.length;
+    }
+  }
+
+  // scripts: catalog entries + blobs (the shape POST /api/tool-catalog/scripts stores)
+  const catalog = [];
+  const blobs = [];
+  const assetsDir = join(dir, 'assets');
+  if (existsSync(join(assetsDir, 'index.json'))) {
+    for (const sc of JSON.parse(readFileSync(join(assetsDir, 'index.json'), 'utf8'))) {
+      const body = readFileSync(join(assetsDir, sc.file), 'utf8');
+      const digest = sha(body);
+      const ext = sc.file.includes('.') ? sc.file.slice(sc.file.lastIndexOf('.')) : '';
+      const scriptUrn = `urn:agenticos:blob:tool-catalog/scripts/${digest}${ext}`;
+      if (!blobs.some((b) => b.urn === scriptUrn)) {
+        blobs.push({ urn: scriptUrn, sha256: digest, contentType: 'text/plain; charset=utf-8', contentBase64: b64(body) });
+      }
+      catalog.push({ installScope: 'local', entry: {
+        id: sc.id, name: sc.name ?? sc.id, description: sc.description ?? '', scope: 'local',
+        version: '1.0.0', status: 'approved', createdAt: new Date().toISOString(),
+        capabilities: [], contract: {},
+        binding: { type: 'script', runtime: sc.runtime ?? 'python3', filename: sc.file,
+          sizeBytes: Buffer.byteLength(body, 'utf8'), sha256: digest, scriptUrn },
+      } });
+    }
+  }
+
+  // capability contract -> agent-manifest leaf (what pack.mjs install writes today)
+  const agentManifest = { ...rt };
+  delete agentManifest.armed; delete agentManifest.transitions; delete agentManifest.configReady;
+  agentManifest.name = name; agentManifest.displayName = agentManifest.displayName ?? name;
+  agentManifest.version = version; agentManifest.session = session; agentManifest.sessionId = session;
+  if (cap.description) agentManifest.description = cap.description;
+
+  // optional Studio application (app/agenticos.app.json + its UI entry)
+  let applicationManifest = null;
+  const appCfgPath = join(dir, 'app', 'agenticos.app.json');
+  if (existsSync(appCfgPath)) {
+    const cfg = JSON.parse(readFileSync(appCfgPath, 'utf8'));
+    const entryPath = join(dir, 'app', cfg.ui.entryFile);
+    const source = readFileSync(entryPath, 'utf8');
+    if (/\bimport\s*(?:\(|[{'"*])/.test(source.replace(/import\.meta/g, ''))) {
+      throw new Error('app UI entry must be a self-contained ESM module');
+    }
+    const uiSha = sha(source);
+    const urn = `urn:agenticos:blob:applications/${name}/${version}/${uiSha}/main.mjs`;
+    blobs.push({ urn, sha256: uiSha, contentType: 'text/javascript; charset=utf-8', contentBase64: b64(source) });
+    const unknown = (cfg.application.stores || []).filter((s) => !placeIds.has(s.placeId) && s.external !== true).map((s) => `${s.role} -> ${s.placeId}`);
+    if (unknown.length) throw new Error(`app stores reference places the pack's nets do not declare (mark external:true if the model provides them): ${unknown.join(', ')}`);
+    applicationManifest = {
+      manifestVersion: '2.0', name: cfg.name, displayName: cfg.displayName, description: cfg.description,
+      tags: cfg.tags || [], ...cfg.application,
+      surface: { ...cfg.application.surface, type: 'web-component', element: cfg.ui.element, entry: urn,
+        integrity: `sha256-${uiSha}`, isolation: cfg.ui.isolation || 'trusted-element', sdkVersion: cfg.ui.sdkVersion || '^0.1.0' },
+    };
+  }
+
+  const pkg = {
+    format: 'agentic-net-package', formatVersion: '1.5.0', scope: 'runtime', kind: 'capability',
+    visibility: a.visibility ?? 'public', tokenPolicy: 'none',
+    manifest: { name, version, description: cap.description ?? rt.description ?? '', author: a.author ?? rt.author,
+      tags: [...new Set(['capability', 'agents', 'capability-pack', ...(rt.tags ?? [])])],
+      createdAt: new Date().toISOString(), agenticosVersion: cap.engineMin ?? '1.0.0' },
+    nets, catalog, blobs, agentManifest,
+    ...(applicationManifest ? { applicationManifest } : {}),
+    contentHash: null,
+  };
+  const outDir = a.out ? a.out : join(dir, 'dist');
+  mkdirSync(outDir, { recursive: true });
+  const outPath = join(outDir, `${name}-${version}.capability.json`);
+  writeFileSync(outPath, JSON.stringify(pkg, null, 2) + '\n');
+  const transitions = nets.reduce((n, e) => n + Object.keys(e.inscriptions).length, 0);
+  log(`packaged ${name}@${version}: ${nets.length} net(s), ${transitions} inscriptions, ${catalog.length} scripts, ${seedCount} seed tokens, `
+    + `${applicationManifest ? 'application ' + applicationManifest.name : 'no application'}, ${blobs.length} blobs, `
+    + `${Buffer.byteLength(JSON.stringify(pkg))} bytes`);
+  log(`  -> ${outPath}`);
+  return outPath;
+}
+
+// ---------------------------------------------------------------- publish (PUT to NetHub)
+async function cmdPublish(a) {
+  const dir = a.dir;
+  const gateway = String(a.gateway ?? process.env.AGENTICOS_GATEWAY ?? 'http://localhost:8083').replace(/\/$/, '');
+  const token = a.token ?? process.env.AGENTICOS_TOKEN;
+  const file = a.file ?? (await cmdPackage(a));
+  const pkg = JSON.parse(readFileSync(file, 'utf8'));
+  const url = `${gateway}/api/hub/capabilities/${encodeURIComponent(pkg.manifest.name)}/versions/${encodeURIComponent(pkg.manifest.version)}`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(pkg) });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`publish failed: HTTP ${res.status} ${text.slice(0, 400)}`);
+  let stored = {};
+  try { stored = JSON.parse(text); } catch { /* plain */ }
+  log(`published ${pkg.manifest.name}@${pkg.manifest.version} to ${gateway} (contentHash ${String(stored.contentHash ?? '').slice(0, 12)}${stored.signature ? ', signed ' + stored.signature.keyId : ''})`);
+  log(`  install: POST ${gateway}/api/hub/install {"source":"local","name":"${pkg.manifest.name}","version":"${pkg.manifest.version}","targetModelId":"<model>"}  (or MCP hub_install)`);
+}
+
 // ---------------------------------------------------------------- install
 async function cmdInstall(a) {
   const { dir, model } = a;
@@ -454,6 +609,7 @@ async function cmdInstall(a) {
   const pnmls = readdirSync(netsDir).filter((f) => f.endsWith('.pnml.json'));
 
   log(`installing into ${model}/${session} (suffix '${suffix}')`);
+  log('  note: `pack.mjs install` is the legacy client-side path; prefer `pack.mjs package` + `pack.mjs publish` + hub_install (one versioned NetHub artifact).');
   await callTool('CREATE_SESSION', { sessionId: session, naturalLanguageText: `pack install of ${basename(dir)}`, model })
     .catch((e) => log(`  session exists or create failed (${e.message.slice(0, 80)}) — continuing`));
 
@@ -642,10 +798,11 @@ async function cmdVerify(a) {
 const a = parseArgs(process.argv.slice(2));
 const cmd = a._[0];
 const needsSession = ['export', 'install', 'uninstall'].includes(cmd);
-if (!a.dir || (cmd !== 'build' && !a.model) || (needsSession && !a.session)) {
-  console.error('usage: pack.mjs build|export|install|uninstall|verify --dir <packDir> [--model <model>] [--session <id>] [--suffix <sfx>] [--name <pack-name>] [--node-host <host:port>] [--start]');
+const noModel = ['build', 'package', 'publish'].includes(cmd);
+if (!a.dir || (!noModel && !a.model) || (needsSession && !a.session)) {
+  console.error('usage: pack.mjs build|export|install|uninstall|verify|package|publish --dir <packDir> [--model <model>] [--session <id>] [--suffix <sfx>] [--name <pack-name>] [--node-host <host:port>] [--start]');
   console.error('       --start   install only: start the lanes immediately. Default is DEPLOYED-but-stopped, because a pack ships template config.');
   process.exit(2);
 }
-({ build: cmdBuild, export: cmdExport, install: cmdInstall, uninstall: cmdUninstall, verify: cmdVerify }[cmd] ?? (() => { console.error(`unknown command ${cmd}`); process.exit(2); }))(a)
+({ build: cmdBuild, export: cmdExport, install: cmdInstall, package: cmdPackage, publish: cmdPublish, uninstall: cmdUninstall, verify: cmdVerify }[cmd] ?? (() => { console.error(`unknown command ${cmd}`); process.exit(2); }))(a)
   .catch((e) => { console.error('[pack] FATAL:', e.message); process.exit(1); });

@@ -89,6 +89,8 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       const artifacts: any[] = Array.isArray(raw?.artifacts) ? raw.artifacts : [];
       const total: number = typeof raw?.total === 'number' ? raw.total : artifacts.length;
       const compact = artifacts.map((a) => ({
+        signed: a.signed === true ? true : undefined,
+        keyId: a.keyId ?? undefined,
         name: a.name,
         version: a.latestVersion ?? a.version,
         kind: a.kind ?? 'net',
@@ -182,7 +184,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Install a NetHub artifact',
       description:
-        'Install an artifact. kind=agent installs a STOPPED persona-team; kind=context installs a context; kind=application materializes its session runtime plus verified Studio UI surface and semantic stores/actions.',
+        'Install an artifact. kind=capability installs a whole capability pack (nets, inscriptions normalised for the target, scripts into the model catalog, seeds, contract, optional Studio app; lanes started unless autoStart=false; a newer version upgrades in place, a downgrade needs allowDowngrade). kind=agent installs a STOPPED persona-team; kind=context installs a context; kind=application materializes its session runtime plus verified Studio UI surface and semantic stores/actions.',
       inputSchema: {
         name: z.string(),
         version: z.string().describe('Version or "latest"'),
@@ -190,6 +192,8 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         targetModelId: z.string().optional().describe('Target model (REQUIRED for kind=model — use a fresh id)'),
         targetSessionId: z.string().optional().describe('Optional target session. Agent/context/application templates choose agent-<name>, context-<name>, or application-<name> by default. Generic net/session artifacts default to the MCP working session.'),
         mode: z.enum(['CREATE_NEW', 'REPLACE']).optional().describe('model-kind only (default CREATE_NEW)'),
+        autoStart: z.boolean().optional().describe('kind=capability: start the non-link lanes after install (default true)'),
+        allowDowngrade: z.boolean().optional().describe('application/capability: install an older version over a newer one (default false: the master answers 409 downgrade)'),
         scopeOwnerId: z.string().optional().describe('kind=context with scope=session/agent/task: REQUIRED id of the owning session/agent/task (model scope derives it automatically)'),
         ...modelParam,
       },
@@ -211,7 +215,9 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
             art = await ctx.master.hubArtifact(args.name, args.version || 'latest');
           }
           const application = !!art?.applicationManifest || (Array.isArray(art?.tags) && art.tags.includes('application'));
-          targetSessionId = art?.kind === 'agent' || art?.kind === 'context' || application
+          // Agent, context, application and capability artifacts carry their own session default
+          // (master: agent-<name>, context-<name>, application-<name>, agent-<name>).
+          targetSessionId = art?.kind === 'agent' || art?.kind === 'context' || art?.kind === 'capability' || application
             ? undefined
             : config.session;
         } catch { targetSessionId = config.session; }
@@ -224,7 +230,9 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         targetSessionId,
         mode: args.mode,
         scopeOwnerId: args.scopeOwnerId,
-      });
+        ...(args.autoStart === undefined ? {} : { autoStart: args.autoStart }),
+        ...(args.allowDowngrade === undefined ? {} : { allowDowngrade: args.allowDowngrade }),
+      } as any);
       // A freshly installed model must be immediately targetable via the `model` param.
       if (res?.kind === 'model' && res?.targetModelId) {
         grantModel(scope, res.targetModelId);

@@ -126,6 +126,16 @@ daily standup that waits for a human without blocking on one.
 
 ## Building your own
 
+Two ways, one contract. A view over a capability pack's places ships INSIDE the pack (its
+`app/agenticos.app.json` and UI are packaged and installed with `pack.mjs package` + `publish` +
+`hub_install`, stores bound to the pack's own places). A standalone application still uses
+`pack-application.mjs` + `PUT /api/hub/applications/...`; its `runtimePackage` (own canvas) is
+optional, stores may bind to places the target model already has (mark them `external: true`
+in the manifest so the packer accepts them), and `permissions` may be omitted (defaults to all
+declared stores and actions). Store reads accept `limit` and `newestFirst`, and the Studio bridge
+polls with `If-None-Match` (304 when unchanged).
+
+
 Author the process as a normal session net with stable role names and small correlatable tokens,
 then package it with `agentic-net-apps`. Every MCP client can discover the stores and drive the
 actions. A manifest-only package uses Studio's generic store/action view; a compiled Web Component
