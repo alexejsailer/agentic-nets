@@ -8,16 +8,17 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**Build AI processes that keep running, remain observable, and become more
-deterministic over time.**
+**A graph harness for AI agents: build processes that keep running, remain
+observable, and become more deterministic over time.**
 
 Agentic-Nets is a governed, event-sourced runtime where AI agents,
 deterministic automation, and people work on the same visible state. The
 runtime owns the process, permissions, execution, and history; intelligence
 can come from a server model, a local model, or the MCP client you already use.
 
-> Governed multi-agent runtime for Petri-net workflows, scoped agent
-> permissions, durable state, and replayable execution.
+> Graph harness for AI agents: a governed runtime on bipartite graphs (places
+> and transitions) that executes models with scoped permissions, durable state
+> and replayable history.
 
 **[Try a live net—no install or login](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)** ·
 **[Download Desktop Lite](https://github.com/alexejsailer/agentic-nets/releases/latest)** ·
