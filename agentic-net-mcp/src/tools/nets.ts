@@ -39,6 +39,8 @@ const COMMON_TRANSITION_ARGS = new Set([
   // `onEmpty` rides with the schedule params: it only means anything on a scheduled lane, and it
   // applies to every firing kind, so it belongs here rather than in a per-kind set.
   'scheduleCron', 'intervalMs', 'timezone', 'onEmpty', 'timeoutMs', 'capacity', 'mode', 'batchSize', 'start', 'replace', 'model',
+  // sessionId names the session whose drawing gets the new element; it applies to every kind.
+  'sessionId',
 ]);
 const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   // pass is routing and nothing else: no action to configure, so emit/routes ARE its whole surface.
@@ -51,7 +53,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   // Links are pure structure and never fire — schedules/timeouts/capacity are meaningless on them.
   link: new Set(['relation']),
 };
-const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'relation', 'x', 'y', 'start', 'model']);
+const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'relation', 'x', 'y', 'start', 'model', 'sessionId']);
 const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
   prompt: 'llm/agent', llmModel: 'llm', group: 'llm/agent', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
