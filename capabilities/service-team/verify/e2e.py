@@ -284,7 +284,7 @@ def main():
         m.put(P("charter"), {"charterId": "team", "service": svc, "goal": "Keep the fixture service healthy", "description": "fixture", "repo": "core", "repoDir": "agentic-net-%s" % svc, "scopePaths": [], "testCommand": "true", "buildCommand": "true", "readinessChecks": ["tests", "docs"], "auditCron": "0 0 7 * * 1",
                              "coderAgent": "fake-coder", "coderModel": "none", "coderMaxTurns": "1", "coderTimeoutMin": "5", "brainAgent": "llm", "autonomyLevel": "3", "dailyBudgetUsd": "20", "status": "ready", "updatedAt": now(),
                              "tokenLanes": [T("setup-cmd"), T("po-cmd"), T("arch-cmd"), T("qa-cmd"), T("dev-cmd"), T("brain-observe-cmd"), T("curate-cmd"), T("brain-apply-cmd")]}, "team-charter")
-        for place in (P("iterate"), P("prompts"), P("prompt-new"), P("responses"), P("requirements"), P("requirement-drafts"), P("specs"), P("spec-drafts"), P("acceptance"), P("acceptance-new"), P("briefs"), P("decisions"), P("runs"), P("reviews"), P("review-new"), P("verification"), P("context"), P("po-cmd"), P("arch-cmd"), P("qa-cmd"), P("dev-cmd"), P("errors"), P("llm-errors"), P("journal"), "p-product-inbox", "p-product-status", "p-product-teams", "p-product-errors"):
+        for place in (P("iterate"), P("prompts"), P("prompt-new"), P("responses"), P("requirements"), P("requirement-drafts"), P("specs"), P("spec-drafts"), P("acceptance"), P("acceptance-new"), P("briefs"), P("decisions"), P("runs"), P("reviews"), P("review-new"), P("verification"), P("spec-catalog"), P("state"), P("context"), P("po-cmd"), P("arch-cmd"), P("qa-cmd"), P("dev-cmd"), P("errors"), P("llm-errors"), P("journal"), "p-product-inbox", "p-product-status", "p-product-teams", "p-product-errors"):
             m.clear(place)
         st.done("install")
     except Exception as e:  # noqa: BLE001
@@ -371,8 +371,8 @@ def main():
             mods = cat.get("modules") or []
             mods = json.loads(mods) if isinstance(mods, str) else mods
             lanes = m.lanes("t-%s-spec-" % svc)
-            drawing = mcp("net_overview", {"netId": "net-%s-team-specs" % svc, "model": a.model, "session": svc})
-            drawn = int(drawing.get("placeCount") or 0)
+            st_d, drawing = api("GET", "/api/designtime/nets/net-%s-team-specs?modelId=%s&sessionId=%s" % (svc, a.model, svc))
+            drawn = int((drawing.get("placeCount") if isinstance(drawing, dict) else 0) or 0)
             inbox = m.find("p-product-inbox", "ref", "pr-spec-" + sid)
             office_spec = m.find("p-product-specs", "specId", sid)
             ok = bool(mods) and len(lanes) >= len(mods) - 1 and drawn >= len(mods) + 2 and bool(inbox) and spec.get("module") and bool(office_spec)

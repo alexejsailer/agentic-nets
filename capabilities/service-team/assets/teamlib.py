@@ -628,14 +628,16 @@ def run_headless(prompt, root, cfg, agent, result_key="TEAM_RESULT"):
 
 
 # ---------------------------------------------------------------- the team in the product
+# the module's own wrapper when it has one, the host's mvn otherwise (node and master have no wrapper)
+MVN = "$( [ -x ./mvnw ] && echo ./mvnw || echo mvn )"
 SERVICE_DEFAULTS = {
-    "node": ("core", "agentic-net-node", "./mvnw -o -q test", "./mvnw -o -q -DskipTests compile"),
-    "master": ("core", "agentic-net-master", "./mvnw -o -q test", "./mvnw -o -q -DskipTests compile"),
+    "node": ("core", "agentic-net-node", MVN + " -o -q test", MVN + " -o -q -DskipTests compile"),
+    "master": ("core", "agentic-net-master", MVN + " -o -q test", MVN + " -o -q -DskipTests compile"),
     "gui": ("core", "agentic-net-gui", "npx ng test --watch=false", "npx ng build --configuration production"),
-    "gateway": ("agentic-nets", "agentic-net-gateway", "./mvnw -o -q test", "./mvnw -o -q -DskipTests compile"),
-    "executor": ("agentic-nets", "agentic-net-executor", "./mvnw -o -q test", "./mvnw -o -q -DskipTests compile"),
-    "vault": ("agentic-nets", "agentic-net-vault", "./mvnw -o -q test", "./mvnw -o -q -DskipTests compile"),
-    "blobstore": ("agentic-nets", "sa-blobstore", "./mvnw -o -q test", "./mvnw -o -q -DskipTests compile"),
+    "gateway": ("agentic-nets", "agentic-net-gateway", MVN + " -o -q test", MVN + " -o -q -DskipTests compile"),
+    "executor": ("agentic-nets", "agentic-net-executor", MVN + " -o -q test", MVN + " -o -q -DskipTests compile"),
+    "vault": ("agentic-nets", "agentic-net-vault", MVN + " -o -q test", MVN + " -o -q -DskipTests compile"),
+    "blobstore": ("agentic-nets", "sa-blobstore", MVN + " -o -q test", MVN + " -o -q -DskipTests compile"),
     "cli": ("agentic-nets", "agentic-net-cli", "npm test", "npx tsup"),
     "mcp": ("agentic-nets", "agentic-net-mcp", "npm test", "npx tsup"),
     "chat": ("agentic-nets", "agentic-net-chat", "npm test", "npx tsup"),
