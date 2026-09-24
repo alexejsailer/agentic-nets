@@ -66,6 +66,18 @@
         "source": "t-steward-observe-cmd",
         "target": "p-steward-errors",
         "weight": 1
+      },
+      "a-steward-observe-12": {
+        "id": "a-steward-observe-12",
+        "source": "p-steward-health",
+        "target": "t-steward-observe-digest",
+        "weight": 1
+      },
+      "a-steward-observe-13": {
+        "id": "a-steward-observe-13",
+        "source": "t-steward-observe-digest",
+        "target": "p-steward-digest",
+        "weight": 1
       }
     },
     "description": "Measurement, no model involved. On the charter's schedule and after every released change a script measures the model the Steward lives in: every lane's status, kind, schedule and recent fires, errors, contract misses, stranded tokens, tokens per place, cost per lane. It writes the health summary, one row per lane, the model map and the budget, and starts an iteration when nothing is waiting for the person.",
@@ -84,6 +96,13 @@
         "tokens": 0,
         "x": 100,
         "y": 100
+      },
+      "p-steward-digest": {
+        "id": "p-steward-digest",
+        "label": "The daily digest: the newest health condensed once a day, kept 30 days",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
       },
       "p-steward-errors": {
         "id": "p-steward-errors",
@@ -154,6 +173,12 @@
         "label": "Observe the model (scheduled)",
         "x": 320,
         "y": 100
+      },
+      "t-steward-observe-digest": {
+        "id": "t-steward-observe-digest",
+        "label": "Digest the newest health (daily)",
+        "x": 100,
+        "y": 440
       }
     }
   }
