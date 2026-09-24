@@ -889,10 +889,12 @@ def verify(argv):
            "summary": ("verified: build ok, %s tests, %d file(s) changed%s" % (json.dumps(suites["tests"]), len(files), ("; unplanned: " + ", ".join(unplanned[:6])) if unplanned else "")) if verdict == "pass" else "; ".join(reasons),
            "build": {k: build[k] for k in ("command", "rc", "ok", "durationSec")}, "suites": {k: suites[k] for k in ("command", "rc", "ok", "durationSec", "tests")}, "evidence": [build["tail"][-1200:], suites["tail"][-1500:]],
            "diff": {"files": files[:60], "outOfScope": outside[:20], "unplanned": unplanned[:20], "changedTests": changed_tests[:20]}, "criteria": criteria}
+    for t in query(P["verification"], 'FROM $ WHERE $.verificationId == "%s" LIMIT 10' % ver["verificationId"], 10):
+        delete_token(P["verification"], t["id"])   # a re-verification replaces the earlier record of the same run
     put_token(P["verification"], ver, name=ver["verificationId"])
     git(["checkout", "-q", "main"], root, check=False)
     if verdict == "pass":
-        set_status(P["runs"], "runId", run_id, "verified", verifiedAt=now())
+        set_status(P["runs"], "runId", run_id, "verified", verifiedAt=now(), failure="", failedAt="")
         set_status(P["specs"], "specId", str(r.get("specId", "")), "verified")
         put_token(P["dev_cmd"], command_token("team-dev", ["review-brief", run_id], stage="review-brief", timeout_ms=600000, runId=run_id, specId=r.get("specId")))
         push_status("verification", "run %s verified: %s" % (run_id, ver["summary"]), runId=run_id, specId=r.get("specId"), ok=True)
