@@ -247,6 +247,9 @@ def main():
     ap.add_argument("--service", default="node")
     ap.add_argument("--keep", action="store_true")
     ap.add_argument("--skip-llm", action="store_true")
+    ap.add_argument("--repo-mode", default="workspace", choices=["workspace", "clone"],
+                    help="workspace: the team branches in the fixture repository itself (the default the packs ship with); "
+                         "clone: an isolated clone under the team home")
     a = ap.parse_args()
     home = os.path.expanduser(a.home); svc = a.service
     P = lambda x: "p-%s-team-%s" % (svc, x)  # noqa: E731
@@ -281,7 +284,7 @@ def main():
                                     "repoRoot": ws, "home": os.path.join(home, "teams"), "mcpUrl": MCP_URL, "coderAgent": "fake-coder", "coderModel": "none", "coderMaxTurns": "1", "coderTimeoutMin": "5", "brainAgent": "llm", "autonomyLevel": "3", "dailyBudgetUsd": "20", "digestCron": "0 0 6 * * *", "status": "ready", "updatedAt": now(),
                                     "tokenLanes": ["t-office-setup-cmd", "t-office-plan-cmd", "t-office-digest-cmd", "t-office-brain-observe-cmd", "t-office-curate-cmd", "t-office-brain-apply-cmd"]}, "office-charter")
         m.put("p-product-coders", coder, "fake-coder")
-        m.put(P("charter"), {"charterId": "team", "service": svc, "goal": "Keep the fixture service healthy", "description": "fixture", "repo": "core", "repoDir": "agentic-net-%s" % svc, "scopePaths": [], "testCommand": "true", "buildCommand": "true", "readinessChecks": ["tests", "docs"], "auditCron": "0 0 7 * * 1",
+        m.put(P("charter"), {"charterId": "team", "service": svc, "goal": "Keep the fixture service healthy", "description": "fixture", "repo": "core", "repoDir": "agentic-net-%s" % svc, "repoMode": a.repo_mode, "scopePaths": [], "testCommand": "true", "buildCommand": "true", "readinessChecks": ["tests", "docs"], "auditCron": "0 0 7 * * 1",
                              "coderAgent": "fake-coder", "coderModel": "none", "coderMaxTurns": "1", "coderTimeoutMin": "5", "brainAgent": "llm", "autonomyLevel": "3", "dailyBudgetUsd": "20", "status": "ready", "updatedAt": now(),
                              "tokenLanes": [T("setup-cmd"), T("po-cmd"), T("arch-cmd"), T("qa-cmd"), T("dev-cmd"), T("brain-observe-cmd"), T("curate-cmd"), T("brain-apply-cmd")]}, "team-charter")
         for place in (P("iterate"), P("prompts"), P("prompt-new"), P("responses"), P("requirements"), P("requirement-drafts"), P("specs"), P("spec-drafts"), P("acceptance"), P("acceptance-new"), P("briefs"), P("decisions"), P("runs"), P("reviews"), P("review-new"), P("verification"), P("spec-catalog"), P("state"), P("context"), P("po-cmd"), P("arch-cmd"), P("qa-cmd"), P("dev-cmd"), P("errors"), P("llm-errors"), P("journal"), "p-product-inbox", "p-product-status", "p-product-teams", "p-product-errors"):
@@ -296,10 +299,10 @@ def main():
             m.cmd("p-product-setup-cmd", "office-infra", ["provision"], 300000)
             m.cmd(P("setup-cmd"), "team-infra", ["provision", P("charter")], 600000)
             reg, secs = m.wait(lambda: m.find("p-product-teams", "service", svc), 240, what="team registration", journal=P("journal"))
-            clone = os.path.join(home, "teams", svc, "core")
+            work = os.path.join(home, "workspace", "core") if a.repo_mode == "workspace" else os.path.join(home, "teams", svc, "core")
             st_c, creds = api("GET", "/api/transitions/%s/credentials?modelId=%s" % (T("po-cmd"), a.model))
-            ok = os.path.isdir(os.path.join(clone, ".git")) and st_c == 200 and reg.get("session") == svc
-            check("provision", ok, "registered in %ss (session %s), clone %s, po-cmd credentials %s" % (secs, reg.get("session"), "present" if os.path.isdir(clone) else "MISSING", st_c))
+            ok = os.path.isdir(os.path.join(work, ".git")) and st_c == 200 and reg.get("session") == svc
+            check("provision", ok, "registered in %ss (session %s), %s repo %s, po-cmd credentials %s" % (secs, reg.get("session"), a.repo_mode, "present" if os.path.isdir(work) else "MISSING", st_c))
             if not ok:
                 raise RuntimeError("provision incomplete")
             st.done("provision")
@@ -413,7 +416,7 @@ def main():
             sid = spec["specId"]; pack = m.newest(P("briefs"), "at")
             m.put(P("decisions"), {"kind": "pack-approval", "verdict": "approved", "specId": sid, "packId": pack.get("packId"), "promptId": "pr-pack-" + sid, "notes": "", "by": "e2e", "at": now()}, "dec-pack-" + sid)
             run, secs = m.wait(lambda: (lambda r: r if r.get("status") in ("built", "failed", "verified", "reviewed") else None)(m.find(P("runs"), "specId", sid)), 500, what="coder run", journal=P("journal"))
-            clone = os.path.join(home, "teams", svc, "core")
+            clone = os.path.join(home, "workspace", "core") if a.repo_mode == "workspace" else os.path.join(home, "teams", svc, "core")
             rc, out = sh(["git", "log", "--oneline", "-1", run.get("branch", "")], clone)
             ok = run.get("status") in ("built", "verified", "reviewed") and rc == 0 and bool(run.get("filesChanged"))
             check("implement", ok, "run %s %s on %s in %ss: %s file(s), head '%s'" % (run.get("runId"), run.get("status"), run.get("branch"), secs, len(run.get("filesChanged") or []), out.strip()[:60]))
@@ -459,7 +462,8 @@ def main():
         try:
             m.put(P("decisions"), {"kind": "merge", "verdict": "merge", "runId": run["runId"], "specId": spec["specId"], "promptId": "pr-merge-" + run["runId"], "notes": "", "by": "e2e", "at": now()}, "dec-merge-" + run["runId"])
             merged, secs = m.wait(lambda: (lambda r: r if r.get("status") in ("merged", "merge-failed") else None)(m.find(P("runs"), "runId", run["runId"])), 300, what="merge", journal=P("journal"))
-            clone = os.path.join(home, "teams", svc, "core"); ws = os.path.join(home, "workspace", "core")
+            ws = os.path.join(home, "workspace", "core")
+            clone = ws if a.repo_mode == "workspace" else os.path.join(home, "teams", svc, "core")
             rc1, o1 = sh(["git", "log", "--oneline", "-1", "main"], clone)
             rc2, o2 = sh(["git", "branch", "--list", run.get("branch", "")], ws)
             rc3, o3 = sh(["git", "log", "--oneline", "-1", "main"], ws)

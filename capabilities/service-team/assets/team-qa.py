@@ -682,10 +682,47 @@ def app_route():
     return "#/applications/%s?model=%s" % (SESSION, MODEL)
 
 
+def workspace_mode(c=None):
+    """Where the team works. "workspace" (default): directly in the person's own repository, so the
+    branches appear where they already work. "clone": an isolated clone under the team's home."""
+    return str((c or cfg()).get("repoMode") or "workspace").strip().lower() != "clone"
+
+
 def repo_root(c=None):
-    """The team's own clone of the workspace repository that holds the service (never the person's working tree)."""
+    """The repository the team works in: the person's own checkout, or the team's clone of it."""
     c = c or cfg()
+    if workspace_mode(c):
+        return workspace_repo(c)
     return os.path.join(team_home(c), str(c.get("repo") or "core"))
+
+
+def tree_state(root):
+    """What the checkout is doing right now: the branch it is on and whether anything is uncommitted."""
+    return {"branch": git(["rev-parse", "--abbrev-ref", "HEAD"], root, check=False).strip(),
+            "dirty": bool(git(["status", "--porcelain"], root, check=False).strip())}
+
+
+def sync_main(root, c=None):
+    """Put the checkout on a current main before branching.
+
+    In a clone the origin IS the person's repository, so a hard reset only re-syncs the copy. In the
+    person's own repository a hard reset to origin/main would destroy every unpushed commit, so this
+    never resets there: it refuses instead and says what is in the way. Refusing costs an iteration;
+    resetting would cost the work."""
+    c = c or cfg()
+    if not workspace_mode(c):
+        git(["fetch", "-q", "origin"], root, check=False)
+        git(["checkout", "-q", "main"], root)
+        git(["reset", "-q", "--hard", "origin/main"], root)
+        return {"mode": "clone", "head": head_sha(root)}
+    st = tree_state(root)
+    if st["dirty"]:
+        raise RuntimeError("your repository %s has uncommitted changes; the team works in it directly, so commit "
+                           "or stash them first (nothing was touched)" % root)
+    if st["branch"] != "main":
+        raise RuntimeError("your repository %s is on branch %s, not main; switch to main first "
+                           "(nothing was touched)" % (root, st["branch"]))
+    return {"mode": "workspace", "head": head_sha(root)}
 
 
 def service_dir(c=None):
@@ -863,6 +900,11 @@ def verify(argv):
     spec = by_id(P["specs"], "specId", str(r.get("specId", "")))
     acc = by_id(P["acceptance"], "specId", str(r.get("specId", "")))
     root = repo_root(c); sd = service_dir(c); branch = str(r.get("branch", ""))
+    # the person may be working in this checkout: remember where it was and put it back afterwards
+    was = tree_state(root)
+    if was["dirty"] and workspace_mode(c):
+        raise RuntimeError("your repository %s has uncommitted changes; verification would have to move the "
+                           "checkout, so it stopped instead (commit or stash, then verify again)" % root)
     git(["checkout", "-q", branch], root)
     head = head_sha(root)
     files = [f for f in git(["diff", "--name-only", "main...%s" % branch], root).splitlines() if f.strip()]
@@ -892,7 +934,7 @@ def verify(argv):
     for t in query(P["verification"], 'FROM $ WHERE $.verificationId == "%s" LIMIT 10' % ver["verificationId"], 10):
         delete_token(P["verification"], t["id"])   # a re-verification replaces the earlier record of the same run
     put_token(P["verification"], ver, name=ver["verificationId"])
-    git(["checkout", "-q", "main"], root, check=False)
+    git(["checkout", "-q", was["branch"] or "main"], root, check=False)
     if verdict == "pass":
         set_status(P["runs"], "runId", run_id, "verified", verifiedAt=now(), failure="", failedAt="")
         set_status(P["specs"], "specId", str(r.get("specId", "")), "verified")
@@ -935,7 +977,7 @@ def grep_any(sd, needles, exts):
 
 def audit(argv):
     c = cfg(); root = repo_root(c); sd = service_dir(c)
-    git(["fetch", "-q", "origin"], root, check=False); git(["checkout", "-q", "main"], root); git(["reset", "-q", "--hard", "origin/main"], root)
+    sync_main(root, c)
     checks = []
     def add(name, ok, evidence):
         checks.append({"name": name, "ok": bool(ok), "evidence": str(evidence)[:300]})

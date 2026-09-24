@@ -3,9 +3,10 @@
 
 usage: team-infra.py health | provision | pause | resume | register
 
-health     measures the executor host, the runtime's MCP, the team's repository clone and its registration with the product office
-provision  fills the service from the install namespace, stores the MCP token for the team's lanes, clones the workspace repository
-           into the team's home, registers the team with the product office (through the office's setup lane) and pushes a status row
+health     measures the executor host, the runtime's MCP, the repository the team works in and its registration with the office
+provision  fills the service from the install namespace, stores the MCP token for the team's lanes, checks the repository the team
+           works in (the person's own by default; a clone under the team home when repoMode is clone), registers the team with the
+           product office through its setup lane and pushes a status row
 register   registers (again) with the product office
 pause      stops every team lane except the setup lane and the health tick; resume starts exactly those again
 """
@@ -680,10 +681,47 @@ def app_route():
     return "#/applications/%s?model=%s" % (SESSION, MODEL)
 
 
+def workspace_mode(c=None):
+    """Where the team works. "workspace" (default): directly in the person's own repository, so the
+    branches appear where they already work. "clone": an isolated clone under the team's home."""
+    return str((c or cfg()).get("repoMode") or "workspace").strip().lower() != "clone"
+
+
 def repo_root(c=None):
-    """The team's own clone of the workspace repository that holds the service (never the person's working tree)."""
+    """The repository the team works in: the person's own checkout, or the team's clone of it."""
     c = c or cfg()
+    if workspace_mode(c):
+        return workspace_repo(c)
     return os.path.join(team_home(c), str(c.get("repo") or "core"))
+
+
+def tree_state(root):
+    """What the checkout is doing right now: the branch it is on and whether anything is uncommitted."""
+    return {"branch": git(["rev-parse", "--abbrev-ref", "HEAD"], root, check=False).strip(),
+            "dirty": bool(git(["status", "--porcelain"], root, check=False).strip())}
+
+
+def sync_main(root, c=None):
+    """Put the checkout on a current main before branching.
+
+    In a clone the origin IS the person's repository, so a hard reset only re-syncs the copy. In the
+    person's own repository a hard reset to origin/main would destroy every unpushed commit, so this
+    never resets there: it refuses instead and says what is in the way. Refusing costs an iteration;
+    resetting would cost the work."""
+    c = c or cfg()
+    if not workspace_mode(c):
+        git(["fetch", "-q", "origin"], root, check=False)
+        git(["checkout", "-q", "main"], root)
+        git(["reset", "-q", "--hard", "origin/main"], root)
+        return {"mode": "clone", "head": head_sha(root)}
+    st = tree_state(root)
+    if st["dirty"]:
+        raise RuntimeError("your repository %s has uncommitted changes; the team works in it directly, so commit "
+                           "or stash them first (nothing was touched)" % root)
+    if st["branch"] != "main":
+        raise RuntimeError("your repository %s is on branch %s, not main; switch to main first "
+                           "(nothing was touched)" % (root, st["branch"]))
+    return {"mode": "workspace", "head": head_sha(root)}
 
 
 def service_dir(c=None):
@@ -806,6 +844,7 @@ def health(argv):
            "tools": {"claude": tool_version("claude"), "codex": tool_version("codex"), "git": tool_version("git"), "node": tool_version("node"), "python3": tool_version("python3"), "mvn": tool_version("mvn", "-v")},
            "mcp": mcp_state[0], "mcpDetail": mcp_state[1], "mcpTokenSource": ("file" if os.path.exists(os.path.expanduser("~/.agenticos/desktop/mcp-token")) else "env" if os.environ.get("TEAM_MCP_TOKEN") else "none"),
            "workspaceRepo": os.path.isdir(os.path.join(workspace_repo(c), ".git")), "clone": clone_ok, "cloneHead": head_sha(root) if clone_ok else "",
+           "repoMode": "workspace" if workspace_mode(c) else "clone", "repoRoot": root, "repoBranch": tree_state(root)["branch"] if clone_ok else "", "repoDirty": tree_state(root)["dirty"] if clone_ok else False,
            "serviceDir": os.path.isdir(service_dir(c)), "registered": bool(registered()), "charterService": str(c.get("service", "")), "goalDefined": goal_defined(c)}
     ok = rec["mcp"] and rec["workspaceRepo"] and rec["clone"] and rec["serviceDir"] and rec["registered"]
     rec["ok"] = ok
@@ -856,29 +895,34 @@ def provision(argv):
         except RuntimeError as e:
             steps.append("credential %s failed: %s" % (tid, str(e)[:160]))
     steps.append("MCP token stored for %d/%d lanes" % (stored, len(lanes)))
-    # 2. the team's own clone of the workspace repository
+    # 2. the repository the team works in
     src = workspace_repo(c)
     if not os.path.isdir(os.path.join(src, ".git")):
-        raise RuntimeError("workspace repository not found at %s (office charter repoRoot + team charter repo)" % src)
+        raise RuntimeError("repository not found at %s (office charter repoRoot + team charter repo)" % src)
     root = repo_root(c)
-    os.makedirs(os.path.dirname(root), exist_ok=True)
-    if os.path.isdir(os.path.join(root, ".git")):
-        git(["fetch", "origin", "--prune"], root); git(["checkout", "-q", "main"], root); git(["reset", "-q", "--hard", "origin/main"], root)
-        steps.append("clone refreshed at %s (%s)" % (root, head_sha(root)[:10]))
+    if workspace_mode(c):
+        # the person's own checkout: never clone it, never reset it, only look at it
+        st = tree_state(root)
+        steps.append("works directly in %s (on %s, %s, %s)" % (root, st["branch"], "uncommitted changes present" if st["dirty"] else "clean", head_sha(root)[:10]))
     else:
-        rc, o, e = run(["git", "clone", "-q", src, root], timeout=900, check=False)
-        if rc != 0:
-            raise RuntimeError("clone failed: %s" % (e or o)[-300:])
-        steps.append("cloned %s into %s (%s)" % (src, root, head_sha(root)[:10]))
+        os.makedirs(os.path.dirname(root), exist_ok=True)
+        if os.path.isdir(os.path.join(root, ".git")):
+            git(["fetch", "origin", "--prune"], root); git(["checkout", "-q", "main"], root); git(["reset", "-q", "--hard", "origin/main"], root)
+            steps.append("clone refreshed at %s (%s)" % (root, head_sha(root)[:10]))
+        else:
+            rc, o, e = run(["git", "clone", "-q", src, root], timeout=900, check=False)
+            if rc != 0:
+                raise RuntimeError("clone failed: %s" % (e or o)[-300:])
+            steps.append("cloned %s into %s (%s)" % (src, root, head_sha(root)[:10]))
     if not os.path.isdir(service_dir(c)):
-        raise RuntimeError("service directory %s does not exist in the clone" % service_dir(c))
-    put_token(P["repo"], {"updatedAt": now(), "root": root, "source": src, "serviceDir": service_dir(c), "branch": "main", "head": head_sha(root)}, name="repo-%s" % stamp())
+        raise RuntimeError("service directory %s does not exist in %s" % (service_dir(c), root))
+    put_token(P["repo"], {"updatedAt": now(), "root": root, "source": src, "serviceDir": service_dir(c), "mode": "workspace" if workspace_mode(c) else "clone", "branch": tree_state(root)["branch"], "head": head_sha(root)}, name="repo-%s" % stamp())
     keep_last(P["repo"], "updatedAt", 5)
     # 3. register with the product office through its setup lane
     steps.append(register([])["summary"])
     push_status("provision", "team %s provisioned: %s" % (SERVICE, "; ".join(steps)), ok=True)
     journal(lane(LANE), "provision", "; ".join(steps))
-    return {"success": True, "steps": steps, "service": SERVICE, "clone": root}
+    return {"success": True, "steps": steps, "service": SERVICE, "repo": root, "mode": "workspace" if workspace_mode(c) else "clone"}
 
 
 def register(argv):

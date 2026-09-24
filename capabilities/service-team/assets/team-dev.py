@@ -3,13 +3,13 @@
 
 usage: team-dev.py implement <specId> | review-brief <runId> | merge-ask <runId> | merge <runId>
 
-implement     the coding agent implements the approved context pack on branch <service>/<specId> of the team's clone (never the
-              person's working tree, never a push); the run is recorded and handed to QA for verification
+implement     the coding agent implements the approved context pack on branch <service>/<specId> of the repository the team
+              works in (the person's own checkout by default, never a push); the run is handed to QA for verification
 review-brief  renders the review brief (diff, spec, acceptance, verification) for the one-shot reviewer (t-team-review)
 merge-ask     after the review: asks the person to merge (a question in the prompts place and the office inbox)
-merge         on the person's decision: merges the branch into the clone's main (no fast-forward), fetches the branch into the
-              workspace repository as a local branch and merges it there only when that working tree is clean and on main;
-              reports the release to the product office and hands the run to the brain
+merge         on the person's decision: merges the branch into main with no fast-forward, in the repository the team works in.
+              In repoMode clone it also carries the branch back into the person's repository. Nothing is ever pushed; the
+              release is reported to the product office and the run handed to the brain
 """
 import os, sys, json, re, time, datetime
 
@@ -682,10 +682,47 @@ def app_route():
     return "#/applications/%s?model=%s" % (SESSION, MODEL)
 
 
+def workspace_mode(c=None):
+    """Where the team works. "workspace" (default): directly in the person's own repository, so the
+    branches appear where they already work. "clone": an isolated clone under the team's home."""
+    return str((c or cfg()).get("repoMode") or "workspace").strip().lower() != "clone"
+
+
 def repo_root(c=None):
-    """The team's own clone of the workspace repository that holds the service (never the person's working tree)."""
+    """The repository the team works in: the person's own checkout, or the team's clone of it."""
     c = c or cfg()
+    if workspace_mode(c):
+        return workspace_repo(c)
     return os.path.join(team_home(c), str(c.get("repo") or "core"))
+
+
+def tree_state(root):
+    """What the checkout is doing right now: the branch it is on and whether anything is uncommitted."""
+    return {"branch": git(["rev-parse", "--abbrev-ref", "HEAD"], root, check=False).strip(),
+            "dirty": bool(git(["status", "--porcelain"], root, check=False).strip())}
+
+
+def sync_main(root, c=None):
+    """Put the checkout on a current main before branching.
+
+    In a clone the origin IS the person's repository, so a hard reset only re-syncs the copy. In the
+    person's own repository a hard reset to origin/main would destroy every unpushed commit, so this
+    never resets there: it refuses instead and says what is in the way. Refusing costs an iteration;
+    resetting would cost the work."""
+    c = c or cfg()
+    if not workspace_mode(c):
+        git(["fetch", "-q", "origin"], root, check=False)
+        git(["checkout", "-q", "main"], root)
+        git(["reset", "-q", "--hard", "origin/main"], root)
+        return {"mode": "clone", "head": head_sha(root)}
+    st = tree_state(root)
+    if st["dirty"]:
+        raise RuntimeError("your repository %s has uncommitted changes; the team works in it directly, so commit "
+                           "or stash them first (nothing was touched)" % root)
+    if st["branch"] != "main":
+        raise RuntimeError("your repository %s is on branch %s, not main; switch to main first "
+                           "(nothing was touched)" % (root, st["branch"]))
+    return {"mode": "workspace", "head": head_sha(root)}
 
 
 def service_dir(c=None):
@@ -840,8 +877,8 @@ def implement(argv):
     for t in query(P["prompts"], 'FROM $ WHERE $.promptId == "pr-pack-%s" LIMIT 5' % sid, 5):
         delete_token(P["prompts"], t["id"])
     root = repo_root(c); sd = service_dir(c); branch = str(p.get("branch"))
-    git(["fetch", "-q", "origin"], root, check=False)
-    git(["checkout", "-q", "main"], root); git(["reset", "-q", "--hard", "origin/main"], root)
+    was = tree_state(root)
+    sync_main(root, c)   # refuses rather than resetting when the team works in the person's own repository
     base = head_sha(root)
     existing = git(["branch", "--list", branch], root).strip()
     if existing and prev_id:
@@ -863,7 +900,7 @@ def implement(argv):
     head = head_sha(root)
     files = [f for f in git(["diff", "--name-only", "main...%s" % branch], root).splitlines() if f.strip()]
     diffstat = git(["diff", "--shortstat", "main...%s" % branch], root).strip()
-    git(["checkout", "-q", "main"], root, check=False)
+    git(["checkout", "-q", was["branch"] or "main"], root, check=False)
     built = (not res["isError"]) and head != base and bool(files)
     patch = {"status": "built" if built else "failed", "headSha": head, "filesChanged": files[:80], "diffStat": diffstat, "durationSec": res["durationSec"], "costUsd": res["costUsd"], "turns": res["turns"], "summary": res["summary"], "stderr": res["stderr"][-600:], "finishedAt": now()}
     set_status(P["runs"], "runId", run_id, patch["status"], **{k: v for k, v in patch.items() if k != "status"})
@@ -939,7 +976,7 @@ def merge(argv):
     for t in query(P["prompts"], 'FROM $ WHERE $.promptId == "pr-merge-%s" LIMIT 5' % run_id, 5):
         delete_token(P["prompts"], t["id"])
     close_office_inbox("pr-merge-%s" % run_id)
-    git(["checkout", "-q", "main"], root); git(["reset", "-q", "--hard", "origin/main"], root)
+    sync_main(root, c)
     msg = "Merge %s: %s (%s)" % (branch, spec.get("title"), spec.get("specId"))
     rc, o, e = run(["git", "merge", "--no-ff", "-m", msg, branch], cwd=root, timeout=300, check=False)
     if rc != 0:
@@ -949,20 +986,26 @@ def merge(argv):
         journal(lane(LANE), "merge", "merge of %s failed: %s" % (branch, (e or o)[-200:]), runId=run_id)
         return {"success": False, "error": (e or o)[-300:]}
     merge_sha = head_sha(root)
-    # the workspace repository: the branch is fetched as a local branch; main is merged only when the tree is clean and on main
-    ws = workspace_repo(c); ws_note = ""
-    try:
-        git(["fetch", "-q", root, "%s:%s" % (branch, branch)], ws, check=False)
-        cur = git(["rev-parse", "--abbrev-ref", "HEAD"], ws).strip(); dirty = git(["status", "--porcelain"], ws).strip()
-        if cur == "main" and not dirty:
-            rc2, o2, e2 = run(["git", "merge", "--no-ff", "-m", msg, branch], cwd=ws, timeout=300, check=False)
-            ws_note = ("merged into the workspace main (%s)" % head_sha(ws)[:10]) if rc2 == 0 else "workspace merge failed: %s" % (e2 or o2)[-200:]
-            if rc2 != 0:
-                run(["git", "merge", "--abort"], cwd=ws, timeout=60, check=False)
-        else:
-            ws_note = "branch %s fetched into the workspace repository; main NOT merged there (%s)" % (branch, "working tree dirty" if dirty else "on branch " + cur)
-    except Exception as ex:  # noqa: BLE001
-        ws_note = "workspace repository untouched: %s" % str(ex)[:160]
+    if workspace_mode(c):
+        # the team works in the person's own repository, so the merge already landed where they look;
+        # nothing is pushed, the branch stays for review, and the person pushes when they want to
+        ws_note = "merged into %s on main (%s); the branch %s is kept, nothing pushed" % (root, merge_sha[:10], branch)
+    else:
+        # an isolated clone: carry the branch back into the person's repository, and merge its main
+        # only when that tree is clean and on main
+        ws = workspace_repo(c); ws_note = ""
+        try:
+            git(["fetch", "-q", root, "%s:%s" % (branch, branch)], ws, check=False)
+            st = tree_state(ws)
+            if st["branch"] == "main" and not st["dirty"]:
+                rc2, o2, e2 = run(["git", "merge", "--no-ff", "-m", msg, branch], cwd=ws, timeout=300, check=False)
+                ws_note = ("merged into the workspace main (%s)" % head_sha(ws)[:10]) if rc2 == 0 else "workspace merge failed: %s" % (e2 or o2)[-200:]
+                if rc2 != 0:
+                    run(["git", "merge", "--abort"], cwd=ws, timeout=60, check=False)
+            else:
+                ws_note = "branch %s fetched into the workspace repository; main NOT merged there (%s)" % (branch, "working tree dirty" if st["dirty"] else "on branch " + st["branch"])
+        except Exception as ex:  # noqa: BLE001
+            ws_note = "workspace repository untouched: %s" % str(ex)[:160]
     set_status(P["runs"], "runId", run_id, "merged", mergeSha=merge_sha, mergedAt=now(), mergeNotes=notes, workspace=ws_note)
     set_status(P["specs"], "specId", str(r.get("specId", "")), "merged", mergeSha=merge_sha)
     replace_token(OFFICE["specs"], "specId", str(r.get("specId", "")), {"status": "merged", "at": now()}, name="spec-%s" % r.get("specId"))

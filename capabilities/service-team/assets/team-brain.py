@@ -680,10 +680,47 @@ def app_route():
     return "#/applications/%s?model=%s" % (SESSION, MODEL)
 
 
+def workspace_mode(c=None):
+    """Where the team works. "workspace" (default): directly in the person's own repository, so the
+    branches appear where they already work. "clone": an isolated clone under the team's home."""
+    return str((c or cfg()).get("repoMode") or "workspace").strip().lower() != "clone"
+
+
 def repo_root(c=None):
-    """The team's own clone of the workspace repository that holds the service (never the person's working tree)."""
+    """The repository the team works in: the person's own checkout, or the team's clone of it."""
     c = c or cfg()
+    if workspace_mode(c):
+        return workspace_repo(c)
     return os.path.join(team_home(c), str(c.get("repo") or "core"))
+
+
+def tree_state(root):
+    """What the checkout is doing right now: the branch it is on and whether anything is uncommitted."""
+    return {"branch": git(["rev-parse", "--abbrev-ref", "HEAD"], root, check=False).strip(),
+            "dirty": bool(git(["status", "--porcelain"], root, check=False).strip())}
+
+
+def sync_main(root, c=None):
+    """Put the checkout on a current main before branching.
+
+    In a clone the origin IS the person's repository, so a hard reset only re-syncs the copy. In the
+    person's own repository a hard reset to origin/main would destroy every unpushed commit, so this
+    never resets there: it refuses instead and says what is in the way. Refusing costs an iteration;
+    resetting would cost the work."""
+    c = c or cfg()
+    if not workspace_mode(c):
+        git(["fetch", "-q", "origin"], root, check=False)
+        git(["checkout", "-q", "main"], root)
+        git(["reset", "-q", "--hard", "origin/main"], root)
+        return {"mode": "clone", "head": head_sha(root)}
+    st = tree_state(root)
+    if st["dirty"]:
+        raise RuntimeError("your repository %s has uncommitted changes; the team works in it directly, so commit "
+                           "or stash them first (nothing was touched)" % root)
+    if st["branch"] != "main":
+        raise RuntimeError("your repository %s is on branch %s, not main; switch to main first "
+                           "(nothing was touched)" % (root, st["branch"]))
+    return {"mode": "workspace", "head": head_sha(root)}
 
 
 def service_dir(c=None):

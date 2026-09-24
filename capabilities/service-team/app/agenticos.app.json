@@ -319,6 +319,10 @@
               "items": {
                 "type": "string"
               }
+            },
+            "repoMode": {
+              "type": "string",
+              "description": "workspace (the person's own repository) or clone (isolated under the team home)."
             }
           }
         }
