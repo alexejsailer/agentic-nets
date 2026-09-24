@@ -1114,7 +1114,15 @@ def answer(argv):
         raise RuntimeError("empty answer for %s" % prompt_id)
     fid = next_id("k-", P["knowledge"], "factId")
     put_token(P["knowledge"], {"factId": fid, "kind": "answer", "scope": "project", "text": ("Q: %s A: %s" % (str(pr.get("question", ""))[:200], text))[:600], "source": prompt_id, "confidence": "high", "status": "active", "at": now(), "curationId": ""}, name=fid)
-    journal("t-team-brain-apply-cmd", "answer", "the person answered %s; recorded as %s" % (prompt_id, fid), promptId=prompt_id)
+    # recording the fact is not enough: without a receipt the question stays open in the app and in the
+    # office inbox, and the person is asked the same thing forever
+    put_token(P["responses"], {"promptId": prompt_id, "iterationId": pr.get("iterationId", ""), "intent": "answered",
+                               "selected": [], "text": text[:2000], "notes": "", "at": now(), "by": "person",
+                               "question": str(pr.get("question", ""))[:300]}, name="answered-%s" % prompt_id)
+    for t in query(P["prompts"], 'FROM $ WHERE $.promptId == "%s" LIMIT 5' % prompt_id, 5):
+        delete_token(P["prompts"], t["id"])
+    close_office_inbox(prompt_id)
+    journal(lane("brain-apply-cmd"), "answer", "the person answered %s; recorded as %s and the question closed" % (prompt_id, fid), promptId=prompt_id)
     return {"success": True, "factId": fid}
 
 

@@ -1026,7 +1026,16 @@ def audit(argv):
     tests = [f for f in tests if "/test/" in f or f.endswith((".test.ts", ".spec.ts", "Test.java", "Tests.java", "IT.java"))]
     add("tests present", len(tests) > 0, "%d test files" % len(tests))
     suites = run_suite(str(c.get("testCommand") or "true"), sd, 1800)
-    add("test suite green", suites["ok"], json.dumps(suites["tests"]))
+    # A readiness scorecard that says "test suite green" after a -Dtest filter ran a handful of classes
+    # is worse than no check: it reads as coverage the team does not have. Say what actually ran.
+    cmd_txt = str(c.get("testCommand") or "")
+    narrowed = re.search(r"-Dtest=['\"]?([^'\" ]+)", cmd_txt)
+    ran = as_int(as_dict(suites.get("tests")).get("run"), 0)
+    if narrowed:
+        add("test suite green", False, "the test command is narrowed to %s, so this is not a suite result (%s); widen it or record why it is narrowed"
+            % (narrowed.group(1), ("%d test(s) ran" % ran) if ran else "no count reported"))
+    else:
+        add("test suite green", suites["ok"], json.dumps(suites["tests"]))
     build = run_suite(str(c.get("buildCommand") or "true"), sd, 1200)
     add("build ok", build["ok"], "rc %s in %s s" % (build["rc"], build["durationSec"]))
     add("health endpoint", bool(grep_any(sd, ["/health", "actuator", "HealthIndicator", "healthz"], (".java", ".ts", ".yml", ".yaml", ".properties"))), ", ".join(grep_any(sd, ["/health", "actuator", "HealthIndicator", "healthz"], (".java", ".ts", ".yml", ".yaml", ".properties"))))

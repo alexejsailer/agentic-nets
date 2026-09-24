@@ -324,7 +324,7 @@ class ServiceTeamApp extends HTMLElement {
         const intent = act === 'respond' ? (p.kind === 'brain' ? 'knowledge' : 'answer') : 'revise';
         let selected = arr(this._form['__selected.' + p.promptId] || '[]'); let text = f('resp.' + p.promptId);
         if (act === 'skip') { text = ['Skip this; propose something different.', text].filter(Boolean).join(' '); selected = []; }
-        if (p.mode === 'interview' && intent !== 'revise') { const answers = arr(p.options).map((o) => { const v = f('q.' + p.promptId + '.' + o.value); return v ? `${o.label}: ${v}` : ''; }).filter(Boolean); if (!answers.length && !text) return this._toast('Answer at least one question', true); text = [...answers, text].filter(Boolean).join('\n'); }
+        if (p.mode === 'interview' && intent !== 'revise') { const answers = arr(p.options).map((o) => { const v = f('q.' + p.promptId + '.' + o.value); if (!v) return ''; return String(o.label || '').trim() === String(p.question || '').trim() ? v : `${o.label}: ${v}`; }).filter(Boolean); if (!answers.length && !text) return this._toast('Answer at least one question', true); text = [...answers, text].filter(Boolean).join('\n'); }
         if (intent === 'answer' && p.mode === 'choice' && !selected.length && !text) return this._toast('Pick an option or write your own', true);
         if (act === 'revise' && !text) return this._toast('Say how the question should be reshaped', true);
         if (intent === 'answer' && p.mode === 'goal' && !text) return this._toast('Write the team goal', true);
