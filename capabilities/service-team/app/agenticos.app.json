@@ -671,16 +671,10 @@
       },
       {
         "name": "defer-increment",
-        "description": "Record what the person decided about a plan increment: later (keep it for another day) or dropped (stop proposing it).",
+        "description": "Record what the person decided about a plan increment: later, dropped, or cleared. Appends; the newest verdict per key wins, because the manifest guard cannot express an upsert.",
         "targetRole": "backlog",
         "defaults": {
           "by": "person"
-        },
-        "guard": {
-          "role": "backlog",
-          "matchKey": "key",
-          "exists": true,
-          "replace": true
         },
         "inputSchema": {
           "type": "object",

@@ -766,8 +766,16 @@ def plan_key(title):
     """A stable key for a plan increment. The brain rewrites the whole plan after every merge and
     renumbers the increments, so inc-1 means something different each time; the person's verdict has to
     key off the wording instead."""
-    t = re.sub(r"[^a-z0-9]+", " ", str(title or "").lower()).strip()
-    return hashlib.sha1(t.encode("utf-8")).hexdigest()[:12] if t else ""
+    # MUST stay byte-identical to planKey() in app/ui/main.mjs: the app writes the verdict and the brain
+    # reads it, so a different normalisation on either side makes the person's decision invisible.
+    return re.sub(r"[^a-z0-9]+", " ", str(title or "").lower()).strip()
+
+
+def at_key(v):
+    """Compare timestamps that may or may not carry milliseconds: two clicks in the same second must
+    still order deterministically, and a plain second must not sort after the same second with millis."""
+    t = str(v or "")
+    return t if "." in t else t.replace("Z", ".000Z")
 
 
 def backlog_verdicts():
@@ -776,7 +784,7 @@ def backlog_verdicts():
     for t in query(P["backlog"], "FROM $", 300):
         d = t.get("data") or {}
         k = str(d.get("key") or "")
-        if k and str(d.get("at", "")) >= str(out.get(k, {}).get("at", "")):
+        if k and at_key(d.get("at")) >= at_key(out.get(k, {}).get("at")):
             out[k] = d
     return out
 

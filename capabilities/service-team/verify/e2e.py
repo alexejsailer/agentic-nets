@@ -492,6 +492,19 @@ def main():
         except Exception as e:  # noqa: BLE001
             st.fail("guard", e)
 
+    # ---- key parity: the app writes the verdict, the brain reads it ------------------------------
+    try:
+        import subprocess as _sp
+        title = "Align build tooling: add Maven wrapper or update CLAUDE.md"
+        py = _sp.run(["python3", "-c", "import sys;sys.path.insert(0,%r);import teamlib as T;print(T.plan_key(%r))"
+                      % (os.path.join(PACK, "assets"), title)], capture_output=True, text=True, timeout=60).stdout.strip()
+        js = _sp.run(["node", "-e", r"const s=require('fs').readFileSync(%r,'utf8');const m=s.match(/const planKey = (\(title\) => [^;]+);/);"
+                      "const planKey=eval(m[1]);process.stdout.write(planKey(%r))"
+                      % (os.path.join(PACK, "app", "ui", "main.mjs"), title)], capture_output=True, text=True, timeout=60).stdout.strip()
+        check("key-parity", bool(py) and py == js, "plan_key(python)=%r planKey(app)=%r" % (py[:48], js[:48]))
+    except Exception as e:  # noqa: BLE001
+        check("key-parity", False, "could not compare: %s" % str(e)[:160])
+
     # ---- summary ---------------------------------------------------------------------------------
     passed = sum(1 for _, ok, _ in RESULTS if ok)
     print("\n%d/%d checks passed in %ds (model %s, home %s)" % (passed, len(RESULTS), time.time() - t_start, a.model, home))

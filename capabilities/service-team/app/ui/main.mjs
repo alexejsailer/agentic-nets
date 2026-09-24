@@ -17,6 +17,8 @@ const props = (tokens) => (tokens || []).map((t) => t.properties || {});
 const newest = (rows, field) => [...rows].sort((a, b) => String(b[field] ?? '').localeCompare(String(a[field] ?? '')));
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const stamp = () => nowIso().replace(/[-:]/g, '').replace('T', '');
+const atKey = (v) => { const t = String(v || ''); return t.includes('.') ? t : t.replace('Z', '.000Z'); };
+const atMs = () => new Date().toISOString();
 const planKey = (title) => String(title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const linesOf = (v) => String(v || '').split('\n').map((s) => s.trim()).filter(Boolean);
 const list = (v) => { const a = arr(v); return a.length ? `<ul>${a.map((x) => `<li>${esc(typeof x === 'object' ? JSON.stringify(x) : x)}</li>`).join('')}</ul>` : '<span class="muted">none</span>'; };
@@ -235,8 +237,9 @@ class ServiceTeamApp extends HTMLElement {
   }
 
   _verdicts() {
+    const rows = props(this._s.backlog).map((v) => ({ ...v, __t: atKey(v.at) }));
     const by = new Map();
-    for (const v of newest(props(this._s.backlog), 'at').reverse()) if (v.key) by.set(v.key, v);
+    for (const v of newest(rows, '__t').reverse()) if (v.key) by.set(v.key, v);
     return by;
   }
   _planRows() {
@@ -356,7 +359,7 @@ class ServiceTeamApp extends HTMLElement {
         }
         const verdict = act === 'plan-later' ? 'later' : act === 'plan-drop' ? 'dropped' : 'cleared';
         return this._invoke('defer-increment', { key: planKey(title), title, kind: known?.kind || '',
-          verdict, note: f('note.' + planKey(title)), at }, act + title);
+          verdict, note: f('note.' + planKey(title)), at: atMs() }, act + title);
       }
       case 'add-idea': { if (!f('idea.text')) return this._toast('Write the idea first', true); const ideaId = `idea-${String(this._ideas().length + 1).padStart(3, '0')}`; const r = await this._invoke('add-idea', { ideaId, text: f('idea.text'), at }, act); this._form['idea.text'] = ''; return r; }
       case 'close-bug': { const b = this._bugs().find((x) => x.bugId === arg); if (!b) return; return this._invoke('close-bug', { bugId: b.bugId, title: b.title, status: 'closed', check: b.check || '', runId: b.runId || '', specId: b.specId || '', at: b.at, by: b.by || '', closedAt: at }, act + arg); }
