@@ -9,6 +9,8 @@
     "p-steward-observe-log": "Observe command results",
     "p-steward-health": "Health per observation (the model summarised, with the trend)",
     "p-steward-digest": "The daily digest: the newest health condensed once a day, kept 30 days",
+    "p-steward-lane-report": "The lane report: the newest lane measurement as a markdown table a person reads, kept 10",
+    "p-steward-lane-report-cmd": "Lane report commands",
     "p-steward-lanes": "One row per lane per observation",
     "p-steward-map": "The model map: nets, places, lanes and their kinds, measured",
     "p-steward-budget": "The daily budget: spent, remaining, exhausted",
@@ -144,6 +146,69 @@
         "recentErrors": "${health.data.recentErrors}",
         "summary": "${health.data.summary}",
         "text": "Daily digest of ${health.data.at}: ${health.data.summary}; cost 24h ${health.data.costUsd24h} USD; executor ${health.data.executor}"
+      }
+    },
+    {
+      "id": "t-steward-lane-report-cmd",
+      "kind": "command",
+      "label": "Render the newest lane measurement as a table",
+      "description": "steward-lane-report reads the rows of the newest p-steward-lanes observation and writes one lane-report token holding a markdown table, so the person reads the lanes instead of querying them. It measures nothing itself and touches no other place.",
+      "reads": {
+        "input": {
+          "place": "p-steward-lane-report-cmd",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": true
+        }
+      },
+      "writes": {
+        "report": {
+          "place": "p-steward-lane-report",
+          "retain": 10
+        }
+      },
+      "command": {
+        "timeoutMs": 120000
+      }
+    },
+    {
+      "id": "t-steward-lane-report-daily",
+      "kind": "map",
+      "label": "Report the lanes (daily)",
+      "description": "Every morning at 06:10 Europe/Berlin, ten minutes after the digest, it reads the newest health token without consuming it and files one request for the lane report. The health read is the lane's preset and its guard: with no observation yet, nothing fires and no empty report is written.",
+      "schedule": {
+        "type": "cron",
+        "cron": "0 10 6 * * *",
+        "timezone": "Europe/Berlin"
+      },
+      "reads": {
+        "health": {
+          "place": "p-steward-health",
+          "arcql": "FROM $ ORDER BY $.at DESC LIMIT 1",
+          "consume": false
+        }
+      },
+      "writes": {
+        "cmd": "p-steward-lane-report-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "lane-report-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "lane-report",
+        "observationId": "${health.data.observationId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "steward-lane-report",
+          "argv": [
+            "report"
+          ],
+          "env": {
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 120000
+        }
       }
     }
   ]

@@ -1,7 +1,7 @@
 {
   "name": "steward",
   "displayName": "Steward",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Drive the Steward: a self-improving net that measures the model it lives in, proposes one bounded change at a time, and lets a headless coder apply it as a new pack version once you approve. Set the goal and the autonomy level, answer its questions, approve or reject specs, roll back a release, pause it. The configuration tab is always here.",
   "author": "AgenticNetOS",
   "tags": [

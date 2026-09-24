@@ -1,9 +1,39 @@
 {
   "cases": [
-    {"name": "scripts registered", "check": "the target model's local tool catalog contains steward-infra, steward-observe, steward-context, steward-gate, steward-apply, steward-verify, steward-release and steward-brain", "why": "command lanes invoke by toolId, resolved per model; a missing entry fails at fire time"},
-    {"name": "charter seeded once", "check": "p-steward-charter holds one token with charterId steward; a reinstall does not add a second", "why": "seeds are templates; a place that already holds a token keeps it"},
-    {"name": "the person is asked first", "check": "after install and one observe, p-steward-prompts holds a prompt in goal mode and nothing else moved", "why": "every iteration ends in a question; with an empty goal the first one asks for it"},
-    {"name": "the gate refuses the protected set", "check": "a spec whose touches name t-steward-gate-cmd lands in p-steward-refused with a reason, never in p-steward-decisions", "why": "the Steward improves every net except the ones that govern it"},
-    {"name": "a bad version rolls back", "check": "a spec whose verification fails leaves the model on the previous pack version and the run marked rolled-back", "why": "every change is a pack version and the previous one is the rollback"}
+    {
+      "name": "scripts registered",
+      "check": "the target model's local tool catalog contains steward-infra, steward-observe, steward-context, steward-gate, steward-apply, steward-verify, steward-release, steward-brain and steward-lane-report",
+      "why": "command lanes invoke by toolId, resolved per model; a missing entry fails at fire time"
+    },
+    {
+      "name": "charter seeded once",
+      "check": "p-steward-charter holds one token with charterId steward; a reinstall does not add a second",
+      "why": "seeds are templates; a place that already holds a token keeps it"
+    },
+    {
+      "name": "the person is asked first",
+      "check": "after install and one observe, p-steward-prompts holds a prompt in goal mode and nothing else moved",
+      "why": "every iteration ends in a question; with an empty goal the first one asks for it"
+    },
+    {
+      "name": "the lane report lanes are running",
+      "check": "after install, t-steward-lane-report-cmd and t-steward-lane-report-daily are RUNNING or DEPLOYED and neither is in ERROR; t-steward-lane-report-daily is scheduled '0 10 6 * * *' Europe/Berlin (06:10, ten minutes after the digest)",
+      "why": "a lane that is not running looks installed and never fires; the daily request is the only thing that reaches the report without a person"
+    },
+    {
+      "name": "a request renders the newest observation",
+      "check": "writing {toolId: steward-lane-report, argv: [report], env: {MODEL_ID: steward}} as a command token to p-steward-lane-report-cmd makes t-steward-lane-report-cmd fire and leaves one token in p-steward-lane-report with kind 'lane-report', a non-empty markdown table and a lanes array whose entries match one row each of the newest p-steward-lanes observation; p-steward-lane-report never holds more than 10 tokens",
+      "why": "the report must be exactly what steward-observe measured, and a place a lane writes daily has to stay bounded"
+    },
+    {
+      "name": "the gate refuses the protected set",
+      "check": "a spec whose touches name t-steward-gate-cmd lands in p-steward-refused with a reason, never in p-steward-decisions",
+      "why": "the Steward improves every net except the ones that govern it"
+    },
+    {
+      "name": "a bad version rolls back",
+      "check": "a spec whose verification fails leaves the model on the previous pack version and the run marked rolled-back",
+      "why": "every change is a pack version and the previous one is the rollback"
+    }
   ]
 }
