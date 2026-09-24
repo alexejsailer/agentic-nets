@@ -304,11 +304,12 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Count tokens in a place',
       description:
-        'How many tokens a place holds, without returning any of them. query_tokens had to ship token DATA just to answer "how many", which is the wrong trade for a place holding hundreds of large tokens. Pass arcql to count a subset (same grammar as query_tokens). Read-only, so it works in readonly mode.',
+        'How many tokens a place holds, without returning any of them. query_tokens had to ship token DATA just to answer "how many", which is the wrong trade for a place holding hundreds of large tokens. Pass arcql to count a subset (same grammar as query_tokens), or groupBy to get one count per distinct value of a field — "how many per status / per stage / per host" in ONE call instead of a query per value or a client-side tally over shipped rows. Read-only, so it works in readonly mode.',
       inputSchema: {
         place: z.string().optional().describe('Runtime place id'),
         placeId: z.string().optional().describe('Alias of place — query_tokens and count_tokens accept either'),
         arcql: z.string().optional().describe('Optional selector; default counts every token'),
+        groupBy: z.string().optional().describe('Token field to group the count by (e.g. "status"). Returns groups sorted by count, plus a "(absent)" group for tokens without the field'),
         ...modelParam,
       },
     },
@@ -317,17 +318,35 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       if (!requested) throw new Error('count_tokens needs `place` (or its alias `placeId`)');
       const placeId = resolveMemoryPlace(requested);
       const arcql = String(args.arcql ?? 'FROM $').trim();
+      const groupBy = args.groupBy ? String(args.groupBy).trim() : '';
       // maxValueLength:1 keeps the wire payload to a stub per token — the count is the answer,
-      // the values are not.
+      // the values are not. Grouping needs the grouped field itself, so project ONLY that one:
+      // still a stub per token, and the tally happens here rather than in the caller.
       const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
         placePath: placePath(placeId),
         query: arcql,
-        maxValueLength: 1,
+        ...(groupBy ? { fields: [groupBy], maxValueLength: 0 } : { maxValueLength: 1 }),
       });
       if (!res.success) throw new Error(res.error ?? 'QUERY_TOKENS failed');
       const raw: any = res.data ?? {};
       const tokens: any[] = Array.isArray(raw) ? raw : (raw.results ?? raw.tokens ?? []);
-      return { place: placeId, arcql, count: tokens.length };
+      if (!groupBy) return { place: placeId, arcql, count: tokens.length };
+      const tally = new Map<string, number>();
+      for (const t of tokens) {
+        const src = t?.data && Object.keys(t.data).length ? t.data : (t?.properties ?? t ?? {});
+        const value = (src as any)?.[groupBy];
+        const key = value === undefined || value === null || value === '' ? '(absent)' : String(value);
+        tally.set(key, (tally.get(key) ?? 0) + 1);
+      }
+      return {
+        place: placeId,
+        arcql,
+        groupBy,
+        count: tokens.length,
+        groups: [...tally.entries()]
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+      };
     }),
   );
 
@@ -336,7 +355,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Delete tokens matched by an ArcQL query',
       description:
-        'Query a place and delete the matched token ids in one bounded call. arcql is mandatory (there is no implicit full-place drain); max defaults to 100 and cannot exceed 100. Returns exact ids and per-id failures.',
+        'Query a place and delete the matched token ids in one bounded call. arcql is mandatory (there is no implicit full-place drain); max defaults to 100 and cannot exceed 100. Returns exact ids and per-id failures, plus `matched` (the WHOLE match set, not the capped slice), `remaining` and `complete` — check `complete` before treating a place as cleared, or call again until it is true.',
       inputSchema: {
         place: z.string().describe('Runtime place id (e.g. p-inbox)'),
         arcql: z.string().min(1).describe('Required ArcQL selector, e.g. FROM $ WHERE $.status=="obsolete"'),
@@ -359,7 +378,13 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       });
       if (!query.success) throw new Error(query.error ?? 'QUERY_TOKENS failed');
       const raw: any = query.data ?? {};
-      const tokens: any[] = (Array.isArray(raw) ? raw : (raw.results ?? raw.tokens ?? [])).slice(0, max);
+      // Count the WHOLE match set before the cap cuts into it. Reporting the capped count as
+      // `matched` is what made `{deleted: 100}` indistinguishable from "done": an acceptance gate
+      // cleared five library places, hit the cap, reported success, and left 5 snapshots, 13 claims
+      // and 3 audits behind — the next run then answered from those stale tokens and printed
+      // `problems: 0`. A gate that can pass on stale data is worse than no gate.
+      const matchedAll: any[] = Array.isArray(raw) ? raw : (raw.results ?? raw.tokens ?? []);
+      const tokens: any[] = matchedAll.slice(0, max);
       // A leased token is held by an IN-FLIGHT fire: deleting it does not stop that work, it
       // just makes the fire's consumption fail afterwards (docs/leases — and exactly the
       // operator mistake that motivated this guard). Skip them unless force:true.
@@ -385,15 +410,26 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         if (result.success) deleted.push(id);
         else failures.push({ id, error: result.error ?? 'DELETE_TOKEN failed' });
       }
+      const remaining = matchedAll.length - deleted.length;
       return {
         place: placeId,
-        matched: tokens.length,
+        matched: matchedAll.length,
         deleted: deleted.length,
+        remaining,
+        complete: remaining === 0,
+        ...(remaining > 0
+          ? {
+            capped: matchedAll.length > max,
+            note: `${remaining} matched token(s) were NOT deleted (cap ${max} per call${skippedLeased.length ? `, ${skippedLeased.length} leased` : ''}${failures.length ? `, ${failures.length} failed` : ''}) — call again until complete:true, or use clear_place for a whole-place reset in one batch`,
+          }
+          : {}),
         ids: deleted,
         ...(skippedLeased.length
           ? { skippedLeased, leasedNote: 'held by in-flight fires — stop_transition releases leases cleanly ONLY for a dead/wedged lane (a slow fire keeps a healthy lease; stopping it mid-fire invites a double-claim); pass force:true only if you accept breaking the holder\u2019s consumption' }
           : {}),
-        ...(tokens.length !== ids.length ? { missingIdCount: tokens.length - ids.length } : {}),
+        ...(tokens.length !== ids.length && tokens.length - ids.length !== skippedLeased.length
+          ? { missingIdCount: tokens.length - ids.length - skippedLeased.length }
+          : {}),
         ...(failures.length ? { failures } : {}),
       };
     }),

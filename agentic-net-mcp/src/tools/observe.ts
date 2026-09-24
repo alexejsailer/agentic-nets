@@ -210,6 +210,103 @@ export function eventStories(events: any[], includeMutations = false): any[] {
     .sort((a, b) => Number(b.lastSeq ?? 0) - Number(a.lastSeq ?? 0));
 }
 
+const PAYLOAD_HINT = 'compact view — pass includePayloads:true for event steps and mutation EventBlocks';
+
+/**
+ * Say plainly whether a blob read returned the whole text. The store answers with a `truncated`
+ * flag that is easy to miss inside a payload; `complete` and `returnedChars` are not. Measured
+ * failure this closes: a 23,426-byte artifact came back as 4,676 characters and parsed as valid
+ * JSON right up to the point where a key was missing.
+ */
+export function withCompleteness(payload: any, cap: number): any {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  const text = typeof payload.text === 'string' ? payload.text
+    : typeof payload.content === 'string' ? payload.content : null;
+  const flagged = payload.truncated === true || payload.truncated === 'true';
+  const atCap = text != null && cap > 0 && text.length >= cap;
+  const complete = !(flagged || atCap);
+  return {
+    ...payload,
+    ...(text != null ? { returnedChars: text.length } : {}),
+    ...(cap > 0 ? { maxLength: cap } : {}),
+    complete,
+    ...(complete ? {} : {
+      truncated: true,
+      note: `text was cut at ${cap} characters — raise maxLength, or pass searchFor to fetch only the relevant paragraphs; do NOT parse this as whole JSON`,
+    }),
+  };
+}
+
+/**
+ * Field names whose string value is EXACTLY `cap` characters long — i.e. cut by the cap rather
+ * than merely short. Master truncates values with no marker, so length is the only evidence left.
+ */
+export function fieldsAtLength(rows: any, cap: number): string[] {
+  if (!Array.isArray(rows) || cap <= 0) return [];
+  const hit = new Set<string>();
+  for (const row of rows) {
+    const src = row && typeof row === 'object'
+      ? (row.data && Object.keys(row.data).length ? row.data : (row.properties ?? row))
+      : null;
+    if (!src || typeof src !== 'object') continue;
+    for (const [key, value] of Object.entries(src)) {
+      if (typeof value === 'string' && value.length === cap) hit.add(key);
+    }
+  }
+  return [...hit].sort();
+}
+
+/** How many durable mutations the journal answered with, without carrying them. */
+function journalCount(journal: any): number {
+  const rows = journal?.events ?? journal?.mutations ?? journal?.results ?? journal;
+  return Array.isArray(rows) ? rows.length : 0;
+}
+
+/** First 200 characters of whatever this story says went wrong, and the class if one is named. */
+function errorExcerpt(steps: any[]): { errorClass?: string; error?: string } {
+  const bad = [...steps].reverse().find((e: any) => String(e?.status ?? '').toLowerCase() === 'error');
+  if (!bad) return {};
+  const text = String(bad?.summary ?? bad?.attributes?.error ?? bad?.attributes?.message ?? '').trim();
+  const cls = bad?.attributes?.errorClass ?? bad?.attributes?.failureClass;
+  return {
+    ...(cls ? { errorClass: String(cls) } : {}),
+    ...(text ? { error: text.length > 200 ? `${text.slice(0, 200)}…` : text } : {}),
+  };
+}
+
+/**
+ * One line per fire: outcome, duration, error class, first 200 characters of any error.
+ *
+ * `steps` carries every event of a fire, and for a command lane that includes the complete stdout
+ * — twice, once as `parsedStdout` and once inside `batchResults`. Measured: one `transition_history`
+ * call with limit 6 spent thousands of tokens of context to answer "how long does this stage take".
+ * In an agent-operated system context IS the budget, so compactness is the default and payloads are
+ * asked for (`includePayloads: true`).
+ */
+export function compactStories(stories: any[]): any[] {
+  return stories.map((s) => {
+    const started = s.startedAt ? Date.parse(s.startedAt) : NaN;
+    const finished = s.finishedAt ? Date.parse(s.finishedAt) : NaN;
+    const steps: any[] = Array.isArray(s.steps) ? s.steps : [];
+    return {
+      correlationId: s.correlationId,
+      firstSeq: s.firstSeq,
+      lastSeq: s.lastSeq,
+      startedAt: s.startedAt,
+      finishedAt: s.finishedAt,
+      ...(Number.isFinite(started) && Number.isFinite(finished)
+        ? { durationMs: Math.max(0, finished - started) }
+        : {}),
+      outcome: s.outcome,
+      headline: typeof s.headline === 'string' && s.headline.length > 200
+        ? `${s.headline.slice(0, 200)}…`
+        : s.headline,
+      stepCount: steps.length,
+      ...errorExcerpt(steps),
+    };
+  });
+}
+
 export function registerObserveTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
   const allowlist = createAllowlistStoreAt(config.allowlistPath, config.persistAllowlist);
@@ -396,6 +493,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         return {
           place,
           resultCount: tokens.length,
+          // Silence must never read as success: a caller that does not look at `truncated` still
+          // sees `complete`, and every limit in this server answers with it.
+          complete: !state.truncated,
           results,
           ...(leases.leasedCount ? { leasedCount: leases.leasedCount, leasedNote: LEASED_NOTE } : {}),
           ...(state.truncated
@@ -404,11 +504,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         };
       }
       const placePath = place.includes('/') ? place : `root/workspace/places/${place}`;
+      // Send the cap EXPLICITLY, always. Master's own default is 500 and it shortens a value with
+      // no marker at all, so an implicit cap is a silent cut: at least this way the number that did
+      // the cutting is in the response, and a value sitting exactly on it can be flagged below.
+      const valueCap = Math.max(0, Number(args.maxValueLength ?? 500));
       const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
         placePath,
         query: args.arcql ?? 'FROM $ LIMIT 100',
         ...(args.fields ? { fields: args.fields } : {}),
-        ...(args.maxValueLength != null ? { maxValueLength: args.maxValueLength } : {}),
+        maxValueLength: valueCap,
       });
       if (!res.success) throw new Error(res.error ?? 'QUERY_TOKENS failed');
       const payload: any = dedupeTokenPayload(res.data, args.fields as string[] | undefined);
@@ -419,6 +523,16 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           payload.leasedCount = leases.leasedCount;
           payload.leasedNote = LEASED_NOTE;
         }
+      }
+      // A string whose length is exactly the cap was cut by it; a shorter one was not. Naming the
+      // fields is what makes this actionable — the failure this prevents is a truncated JSON string
+      // that still parses, right up to the key that is missing.
+      const atCap = valueCap > 0 ? fieldsAtLength(payload?.results, valueCap) : [];
+      payload.valueCap = valueCap === 0 ? 'uncapped' : valueCap;
+      payload.complete = atCap.length === 0;
+      if (atCap.length) {
+        payload.truncatedFields = atCap;
+        payload.note = `values in ${atCap.join(', ')} are exactly ${valueCap} characters and were cut by maxValueLength — re-query those with maxValueLength:0`;
       }
       return payload;
     }),
@@ -540,17 +654,19 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Joined transition execution history',
       description:
-        'Join operational Master events with durable Node mutations for one transition. correlationId/fireId metadata connects a console story to the exact mutation EventBlocks.',
+        'Join operational Master events with durable Node mutations for one transition. correlationId/fireId metadata connects a console story to the exact mutation EventBlocks. COMPACT BY DEFAULT: one line per fire (outcome, durationMs, errorClass, first 200 chars of any error) and mutation counts only — enough to answer "how long does this stage take" or "what failed" without spending context on stdout. Pass includePayloads:true for the full event steps and mutation EventBlocks (a command lane repeats its whole stdout there, once as parsedStdout and once inside batchResults).',
       inputSchema: {
         transitionId: z.string(),
         limit: z.number().optional().describe('Default 100, capped at 200 per history'),
-        includeEvents: z.boolean().optional(),
+        includePayloads: z.boolean().optional().describe('Include full event steps and mutation payloads (default false — see the compact contract above)'),
+        includeEvents: z.boolean().optional().describe('Journal EventBlocks. Ignored unless includePayloads is true, which is what carries them'),
         focus: z.enum(['all', 'failures']).optional().describe("failures: latest correlated failure story + error events + (rw) master binding diagnosis — use instead of guessing from a generic 'command reported failure' line"),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'transition_history', mutates: false }, async (model, args) => {
       const limit = Math.min(200, Math.max(1, Number(args.limit ?? 100)));
+      const withPayloads = args.includePayloads === true;
       const [consoleResponse, journal] = await Promise.all([
         ctx.client.masterApi('GET', `/event-line/${model}`, undefined, {
           // free-text q is a SUBSTRING match: 't-build' would pull 't-build-2' stories into
@@ -559,7 +675,9 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         }),
         ctx.client.masterApi('GET', `/models/${model}/event-history`, undefined, {
           transitionId: String(args.transitionId), limit: String(limit),
-          includeEvents: String(args.includeEvents !== false),
+          // The journal's EventBlocks ARE the payloads: asking for them is what makes this call
+          // expensive, so compact mode never does.
+          includeEvents: String(withPayloads && args.includeEvents !== false),
         }),
       ]);
       const live: any = consoleResponse;
@@ -581,26 +699,35 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
           : await (ctx.master as any).diagnoseTransition(args.transitionId, model).catch((error: any) => ({
               unavailable: true, error: error?.message ?? String(error),
             }));
+        const failureStory = eventStories(related, true)[0] ?? null;
         return {
           modelId: model,
           transitionId: args.transitionId,
+          // The latest error event itself stays whole even in compact mode: it is one event, and
+          // it is the answer to "what broke".
           latestError: errors[0] ?? null,
           errorCountInWindow: errors.length,
-          latestFailureStory: eventStories(related, true)[0] ?? null,
-          committedMutations: journal,
+          latestFailureStory: withPayloads || !failureStory
+            ? failureStory
+            : compactStories([failureStory])[0],
+          ...(withPayloads ? { committedMutations: journal } : { mutationCount: journalCount(journal) }),
           diagnosis,
           cursor: live?.cursor,
+          ...(withPayloads ? {} : { payloads: PAYLOAD_HINT }),
         };
       }
+      const stories = eventStories(exact, true);
       return {
         modelId: model,
         transitionId: args.transitionId,
         console: {
           cursor: live?.cursor,
-          stories: eventStories(exact, true),
+          fires: stories.length,
+          stories: withPayloads ? stories : compactStories(stories),
           nextBeforeSeq: live?.nextBeforeSeq,
         },
-        mutations: journal,
+        ...(withPayloads ? { mutations: journal } : { mutationCount: journalCount(journal) }),
+        ...(withPayloads ? {} : { payloads: PAYLOAD_HINT }),
       };
     }),
   );
@@ -1599,11 +1726,11 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       const locator = String(args.blobUrn).trim();
       const path = '/blobs/' + locator.split('/').map(encodeURIComponent).join('/');
       try {
-        return await ctx.client.masterApi('GET', path, undefined, {
+        return withCompleteness(await ctx.client.masterApi('GET', path, undefined, {
           format: 'json',
           ...(args.maxLength != null ? { maxLength: String(args.maxLength) } : {}),
           ...(args.searchFor ? { searchFor: args.searchFor } : {}),
-        });
+        }), Number(args.maxLength ?? 4000));
       } catch (e: any) {
         const status = Number(e?.status ?? e?.statusCode);
         // 404 with our error shape means the blob is missing; a bare 404/405 means no endpoint.
@@ -1616,7 +1743,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         ...(args.searchFor ? { searchFor: args.searchFor } : {}),
       });
       if (!result.success) throw new Error(result.error ?? 'READ_BLOB_TEXT failed');
-      return result.data;
+      return withCompleteness(result.data, Number(args.maxLength ?? 4000));
     }),
   );
 
