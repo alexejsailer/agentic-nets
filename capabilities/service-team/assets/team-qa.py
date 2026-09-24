@@ -919,8 +919,28 @@ def verify(argv):
         covered = any(any(n.split(".")[0] in f for f in changed_tests) for n in names) if names else False
         status = "covered" if covered else ("suites-pass" if suites["ok"] else "unverified")
         criteria.append({"id": a.get("id"), "then": str(a.get("then", ""))[:200], "check": check[:200], "status": status})
-    verdict = "pass" if build["ok"] and suites["ok"] and not outside else "fail"
+    # A narrowed test command (a -Dtest filter, a single suite) can pass while running nothing that
+    # touches this change. Measure that instead of trusting a green suite: if the acceptance criteria
+    # name tests, at least one of them has to be reachable by the command that just ran.
+    named = []
+    for a_ in [x if isinstance(x, dict) else as_dict(x) for x in as_list(acc.get("criteria"))]:
+        named += re.findall(r"[A-Za-z0-9_]+(?:Test|Tests|IT)\b", str(a_.get("check", "")))
+    named += [os.path.basename(str(t)).split(".")[0] for t in as_list(acc.get("tests")) if "test" in str(t).lower()]
+    named = sorted({n for n in named if n})
+    cmd_txt = str(c.get("testCommand") or "")
+    filt = re.search(r"-Dtest=['\"]?([^'\" ]+)", cmd_txt)
+    inconclusive = ""
+    if named and filt:
+        pats = [p_.strip() for p_ in filt.group(1).split(",") if p_.strip()]
+        import fnmatch
+        if not any(fnmatch.fnmatch(n, p_) for n in named for p_ in pats):
+            inconclusive = ("the test command filters on %s, which matches none of this spec's tests (%s), so a green "
+                            "suite proves nothing about this change" % (filt.group(1), ", ".join(named[:4])))
+
+    verdict = "pass" if build["ok"] and suites["ok"] and not outside and not inconclusive else "fail"
     reasons = []
+    if inconclusive:
+        reasons.append(inconclusive)
     if not build["ok"]:
         reasons.append("build failed (rc %s)" % build["rc"])
     if not suites["ok"]:
@@ -930,7 +950,8 @@ def verify(argv):
     ver = {"verificationId": "ver-%s" % run_id, "runId": run_id, "specId": r.get("specId"), "branch": branch, "head": head, "verdict": verdict, "at": now(),
            "summary": ("verified: build ok, %s tests, %d file(s) changed%s" % (json.dumps(suites["tests"]), len(files), ("; unplanned: " + ", ".join(unplanned[:6])) if unplanned else "")) if verdict == "pass" else "; ".join(reasons),
            "build": {k: build[k] for k in ("command", "rc", "ok", "durationSec")}, "suites": {k: suites[k] for k in ("command", "rc", "ok", "durationSec", "tests")}, "evidence": [build["tail"][-1200:], suites["tail"][-1500:]],
-           "diff": {"files": files[:60], "outOfScope": outside[:20], "unplanned": unplanned[:20], "changedTests": changed_tests[:20]}, "criteria": criteria}
+           "diff": {"files": files[:60], "outOfScope": outside[:20], "unplanned": unplanned[:20], "changedTests": changed_tests[:20]},
+           "criteria": criteria, "namedTests": named, "inconclusive": inconclusive}
     for t in query(P["verification"], 'FROM $ WHERE $.verificationId == "%s" LIMIT 10' % ver["verificationId"], 10):
         delete_token(P["verification"], t["id"])   # a re-verification replaces the earlier record of the same run
     put_token(P["verification"], ver, name=ver["verificationId"])

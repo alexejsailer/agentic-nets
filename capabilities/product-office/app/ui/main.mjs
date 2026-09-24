@@ -91,6 +91,14 @@ class ProductOfficeApp extends HTMLElement {
   _goalUndefined(c) { return !c.goal || /REPLACE.?ME/i.test(String(c.goal)); }
   _teams() { return newest(props(this._s.teams), 'registeredAt').filter((t) => t.service); }
   _statusOf(service) { return newest(props(this._s.status).filter((s) => s.service === service), 'at')[0] || null; }
+  // teams push rows shaped {service, kind, summary, at, ...}; there is no phase field, so derive one
+  _rowsOf(service) { return newest(props(this._s.status).filter((s) => s.service === service), 'at'); }
+  _newestKind(service, kind) { return this._rowsOf(service).find((r) => r.kind === kind) || null; }
+  _phaseOf(service) {
+    const r = this._statusOf(service); if (!r) return 'no status yet';
+    const P = { provision: 'provisioned', run: 'coding', verification: 'verifying', review: 'in review', release: 'released', spec: 'specifying', audit: 'audited', health: 'health checked', pause: 'paused', resume: 'running' };
+    return (P[r.kind] || r.kind || 'idle') + (String(r.ok ?? '') === 'false' ? ' (failed)' : '');
+  }
   _inbox() { const by = new Map(); for (const i of newest(props(this._s.inbox), 'at').reverse()) if (i.itemId) by.set(i.itemId, i); return [...by.values()].filter((i) => i.status === 'open').sort((a, b) => String(a.at).localeCompare(String(b.at))); }
   _openQuestion() {
     const answered = new Set(props(this._s.responses).map((r) => r.promptId));
@@ -183,9 +191,9 @@ class ProductOfficeApp extends HTMLElement {
   _teamsTab() {
     const teams = this._teams(); const c = this._charter();
     const wanted = arr(c.services).filter((s) => !teams.some((t) => t.service === s));
-    return `<div class="grid">${teams.map((t) => { const s = this._statusOf(t.service); const items = this._inbox().filter((i) => i.service === t.service); return `<div class="card"><h2>${esc(t.service)} <span class="pill">${esc(t.session)}</span> ${s ? `<span class="pill ${String(s.audit || '').startsWith('red') ? 'bad' : 'ok'}">${esc(s.phase || 'idle')}</span>` : '<span class="pill">no status yet</span>'}</h2>
+    return `<div class="grid">${teams.map((t) => { const s = this._statusOf(t.service); const items = this._inbox().filter((i) => i.service === t.service); return `<div class="card"><h2>${esc(t.service)} <span class="pill">${esc(t.session)}</span> ${s ? `<span class="pill ${String(s.ok ?? '') === 'false' ? 'bad' : 'ok'}">${esc(this._phaseOf(t.service))}</span>` : '<span class="pill">no status yet</span>'}</h2>
         <div class="muted">${esc(s?.summary || 'The team has not reported yet.')}</div>
-        <table><tr><th>Iteration</th><td>${esc(s?.iterationId || '')}</td></tr><tr><th>Last release</th><td>${esc(s?.lastRelease || 'none')}</td></tr><tr><th>Audit</th><td>${esc(s?.audit || '')}</td></tr><tr><th>Waiting for you</th><td>${items.length}</td></tr><tr><th>Repository</th><td class="mono">${esc(t.repo || '')}</td></tr></table>
+        <table><tr><th>Iteration</th><td>${esc(s?.iterationId || '')}</td></tr><tr><th>Last release</th><td>${(() => { const r = this._newestKind(t.service, 'release'); return r ? esc((r.specId || r.title || '') + ' · ' + when(r.at)) : 'none'; })()}</td></tr><tr><th>Readiness</th><td>${(() => { const a2 = this._newestKind(t.service, 'audit'); return a2 && a2.score !== undefined ? esc(a2.score + '% · ' + when(a2.at)) : 'not audited'; })()}</td></tr><tr><th>Waiting for you</th><td>${items.length}</td></tr><tr><th>Repository</th><td class="mono">${esc(t.repo || '')}</td></tr></table>
         <div class="row"><a href="${esc(this._teamRoute(t))}">Open the ${esc(t.service)} team app</a></div></div>`; }).join('')}
       ${wanted.length ? `<div class="card"><h2>Services without a team</h2><ul>${wanted.map((s) => `<li>${esc(s)}: install the service-team pack into session <span class="mono">${esc(s)}</span> and provision it; it registers itself here</li>`).join('')}</ul></div>` : ''}
       ${!teams.length && !wanted.length ? '<div class="card"><div class="muted">No teams. List the services in Product, then install a service-team pack per service.</div></div>' : ''}

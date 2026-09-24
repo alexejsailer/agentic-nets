@@ -610,12 +610,31 @@ LANE = "t-office-digest-cmd"
 def digest(argv):
     reason = argv[1] if len(argv) > 1 else "manual"
     teams = [t.get("data") or {} for t in query(P["teams"], "FROM $", 50)]
-    status = {}
+    # Teams push rows shaped {service, kind, summary, at, ...}: there is no "phase" field, so the phase
+    # is derived from the newest row's kind, and release and audit come from the newest row of that kind.
+    by_service = {}
     for t in query(P["status"], "FROM $", 400):
         d = t.get("data") or {}
         s = str(d.get("service", ""))
-        if s and str(d.get("at", "")) >= str(status.get(s, {}).get("at", "")):
-            status[s] = d
+        if s:
+            by_service.setdefault(s, []).append(d)
+    for rows_ in by_service.values():
+        rows_.sort(key=lambda d: str(d.get("at", "")), reverse=True)
+    status = {s: rows_[0] for s, rows_ in by_service.items()}
+
+    PHASE = {"provision": "provisioned", "run": "coding", "verification": "verifying", "review": "in review",
+             "release": "released", "spec": "specifying", "audit": "audited", "health": "health checked",
+             "pause": "paused", "resume": "running"}
+
+    def newest_of(service, kind):
+        return next((d for d in by_service.get(service, []) if str(d.get("kind")) == kind), {})
+
+    def phase_of(service):
+        d = status.get(service) or {}
+        if not d:
+            return "no status"
+        ph = PHASE.get(str(d.get("kind")), str(d.get("kind") or "no status"))
+        return ph + (" (failed)" if str(d.get("ok", "")).lower() == "false" else "")
     inbox = [t.get("data") or {} for t in query(P["inbox"], 'FROM $ WHERE $.status == "open"', 300)]
     inbox.sort(key=lambda i: str(i.get("at", "")))
     day_ago = now()[:10]
@@ -624,8 +643,12 @@ def digest(argv):
         s = str(t.get("service"))
         st = status.get(s, {})
         waiting = [i for i in inbox if str(i.get("service")) == s]
-        row = {"service": s, "phase": st.get("phase", "no status"), "iteration": st.get("iterationId", ""), "lastRelease": st.get("lastRelease", ""), "audit": st.get("audit", ""), "openItems": len(waiting), "summary": str(st.get("summary", ""))[:300], "at": st.get("at", "")}
-        if str(st.get("audit", "")).lower().startswith("red") or str(st.get("verification", "")).lower() == "fail":
+        rel, aud, ver = newest_of(s, "release"), newest_of(s, "audit"), newest_of(s, "verification")
+        row = {"service": s, "phase": phase_of(s), "iteration": st.get("iterationId", ""),
+               "lastRelease": ("%s (%s)" % (str(rel.get("specId") or rel.get("summary", ""))[:60], str(rel.get("at", ""))[:10])) if rel else "",
+               "audit": ("%s%%" % aud.get("score")) if aud.get("score") is not None else "",
+               "openItems": len(waiting), "summary": str(st.get("summary", ""))[:300], "at": st.get("at", "")}
+        if (aud.get("score") is not None and as_int(aud.get("score"), 100) < 100) or str(ver.get("ok", "")).lower() == "false":
             red.append(s)
         rows.append(row)
     oldest = inbox[0] if inbox else None
