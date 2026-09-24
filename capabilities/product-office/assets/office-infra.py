@@ -687,6 +687,8 @@ def register_team(argv):
     for t in query(P["teams"], 'FROM $ WHERE $.service == "%s" LIMIT 5' % service, 5):
         delete_token(P["teams"], t["id"])
     put_token(P["teams"], team, name="team-%s" % service)
+    for t in query(P["inbox"], 'FROM $ WHERE $.service == "%s" AND $.persona == "office" AND $.kind == "info"' % service, 20):
+        delete_token(P["inbox"], t["id"])   # one registration note per team; a re-provision replaces it
     put_token(P["inbox"], {"itemId": "inbox-team-%s-%s" % (service, stamp()), "service": service, "persona": "office", "kind": "info", "title": "Team %s registered (%s); set its charter in the team app and start its first iteration" % (service, team.get("session")),
                            "route": team.get("appRoute", ""), "status": "open", "at": now()}, name="inbox-team-%s" % service)
     journal(LANE, "register-team", "team %s registered (session %s, %d places)" % (service, team.get("session"), len(as_dict(team.get("places")))))

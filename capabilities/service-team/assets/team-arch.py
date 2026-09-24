@@ -847,20 +847,20 @@ def catalog(argv):
         journal(lane(LANE), "catalog", "catalog is current (HEAD %s)" % head[:10])
         return cur
     mods = modules_of(sd)
-    known = {m.get("placeId") for m in as_list(cur.get("modules"))} if cur else set()
+    known = {m.get("placeId") for m in as_list(cur.get("modules"))} if cur and not (argv[1:] and argv[1] == "force") else set()   # force redraws everything
     created, linked, failed = 0, 0, []
     net_id = catalog_net_id()
     for i, m in enumerate(mods):
         if m["placeId"] in known:
             continue
         try:
-            mcp("add_place", {"netId": net_id, "placeId": m["placeId"], "label": "spec: %s" % m["path"], "x": 120 + (i % 6) * 220, "y": 220 + (i // 6) * 140})
+            mcp("add_place", {"netId": net_id, "sessionId": SESSION, "placeId": m["placeId"], "label": "spec: %s" % m["path"], "x": 120 + (i % 6) * 220, "y": 220 + (i // 6) * 140})
             created += 1
         except Exception as e:  # noqa: BLE001
             if "exists" not in str(e).lower():
                 failed.append("%s: %s" % (m["placeId"], str(e)[:100])); continue
         try:
-            mcp("add_transition", {"netId": net_id, "transitionId": "t-%s-spec-has-%s" % (NAMESPACE or "team", slug(m["path"])), "kind": "link", "inputPlace": P["spec_catalog"], "outputPlace": m["placeId"], "label": "contains " + m["path"], "relation": "contains", "start": False, "x": 60 + (i % 6) * 220, "y": 160 + (i // 6) * 140})
+            mcp("add_transition", {"netId": net_id, "sessionId": SESSION, "transitionId": "t-%s-spec-has-%s" % (NAMESPACE or "team", slug(m["path"])), "kind": "link", "inputPlace": P["spec_catalog"], "outputPlace": m["placeId"], "label": "contains " + m["path"], "relation": "contains", "start": False, "x": 60 + (i % 6) * 220, "y": 160 + (i // 6) * 140})
             linked += 1
         except Exception as e:  # noqa: BLE001
             if "exists" not in str(e).lower():
