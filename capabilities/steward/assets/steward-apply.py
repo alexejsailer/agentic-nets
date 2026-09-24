@@ -423,6 +423,26 @@ def remove_lanes(lane_ids):
     return removed
 
 
+def runtime_installed_version():
+    """The pack version the runtime reports for this model's application (empty when unknown)."""
+    try:
+        apps = mcp("application_list", {})
+        for a in as_list(apps.get("applications") if isinstance(apps, dict) else apps):
+            a = as_dict(a) if not isinstance(a, dict) else a
+            if str(a.get("name")) == PACK_NAME and (a.get("version") or a.get("packVersion")):
+                return str(a.get("version") or a.get("packVersion"))
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
+def installed_version():
+    """The installed pack version: the repo record (written by release, rollback and provision),
+    else what the runtime reports."""
+    v = str((repo() or {}).get("installedVersion") or "")
+    return v or runtime_installed_version()
+
+
 def repo():
     return latest(P["repo"], "updatedAt")
 
@@ -735,6 +755,16 @@ def build_prompt(s, c, pack_rel, pack, extra):
     return "\n\n".join(parts)
 
 
+def version_tuple(v):
+    parts = [int(x) for x in re.findall(r"\d+", str(v or ""))[:3]]
+    return tuple(parts + [0] * (3 - len(parts)))
+
+
+def pack_version(pack):
+    m = re.search(r"^version:\s*\"?(\d+\.\d+\.\d+)\"?\s*$", read_text(os.path.join(pack, "capability.yaml"), 20000), re.M)
+    return m.group(1) if m else ""
+
+
 def bump_version(pack):
     cap = os.path.join(pack, "capability.yaml")
     text = read_text(cap, 20000)
@@ -742,7 +772,9 @@ def bump_version(pack):
     if not m:
         raise RuntimeError("capability.yaml has no semantic version")
     old = "%s.%s.%s" % m.groups()
-    new = "%s.%s.%d" % (m.group(1), m.group(2), int(m.group(3)) + 1)
+    # bump from the higher of the clone's and the installed version, so the new version is always above what runs
+    base_v = max(version_tuple(old), version_tuple(installed_version()))
+    new = "%d.%d.%d" % (base_v[0], base_v[1], base_v[2] + 1)
     text = text[:m.start()] + "version: %s" % new + text[m.end():]
     with open(cap, "w", encoding="utf-8") as f:
         f.write(text)
@@ -776,6 +808,16 @@ def apply(spec_id):
         raise RuntimeError("the pack repository has uncommitted changes; refusing to start a run on a dirty tree")
     base = str(rp.get("branch") or c.get("repoBranch") or "main")
     git(["checkout", "-q", base], cwd=root)
+    # the clone must carry the INSTALLED version: a run built from an older checkout publishes a
+    # lower version and the hub refuses it as a downgrade (measured 2026-09-09: spec-004 built
+    # 0.2.1 from a clone at 0.2.0 while 0.3.0 was installed). Pull, then compare; refuse if behind.
+    installed = installed_version()
+    clone_version = pack_version(pack)
+    if installed and version_tuple(clone_version) < version_tuple(installed):
+        git(["pull", "-q", "--ff-only"], cwd=root, check=False)
+        clone_version = pack_version(pack)
+    if installed and version_tuple(clone_version) < version_tuple(installed):
+        raise RuntimeError("the clone is at pack %s but %s is installed: re-provision (pull the repository) before applying %s" % (clone_version, installed, spec_id))
     branch = "steward/%s" % spec_id
     git(["checkout", "-q", "-B", branch, base], cwd=root)
     spec_path = os.path.join(pack, "docs", "specs", "%s.md" % spec_id)

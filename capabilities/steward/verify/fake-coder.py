@@ -49,7 +49,7 @@ def docs_only(title):
 
 def main():
     brief = sys.stdin.read()
-    m = re.search(r"^# (spec-\d+): (.*)$", brief, re.M)
+    m = re.search(r"^# (spec-[\w-]+): (.*)$", brief, re.M)
     spec_id, title = (m.group(1), m.group(2)) if m else ("?", "")
     if "echo lane" in title.lower():
         files = add_echo_lane(); touched = ["t-steward-e2e-echo", "p-steward-e2e-echo"]

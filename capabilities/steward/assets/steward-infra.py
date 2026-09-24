@@ -426,6 +426,26 @@ def remove_lanes(lane_ids):
     return removed
 
 
+def runtime_installed_version():
+    """The pack version the runtime reports for this model's application (empty when unknown)."""
+    try:
+        apps = mcp("application_list", {})
+        for a in as_list(apps.get("applications") if isinstance(apps, dict) else apps):
+            a = as_dict(a) if not isinstance(a, dict) else a
+            if str(a.get("name")) == PACK_NAME and (a.get("version") or a.get("packVersion")):
+                return str(a.get("version") or a.get("packVersion"))
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
+def installed_version():
+    """The installed pack version: the repo record (written by release, rollback and provision),
+    else what the runtime reports."""
+    v = str((repo() or {}).get("installedVersion") or "")
+    return v or runtime_installed_version()
+
+
 def repo():
     return latest(P["repo"], "updatedAt")
 
@@ -746,7 +766,8 @@ def clone(c=None):
     rs = repo_state(c)
     data = replace_token(P["repo"], "repoId", "steward-pack", {
         "repoId": "steward-pack", "remote": url, "branch": branch, "localPath": root, "packDir": rs.get("packDir", ""), "headSha": rs.get("headSha", ""),
-        "packVersion": rs.get("packVersion", ""), "updatedAt": now(), "status": "cloned"}, name="repo-steward-pack")
+        "packVersion": rs.get("packVersion", ""), "installedVersion": runtime_installed_version() or str((repo() or {}).get("installedVersion") or ""),
+        "updatedAt": now(), "status": "cloned"}, name="repo-steward-pack")
     journal(LANE, "clone", "%s the pack repository at %s (%s @ %s, pack version %s)" % ("cloned" if created else "updated", root, branch, rs.get("headSha", "")[:7], rs.get("packVersion")))
     return data
 

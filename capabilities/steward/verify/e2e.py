@@ -252,18 +252,26 @@ def main():
                 print("   created model:", json.dumps(r)[:120])
             if a.model == "steward":
                 raise SystemExit("refusing to run the e2e against the live Steward model; pass --model steward-e2e or another proof model")
-            cleared = 0
+            cleared, reset_errors = 0, []
             for place in ("p-steward-prompts", "p-steward-responses", "p-steward-context", "p-steward-context-cmd", "p-steward-iterate", "p-steward-specs", "p-steward-spec-drafts", "p-steward-gate-cmd",
                           "p-steward-decisions", "p-steward-refused", "p-steward-apply-cmd", "p-steward-runs", "p-steward-verify-cmd", "p-steward-verification", "p-steward-release-cmd", "p-steward-brain-cmd",
                           "p-steward-signals", "p-steward-curation", "p-steward-curations", "p-steward-knowledge", "p-steward-plan", "p-steward-adr", "p-steward-ideas", "p-steward-candidates",
                           "p-steward-health", "p-steward-lanes", "p-steward-map", "p-steward-budget", "p-steward-journal", "p-steward-errors", "p-steward-llm-errors", "p-steward-infra", "p-steward-repo",
                           "p-steward-setup-cmd", "p-steward-observe-cmd", "p-steward-charter", "p-steward-coders", "p-steward-digest", "p-steward-e2e-echo"):
-                try:
-                    r = mcp("clear_place", {"model": a.model, "place": place, "force": True})
-                    cleared += int(r.get("deleted") or r.get("deletedCount") or r.get("count") or 0)
-                except Exception:  # noqa: BLE001
-                    pass
-            print("   reset: %d tokens cleared from the proof model" % cleared)
+                for attempt in range(3):
+                    try:
+                        r = mcp("clear_place", {"model": a.model, "place": place, "force": True})
+                        cleared += int(r.get("deleted") or r.get("deletedCount") or r.get("count") or 0)
+                        break
+                    except Exception as e:  # noqa: BLE001
+                        if attempt == 2:
+                            reset_errors.append("%s: %s" % (place, str(e)[:120]))
+                        time.sleep(5)
+            leftovers = {pl: len(m.query(pl, "FROM $", 5)) for pl in ("p-steward-prompts", "p-steward-charter", "p-steward-repo", "p-steward-health", "p-steward-runs")}
+            leftovers = {k: v for k, v in leftovers.items() if v}
+            print("   reset: %d tokens cleared from the proof model%s" % (cleared, ("; ERRORS: " + "; ".join(reset_errors[:3])) if reset_errors else ""))
+            if leftovers:
+                raise SystemExit("   reset FAILED, the proof model still holds tokens: %s (the runtime may still be starting; retry)" % leftovers)
             art = json.load(open(artifact))
             st, r = api("PUT", "/api/hub/capabilities/steward/versions/%s" % version, art)
             check("publish", st == 200, "PUT %s -> %s" % (version, st))
