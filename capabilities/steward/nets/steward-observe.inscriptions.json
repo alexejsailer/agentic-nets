@@ -135,5 +135,72 @@
         "take": "FIRST"
       }
     }
+  },
+  {
+    "action": {
+      "template": {
+        "at": "${now()}",
+        "contractMisses": "${health.data.contractMisses}",
+        "costUsd24h": "${health.data.costUsd24h}",
+        "digestId": "digest-${now()}",
+        "errorState": "${health.data.errorState}",
+        "executor": "${health.data.executor}",
+        "fireErrors": "${health.data.fireErrors}",
+        "fires": "${health.data.fires}",
+        "kind": "digest",
+        "lanes": "${health.data.lanes}",
+        "llmErrors": "${health.data.llmErrors}",
+        "observationId": "${health.data.observationId}",
+        "observedAt": "${health.data.at}",
+        "overdue": "${health.data.overdue}",
+        "paused": "${health.data.paused}",
+        "period": "daily",
+        "recentErrors": "${health.data.recentErrors}",
+        "running": "${health.data.running}",
+        "stopped": "${health.data.stopped}",
+        "stranded": "${health.data.stranded}",
+        "summary": "${health.data.summary}",
+        "text": "Daily digest of ${health.data.at}: ${health.data.summary}; cost 24h ${health.data.costUsd24h} USD; executor ${health.data.executor}",
+        "trend": "${health.data.trend}"
+      },
+      "type": "map"
+    },
+    "description": "Every morning at 06:00 Europe/Berlin it reads the newest health token without consuming it and writes one compact digest token, so the person reads a day at a glance instead of every observation. Nothing else moves: the observe lanes and their places are untouched.",
+    "emit": [
+      {
+        "from": "@response",
+        "to": "digest"
+      }
+    ],
+    "id": "t-steward-observe-digest",
+    "kind": "map",
+    "label": "Digest the newest health (daily)",
+    "metadata": {
+      "netId": "steward-observe",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "digest": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-digest",
+        "retain": 30
+      }
+    },
+    "presets": {
+      "health": {
+        "arcql": "FROM $ ORDER BY $.at DESC LIMIT 1",
+        "consume": false,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-health",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 0 6 * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
   }
 ]

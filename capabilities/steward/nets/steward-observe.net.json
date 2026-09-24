@@ -8,6 +8,7 @@
     "p-steward-observe-cmd": "Observe commands",
     "p-steward-observe-log": "Observe command results",
     "p-steward-health": "Health per observation (the model summarised, with the trend)",
+    "p-steward-digest": "The daily digest: the newest health condensed once a day, kept 30 days",
     "p-steward-lanes": "One row per lane per observation",
     "p-steward-map": "The model map: nets, places, lanes and their kinds, measured",
     "p-steward-budget": "The daily budget: spent, remaining, exhausted",
@@ -49,6 +50,27 @@
       },
       "emit": [{"from": "@result", "to": "log"}],
       "command": {"timeoutMs": 600000}
+    },
+    {
+      "id": "t-steward-observe-digest",
+      "kind": "map",
+      "label": "Digest the newest health (daily)",
+      "description": "Every morning at 06:00 Europe/Berlin it reads the newest health token without consuming it and writes one compact digest token, so the person reads a day at a glance instead of every observation. Nothing else moves: the observe lanes and their places are untouched.",
+      "schedule": {"type": "cron", "cron": "0 0 6 * * *", "timezone": "Europe/Berlin"},
+      "reads": {
+        "health": {"place": "p-steward-health", "arcql": "FROM $ ORDER BY $.at DESC LIMIT 1", "consume": false}
+      },
+      "writes": {"digest": {"place": "p-steward-digest", "retain": 30}},
+      "template": {
+        "kind": "digest", "digestId": "digest-${now()}", "at": "${now()}", "period": "daily",
+        "observationId": "${health.data.observationId}", "observedAt": "${health.data.at}",
+        "lanes": "${health.data.lanes}", "running": "${health.data.running}", "stopped": "${health.data.stopped}", "errorState": "${health.data.errorState}",
+        "fires": "${health.data.fires}", "fireErrors": "${health.data.fireErrors}", "llmErrors": "${health.data.llmErrors}", "contractMisses": "${health.data.contractMisses}",
+        "stranded": "${health.data.stranded}", "overdue": "${health.data.overdue}", "costUsd24h": "${health.data.costUsd24h}",
+        "paused": "${health.data.paused}", "executor": "${health.data.executor}", "trend": "${health.data.trend}", "recentErrors": "${health.data.recentErrors}",
+        "summary": "${health.data.summary}",
+        "text": "Daily digest of ${health.data.at}: ${health.data.summary}; cost 24h ${health.data.costUsd24h} USD; executor ${health.data.executor}"
+      }
     }
   ]
 }
