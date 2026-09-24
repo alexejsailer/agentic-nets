@@ -84,6 +84,30 @@
         "source": "t-steward-observe-digest",
         "target": "p-steward-digest",
         "weight": 1
+      },
+      "a-steward-observe-15": {
+        "id": "a-steward-observe-15",
+        "source": "p-steward-lane-report-cmd",
+        "target": "t-steward-lane-report-cmd",
+        "weight": 1
+      },
+      "a-steward-observe-16": {
+        "id": "a-steward-observe-16",
+        "source": "t-steward-lane-report-cmd",
+        "target": "p-steward-lane-report",
+        "weight": 1
+      },
+      "a-steward-observe-17": {
+        "id": "a-steward-observe-17",
+        "source": "p-steward-health",
+        "target": "t-steward-lane-report-daily",
+        "weight": 1
+      },
+      "a-steward-observe-18": {
+        "id": "a-steward-observe-18",
+        "source": "t-steward-lane-report-daily",
+        "target": "p-steward-lane-report-cmd",
+        "weight": 1
       }
     },
     "description": "Measurement, no model involved. On the charter's schedule and after every released change a script measures the model the Steward lives in: every lane's status, kind, schedule and recent fires, errors, contract misses, stranded tokens, tokens per place, cost per lane. It writes the health summary, one row per lane, the model map and the budget, and starts an iteration when nothing is waiting for the person.",
@@ -145,6 +169,20 @@
         "x": 320,
         "y": 270
       },
+      "p-steward-lane-report": {
+        "id": "p-steward-lane-report",
+        "label": "The lane report: the newest lane measurement as a markdown table a person reads, kept 10",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-steward-lane-report-cmd": {
+        "id": "p-steward-lane-report-cmd",
+        "label": "Lane report commands",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
       "p-steward-lanes": {
         "id": "p-steward-lanes",
         "label": "One row per lane per observation",
@@ -175,6 +213,18 @@
       }
     },
     "transitions": {
+      "t-steward-lane-report-cmd": {
+        "id": "t-steward-lane-report-cmd",
+        "label": "Render the newest lane measurement as a table",
+        "x": 980,
+        "y": 440
+      },
+      "t-steward-lane-report-daily": {
+        "id": "t-steward-lane-report-daily",
+        "label": "Report the lanes (daily)",
+        "x": 1200,
+        "y": 610
+      },
       "t-steward-observe-cmd": {
         "id": "t-steward-observe-cmd",
         "label": "Observe: lanes, places, errors, cost, map",

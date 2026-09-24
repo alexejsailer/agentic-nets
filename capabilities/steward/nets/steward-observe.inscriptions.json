@@ -207,5 +207,109 @@
       "timezone": "Europe/Berlin",
       "type": "cron"
     }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 120000,
+      "type": "command"
+    },
+    "description": "steward-lane-report reads the rows of the newest p-steward-lanes observation and writes one lane-report token holding a markdown table, so the person reads the lanes instead of querying them. It measures nothing itself and touches no other place.",
+    "emit": [],
+    "id": "t-steward-lane-report-cmd",
+    "kind": "command",
+    "label": "Render the newest lane measurement as a table",
+    "metadata": {
+      "netId": "steward-observe",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "report": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-lane-report",
+        "retain": 10
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-lane-report-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "report"
+          ],
+          "env": {
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 120000,
+          "toolId": "steward-lane-report"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "lane-report-${now()}",
+        "kind": "command",
+        "observationId": "${health.data.observationId}",
+        "stage": "lane-report"
+      },
+      "type": "map"
+    },
+    "description": "Every morning at 06:10 Europe/Berlin, ten minutes after the digest, it reads the newest health token without consuming it and files one request for the lane report. The health read is the lane's preset and its guard: with no observation yet, nothing fires and no empty report is written.",
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-lane-report-daily",
+    "kind": "map",
+    "label": "Report the lanes (daily)",
+    "metadata": {
+      "netId": "steward-observe",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-lane-report-cmd"
+      }
+    },
+    "presets": {
+      "health": {
+        "arcql": "FROM $ ORDER BY $.at DESC LIMIT 1",
+        "consume": false,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-health",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 10 6 * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
   }
 ]
