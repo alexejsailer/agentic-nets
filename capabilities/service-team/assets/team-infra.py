@@ -801,9 +801,10 @@ def health(argv):
     c = cfg()
     root = repo_root(c)
     clone_ok = os.path.isdir(os.path.join(root, ".git"))
+    mcp_state = mcp_ok()
     rec = {"at": now(), "kind": "health", "service": SERVICE, "session": SESSION, "namespace": NAMESPACE, "anchor": _ANCHOR,
            "tools": {"claude": tool_version("claude"), "codex": tool_version("codex"), "git": tool_version("git"), "node": tool_version("node"), "python3": tool_version("python3"), "mvn": tool_version("mvn", "-v")},
-           "mcp": mcp_ok(), "mcpTokenSource": ("file" if os.path.exists(os.path.expanduser("~/.agenticos/desktop/mcp-token")) else "env" if os.environ.get("TEAM_MCP_TOKEN") else "none"),
+           "mcp": mcp_state[0], "mcpDetail": mcp_state[1], "mcpTokenSource": ("file" if os.path.exists(os.path.expanduser("~/.agenticos/desktop/mcp-token")) else "env" if os.environ.get("TEAM_MCP_TOKEN") else "none"),
            "workspaceRepo": os.path.isdir(os.path.join(workspace_repo(c), ".git")), "clone": clone_ok, "cloneHead": head_sha(root) if clone_ok else "",
            "serviceDir": os.path.isdir(service_dir(c)), "registered": bool(registered()), "charterService": str(c.get("service", "")), "goalDefined": goal_defined(c)}
     ok = rec["mcp"] and rec["workspaceRepo"] and rec["clone"] and rec["serviceDir"] and rec["registered"]
