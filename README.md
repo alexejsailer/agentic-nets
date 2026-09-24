@@ -25,15 +25,92 @@ can come from a server model, a local model, or the MCP client you already use.
 **[Watch the 8-minute guided tour](https://youtu.be/hgW11A_7vWY)** ·
 **[Read the documentation](docs/README.md)**
 
-[![Why AI agents need a process runtime](.github/images/intro-video-slide.jpg)](https://www.youtube.com/watch?v=VWm4OCwWnZM)
+## A Product That Develops Itself
 
-**[Why AI agents need a process runtime: Agentic-Nets explained](https://www.youtube.com/watch?v=VWm4OCwWnZM)**,
-the idea in one video.
+**An adaptive interface for coding agents and the graph harness around them.**
 
-[![The Hardened Lane running in Agentic-Nets Studio](docs/book/hardened-lane-live.jpeg)](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)
+[![The Service Team application presenting a verified and reviewed change for the human merge decision](.github/images/product-office-service-team-merge.jpg)](https://alexejsailer.com/2026/09/11/a-product-that-develops-itself-product-office-and-service-teams-on-agentic-nets/)
 
-*A live, read-only process in Studio: explicit intake, validation, AI work,
-quality gates, bounded rework, human escalation, deployment, and verification.*
+*The Service Team application at an explicit control point. The virtual team has
+prepared, implemented, verified, and reviewed a real change to Agentic-Nets.
+The person decides whether to merge it, request changes, or drop the run.*
+
+Previously, [Hermann](https://alexejsailer.com/2026/09/07/hermann-twelve-factor-developer-that-lives-in-a-net/)
+was one virtual developer living in a net. Now Agentic-Nets runs the software
+organization around the coding agent. A Product Office maintains the product
+goal, roadmap, team registry, and shared decision inbox. For each service placed
+under management, a namespaced Service Team provides a virtual Product Owner,
+Architect, QA Engineer, Developer, Brain, and Setup function.
+
+The organization itself is a set of persistently deployed, event-driven
+bipartite nets. Places hold durable requirements, specs, decisions, context,
+evidence, and questions. Transitions perform the work when the required state
+arrives. A coding run can finish; the team, its memory, its schedules, and its
+open decisions remain alive.
+
+The roles form a governed delivery loop:
+
+1. The **Product Owner** measures the code before creating a requirement.
+2. The **Architect** owns the spec, decisions, linked catalog, and exact context
+   pack.
+3. **QA** defines executable acceptance criteria and independently verifies the
+   result.
+4. The **Developer** delegates bounded implementation to a replaceable coding
+   worker. The photographed run used Claude Code with Opus; other Claude Code or
+   Codex profiles can serve the same role.
+5. The **person** remains at explicit control points and decides what may enter
+   the product.
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href=".github/images/product-office-teams.jpg"><img src=".github/images/product-office-teams.jpg" alt="The Product Office application showing the registered node Service Team and services still waiting for a team" /></a><br />
+      <strong>Product Office.</strong> One view over the product goal, roadmap,
+      registered teams, and everything waiting for a person.
+    </td>
+    <td width="50%">
+      <a href=".github/images/product-office-service-team-net.jpg"><img src=".github/images/product-office-service-team-net.jpg" alt="The complete node Service Team as a live Agentic-Nets graph" /></a><br />
+      <strong>Live Service Team.</strong> The same organization in Studio: 54
+      places and 31 lanes across setup, product ownership, architecture, QA,
+      development, and the brain.
+    </td>
+  </tr>
+</table>
+
+Users do not need to operate the Petri-net editor. A Net Application is a
+purpose-built projection and controller over the same live state. A form can
+create structured context, a board can expose work moving between places, and a
+review surface can write the person's decision back as a guarded token. The
+application is not a separate reporting database beside the agents; it is their
+human interface.
+
+The harness can evolve through explicit authority. An operator or appropriately
+scoped runtime agent can add a place, install a Tool-Net, or stop and replace one
+lane while unrelated lanes continue. The coding worker shown above deliberately
+has no such authority: it receives one approved context pack, works in a scoped
+repository clone, commits to a branch, and never pushes or merges. Adaptable does
+not mean self-authorizing.
+
+The nets, inscriptions, scripts, dependencies, manifest, and application can
+travel together as a versioned NetHub capability. That lets another product
+install the Product Office, add Service Teams, or extend a persona with a new
+Tool-Net. Bespoke interfaces evolve through intentional package updates, while
+the durable runtime state remains in place.
+
+The first live team used Agentic-Nets to prepare a tested and reviewed change to
+Agentic-Nets itself. The next loop is governed self-improvement: use retained
+event and outcome history to propose changes to the harness, then put those
+changes through the same spec, acceptance, verification, review, and human
+decision chain. The platform never needs to rewrite itself in secret.
+
+**The run ended. The organization did not.**
+
+Read the full case study:
+**[A Product That Develops Itself: Product Office and Service Teams on
+Agentic-Nets](https://alexejsailer.com/2026/09/11/a-product-that-develops-itself-product-office-and-service-teams-on-agentic-nets/)**.
+
+For the runtime fundamentals, watch
+**[Why AI agents need a process runtime: Agentic-Nets explained](https://www.youtube.com/watch?v=VWm4OCwWnZM)**.
 
 ## Why Agentic-Nets
 
