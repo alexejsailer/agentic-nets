@@ -24,6 +24,7 @@ charter names. Secrets never enter a token: the MCP token reaches the lanes from
 STEWARD_MCP_TOKEN; on a Desktop it is also readable from the app's own token file.
 """
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -73,7 +74,7 @@ _NAMES = ["charter", "coders", "setup-cmd", "setup-log", "infra", "repo", "journ
           "arch-cmd", "arch-log", "specs", "spec-drafts", "spec-catalog", "adr", "arch", "briefs",
           "qa-cmd", "qa-log", "acceptance", "verification", "scorecard", "bugs",
           "dev-cmd", "dev-log", "decisions", "refused", "runs", "reviews",
-          "brain-cmd", "brain-log", "signals", "curation", "curations", "knowledge", "plan", "ideas", "status"]
+          "brain-cmd", "brain-log", "signals", "curation", "curations", "knowledge", "plan", "backlog", "ideas", "status"]
 P = {n.replace("-", "_"): PREFIX + n for n in _NAMES}
 # the product office's places are model-global and never namespaced
 OFFICE = {"charter": "p-product-charter", "coders": "p-product-coders", "teams": "p-product-teams", "inbox": "p-product-inbox", "status": "p-product-status",
@@ -758,6 +759,25 @@ def push_status(kind, summary, **fields):
     keep_last(P["status"], "at", 60)
     put_token(OFFICE["status"], dict(row), name="status-%s-%s-%s" % (SERVICE, kind, stamp()))
     return row
+
+
+def plan_key(title):
+    """A stable key for a plan increment. The brain rewrites the whole plan after every merge and
+    renumbers the increments, so inc-1 means something different each time; the person's verdict has to
+    key off the wording instead."""
+    t = re.sub(r"[^a-z0-9]+", " ", str(title or "").lower()).strip()
+    return hashlib.sha1(t.encode("utf-8")).hexdigest()[:12] if t else ""
+
+
+def backlog_verdicts():
+    """What the person already decided about plan increments: key -> the newest verdict token."""
+    out = {}
+    for t in query(P["backlog"], "FROM $", 300):
+        d = t.get("data") or {}
+        k = str(d.get("key") or "")
+        if k and str(d.get("at", "")) >= str(out.get(k, {}).get("at", "")):
+            out[k] = d
+    return out
 
 
 def by_id(place, field, value):

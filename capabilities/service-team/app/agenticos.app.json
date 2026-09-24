@@ -165,6 +165,12 @@
         "description": "The team's plan (brain)."
       },
       {
+        "role": "backlog",
+        "placeId": "p-team-backlog",
+        "required": true,
+        "description": "Plan increments the person deferred or rejected."
+      },
+      {
         "role": "journal",
         "placeId": "p-team-journal",
         "required": true,
@@ -664,6 +670,53 @@
         }
       },
       {
+        "name": "defer-increment",
+        "description": "Record what the person decided about a plan increment: later (keep it for another day) or dropped (stop proposing it).",
+        "targetRole": "backlog",
+        "defaults": {
+          "by": "person"
+        },
+        "guard": {
+          "role": "backlog",
+          "matchKey": "key",
+          "exists": true,
+          "replace": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "key",
+            "title",
+            "verdict",
+            "at"
+          ],
+          "properties": {
+            "key": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "verdict": {
+              "type": "string",
+              "description": "later | dropped | cleared"
+            },
+            "note": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
         "name": "add-idea",
         "description": "Give the team an idea.",
         "targetRole": "ideas",
@@ -977,7 +1030,8 @@
         "arch-cmd",
         "qa-cmd",
         "dev-cmd",
-        "brain-cmd"
+        "brain-cmd",
+        "backlog"
       ],
       "watchStores": [
         "prompts",
@@ -994,7 +1048,8 @@
         "scorecard",
         "infra",
         "state",
-        "spec-catalog"
+        "spec-catalog",
+        "backlog"
       ],
       "actions": [
         "set-charter",
@@ -1016,7 +1071,8 @@
         "resume",
         "measure-state",
         "build-catalog",
-        "audit-now"
+        "audit-now",
+        "defer-increment"
       ]
     }
   }

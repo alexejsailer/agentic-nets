@@ -357,6 +357,10 @@
         "host": "agenticnets-product@agentic-net-node:8080",
         "placeId": "p-team-adr"
       },
+      "backlog": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-backlog"
+      },
       "iterate": {
         "host": "agenticnets-product@agentic-net-node:8080",
         "placeId": "p-team-iterate"

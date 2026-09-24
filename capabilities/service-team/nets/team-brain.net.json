@@ -21,7 +21,8 @@
     "p-team-llm-errors": "Answers that missed their contract",
     "p-team-journal": "Journal",
     "p-product-inbox": "Product office inbox",
-    "p-product-status": "Product office status rows"
+    "p-product-status": "Product office status rows",
+    "p-team-backlog": "Plan increments the person deferred or rejected, so the brain stops re-proposing them"
   },
   "transitions": [
     {
@@ -258,7 +259,8 @@
         "iterate": "p-team-iterate",
         "journal": "p-team-journal",
         "office_inbox": "p-product-inbox",
-        "office_status": "p-product-status"
+        "office_status": "p-product-status",
+        "backlog": "p-team-backlog"
       },
       "emit": [
         {

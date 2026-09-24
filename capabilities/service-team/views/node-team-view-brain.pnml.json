@@ -10,6 +10,13 @@
         "x": 1510.0,
         "y": 440.0
       },
+      "p-node-team-backlog": {
+        "id": "p-node-team-backlog",
+        "label": "Plan increments the person deferred or rejected, so the brain stops re-proposing them",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 240.0
+      },
       "p-node-team-brain-cmd": {
         "id": "p-node-team-brain-cmd",
         "label": "brain commands",
@@ -50,7 +57,7 @@
         "label": "iteration triggers",
         "tokens": 0,
         "x": 1685.0,
-        "y": 290.0
+        "y": 340.0
       },
       "p-node-team-journal": {
         "id": "p-node-team-journal",
@@ -64,7 +71,7 @@
         "label": "knowledge facts",
         "tokens": 0,
         "x": 1685.0,
-        "y": 390.0
+        "y": 440.0
       },
       "p-node-team-llm-errors": {
         "id": "p-node-team-llm-errors",
@@ -78,7 +85,7 @@
         "label": "the plan",
         "tokens": 0,
         "x": 1685.0,
-        "y": 490.0
+        "y": 540.0
       },
       "p-node-team-prompts": {
         "id": "p-node-team-prompts",
@@ -113,7 +120,7 @@
         "label": "office status rows",
         "tokens": 0,
         "x": 1685.0,
-        "y": 190.0
+        "y": 140.0
       }
     },
     "transitions": {
@@ -327,6 +334,12 @@
         "id": "a-node-team-view-brain-29",
         "source": "t-node-team-brain-apply-cmd",
         "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-view-brain-30": {
+        "id": "a-node-team-view-brain-30",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-backlog",
         "weight": 1
       }
     }

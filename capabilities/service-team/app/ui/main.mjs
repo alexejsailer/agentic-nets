@@ -17,6 +17,7 @@ const props = (tokens) => (tokens || []).map((t) => t.properties || {});
 const newest = (rows, field) => [...rows].sort((a, b) => String(b[field] ?? '').localeCompare(String(a[field] ?? '')));
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 const stamp = () => nowIso().replace(/[-:]/g, '').replace('T', '');
+const planKey = (title) => String(title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const linesOf = (v) => String(v || '').split('\n').map((s) => s.trim()).filter(Boolean);
 const list = (v) => { const a = arr(v); return a.length ? `<ul>${a.map((x) => `<li>${esc(typeof x === 'object' ? JSON.stringify(x) : x)}</li>`).join('')}</ul>` : '<span class="muted">none</span>'; };
 async function idempotencyKey(action, input) {
@@ -56,7 +57,7 @@ details summary { cursor: pointer; color: var(--muted); } .mono { font-family: u
 a { color: var(--accent); }
 `;
 
-const ROLES = ['charter', 'coders', 'iterate', 'prompts', 'responses', 'requirements', 'specs', 'spec-catalog', 'adr', 'arch', 'acceptance', 'verification', 'scorecard', 'bugs', 'briefs', 'runs', 'reviews', 'decisions', 'refused', 'state', 'ideas', 'knowledge', 'plan', 'journal', 'errors', 'llm-errors', 'infra', 'status'];
+const ROLES = ['charter', 'coders', 'iterate', 'prompts', 'responses', 'requirements', 'specs', 'spec-catalog', 'adr', 'arch', 'acceptance', 'verification', 'scorecard', 'bugs', 'briefs', 'runs', 'reviews', 'decisions', 'refused', 'state', 'ideas', 'knowledge', 'plan', 'backlog', 'journal', 'errors', 'llm-errors', 'infra', 'status'];
 const CHARTER_KEYS = ['service', 'goal', 'description', 'repo', 'repoDir', 'repoMode', 'scopePaths', 'testCommand', 'buildCommand', 'readinessChecks', 'auditCron', 'coderAgent', 'coderModel', 'coderMaxTurns', 'coderTimeoutMin', 'coderAllowedTools', 'brainAgent', 'autonomyLevel', 'dailyBudgetUsd', 'notes'];
 const LIST_KEYS = ['scopePaths', 'readinessChecks'];
 const PERSONA = { proposal: 'product owner', 'spec-approval': 'architect', 'pack-approval': 'architect', merge: 'developer', brain: 'brain' };
@@ -233,12 +234,51 @@ class ServiceTeamApp extends HTMLElement {
     </div>`;
   }
 
-  _brainTab() {
+  _verdicts() {
+    const by = new Map();
+    for (const v of newest(props(this._s.backlog), 'at').reverse()) if (v.key) by.set(v.key, v);
+    return by;
+  }
+  _planRows() {
     const plan = newest(props(this._s.plan), 'at')[0] || null;
+    const v = this._verdicts();
+    const rows = arr(plan?.increments).map((i) => {
+      const title = i.title || i.text || '';
+      const decided = [...v.values()].find((x) => planKey(x.title) === planKey(title));
+      return { ...i, title, verdict: decided?.verdict || '', note: decided?.note || '', key: decided?.key || '' };
+    });
+    return { plan, rows };
+  }
+  _brainTab() {
+    const { plan, rows } = this._planRows();
+    const open = rows.filter((r) => r.verdict !== 'later' && r.verdict !== 'dropped');
+    const later = rows.filter((r) => r.verdict === 'later');
+    // things deferred before the brain last rewrote the plan are still yours: show them even when the
+    // current plan no longer lists them
+    const v = this._verdicts();
+    const orphanLater = [...v.values()].filter((x) => x.verdict === 'later' && !rows.some((r) => planKey(r.title) === planKey(x.title)));
+    const dropped = [...v.values()].filter((x) => x.verdict === 'dropped');
     const facts = props(this._s.knowledge).filter((f) => f.status === 'active').sort((a, b) => String(a.factId).localeCompare(String(b.factId)));
     const kinds = ['decision', 'answer', 'convention', 'platform', 'gap', 'risk', 'question'];
+    const busy = this._working();
+    const row = (r, origin) => `<tr><td>${esc(r.title)}${r.note ? `<div class="muted">${esc(r.note)}</div>` : ''}${r.kind ? `<span class="pill">${esc(r.kind)}</span>` : ''}</td>
+      <td style="white-space:nowrap"><button class="act" data-act="plan-implement" data-arg="${esc(r.title)}" ${busy ? 'disabled' : ''}>Implement</button>
+      ${origin === 'later'
+        ? `<button class="act secondary" data-act="plan-clear" data-arg="${esc(r.title)}">Back to the plan</button>`
+        : `<button class="act secondary" data-act="plan-later" data-arg="${esc(r.title)}">Later</button>
+           <button class="act danger" data-act="plan-drop" data-arg="${esc(r.title)}">Not this</button>`}</td></tr>`;
     return `<div class="grid">
-      <div class="card"><h2>The plan ${plan ? `<span class="muted">curated ${esc(when(plan.at))}</span>` : ''}</h2>${plan ? `<div class="muted">${esc(plan.summary || '')}</div><table>${arr(plan.increments).map((i) => `<tr><td>${esc(i.order ?? i.id ?? '')}</td><td>${esc(i.title || i.text || '')}</td><td class="muted">${esc(i.why || '')}</td></tr>`).join('')}</table>` : '<div class="muted">The brain writes the plan after the first merge.</div>'}</div>
+      <div class="card wide"><h2>The plan ${plan ? `<span class="muted">curated ${esc(when(plan.at))}</span>` : ''}</h2>
+        ${plan ? `<div class="muted">${esc(plan.summary || '')}</div>` : ''}
+        ${open.length ? `<table>${open.map((r) => row(r, 'plan')).join('')}</table>`
+                      : `<div class="muted">${plan ? 'Everything on the plan is deferred or declined.' : 'The brain writes the plan after the first merge.'}</div>`}
+        ${busy ? '<div class="muted" style="margin-top:8px">Implement is disabled while the team is busy.</div>' : ''}</div>
+      <div class="card wide"><h2>Later <span class="pill">${later.length + orphanLater.length}</span></h2>
+        <div class="muted">What you kept but did not want now. It stays here until you pick it up.</div>
+        ${(later.length + orphanLater.length) ? `<table>${later.map((r) => row(r, 'later')).join('')}${orphanLater.map((r) => row({ ...r, kind: r.kind || '' }, 'later')).join('')}</table>` : '<div class="muted">Nothing deferred.</div>'}</div>
+      ${dropped.length ? `<div class="card"><h2>Declined <span class="pill">${dropped.length}</span></h2>
+        <div class="muted">The brain will not propose these again.</div>
+        <table>${dropped.map((r) => `<tr><td>${esc(r.title)}</td><td style="white-space:nowrap"><button class="act secondary" data-act="plan-clear" data-arg="${esc(r.title)}">Undo</button></td></tr>`).join('')}</table></div>` : ''}
       <div class="card"><h2>What the team knows <span class="pill">${facts.length} active</span></h2>${facts.length ? kinds.filter((k) => facts.some((f) => f.kind === k)).map((k) => `<h3>${esc(k)}</h3><ul>${facts.filter((f) => f.kind === k).map((f) => `<li>${esc(f.text)} <span class="muted">(${esc(f.factId)}, ${esc(f.confidence)})</span></li>`).join('')}</ul>`).join('') : '<div class="muted">Nothing curated yet.</div>'}</div>
       ${props(this._s['llm-errors']).length ? `<div class="card"><h2>Answers that missed their contract</h2>${newest(props(this._s['llm-errors']), '_emittedAt').slice(0, 5).map((e) => `<div class="mono">${esc(JSON.stringify(e).slice(0, 400))}</div>`).join('')}</div>` : ''}
     </div>`;
@@ -301,6 +341,22 @@ class ServiceTeamApp extends HTMLElement {
         if (!p) return; const notes = f('notes.' + p.promptId);
         if (act === 'request-changes' && !notes) return this._toast('Tell the coder what to change', true);
         return this._invoke(act, { runId: p.runId, specId: p.specId, promptId: p.promptId, notes, at }, act + arg);
+      }
+      case 'plan-implement': case 'plan-later': case 'plan-drop': case 'plan-clear': {
+        const { rows } = this._planRows();
+        const v = this._verdicts();
+        const known = rows.find((r) => r.title === arg) || [...v.values()].find((x) => x.title === arg);
+        const title = known?.title || arg; if (!title) return;
+        if (act === 'plan-implement') {
+          // hand it to the product owner as the direction for the next iteration, exactly the way the
+          // product office allocates one
+          if (this._working()) return this._toast('The team is busy; try again when it is idle', true);
+          return this._invoke('start-iteration', { iterationId: `it-${stamp()}`, at, reason: 'plan',
+            direction: title, notes: known?.note || '' }, act + title);
+        }
+        const verdict = act === 'plan-later' ? 'later' : act === 'plan-drop' ? 'dropped' : 'cleared';
+        return this._invoke('defer-increment', { key: planKey(title), title, kind: known?.kind || '',
+          verdict, note: f('note.' + planKey(title)), at }, act + title);
       }
       case 'add-idea': { if (!f('idea.text')) return this._toast('Write the idea first', true); const ideaId = `idea-${String(this._ideas().length + 1).padStart(3, '0')}`; const r = await this._invoke('add-idea', { ideaId, text: f('idea.text'), at }, act); this._form['idea.text'] = ''; return r; }
       case 'close-bug': { const b = this._bugs().find((x) => x.bugId === arg); if (!b) return; return this._invoke('close-bug', { bugId: b.bugId, title: b.title, status: 'closed', check: b.check || '', runId: b.runId || '', specId: b.specId || '', at: b.at, by: b.by || '', closedAt: at }, act + arg); }

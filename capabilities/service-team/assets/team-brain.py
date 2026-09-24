@@ -23,6 +23,7 @@ charter names. Secrets never enter a token: the MCP token reaches the lanes from
 STEWARD_MCP_TOKEN; on a Desktop it is also readable from the app's own token file.
 """
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -72,7 +73,7 @@ _NAMES = ["charter", "coders", "setup-cmd", "setup-log", "infra", "repo", "journ
           "arch-cmd", "arch-log", "specs", "spec-drafts", "spec-catalog", "adr", "arch", "briefs",
           "qa-cmd", "qa-log", "acceptance", "verification", "scorecard", "bugs",
           "dev-cmd", "dev-log", "decisions", "refused", "runs", "reviews",
-          "brain-cmd", "brain-log", "signals", "curation", "curations", "knowledge", "plan", "ideas", "status"]
+          "brain-cmd", "brain-log", "signals", "curation", "curations", "knowledge", "plan", "backlog", "ideas", "status"]
 P = {n.replace("-", "_"): PREFIX + n for n in _NAMES}
 # the product office's places are model-global and never namespaced
 OFFICE = {"charter": "p-product-charter", "coders": "p-product-coders", "teams": "p-product-teams", "inbox": "p-product-inbox", "status": "p-product-status",
@@ -759,6 +760,25 @@ def push_status(kind, summary, **fields):
     return row
 
 
+def plan_key(title):
+    """A stable key for a plan increment. The brain rewrites the whole plan after every merge and
+    renumbers the increments, so inc-1 means something different each time; the person's verdict has to
+    key off the wording instead."""
+    t = re.sub(r"[^a-z0-9]+", " ", str(title or "").lower()).strip()
+    return hashlib.sha1(t.encode("utf-8")).hexdigest()[:12] if t else ""
+
+
+def backlog_verdicts():
+    """What the person already decided about plan increments: key -> the newest verdict token."""
+    out = {}
+    for t in query(P["backlog"], "FROM $", 300):
+        d = t.get("data") or {}
+        k = str(d.get("key") or "")
+        if k and str(d.get("at", "")) >= str(out.get(k, {}).get("at", "")):
+            out[k] = d
+    return out
+
+
 def by_id(place, field, value):
     return one(place, 'FROM $ WHERE $.%s == "%s" LIMIT 1' % (field, value))
 
@@ -894,6 +914,9 @@ def curation_brief(sig, m):
         "## THE MODULE STATE (measured)\n%s\nfiles %s, tests %s; debt: %s" % (str(ma.get("summary", ""))[:800], mm.get("files"), mm.get("tests"), "; ".join(as_list(ma.get("debt"))[:6])),
         "## CURRENT KNOWLEDGE (active facts; retire what is now wrong or subsumed, never retire an answer)\n" + knowledge_text(),
         "## CURRENT PLAN\n" + plan_text(),
+        "## WHAT THE PERSON ALREADY DECIDED ABOUT THE PLAN (never propose a rejected item again; a deferred one may stay, unchanged)\n" + (
+            "\n".join("- %s: %s%s" % (str(v.get("verdict")).upper(), str(v.get("title"))[:120], ("  (%s)" % str(v.get("note"))[:80]) if v.get("note") else "")
+                      for v in sorted(backlog_verdicts().values(), key=lambda x: str(x.get("at", "")), reverse=True)[:20]) or "- nothing decided yet"),
         "## DECISIONS ON RECORD\n" + ("\n".join("- %s [%s] %s: %s" % (a.get("adrId"), a.get("status"), a.get("title"), str(a.get("decision", ""))[:160]) for a in adrs()) or "- none"),
     ]
     return "\n\n".join(lines)[:16000]
@@ -1021,6 +1044,21 @@ def apply(argv):
                 d = t.get("data") or {}; d["status"] = "retired"; d["retiredAt"] = now(); d["retiredBy"] = "budget"
                 delete_token(P["knowledge"], t["id"]); put_token(P["knowledge"], d, name="%s-retired" % v["factId"]); retired += 1
     incs = [i if isinstance(i, dict) else as_dict(i) for i in as_list((plan or {}).get("increments"))]
+    # the person's verdicts outlive the plan: drop what they rejected, keep their "later" mark on the rest
+    verdicts = backlog_verdicts()
+    kept, rejected = [], 0
+    for inc in incs:
+        v = verdicts.get(plan_key(inc.get("title")), {})
+        if str(v.get("verdict")) == "dropped":
+            rejected += 1
+            continue
+        if str(v.get("verdict")) == "later":
+            inc["status"] = "later"
+            inc["deferredAt"] = v.get("at", "")
+        kept.append(inc)
+    if rejected:
+        journal(lane("brain-apply-cmd"), "apply", "%d increment(s) the person rejected were not re-proposed" % rejected, curationId=curation_id)
+    incs = kept
     if incs:
         for t in query(P["plan"], "FROM $", 50):
             delete_token(P["plan"], t["id"])
