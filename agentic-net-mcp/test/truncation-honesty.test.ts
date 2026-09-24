@@ -9,7 +9,26 @@
  * tokens and printed `problems: 0`.
  */
 import { describe, expect, it } from 'vitest';
-import { compactStories, fieldsAtLength, withCompleteness } from '../src/tools/observe.js';
+import { compactStories, fieldsAtLength, withCompleteness, UNCAPPED_VALUE_CHARS } from '../src/tools/observe.js';
+import { GROUP_KEY_CHARS } from '../src/tools/memory.js';
+
+describe('value caps sent to master', () => {
+  /**
+   * Master applies maxValueLength as a literal character count, so 0 truncates to NOTHING —
+   * while the documented contract, and clampValues on the GET path, read 0 as "uncapped".
+   * Measured on the live Desktop 2026-09-19: grouping by dateSource returned the right counts
+   * under the keys "...[truncated, 4 chars total]" and "...[truncated, 2 chars total]" instead
+   * of "none" and "og". Both call sites therefore send a positive number, never 0.
+   */
+  it('never sends 0 as an uncapped request', () => {
+    expect(UNCAPPED_VALUE_CHARS).toBeGreaterThan(1_000_000);
+  });
+
+  it('caps a group key generously but finitely', () => {
+    expect(GROUP_KEY_CHARS).toBeGreaterThan(0);
+    expect(GROUP_KEY_CHARS).toBeLessThan(UNCAPPED_VALUE_CHARS);
+  });
+});
 
 describe('withCompleteness', () => {
   it('marks a blob read complete when the text is shorter than the cap', () => {

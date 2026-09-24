@@ -29,6 +29,9 @@ import { discoverLinkEdges, ensurePlacesContainer } from '../tree.js';
 
 export const MEMORY_PLACES = ['inbox', 'notes', 'decisions', 'knowledge', 'archive'] as const;
 
+/** How many characters of a grouped field survive as a group key. A label needs far fewer. */
+export const GROUP_KEY_CHARS = 200;
+
 export function resolveMemoryPlace(name?: string): string {
   const n = (name ?? 'notes').trim();
   if ((MEMORY_PLACES as readonly string[]).includes(n)) return `p-mem-${n}`;
@@ -322,10 +325,16 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       // maxValueLength:1 keeps the wire payload to a stub per token — the count is the answer,
       // the values are not. Grouping needs the grouped field itself, so project ONLY that one:
       // still a stub per token, and the tally happens here rather than in the caller.
+      //
+      // The cap must be POSITIVE here. Master reads maxValueLength literally, so 0 truncates the
+      // key to nothing: measured live on 2026-09-19, grouping by dateSource returned the right
+      // counts under the keys "...[truncated, 4 chars total]" and "...[truncated, 2 chars total]"
+      // instead of "none" and "og". A group key is a label, so a generous bound is enough; a value
+      // longer than this groups by its truncated form, which the marker makes visible.
       const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
         placePath: placePath(placeId),
         query: arcql,
-        ...(groupBy ? { fields: [groupBy], maxValueLength: 0 } : { maxValueLength: 1 }),
+        ...(groupBy ? { fields: [groupBy], maxValueLength: GROUP_KEY_CHARS } : { maxValueLength: 1 }),
       });
       if (!res.success) throw new Error(res.error ?? 'QUERY_TOKENS failed');
       const raw: any = res.data ?? {};
@@ -342,6 +351,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
         place: placeId,
         arcql,
         groupBy,
+        groupKeyChars: GROUP_KEY_CHARS,
         count: tokens.length,
         groups: [...tally.entries()]
           .map(([value, count]) => ({ value, count }))

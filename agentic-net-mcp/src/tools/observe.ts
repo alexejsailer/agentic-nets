@@ -213,6 +213,12 @@ export function eventStories(events: any[], includeMutations = false): any[] {
 const PAYLOAD_HINT = 'compact view — pass includePayloads:true for event steps and mutation EventBlocks';
 
 /**
+ * What "uncapped" has to be sent as. Master applies the cap as a literal character count, so 0
+ * means zero there; a caller asking for uncapped values gets a number no token value can reach.
+ */
+export const UNCAPPED_VALUE_CHARS = 100_000_000;
+
+/**
  * Say plainly whether a blob read returned the whole text. The store answers with a `truncated`
  * flag that is easy to miss inside a payload; `complete` and `returnedChars` are not. Measured
  * failure this closes: a 23,426-byte artifact came back as 4,676 characters and parsed as valid
@@ -507,7 +513,15 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // Send the cap EXPLICITLY, always. Master's own default is 500 and it shortens a value with
       // no marker at all, so an implicit cap is a silent cut: at least this way the number that did
       // the cutting is in the response, and a value sitting exactly on it can be flagged below.
-      const valueCap = Math.max(0, Number(args.maxValueLength ?? 500));
+      //
+      // 0 has to be TRANSLATED, not forwarded. The documented contract (and clampValues on the
+      // GET path above) reads 0 as "uncapped"; master reads it literally as zero characters.
+      // Measured on the live Desktop 2026-09-19: fields:["dateSource"] with maxValueLength:0
+      // answered "...[truncated, 4 chars total]" for the four-character value "none". Two meanings
+      // for one parameter is a trap, so this path honours the documented one.
+      const requestedCap = Number(args.maxValueLength ?? 500);
+      const uncapped = !Number.isFinite(requestedCap) || requestedCap <= 0;
+      const valueCap = uncapped ? UNCAPPED_VALUE_CHARS : requestedCap;
       const res = await ctx.executorFor(model).execute('QUERY_TOKENS', {
         placePath,
         query: args.arcql ?? 'FROM $ LIMIT 100',
@@ -527,8 +541,8 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
       // A string whose length is exactly the cap was cut by it; a shorter one was not. Naming the
       // fields is what makes this actionable — the failure this prevents is a truncated JSON string
       // that still parses, right up to the key that is missing.
-      const atCap = valueCap > 0 ? fieldsAtLength(payload?.results, valueCap) : [];
-      payload.valueCap = valueCap === 0 ? 'uncapped' : valueCap;
+      const atCap = uncapped ? [] : fieldsAtLength(payload?.results, valueCap);
+      payload.valueCap = uncapped ? 'uncapped' : valueCap;
       payload.complete = atCap.length === 0;
       if (atCap.length) {
         payload.truncatedFields = atCap;
