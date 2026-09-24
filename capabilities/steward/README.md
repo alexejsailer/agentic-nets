@@ -113,6 +113,10 @@ output shape (`verify/test_detector.py` checks the scoring).
 - Install: 4 nets, 23 lanes, 8 scripts, 27 stores, one application; a manual observation
   measured 23 lanes and started the first iteration; the propose lane asked for the goal 9 s later.
 - Provision stores the MCP token for 10 command lanes and clones the repository in one command.
+- `verify/e2e.py` on the fixed master: 19 checks, 0 failed, 175 s for install, provision, observe,
+  goal, choice, refusal, gate, coder, verify, release, brain, rollback, ideas, pause and resume
+  (24 of 24 lanes running 3 s after the install, the goal question 15 s after the observation,
+  verify 15 s, rollback 5 s with the added lane removed).
 - A pause stops every lane except the setup lane, so resume can run through the same net.
 - First live cycle end to end after one approval click: coder 211 s and 37 turns, verify, install
   as an upgrade, release, curation, next proposal. A protected-set spec was refused in 20 s. A
