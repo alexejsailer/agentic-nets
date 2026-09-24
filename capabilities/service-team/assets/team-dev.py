@@ -11,7 +11,7 @@ merge         on the person's decision: merges the branch into the clone's main 
               workspace repository as a local branch and merges it there only when that working tree is clean and on main;
               reports the release to the product office and hands the run to the brain
 """
-import os, sys, json, re, time
+import os, sys, json, re, time, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # >>> shared: teamlib (generated, do not edit here)
@@ -816,6 +816,15 @@ def implement(argv):
         raise RuntimeError("no context pack for %s; the architect assembles it after the acceptance criteria" % sid)
     p = packs[-1]
     notes = envv("DECISION_NOTES"); prev_id = envv("PREVIOUS_RUN")
+    # one coder per spec at a time: a re-dispatched command (a runtime restart replays in-flight tokens)
+    # must not start a second coder in the same working tree
+    for t in query(P["runs"], 'FROM $ WHERE $.specId == "%s" AND $.status == "coding"' % sid, 10):
+        d = t.get("data") or {}
+        started = str(d.get("startedAt") or d.get("at") or "")
+        age = (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(started.replace("Z", "+00:00"))).total_seconds() if started else 0
+        if age < as_int(c.get("coderTimeoutMin"), 60) * 60 + 300:
+            journal(lane(LANE), "implement", "refused: run %s is still coding %s (%d s); no second coder in the same tree" % (d.get("runId"), sid, age), specId=sid)
+            return {"success": True, "skipped": "coding", "runId": d.get("runId")}
     previous = None
     if prev_id:
         pr = by_id(P["runs"], "runId", prev_id)

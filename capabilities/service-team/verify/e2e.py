@@ -371,10 +371,12 @@ def main():
             mods = cat.get("modules") or []
             mods = json.loads(mods) if isinstance(mods, str) else mods
             lanes = m.lanes("t-%s-spec-" % svc)
+            drawing = mcp("net_overview", {"netId": "net-%s-team-specs" % svc, "model": a.model, "session": svc})
+            drawn = int(drawing.get("placeCount") or 0)
             inbox = m.find("p-product-inbox", "ref", "pr-spec-" + sid)
             office_spec = m.find("p-product-specs", "specId", sid)
-            ok = bool(mods) and len(lanes) >= len(mods) - 1 and bool(inbox) and spec.get("module") and bool(office_spec)
-            check("spec", ok, "%s in module %s (%d catalog modules, %d link lanes) in %ss; approval asked in %ss, office inbox %s, product-level row %s" % (sid, spec.get("module"), len(mods), len(lanes), secs, secs2, bool(inbox), bool(office_spec)))
+            ok = bool(mods) and len(lanes) >= len(mods) - 1 and drawn >= len(mods) + 2 and bool(inbox) and spec.get("module") and bool(office_spec)
+            check("spec", ok, "%s in module %s (%d catalog modules, %d link lanes, %d places drawn in session %s) in %ss; approval asked in %ss, office inbox %s, product-level row %s" % (sid, spec.get("module"), len(mods), len(lanes), drawn, svc, secs, secs2, bool(inbox), bool(office_spec)))
             if not ok:
                 raise RuntimeError("spec stage incomplete")
             st.done("spec")
