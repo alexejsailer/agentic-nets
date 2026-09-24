@@ -1,0 +1,117 @@
+{
+  "name": "steward",
+  "displayName": "Steward",
+  "version": "0.1.0",
+  "description": "Drive the Steward: a self-improving net that measures the model it lives in, proposes one bounded change at a time, and lets a headless coder apply it as a new pack version once you approve. Set the goal and the autonomy level, answer its questions, approve or reject specs, roll back a release, pause it. The configuration tab is always here.",
+  "author": "AgenticNetOS",
+  "tags": ["application", "steward", "self-improving", "graph-harness"],
+  "visibility": "public",
+  "ui": {
+    "element": "agenticos-steward-v1",
+    "entryFile": "ui/main.mjs",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": { "route": "steward", "icon": "tune", "defaultView": "stores" },
+    "stores": [
+      { "role": "charter", "placeId": "p-steward-charter", "required": true, "description": "The charter: goal, principles, scope, autonomy, budget, repository, coder (newest token wins)." },
+      { "role": "coders", "placeId": "p-steward-coders", "required": true, "description": "Headless agent definitions; chosen by charter.coderAgent." },
+      { "role": "infra", "placeId": "p-steward-infra", "required": true, "description": "Infrastructure measurements and pause records." },
+      { "role": "repo", "placeId": "p-steward-repo", "required": true, "description": "The pack repository record (clone, head, installed version)." },
+      { "role": "iterate", "placeId": "p-steward-iterate", "required": true, "description": "Iteration triggers." },
+      { "role": "prompts", "placeId": "p-steward-prompts", "required": true, "description": "The Steward's questions: proposals, interviews, the goal, approvals, brain questions." },
+      { "role": "responses", "placeId": "p-steward-responses", "required": true, "description": "The person's answers." },
+      { "role": "specs", "placeId": "p-steward-specs", "required": true, "description": "Change specs in the closed grammar." },
+      { "role": "refused", "placeId": "p-steward-refused", "required": true, "description": "Specs the policy gate refused, with the reason." },
+      { "role": "decisions", "placeId": "p-steward-decisions", "required": true, "description": "Approvals, rejections, rollbacks." },
+      { "role": "runs", "placeId": "p-steward-runs", "required": true, "description": "Coder runs: branch, pack version, build, status." },
+      { "role": "verification", "placeId": "p-steward-verification", "required": true, "description": "Verification results per run." },
+      { "role": "health", "placeId": "p-steward-health", "required": true, "description": "Measured health of the model per observation." },
+      { "role": "lanes", "placeId": "p-steward-lanes", "required": true, "description": "Per-lane measurements per observation." },
+      { "role": "map", "placeId": "p-steward-map", "required": true, "description": "The measured map of sessions and nets." },
+      { "role": "budget", "placeId": "p-steward-budget", "required": true, "description": "Daily budget ledger." },
+      { "role": "journal", "placeId": "p-steward-journal", "required": true, "description": "What every lane did." },
+      { "role": "errors", "placeId": "p-steward-errors", "required": true, "description": "Script errors." },
+      { "role": "llm-errors", "placeId": "p-steward-llm-errors", "required": true, "description": "Answers that missed their contract." },
+      { "role": "setup-cmd", "placeId": "p-steward-setup-cmd", "required": true, "description": "Setup commands (health, provision, pause, resume)." },
+      { "role": "observe-cmd", "placeId": "p-steward-observe-cmd", "required": true, "description": "Observe commands." },
+      { "role": "brain-cmd", "placeId": "p-steward-brain-cmd", "required": true, "description": "Brain commands (observe, curate, apply, answer)." },
+      { "role": "knowledge", "placeId": "p-steward-knowledge", "required": true, "description": "Curated facts." },
+      { "role": "plan", "placeId": "p-steward-plan", "required": true, "description": "The plan: remaining increments toward the goal." },
+      { "role": "adr", "placeId": "p-steward-adr", "required": true, "description": "Decision records (newest per adrId wins)." },
+      { "role": "curations", "placeId": "p-steward-curations", "required": true, "description": "Curation archive." },
+      { "role": "signals", "placeId": "p-steward-signals", "required": true, "description": "Signals collected after a release." }
+    ],
+    "actions": [
+      {
+        "name": "set-charter", "targetRole": "charter", "description": "Save the charter (a new version; the newest wins).",
+        "defaults": { "charterId": "steward" },
+        "inputSchema": { "type": "object", "required": ["updatedAt"], "properties": {
+          "goal": { "type": "string" }, "description": { "type": "string" },
+          "principles": { "type": "array", "items": { "type": "string" } }, "constraints": { "type": "array", "items": { "type": "string" } }, "scope": { "type": "array", "items": { "type": "string" } },
+          "autonomyLevel": { "type": "string" }, "dailyBudgetUsd": { "type": "string" }, "observeCron": { "type": "string" }, "home": { "type": "string" },
+          "repoUrl": { "type": "string" }, "repoBranch": { "type": "string" }, "packDir": { "type": "string" }, "mcpUrl": { "type": "string" },
+          "coderAgent": { "type": "string" }, "coderModel": { "type": "string" }, "coderMaxTurns": { "type": "string" }, "coderAllowedTools": { "type": "string" }, "coderTimeoutMin": { "type": "string" },
+          "brainAgent": { "type": "string" }, "brainModel": { "type": "string" }, "tokenLanes": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string" }, "notes": { "type": "string" }, "updatedAt": { "type": "string" } } }
+      },
+      {
+        "name": "start-iteration", "targetRole": "iterate", "description": "Ask the Steward for the next step.",
+        "defaults": { "reason": "app", "requestedBy": "app" },
+        "guard": { "role": "iterate", "matchKey": "iterationId", "exists": false },
+        "inputSchema": { "type": "object", "required": ["iterationId", "at"], "properties": { "iterationId": { "type": "string" }, "at": { "type": "string" }, "reason": { "type": "string" } } }
+      },
+      {
+        "name": "respond", "targetRole": "responses", "description": "Answer, reshape or skip one of the Steward's questions.",
+        "defaults": { "by": "app" },
+        "guard": { "role": "responses", "matchKey": "promptId", "exists": false },
+        "inputSchema": { "type": "object", "required": ["promptId", "iterationId", "intent", "at"], "properties": {
+          "promptId": { "type": "string" }, "iterationId": { "type": "string" }, "intent": { "type": "string" },
+          "selected": { "type": "array", "items": { "type": "string" } }, "text": { "type": "string" }, "notes": { "type": "string" }, "at": { "type": "string" } } }
+      },
+      {
+        "name": "approve-spec", "targetRole": "decisions", "description": "Approve a spec; the coder applies it and verification installs the new version.",
+        "defaults": { "kind": "spec-approval", "verdict": "approved", "by": "app" },
+        "guard": { "role": "decisions", "matchKey": "specId", "exists": false },
+        "inputSchema": { "type": "object", "required": ["specId", "at"], "properties": { "specId": { "type": "string" }, "notes": { "type": "string" }, "at": { "type": "string" } } }
+      },
+      {
+        "name": "reject-spec", "targetRole": "decisions", "description": "Reject a spec with a reason.",
+        "defaults": { "kind": "spec-approval", "verdict": "rejected", "by": "app" },
+        "guard": { "role": "decisions", "matchKey": "specId", "exists": false },
+        "inputSchema": { "type": "object", "required": ["specId", "at"], "properties": { "specId": { "type": "string" }, "notes": { "type": "string" }, "at": { "type": "string" } } }
+      },
+      {
+        "name": "rollback", "targetRole": "decisions", "description": "Roll a released run back to the previous pack version.",
+        "defaults": { "kind": "rollback", "verdict": "rollback", "by": "app" },
+        "guard": { "role": "decisions", "matchKey": "runId", "exists": false, "where": { "kind": "rollback" } },
+        "inputSchema": { "type": "object", "required": ["runId", "at"], "properties": { "runId": { "type": "string" }, "notes": { "type": "string" }, "at": { "type": "string" } } }
+      },
+      {
+        "name": "decide-adr", "targetRole": "adr", "description": "Accept, reject or supersede a decision record (writes a new version).",
+        "inputSchema": { "type": "object", "required": ["adrId", "title", "decision", "status", "updatedAt"], "properties": {
+          "adrId": { "type": "string" }, "title": { "type": "string" }, "context": { "type": "string" }, "decision": { "type": "string" }, "consequences": { "type": "string" }, "status": { "type": "string" }, "updatedAt": { "type": "string" } } }
+      },
+      { "name": "check-infra", "targetRole": "setup-cmd", "description": "Measure the executor host: agents, node, git, the MCP endpoint, the repository, disk.",
+        "command": { "role": "setup-cmd", "toolId": "steward-infra", "argv": ["health"], "env": { "MODEL_ID": "${modelId}" }, "timeoutMs": 120000 }, "inputSchema": { "type": "object", "properties": {} } },
+      { "name": "provision", "targetRole": "setup-cmd", "description": "Store the MCP token in the vault for the Steward's lanes and clone the pack repository.",
+        "command": { "role": "setup-cmd", "toolId": "steward-infra", "argv": ["provision"], "env": { "MODEL_ID": "${modelId}" }, "timeoutMs": 900000 }, "inputSchema": { "type": "object", "properties": {} } },
+      { "name": "pause", "targetRole": "setup-cmd", "description": "Stop every lane of the Steward except the setup lane; nothing proposes, codes or installs until resume.",
+        "command": { "role": "setup-cmd", "toolId": "steward-infra", "argv": ["pause"], "env": { "MODEL_ID": "${modelId}" }, "timeoutMs": 300000 }, "inputSchema": { "type": "object", "properties": {} } },
+      { "name": "resume", "targetRole": "setup-cmd", "description": "Start the lanes that pause stopped.",
+        "command": { "role": "setup-cmd", "toolId": "steward-infra", "argv": ["resume"], "env": { "MODEL_ID": "${modelId}" }, "timeoutMs": 300000 }, "inputSchema": { "type": "object", "properties": {} } },
+      { "name": "observe-now", "targetRole": "observe-cmd", "description": "Measure the model now and start an iteration when nothing waits for you.",
+        "command": { "role": "observe-cmd", "toolId": "steward-observe", "argv": ["observe", "manual"], "env": { "MODEL_ID": "${modelId}" }, "timeoutMs": 600000 }, "inputSchema": { "type": "object", "properties": {} } },
+      { "name": "curate-now", "targetRole": "brain-cmd", "description": "Observe the last release and curate the brain now.",
+        "command": { "role": "brain-cmd", "toolId": "steward-brain", "argv": ["observe", "latest"], "env": { "MODEL_ID": "${modelId}" }, "timeoutMs": 600000 }, "inputSchema": { "type": "object", "properties": {} } }
+    ],
+    "permissions": {
+      "readStores": ["charter", "coders", "infra", "repo", "iterate", "prompts", "responses", "specs", "refused", "decisions", "runs", "verification", "health", "lanes", "map", "budget", "journal", "errors", "llm-errors", "setup-cmd", "observe-cmd", "brain-cmd", "knowledge", "plan", "adr", "curations", "signals"],
+      "watchStores": ["prompts", "specs", "runs", "verification", "journal", "knowledge", "plan", "health", "infra", "repo", "decisions", "refused"],
+      "actions": ["set-charter", "start-iteration", "respond", "approve-spec", "reject-spec", "rollback", "decide-adr", "check-infra", "provision", "pause", "resume", "observe-now", "curate-now"]
+    }
+  }
+}

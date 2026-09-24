@@ -1,0 +1,308 @@
+{
+  "net": {
+    "arcs": {
+      "a-steward-brain-01": {
+        "id": "a-steward-brain-01",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-02": {
+        "id": "a-steward-brain-02",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-brain-03": {
+        "id": "a-steward-brain-03",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-signals",
+        "weight": 1
+      },
+      "a-steward-brain-04": {
+        "id": "a-steward-brain-04",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-context",
+        "weight": 1
+      },
+      "a-steward-brain-05": {
+        "id": "a-steward-brain-05",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-06": {
+        "id": "a-steward-brain-06",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-brain-07": {
+        "id": "a-steward-brain-07",
+        "source": "p-steward-context",
+        "target": "t-steward-curate",
+        "weight": 1
+      },
+      "a-steward-brain-08": {
+        "id": "a-steward-brain-08",
+        "source": "t-steward-curate",
+        "target": "p-steward-curation",
+        "weight": 1
+      },
+      "a-steward-brain-09": {
+        "id": "a-steward-brain-09",
+        "source": "t-steward-curate",
+        "target": "p-steward-curations",
+        "weight": 1
+      },
+      "a-steward-brain-10": {
+        "id": "a-steward-brain-10",
+        "source": "t-steward-curate",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-brain-11": {
+        "id": "a-steward-brain-11",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-curate-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-12": {
+        "id": "a-steward-brain-12",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-brain-13": {
+        "id": "a-steward-brain-13",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-curation",
+        "weight": 1
+      },
+      "a-steward-brain-14": {
+        "id": "a-steward-brain-14",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-curations",
+        "weight": 1
+      },
+      "a-steward-brain-15": {
+        "id": "a-steward-brain-15",
+        "source": "p-steward-curation",
+        "target": "t-steward-apply-prep",
+        "weight": 1
+      },
+      "a-steward-brain-16": {
+        "id": "a-steward-brain-16",
+        "source": "t-steward-apply-prep",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-17": {
+        "id": "a-steward-brain-17",
+        "source": "p-steward-responses",
+        "target": "t-steward-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-steward-brain-18": {
+        "id": "a-steward-brain-18",
+        "source": "t-steward-answer-knowledge-prep",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-19": {
+        "id": "a-steward-brain-19",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-20": {
+        "id": "a-steward-brain-20",
+        "source": "p-steward-curations",
+        "target": "t-steward-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-brain-21": {
+        "id": "a-steward-brain-21",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-brain-22": {
+        "id": "a-steward-brain-22",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-knowledge",
+        "weight": 1
+      },
+      "a-steward-brain-23": {
+        "id": "a-steward-brain-23",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-plan",
+        "weight": 1
+      },
+      "a-steward-brain-24": {
+        "id": "a-steward-brain-24",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-adr",
+        "weight": 1
+      },
+      "a-steward-brain-25": {
+        "id": "a-steward-brain-25",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-brain-26": {
+        "id": "a-steward-brain-26",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-brain-27": {
+        "id": "a-steward-brain-27",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      }
+    },
+    "description": "The brain: a curated, bounded model of the host model kept from what every released change produced. After a release a script collects the signals (the spec, the coder's notes, the verification, the health before and after) and the model map; a curator (a one-shot model call, or a headless agent in curate mode, chosen by the charter) answers a contract: facts to add and retire, the plan, decisions to propose, questions for the person; a script applies it deterministically and starts the next iteration. Every brief reads the brain.",
+    "id": "steward-brain",
+    "places": {
+      "p-steward-adr": {
+        "id": "p-steward-adr",
+        "label": "Decision records (the brain proposes, the person decides)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-steward-brain-cmd": {
+        "id": "p-steward-brain-cmd",
+        "label": "Brain commands (observe, curate, apply, answer)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-steward-brain-log": {
+        "id": "p-steward-brain-log",
+        "label": "Brain command results",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-steward-context": {
+        "id": "p-steward-context",
+        "label": "Briefs for the judgement lanes",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-steward-curation": {
+        "id": "p-steward-curation",
+        "label": "Curations (the curator's answer)",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-steward-curations": {
+        "id": "p-steward-curations",
+        "label": "Curation archive (every curation as answered, kept)",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-steward-iterate": {
+        "id": "p-steward-iterate",
+        "label": "Iteration triggers",
+        "tokens": 0,
+        "x": 980,
+        "y": 610
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-steward-knowledge": {
+        "id": "p-steward-knowledge",
+        "label": "Knowledge facts: kind, scope, source, confidence, active or retired",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-steward-llm-errors": {
+        "id": "p-steward-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-steward-plan": {
+        "id": "p-steward-plan",
+        "label": "The plan: remaining increments toward the goal",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-steward-prompts": {
+        "id": "p-steward-prompts",
+        "label": "Questions for the person",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-steward-responses": {
+        "id": "p-steward-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-steward-signals": {
+        "id": "p-steward-signals",
+        "label": "Signals per released run",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-steward-answer-knowledge-prep": {
+        "id": "t-steward-answer-knowledge-prep",
+        "label": "A person's answer to a brain question",
+        "x": 320,
+        "y": 440
+      },
+      "t-steward-apply-prep": {
+        "id": "t-steward-apply-prep",
+        "label": "Curation to apply command",
+        "x": 100,
+        "y": 270
+      },
+      "t-steward-brain-apply-cmd": {
+        "id": "t-steward-brain-apply-cmd",
+        "label": "Apply: knowledge, plan, proposed decisions, questions, next iteration",
+        "x": 540,
+        "y": 440
+      },
+      "t-steward-brain-observe-cmd": {
+        "id": "t-steward-brain-observe-cmd",
+        "label": "Observe: signals of a released run",
+        "x": 320,
+        "y": 100
+      },
+      "t-steward-curate": {
+        "id": "t-steward-curate",
+        "label": "Curate (one-shot model call)",
+        "x": 1200,
+        "y": 270
+      },
+      "t-steward-curate-cmd": {
+        "id": "t-steward-curate-cmd",
+        "label": "Curate (headless agent, may read the pack repository)",
+        "x": 320,
+        "y": 270
+      }
+    }
+  }
+}

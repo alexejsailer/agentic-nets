@@ -1,0 +1,139 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "observe",
+            "scheduled"
+          ],
+          "env": {
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 600000,
+          "toolId": "steward-observe"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "observe-${now()}",
+        "kind": "command",
+        "reason": "scheduled",
+        "stage": "observe"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-observe-cron",
+    "kind": "map",
+    "label": "Observe the model (scheduled)",
+    "metadata": {
+      "netId": "steward-observe",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-observe-cmd"
+      }
+    },
+    "presets": {
+      "charter": {
+        "arcql": "FROM $ WHERE $.charterId == \"steward\" LIMIT 1",
+        "consume": false,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-charter",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 30 5 * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 600000,
+      "type": "command"
+    },
+    "description": "steward-observe measures through master and the runtime's MCP (net_stats, list_transitions, scheduler_status, usage_report, net_overview) and writes health, lanes, map and budget; it starts an iteration when no prompt, spec or run is waiting.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-observe-cmd",
+    "kind": "command",
+    "label": "Observe: lanes, places, errors, cost, map",
+    "metadata": {
+      "netId": "steward-observe",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "budget": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-budget"
+      },
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "health": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-health"
+      },
+      "iterate": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-iterate"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "lanes": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-lanes"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-observe-log",
+        "retain": 200
+      },
+      "map": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-map"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-observe-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

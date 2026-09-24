@@ -1,0 +1,29 @@
+[
+  {
+    "name": "steward-charter",
+    "charterId": "steward",
+    "status": "draft",
+    "goal": "REPLACE ME",
+    "description": "",
+    "principles": ["Scripts measure, bounded model calls judge, the coder writes inside an approved spec.", "Every change is a pack version; the previous version is the rollback.", "The Steward never touches the lanes and places that govern it."],
+    "constraints": [],
+    "scope": [],
+    "autonomyLevel": "3",
+    "dailyBudgetUsd": "10",
+    "observeCron": "0 30 5 * * *",
+    "home": "~/steward",
+    "repoUrl": "https://github.com/alexejsailer/agentic-nets.git",
+    "repoBranch": "main",
+    "packDir": "capabilities/steward",
+    "mcpUrl": "http://127.0.0.1:8091/mcp",
+    "coderAgent": "claude-code",
+    "coderModel": "claude-opus-5",
+    "coderMaxTurns": "80",
+    "coderAllowedTools": "",
+    "coderTimeoutMin": "45",
+    "brainAgent": "llm",
+    "brainModel": "",
+    "tokenLanes": ["t-steward-setup-cmd", "t-steward-observe-cmd", "t-steward-context-cmd", "t-steward-gate-cmd", "t-steward-apply-cmd", "t-steward-verify-cmd", "t-steward-release-cmd", "t-steward-brain-observe-cmd", "t-steward-curate-cmd", "t-steward-brain-apply-cmd"],
+    "notes": "goal ships as REPLACE ME: the Steward asks for it first. scope empty = only the nets this pack created. autonomyLevel 1 observe only, 2 propose only, 3 apply with approval, 4 tune and view alone, 5 also crystallise alone. The coder edits packDir inside a clone of repoUrl under home."
+  }
+]

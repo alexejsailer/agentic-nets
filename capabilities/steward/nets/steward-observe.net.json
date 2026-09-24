@@ -1,0 +1,54 @@
+{
+  "net": "steward-observe",
+  "model": "steward",
+  "session": "agent-steward",
+  "description": "Measurement, no model involved. On the charter's schedule and after every released change a script measures the model the Steward lives in: every lane's status, kind, schedule and recent fires, errors, contract misses, stranded tokens, tokens per place, cost per lane. It writes the health summary, one row per lane, the model map and the budget, and starts an iteration when nothing is waiting for the person.",
+  "places": {
+    "p-steward-charter": "The charter",
+    "p-steward-observe-cmd": "Observe commands",
+    "p-steward-observe-log": "Observe command results",
+    "p-steward-health": "Health per observation (the model summarised, with the trend)",
+    "p-steward-lanes": "One row per lane per observation",
+    "p-steward-map": "The model map: nets, places, lanes and their kinds, measured",
+    "p-steward-budget": "The daily budget: spent, remaining, exhausted",
+    "p-steward-iterate": "Iteration triggers",
+    "p-steward-journal": "Journal",
+    "p-steward-errors": "Script errors"
+  },
+  "transitions": [
+    {
+      "id": "t-steward-observe-cron",
+      "kind": "map",
+      "label": "Observe the model (scheduled)",
+      "schedule": {"type": "cron", "cron": "0 30 5 * * *", "timezone": "Europe/Berlin"},
+      "reads": {
+        "charter": {"place": "p-steward-charter", "arcql": "FROM $ WHERE $.charterId == \"steward\" LIMIT 1", "consume": false}
+      },
+      "writes": {"cmd": "p-steward-observe-cmd"},
+      "template": {
+        "kind": "command", "id": "observe-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "observe", "reason": "scheduled", "filedAt": "${now()}",
+        "args": {"toolId": "steward-observe", "argv": ["observe", "scheduled"], "env": {"MODEL_ID": "steward"}, "timeoutMs": 600000}
+      }
+    },
+    {
+      "id": "t-steward-observe-cmd",
+      "kind": "command",
+      "label": "Observe: lanes, places, errors, cost, map",
+      "description": "steward-observe measures through master and the runtime's MCP (net_stats, list_transitions, scheduler_status, usage_report, net_overview) and writes health, lanes, map and budget; it starts an iteration when no prompt, spec or run is waiting.",
+      "reads": {"input": {"place": "p-steward-observe-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-observe-log", "retain": 200},
+        "health": "p-steward-health",
+        "lanes": "p-steward-lanes",
+        "map": "p-steward-map",
+        "budget": "p-steward-budget",
+        "iterate": "p-steward-iterate",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 600000}
+    }
+  ]
+}

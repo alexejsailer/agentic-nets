@@ -1,0 +1,77 @@
+apiVersion: agentic-nets.com/capability/v1
+name: steward
+version: 0.1.0
+displayName: The Steward
+domain: platform
+description: "The Steward is a persona whose job is the model it lives in. It measures the model's nets and lanes, proposes the next increment as a choice, an interview or a request for the goal, writes a change spec inside a closed grammar (tune, view, crystallise, add-lane, remove-lane, add-net, add-script, app), lets a policy gate and the person decide, applies the approved change through a headless coder in the pack's own repository, verifies, releases a new pack version, learns, and proposes again. Every iteration ends in a question for the person; nothing structural happens without an answer. Given a goal it grows into whatever the goal needs, one pack version at a time."
+tags: [agents, capability-pack, steward, self-improving, graph-harness]
+engineMin: "2.59.0"
+
+entry:
+  inbox: p-steward-iterate
+  outbox: p-steward-runs
+  correlationField: specId
+
+nets:
+  - name: steward-setup
+    pnml: nets/steward-setup.pnml.json
+    inscriptions: nets/steward-setup.inscriptions.json
+    role: configuration
+  - name: steward-observe
+    pnml: nets/steward-observe.pnml.json
+    inscriptions: nets/steward-observe.inscriptions.json
+    role: measurement
+  - name: steward-loop
+    pnml: nets/steward-loop.pnml.json
+    inscriptions: nets/steward-loop.inscriptions.json
+    role: iteration
+  - name: steward-brain
+    pnml: nets/steward-brain.pnml.json
+    inscriptions: nets/steward-brain.inscriptions.json
+    role: curated-model
+
+scripts:
+  - id: steward-infra
+    file: assets/steward-infra.py
+  - id: steward-observe
+    file: assets/steward-observe.py
+  - id: steward-context
+    file: assets/steward-context.py
+  - id: steward-gate
+    file: assets/steward-gate.py
+  - id: steward-apply
+    file: assets/steward-apply.py
+  - id: steward-verify
+    file: assets/steward-verify.py
+  - id: steward-release
+    file: assets/steward-release.py
+  - id: steward-brain
+    file: assets/steward-brain.py
+
+config:
+  - key: p-steward-charter
+    seed: seeds/p-steward-charter.json
+    description: >-
+      The charter: goal, principles, constraints, the nets in scope, the autonomy level, the daily
+      budget, the observe schedule, the pack repository, the MCP endpoint, the coder and the curator.
+      Edited only in the application's configuration tab; never by a spec.
+  - key: p-steward-coders
+    seed: seeds/p-steward-coders.json
+    description: >-
+      The headless agents the Steward can spawn: Claude Code with Claude Opus 5, Claude Code with
+      Claude Fable 5.1, Codex CLI. Choose in the application; edit the tokens to add one.
+
+credentials:
+  - key: STEWARD_MCP_TOKEN
+    transition: t-steward-observe-cmd
+    required: false
+    description: >-
+      The bearer token of the runtime's own MCP server, stored in the vault by `steward-infra
+      provision` for every lane in charter.tokenLanes; on a Desktop the app's token file is the
+      fallback. Never in a token.
+
+install:
+  targetModelDefault: steward
+  sessionId: agent-steward
+
+verify: verify/smoke.json

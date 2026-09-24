@@ -1,0 +1,593 @@
+{
+  "net": {
+    "arcs": {
+      "a-steward-loop-01": {
+        "id": "a-steward-loop-01",
+        "source": "p-steward-iterate",
+        "target": "t-steward-iterate-prep",
+        "weight": 1
+      },
+      "a-steward-loop-02": {
+        "id": "a-steward-loop-02",
+        "source": "t-steward-iterate-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-03": {
+        "id": "a-steward-loop-03",
+        "source": "p-steward-context-cmd",
+        "target": "t-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-04": {
+        "id": "a-steward-loop-04",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-loop-log",
+        "weight": 1
+      },
+      "a-steward-loop-05": {
+        "id": "a-steward-loop-05",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-context",
+        "weight": 1
+      },
+      "a-steward-loop-06": {
+        "id": "a-steward-loop-06",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-responses",
+        "weight": 1
+      },
+      "a-steward-loop-07": {
+        "id": "a-steward-loop-07",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-loop-08": {
+        "id": "a-steward-loop-08",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-loop-09": {
+        "id": "a-steward-loop-09",
+        "source": "p-steward-context",
+        "target": "t-steward-propose",
+        "weight": 1
+      },
+      "a-steward-loop-10": {
+        "id": "a-steward-loop-10",
+        "source": "t-steward-propose",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-loop-11": {
+        "id": "a-steward-loop-11",
+        "source": "t-steward-propose",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-loop-12": {
+        "id": "a-steward-loop-12",
+        "source": "p-steward-responses",
+        "target": "t-steward-answer-prep",
+        "weight": 1
+      },
+      "a-steward-loop-13": {
+        "id": "a-steward-loop-13",
+        "source": "t-steward-answer-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-14": {
+        "id": "a-steward-loop-14",
+        "source": "p-steward-responses",
+        "target": "t-steward-revise-prep",
+        "weight": 1
+      },
+      "a-steward-loop-15": {
+        "id": "a-steward-loop-15",
+        "source": "t-steward-revise-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-16": {
+        "id": "a-steward-loop-16",
+        "source": "p-steward-context",
+        "target": "t-steward-spec",
+        "weight": 1
+      },
+      "a-steward-loop-17": {
+        "id": "a-steward-loop-17",
+        "source": "t-steward-spec",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-loop-18": {
+        "id": "a-steward-loop-18",
+        "source": "t-steward-spec",
+        "target": "p-steward-spec-drafts",
+        "weight": 1
+      },
+      "a-steward-loop-19": {
+        "id": "a-steward-loop-19",
+        "source": "t-steward-spec",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-loop-20": {
+        "id": "a-steward-loop-20",
+        "source": "p-steward-spec-drafts",
+        "target": "t-steward-gate-prep",
+        "weight": 1
+      },
+      "a-steward-loop-21": {
+        "id": "a-steward-loop-21",
+        "source": "t-steward-gate-prep",
+        "target": "p-steward-gate-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-22": {
+        "id": "a-steward-loop-22",
+        "source": "p-steward-gate-cmd",
+        "target": "t-steward-gate-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-23": {
+        "id": "a-steward-loop-23",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-loop-log",
+        "weight": 1
+      },
+      "a-steward-loop-24": {
+        "id": "a-steward-loop-24",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-decisions",
+        "weight": 1
+      },
+      "a-steward-loop-25": {
+        "id": "a-steward-loop-25",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-loop-26": {
+        "id": "a-steward-loop-26",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-refused",
+        "weight": 1
+      },
+      "a-steward-loop-27": {
+        "id": "a-steward-loop-27",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-loop-28": {
+        "id": "a-steward-loop-28",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-loop-29": {
+        "id": "a-steward-loop-29",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-loop-30": {
+        "id": "a-steward-loop-30",
+        "source": "p-steward-decisions",
+        "target": "t-steward-approve-prep",
+        "weight": 1
+      },
+      "a-steward-loop-31": {
+        "id": "a-steward-loop-31",
+        "source": "t-steward-approve-prep",
+        "target": "p-steward-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-32": {
+        "id": "a-steward-loop-32",
+        "source": "p-steward-apply-cmd",
+        "target": "t-steward-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-33": {
+        "id": "a-steward-loop-33",
+        "source": "p-steward-coders",
+        "target": "t-steward-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-34": {
+        "id": "a-steward-loop-34",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-build-log",
+        "weight": 1
+      },
+      "a-steward-loop-35": {
+        "id": "a-steward-loop-35",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-runs",
+        "weight": 1
+      },
+      "a-steward-loop-36": {
+        "id": "a-steward-loop-36",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-loop-37": {
+        "id": "a-steward-loop-37",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-verify-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-38": {
+        "id": "a-steward-loop-38",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-loop-39": {
+        "id": "a-steward-loop-39",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-loop-40": {
+        "id": "a-steward-loop-40",
+        "source": "p-steward-verify-cmd",
+        "target": "t-steward-verify-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-41": {
+        "id": "a-steward-loop-41",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-build-log",
+        "weight": 1
+      },
+      "a-steward-loop-42": {
+        "id": "a-steward-loop-42",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-verification",
+        "weight": 1
+      },
+      "a-steward-loop-43": {
+        "id": "a-steward-loop-43",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-runs",
+        "weight": 1
+      },
+      "a-steward-loop-44": {
+        "id": "a-steward-loop-44",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-release-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-45": {
+        "id": "a-steward-loop-45",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-loop-46": {
+        "id": "a-steward-loop-46",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-loop-47": {
+        "id": "a-steward-loop-47",
+        "source": "p-steward-decisions",
+        "target": "t-steward-rollback-prep",
+        "weight": 1
+      },
+      "a-steward-loop-48": {
+        "id": "a-steward-loop-48",
+        "source": "t-steward-rollback-prep",
+        "target": "p-steward-release-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-49": {
+        "id": "a-steward-loop-49",
+        "source": "p-steward-release-cmd",
+        "target": "t-steward-release-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-50": {
+        "id": "a-steward-loop-50",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-build-log",
+        "weight": 1
+      },
+      "a-steward-loop-51": {
+        "id": "a-steward-loop-51",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-runs",
+        "weight": 1
+      },
+      "a-steward-loop-52": {
+        "id": "a-steward-loop-52",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-loop-53": {
+        "id": "a-steward-loop-53",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-repo",
+        "weight": 1
+      },
+      "a-steward-loop-54": {
+        "id": "a-steward-loop-54",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-loop-55": {
+        "id": "a-steward-loop-55",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-loop-56": {
+        "id": "a-steward-loop-56",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-loop-57": {
+        "id": "a-steward-loop-57",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    },
+    "description": "The iteration. A trigger becomes a measured brief; the Steward proposes the next increment as a choice, an interview or a request for the goal; the person answers in the application; the answer becomes a spec brief; the Steward writes a change spec inside a closed grammar; the policy gate approves, asks the person or refuses; an approved spec is applied by the headless coder in the pack repository, verified, installed and released as a new pack version; the brain observes and the next iteration starts. Every path ends in a place the person reads.",
+    "id": "steward-loop",
+    "places": {
+      "p-steward-apply-cmd": {
+        "id": "p-steward-apply-cmd",
+        "label": "Apply commands",
+        "tokens": 0,
+        "x": 100,
+        "y": 610
+      },
+      "p-steward-brain-cmd": {
+        "id": "p-steward-brain-cmd",
+        "label": "Brain commands",
+        "tokens": 0,
+        "x": 100,
+        "y": 950
+      },
+      "p-steward-build-log": {
+        "id": "p-steward-build-log",
+        "label": "Apply, verify and release command results",
+        "tokens": 0,
+        "x": 540,
+        "y": 780
+      },
+      "p-steward-coders": {
+        "id": "p-steward-coders",
+        "label": "Headless agent definitions",
+        "tokens": 0,
+        "x": 100,
+        "y": 780
+      },
+      "p-steward-context": {
+        "id": "p-steward-context",
+        "label": "Briefs for the judgement lanes",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-steward-context-cmd": {
+        "id": "p-steward-context-cmd",
+        "label": "Brief commands (propose, spec)",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-steward-decisions": {
+        "id": "p-steward-decisions",
+        "label": "The person's and the gate's decisions (spec approval, rejection, rollback)",
+        "tokens": 0,
+        "x": 760,
+        "y": 610
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-steward-gate-cmd": {
+        "id": "p-steward-gate-cmd",
+        "label": "Gate commands",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-steward-iterate": {
+        "id": "p-steward-iterate",
+        "label": "Iteration triggers (app, observe, release)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-steward-llm-errors": {
+        "id": "p-steward-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-steward-loop-log": {
+        "id": "p-steward-loop-log",
+        "label": "Loop command results",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-steward-prompts": {
+        "id": "p-steward-prompts",
+        "label": "The Steward's questions: choices, interviews, goal requests, approvals",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-steward-refused": {
+        "id": "p-steward-refused",
+        "label": "Specs the gate refused, with the reason",
+        "tokens": 0,
+        "x": 540,
+        "y": 610
+      },
+      "p-steward-release-cmd": {
+        "id": "p-steward-release-cmd",
+        "label": "Release and rollback commands",
+        "tokens": 0,
+        "x": 980,
+        "y": 950
+      },
+      "p-steward-repo": {
+        "id": "p-steward-repo",
+        "label": "The pack repository record",
+        "tokens": 0,
+        "x": 320,
+        "y": 950
+      },
+      "p-steward-responses": {
+        "id": "p-steward-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-steward-runs": {
+        "id": "p-steward-runs",
+        "label": "Runs: branch, pack version, coder summary, verification, release",
+        "tokens": 0,
+        "x": 760,
+        "y": 780
+      },
+      "p-steward-spec-drafts": {
+        "id": "p-steward-spec-drafts",
+        "label": "Drafts waiting for the gate",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-steward-specs": {
+        "id": "p-steward-specs",
+        "label": "Change specs (draft, approved, rejected, refused, applied, released, rolled-back)",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-steward-verification": {
+        "id": "p-steward-verification",
+        "label": "Verification results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 950
+      },
+      "p-steward-verify-cmd": {
+        "id": "p-steward-verify-cmd",
+        "label": "Verification commands",
+        "tokens": 0,
+        "x": 980,
+        "y": 780
+      }
+    },
+    "transitions": {
+      "t-steward-answer-prep": {
+        "id": "t-steward-answer-prep",
+        "label": "Answer to spec brief",
+        "x": 100,
+        "y": 440
+      },
+      "t-steward-apply-cmd": {
+        "id": "t-steward-apply-cmd",
+        "label": "Apply: the coder edits the pack on a branch, build, package",
+        "x": 320,
+        "y": 780
+      },
+      "t-steward-approve-prep": {
+        "id": "t-steward-approve-prep",
+        "label": "Approved spec to apply command",
+        "x": 320,
+        "y": 610
+      },
+      "t-steward-context-cmd": {
+        "id": "t-steward-context-cmd",
+        "label": "Render a brief",
+        "x": 760,
+        "y": 100
+      },
+      "t-steward-gate-cmd": {
+        "id": "t-steward-gate-cmd",
+        "label": "Policy gate: approve, ask the person, or refuse",
+        "x": 980,
+        "y": 610
+      },
+      "t-steward-gate-prep": {
+        "id": "t-steward-gate-prep",
+        "label": "Draft to gate command",
+        "x": 1200,
+        "y": 440
+      },
+      "t-steward-iterate-prep": {
+        "id": "t-steward-iterate-prep",
+        "label": "Iteration trigger to proposal brief",
+        "x": 320,
+        "y": 100
+      },
+      "t-steward-propose": {
+        "id": "t-steward-propose",
+        "label": "Propose the next increment (choice, interview or goal)",
+        "x": 540,
+        "y": 270
+      },
+      "t-steward-release-cmd": {
+        "id": "t-steward-release-cmd",
+        "label": "Release: merge, tag, record, observe, next iteration; or roll back",
+        "x": 540,
+        "y": 950
+      },
+      "t-steward-revise-prep": {
+        "id": "t-steward-revise-prep",
+        "label": "Reshaped question to a new proposal brief",
+        "x": 320,
+        "y": 440
+      },
+      "t-steward-rollback-prep": {
+        "id": "t-steward-rollback-prep",
+        "label": "Rollback decision to release command",
+        "x": 760,
+        "y": 950
+      },
+      "t-steward-spec": {
+        "id": "t-steward-spec",
+        "label": "Write the change spec",
+        "x": 540,
+        "y": 440
+      },
+      "t-steward-verify-cmd": {
+        "id": "t-steward-verify-cmd",
+        "label": "Verify: invariants, lint, publish, install, smoke, or roll back",
+        "x": 1200,
+        "y": 780
+      }
+    }
+  }
+}

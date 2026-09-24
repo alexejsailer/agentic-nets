@@ -1,0 +1,121 @@
+{
+  "net": "steward-brain",
+  "model": "steward",
+  "session": "agent-steward",
+  "description": "The brain: a curated, bounded model of the host model kept from what every released change produced. After a release a script collects the signals (the spec, the coder's notes, the verification, the health before and after) and the model map; a curator (a one-shot model call, or a headless agent in curate mode, chosen by the charter) answers a contract: facts to add and retire, the plan, decisions to propose, questions for the person; a script applies it deterministically and starts the next iteration. Every brief reads the brain.",
+  "places": {
+    "p-steward-brain-cmd": "Brain commands (observe, curate, apply, answer)",
+    "p-steward-brain-log": "Brain command results",
+    "p-steward-signals": "Signals per released run",
+    "p-steward-context": "Briefs for the judgement lanes",
+    "p-steward-curation": "Curations (the curator's answer)",
+    "p-steward-curations": "Curation archive (every curation as answered, kept)",
+    "p-steward-knowledge": "Knowledge facts: kind, scope, source, confidence, active or retired",
+    "p-steward-map": "The model map, measured",
+    "p-steward-plan": "The plan: remaining increments toward the goal",
+    "p-steward-adr": "Decision records (the brain proposes, the person decides)",
+    "p-steward-prompts": "Questions for the person",
+    "p-steward-responses": "The person's answers",
+    "p-steward-runs": "Runs",
+    "p-steward-iterate": "Iteration triggers",
+    "p-steward-llm-errors": "Answers that missed their contract",
+    "p-steward-journal": "Journal"
+  },
+  "transitions": [
+    {
+      "id": "t-steward-brain-observe-cmd",
+      "kind": "command",
+      "label": "Observe: signals of a released run",
+      "reads": {"input": {"place": "p-steward-brain-cmd", "arcql": "FROM $ WHERE $.stage == \"observe\" LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-brain-log", "retain": 200},
+        "signals": "p-steward-signals",
+        "context": "p-steward-context",
+        "brain_cmd": "p-steward-brain-cmd",
+        "journal": "p-steward-journal"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 600000}
+    },
+    {
+      "id": "t-steward-curate",
+      "kind": "agent",
+      "label": "Curate (one-shot model call)",
+      "reads": {"ctx": {"place": "p-steward-context", "arcql": "FROM $ WHERE $.purpose == \"curate\" LIMIT 1", "ttl": 600000}},
+      "writes": {"curation": "p-steward-curation", "archive": {"place": "p-steward-curations", "retain": 50}, "errors": {"place": "p-steward-llm-errors", "retain": 100}},
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": ["curationId", "runId", "addFacts", "plan", "summary"],
+          "types": {"addFacts": "array", "plan": "object", "summary": "string"},
+          "retries": 1
+        },
+        "nl": "You are the Steward's brain, curating what the model knows after one released change. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nRules: facts must be specific and sourced from the brief (a lane id, a place id, a measured number, a file in the pack); prefer few good facts over many; mark as platform what is true for the runtime and reusable in other models, as project what is about this model; propose a decision for every choice the coder made that constrains future changes; keep the plan as the remaining increments toward the goal in dependency order, marking what is released; ask a question only when the next increment genuinely depends on the answer. Always include every array, empty when there is nothing.\n\nReply with exactly this shape: {\"curationId\": \"<from the brief>\", \"runId\": \"<from the brief>\", \"addFacts\": [{\"kind\": \"platform|convention|decision|gap|risk|question\", \"scope\": \"project|platform\", \"text\": \"<one specific, checkable sentence>\", \"source\": \"<runId, specId, lane id or file>\", \"confidence\": \"high|medium|low\"}], \"retireFacts\": [\"<factId>\"], \"plan\": {\"increments\": [{\"id\": \"inc-1\", \"title\": \"<one line>\", \"kind\": \"<spec kind>\", \"status\": \"planned|in-progress|released|dropped\", \"dependsOn\": [\"inc-0\"], \"specId\": \"<specId or empty>\"}]}, \"proposedDecisions\": [{\"title\": \"<short>\", \"context\": \"<why it came up>\", \"decision\": \"<what was decided>\", \"consequences\": \"<what it constrains>\"}], \"questions\": [{\"question\": \"<what only the person can answer>\", \"why\": \"<what depends on it>\"}], \"summary\": \"<three sentences>\"}"
+      },
+      "emit": [
+        {"from": "@response", "to": "archive", "when": "summary != ''"},
+        {"from": "@response", "to": "curation", "when": "summary != ''"},
+        {"from": "@response", "to": "errors", "when": "summary == ''"},
+        {"from": "@response", "to": "errors", "when": "error"}
+      ]
+    },
+    {
+      "id": "t-steward-curate-cmd",
+      "kind": "command",
+      "label": "Curate (headless agent, may read the pack repository)",
+      "reads": {"input": {"place": "p-steward-brain-cmd", "arcql": "FROM $ WHERE $.stage == \"curate\" LIMIT 1"}},
+      "writes": {"log": {"place": "p-steward-brain-log", "retain": 200}, "curation": "p-steward-curation", "archive": {"place": "p-steward-curations", "retain": 50}},
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 1800000}
+    },
+    {
+      "id": "t-steward-apply-prep",
+      "kind": "map",
+      "label": "Curation to apply command",
+      "reads": {"cur": {"place": "p-steward-curation", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {"cmd": "p-steward-brain-cmd"},
+      "template": {
+        "kind": "command", "id": "brain-apply-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "apply", "curationId": "${cur.data.curationId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-brain", "argv": ["apply", "${cur.data.curationId}"], "env": {"MODEL_ID": "steward", "CURATION_ID": "${cur.data.curationId}", "RUN_ID": "${cur.data.runId}"}, "timeoutMs": 300000}
+      }
+    },
+    {
+      "id": "t-steward-answer-knowledge-prep",
+      "kind": "map",
+      "label": "A person's answer to a brain question",
+      "reads": {"resp": {"place": "p-steward-responses", "arcql": "FROM $ WHERE $.intent == \"knowledge\" LIMIT 1"}},
+      "writes": {"cmd": "p-steward-brain-cmd"},
+      "template": {
+        "kind": "command", "id": "brain-answer-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "answer", "promptId": "${resp.data.promptId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-brain", "argv": ["answer", "${resp.data.promptId}"], "env": {"MODEL_ID": "steward", "PROMPT_ID": "${resp.data.promptId}", "ANSWER_TEXT": "${resp.data.text}"}, "timeoutMs": 120000}
+      }
+    },
+    {
+      "id": "t-steward-brain-apply-cmd",
+      "kind": "command",
+      "label": "Apply: knowledge, plan, proposed decisions, questions, next iteration",
+      "reads": {
+        "input": {"place": "p-steward-brain-cmd", "arcql": "FROM $ WHERE $.stage == \"apply\" OR $.stage == \"answer\" LIMIT 1"},
+        "archive": {"place": "p-steward-curations", "arcql": "FROM $ LIMIT 1", "consume": false, "optional": true}
+      },
+      "writes": {
+        "log": {"place": "p-steward-brain-log", "retain": 200},
+        "knowledge": "p-steward-knowledge",
+        "plan": "p-steward-plan",
+        "adr": "p-steward-adr",
+        "prompts": "p-steward-prompts",
+        "iterate": "p-steward-iterate",
+        "journal": "p-steward-journal"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 300000}
+    }
+  ]
+}

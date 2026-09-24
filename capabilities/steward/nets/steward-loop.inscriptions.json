@@ -1,0 +1,884 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "context",
+            "propose",
+            "${it.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 300000,
+          "toolId": "steward-context"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "ctx-propose-${now()}",
+        "iterationId": "${it.data.iterationId}",
+        "kind": "command",
+        "stage": "propose"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-iterate-prep",
+    "kind": "map",
+    "label": "Iteration trigger to proposal brief",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-context-cmd"
+      }
+    },
+    "presets": {
+      "it": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-iterate",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "description": "steward-context renders the charter, the latest health, the lanes, the model map, the knowledge, the plan and the history into one brief token; for a spec brief it adds the person's answer.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-context-cmd",
+    "kind": "command",
+    "label": "Render a brief",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "context": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-context"
+      },
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-loop-log",
+        "retain": 200
+      },
+      "responses": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-responses"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-context-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "promptId",
+          "iterationId",
+          "mode",
+          "question",
+          "options",
+          "rationale"
+        ],
+        "retries": 1,
+        "types": {
+          "mode": "string",
+          "options": "array",
+          "question": "string",
+          "rationale": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "steward",
+      "nl": "You are the Steward, a persona whose job is the model it lives in, deciding with the person what the next increment is. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the goal is NOT DEFINED: ask the person what this model should become; give 3 example goal statements they can adapt (a developer persona for one kind of service, a research desk, a cheaper and more deterministic version of the nets already there); the question asks for the goal in one line plus a paragraph.\n- \"interview\" when the next increment cannot be chosen without information only the person has (which nets matter, what a lane may cost, who consumes an output): ask at most 3 precise questions; each question is an option {value: \"q1\", label: <the question>, description: <why the answer matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete next increments, each one change spec of one kind from the closed grammar: tune, view, crystallise, add-lane, remove-lane, add-net, add-script, app. Prefer, in this order: a lane with errors or contract misses, stranded tokens, a lane that costs more than its siblings, a big net without views, an agent lane whose fires look identical (crystallise), then the goal's most valuable missing capability. Never propose anything that touches the protected set named in the brief. If the brief carries THE PLAN, the options are its next planned increments in order; deviate only with a stated reason. Each option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, kind: <spec kind>, nets: [<net ids touched>], effort: \"S|M|L\", risk: \"low|medium|high\", evidence: [<signal lines from the brief>], recommended: true|false}. Exactly one option is recommended.\n\nReply with exactly this shape: {\"promptId\": \"<promptId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"mode\": \"choice|interview|goal\", \"question\": \"<the question to the person, one sentence>\", \"context\": \"<two sentences: what the last observation showed, what changed last time>\", \"options\": [...], \"allowFreeText\": true, \"rationale\": \"<why these options, two sentences>\", \"at\": \"<now from the brief>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-steward",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "prompts",
+        "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-steward-propose",
+    "kind": "agent",
+    "label": "Propose the next increment (choice, interview or goal)",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-llm-errors",
+        "retain": 100
+      },
+      "prompts": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-prompts"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"propose\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "context",
+            "spec",
+            "${resp.data.iterationId}",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "MODEL_ID": "steward",
+            "RESPONSE_NOTES": "${resp.data.notes}",
+            "RESPONSE_SELECTED": "${resp.data.selected}",
+            "RESPONSE_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "steward-context"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "ctx-spec-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "promptId": "${resp.data.promptId}",
+        "stage": "spec"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-answer-prep",
+    "kind": "map",
+    "label": "Answer to spec brief",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-context-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "context",
+            "propose",
+            "${resp.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "steward",
+            "REVISION_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "steward-context"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "ctx-revise-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "stage": "propose"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-revise-prep",
+    "kind": "map",
+    "label": "Reshaped question to a new proposal brief",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-context-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "specId",
+          "iterationId",
+          "promptId",
+          "kind",
+          "title",
+          "summary",
+          "why",
+          "nets",
+          "touches",
+          "changes",
+          "files",
+          "verify",
+          "status"
+        ],
+        "retries": 1,
+        "types": {
+          "changes": "array",
+          "files": "array",
+          "kind": "string",
+          "nets": "array",
+          "reads": "array",
+          "title": "string",
+          "touches": "array",
+          "verify": "string",
+          "writes": "array"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "steward",
+      "nl": "You are the Steward, writing the change spec for the increment the person chose. Read the brief, then reply with ONE JSON object and nothing else. The spec is the contract the coder implements inside the pack repository and the verifier checks after the new pack version is installed. The kind is one of the closed grammar: tune, view, crystallise, add-lane, remove-lane, add-net, add-script, app. Never touch the protected set named in the brief; never propose a change to the charter. Every change is expressed as edits to the pack's sources (compact net sources under nets/, scripts under assets/, seeds, the app manifest and its web component) and must build with the pack tool.\n\n${ctx.data.brief}\n\nReply with exactly this shape: {\"specId\": \"<specId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"promptId\": \"<promptId from the brief>\", \"kind\": \"<spec kind>\", \"title\": \"<imperative, under 70 characters>\", \"summary\": \"<three sentences>\", \"why\": \"<the signals this answers, with their numbers>\", \"nets\": [\"<net ids touched>\"], \"touches\": [\"<lane and place ids changed, added or removed>\"], \"reads\": [\"<place ids a new lane reads>\"], \"writes\": [\"<place ids a new lane writes>\"], \"changes\": [\"<one ordered step for the coder per line: which file, what edit>\"], \"files\": [\"<pack files expected to change>\"], \"verify\": \"<one measurable condition after install: which lane runs, which place receives what, which number goes down>\", \"rollback\": \"previous pack version\", \"blastRadius\": \"<one sentence: nets touched, lanes stopped>\", \"status\": \"draft\", \"at\": \"<now from the brief>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-steward",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "specs",
+        "when": "status == 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "drafts",
+        "when": "status == 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "status != 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-steward-spec",
+    "kind": "agent",
+    "label": "Write the change spec",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "drafts": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-spec-drafts"
+      },
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-llm-errors",
+        "retain": 100
+      },
+      "specs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-specs"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"spec\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "gate",
+            "${d.data.specId}"
+          ],
+          "env": {
+            "MODEL_ID": "steward",
+            "SPEC_ID": "${d.data.specId}"
+          },
+          "timeoutMs": 120000,
+          "toolId": "steward-gate"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "gate-${now()}",
+        "kind": "command",
+        "specId": "${d.data.specId}",
+        "stage": "gate"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-gate-prep",
+    "kind": "map",
+    "label": "Draft to gate command",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-gate-cmd"
+      }
+    },
+    "presets": {
+      "d": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-spec-drafts",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 120000,
+      "type": "command"
+    },
+    "description": "steward-gate checks the spec against the charter: closed kinds, the protected set, the scope, the budget, the autonomy level. It writes an approval decision, a question for the person, or a refusal with the reason.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-gate-cmd",
+    "kind": "command",
+    "label": "Policy gate: approve, ask the person, or refuse",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "decisions": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-decisions"
+      },
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-loop-log",
+        "retain": 200
+      },
+      "prompts": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-prompts"
+      },
+      "refused": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-refused"
+      },
+      "specs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-specs"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-gate-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "apply",
+            "${dec.data.specId}"
+          ],
+          "env": {
+            "DECIDED_BY": "${dec.data.by}",
+            "DECISION_NOTES": "${dec.data.notes}",
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 3000000,
+          "toolId": "steward-apply"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "apply-${now()}",
+        "kind": "command",
+        "specId": "${dec.data.specId}",
+        "stage": "apply"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-approve-prep",
+    "kind": "map",
+    "label": "Approved spec to apply command",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-apply-cmd"
+      }
+    },
+    "presets": {
+      "dec": {
+        "arcql": "FROM $ WHERE $.kind == \"spec-approval\" AND $.verdict == \"approved\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-decisions",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 3000000,
+      "type": "command"
+    },
+    "description": "steward-apply spawns the configured headless agent (p-steward-coders, chosen by the charter) inside the pack repository with the spec, the charter, the compact-source conventions, the knowledge and the protected set as its brief; then inlines the library, builds and packages the pack, bumps the version, checks the invariants and queues verification.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-apply-cmd",
+    "kind": "command",
+    "label": "Apply: the coder edits the pack on a branch, build, package",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-build-log",
+        "retain": 300
+      },
+      "runs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-runs"
+      },
+      "specs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-specs"
+      },
+      "verify_cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-verify-cmd"
+      }
+    },
+    "presets": {
+      "coders": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "steward@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-steward-coders",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-apply-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 1800000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-verify-cmd",
+    "kind": "command",
+    "label": "Verify: invariants, lint, publish, install, smoke, or roll back",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-build-log",
+        "retain": 300
+      },
+      "release_cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-release-cmd"
+      },
+      "runs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-runs"
+      },
+      "verification": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-verification"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-verify-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "rollback",
+            "${dec.data.runId}"
+          ],
+          "env": {
+            "DECISION_NOTES": "${dec.data.notes}",
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 900000,
+          "toolId": "steward-release"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "rollback-${now()}",
+        "kind": "command",
+        "runId": "${dec.data.runId}",
+        "stage": "rollback"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-rollback-prep",
+    "kind": "map",
+    "label": "Rollback decision to release command",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-release-cmd"
+      }
+    },
+    "presets": {
+      "dec": {
+        "arcql": "FROM $ WHERE $.kind == \"rollback\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-decisions",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-release-cmd",
+    "kind": "command",
+    "label": "Release: merge, tag, record, observe, next iteration; or roll back",
+    "metadata": {
+      "netId": "steward-loop",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "brain_cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-cmd"
+      },
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "iterate": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-iterate"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-build-log",
+        "retain": 300
+      },
+      "repo": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-repo"
+      },
+      "runs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-runs"
+      },
+      "specs": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-specs"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-release-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

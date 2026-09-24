@@ -1,0 +1,49 @@
+{
+  "net": "steward-setup",
+  "model": "steward",
+  "session": "agent-steward",
+  "description": "Configuration and the executor host. The charter and the coder definitions are seeded and edited in the application; an hourly tick measures the host (coder binaries, node, git, the MCP endpoint, the pack repository) and a setup process provisions the MCP token into the vault, clones the pack repository, pauses or resumes the model.",
+  "places": {
+    "p-steward-charter": "The charter (goal, principles, scope, autonomy, budget, schedule, repository, coder); edited in the app",
+    "p-steward-coders": "Headless agent definitions (seeded; chosen in the app)",
+    "p-steward-infra": "Host measurements (coder binaries, node, git, MCP, repository, disk)",
+    "p-steward-setup-cmd": "Setup commands (health, provision, clone, pause, resume)",
+    "p-steward-setup-log": "Setup command results",
+    "p-steward-repo": "The pack repository record (path, remote, head, installed version)",
+    "p-steward-journal": "Journal: every lane writes what it did",
+    "p-steward-errors": "Script errors"
+  },
+  "transitions": [
+    {
+      "id": "t-steward-infra-tick",
+      "kind": "map",
+      "label": "Host health tick (hourly)",
+      "schedule": {"type": "cron", "cron": "0 12 * * * *", "timezone": "Europe/Berlin"},
+      "reads": {
+        "charter": {"place": "p-steward-charter", "arcql": "FROM $ WHERE $.charterId == \"steward\" LIMIT 1", "consume": false}
+      },
+      "writes": {"cmd": "p-steward-setup-cmd"},
+      "template": {
+        "kind": "command", "id": "infra-health-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "health", "filedAt": "${now()}",
+        "args": {"toolId": "steward-infra", "argv": ["health"], "env": {"MODEL_ID": "steward"}, "timeoutMs": 120000}
+      }
+    },
+    {
+      "id": "t-steward-setup-cmd",
+      "kind": "command",
+      "label": "Run a setup process",
+      "description": "steward-infra: health measures the host and the MCP endpoint; provision stores the MCP token in the vault for charter.tokenLanes and clones the pack repository; pause and resume act on the whole model through the MCP.",
+      "reads": {"input": {"place": "p-steward-setup-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-setup-log", "retain": 200},
+        "infra": "p-steward-infra",
+        "repo": "p-steward-repo",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 900000}
+    }
+  ]
+}

@@ -1,0 +1,403 @@
+[
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 600000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-brain-observe-cmd",
+    "kind": "command",
+    "label": "Observe: signals of a released run",
+    "metadata": {
+      "netId": "steward-brain",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "brain_cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-cmd"
+      },
+      "context": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-context"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-log",
+        "retain": 200
+      },
+      "signals": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-signals"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"observe\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-brain-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "curationId",
+          "runId",
+          "addFacts",
+          "plan",
+          "summary"
+        ],
+        "retries": 1,
+        "types": {
+          "addFacts": "array",
+          "plan": "object",
+          "summary": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "steward",
+      "nl": "You are the Steward's brain, curating what the model knows after one released change. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nRules: facts must be specific and sourced from the brief (a lane id, a place id, a measured number, a file in the pack); prefer few good facts over many; mark as platform what is true for the runtime and reusable in other models, as project what is about this model; propose a decision for every choice the coder made that constrains future changes; keep the plan as the remaining increments toward the goal in dependency order, marking what is released; ask a question only when the next increment genuinely depends on the answer. Always include every array, empty when there is nothing.\n\nReply with exactly this shape: {\"curationId\": \"<from the brief>\", \"runId\": \"<from the brief>\", \"addFacts\": [{\"kind\": \"platform|convention|decision|gap|risk|question\", \"scope\": \"project|platform\", \"text\": \"<one specific, checkable sentence>\", \"source\": \"<runId, specId, lane id or file>\", \"confidence\": \"high|medium|low\"}], \"retireFacts\": [\"<factId>\"], \"plan\": {\"increments\": [{\"id\": \"inc-1\", \"title\": \"<one line>\", \"kind\": \"<spec kind>\", \"status\": \"planned|in-progress|released|dropped\", \"dependsOn\": [\"inc-0\"], \"specId\": \"<specId or empty>\"}]}, \"proposedDecisions\": [{\"title\": \"<short>\", \"context\": \"<why it came up>\", \"decision\": \"<what was decided>\", \"consequences\": \"<what it constrains>\"}], \"questions\": [{\"question\": \"<what only the person can answer>\", \"why\": \"<what depends on it>\"}], \"summary\": \"<three sentences>\"}",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "agent-steward",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "archive",
+        "when": "summary != ''"
+      },
+      {
+        "from": "@response",
+        "to": "curation",
+        "when": "summary != ''"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "summary == ''"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-steward-curate",
+    "kind": "agent",
+    "label": "Curate (one-shot model call)",
+    "metadata": {
+      "netId": "steward-brain",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "archive": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-curations",
+        "retain": 50
+      },
+      "curation": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-curation"
+      },
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-llm-errors",
+        "retain": 100
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"curate\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 1800000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-curate-cmd",
+    "kind": "command",
+    "label": "Curate (headless agent, may read the pack repository)",
+    "metadata": {
+      "netId": "steward-brain",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "archive": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-curations",
+        "retain": 50
+      },
+      "curation": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-curation"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-log",
+        "retain": 200
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"curate\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-brain-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "apply",
+            "${cur.data.curationId}"
+          ],
+          "env": {
+            "CURATION_ID": "${cur.data.curationId}",
+            "MODEL_ID": "steward",
+            "RUN_ID": "${cur.data.runId}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "steward-brain"
+        },
+        "command": "invoke",
+        "curationId": "${cur.data.curationId}",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "brain-apply-${now()}",
+        "kind": "command",
+        "stage": "apply"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-apply-prep",
+    "kind": "map",
+    "label": "Curation to apply command",
+    "metadata": {
+      "netId": "steward-brain",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-cmd"
+      }
+    },
+    "presets": {
+      "cur": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-curation",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "answer",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "ANSWER_TEXT": "${resp.data.text}",
+            "MODEL_ID": "steward",
+            "PROMPT_ID": "${resp.data.promptId}"
+          },
+          "timeoutMs": 120000,
+          "toolId": "steward-brain"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "brain-answer-${now()}",
+        "kind": "command",
+        "promptId": "${resp.data.promptId}",
+        "stage": "answer"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-answer-knowledge-prep",
+    "kind": "map",
+    "label": "A person's answer to a brain question",
+    "metadata": {
+      "netId": "steward-brain",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"knowledge\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-brain-apply-cmd",
+    "kind": "command",
+    "label": "Apply: knowledge, plan, proposed decisions, questions, next iteration",
+    "metadata": {
+      "netId": "steward-brain",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "adr": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-adr"
+      },
+      "iterate": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-iterate"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "knowledge": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-knowledge"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-brain-log",
+        "retain": 200
+      },
+      "plan": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-plan"
+      },
+      "prompts": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-prompts"
+      }
+    },
+    "presets": {
+      "archive": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "steward@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-steward-curations",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ WHERE $.stage == \"apply\" OR $.stage == \"answer\" LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-brain-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

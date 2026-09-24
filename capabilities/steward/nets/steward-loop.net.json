@@ -1,0 +1,250 @@
+{
+  "net": "steward-loop",
+  "model": "steward",
+  "session": "agent-steward",
+  "description": "The iteration. A trigger becomes a measured brief; the Steward proposes the next increment as a choice, an interview or a request for the goal; the person answers in the application; the answer becomes a spec brief; the Steward writes a change spec inside a closed grammar; the policy gate approves, asks the person or refuses; an approved spec is applied by the headless coder in the pack repository, verified, installed and released as a new pack version; the brain observes and the next iteration starts. Every path ends in a place the person reads.",
+  "places": {
+    "p-steward-charter": "The charter",
+    "p-steward-coders": "Headless agent definitions",
+    "p-steward-iterate": "Iteration triggers (app, observe, release)",
+    "p-steward-context-cmd": "Brief commands (propose, spec)",
+    "p-steward-loop-log": "Loop command results",
+    "p-steward-context": "Briefs for the judgement lanes",
+    "p-steward-prompts": "The Steward's questions: choices, interviews, goal requests, approvals",
+    "p-steward-responses": "The person's answers",
+    "p-steward-specs": "Change specs (draft, approved, rejected, refused, applied, released, rolled-back)",
+    "p-steward-spec-drafts": "Drafts waiting for the gate",
+    "p-steward-gate-cmd": "Gate commands",
+    "p-steward-refused": "Specs the gate refused, with the reason",
+    "p-steward-decisions": "The person's and the gate's decisions (spec approval, rejection, rollback)",
+    "p-steward-apply-cmd": "Apply commands",
+    "p-steward-runs": "Runs: branch, pack version, coder summary, verification, release",
+    "p-steward-verify-cmd": "Verification commands",
+    "p-steward-verification": "Verification results",
+    "p-steward-release-cmd": "Release and rollback commands",
+    "p-steward-build-log": "Apply, verify and release command results",
+    "p-steward-repo": "The pack repository record",
+    "p-steward-brain-cmd": "Brain commands",
+    "p-steward-llm-errors": "Answers that missed their contract",
+    "p-steward-journal": "Journal",
+    "p-steward-errors": "Script errors"
+  },
+  "transitions": [
+    {
+      "id": "t-steward-iterate-prep",
+      "kind": "map",
+      "label": "Iteration trigger to proposal brief",
+      "reads": {"it": {"place": "p-steward-iterate", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {"cmd": "p-steward-context-cmd"},
+      "template": {
+        "kind": "command", "id": "ctx-propose-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "propose", "iterationId": "${it.data.iterationId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-context", "argv": ["context", "propose", "${it.data.iterationId}"], "env": {"MODEL_ID": "steward"}, "timeoutMs": 300000}
+      }
+    },
+    {
+      "id": "t-steward-context-cmd",
+      "kind": "command",
+      "label": "Render a brief",
+      "description": "steward-context renders the charter, the latest health, the lanes, the model map, the knowledge, the plan and the history into one brief token; for a spec brief it adds the person's answer.",
+      "reads": {"input": {"place": "p-steward-context-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-loop-log", "retain": 200},
+        "context": "p-steward-context",
+        "responses": "p-steward-responses",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 300000}
+    },
+    {
+      "id": "t-steward-propose",
+      "kind": "agent",
+      "label": "Propose the next increment (choice, interview or goal)",
+      "reads": {"ctx": {"place": "p-steward-context", "arcql": "FROM $ WHERE $.purpose == \"propose\" LIMIT 1", "ttl": 600000}},
+      "writes": {"prompts": "p-steward-prompts", "errors": {"place": "p-steward-llm-errors", "retain": 100}},
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": ["promptId", "iterationId", "mode", "question", "options", "rationale"],
+          "types": {"options": "array", "question": "string", "mode": "string", "rationale": "string"},
+          "retries": 1
+        },
+        "nl": "You are the Steward, a persona whose job is the model it lives in, deciding with the person what the next increment is. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the goal is NOT DEFINED: ask the person what this model should become; give 3 example goal statements they can adapt (a developer persona for one kind of service, a research desk, a cheaper and more deterministic version of the nets already there); the question asks for the goal in one line plus a paragraph.\n- \"interview\" when the next increment cannot be chosen without information only the person has (which nets matter, what a lane may cost, who consumes an output): ask at most 3 precise questions; each question is an option {value: \"q1\", label: <the question>, description: <why the answer matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete next increments, each one change spec of one kind from the closed grammar: tune, view, crystallise, add-lane, remove-lane, add-net, add-script, app. Prefer, in this order: a lane with errors or contract misses, stranded tokens, a lane that costs more than its siblings, a big net without views, an agent lane whose fires look identical (crystallise), then the goal's most valuable missing capability. Never propose anything that touches the protected set named in the brief. If the brief carries THE PLAN, the options are its next planned increments in order; deviate only with a stated reason. Each option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, kind: <spec kind>, nets: [<net ids touched>], effort: \"S|M|L\", risk: \"low|medium|high\", evidence: [<signal lines from the brief>], recommended: true|false}. Exactly one option is recommended.\n\nReply with exactly this shape: {\"promptId\": \"<promptId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"mode\": \"choice|interview|goal\", \"question\": \"<the question to the person, one sentence>\", \"context\": \"<two sentences: what the last observation showed, what changed last time>\", \"options\": [...], \"allowFreeText\": true, \"rationale\": \"<why these options, two sentences>\", \"at\": \"<now from the brief>\"}"
+      },
+      "emit": [
+        {"from": "@response", "to": "prompts", "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"},
+        {"from": "@response", "to": "errors", "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"},
+        {"from": "@response", "to": "errors", "when": "error"}
+      ]
+    },
+    {
+      "id": "t-steward-answer-prep",
+      "kind": "map",
+      "label": "Answer to spec brief",
+      "reads": {"resp": {"place": "p-steward-responses", "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1"}},
+      "writes": {"cmd": "p-steward-context-cmd"},
+      "template": {
+        "kind": "command", "id": "ctx-spec-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "spec", "iterationId": "${resp.data.iterationId}", "promptId": "${resp.data.promptId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-context", "argv": ["context", "spec", "${resp.data.iterationId}", "${resp.data.promptId}"],
+                 "env": {"MODEL_ID": "steward", "RESPONSE_SELECTED": "${resp.data.selected}", "RESPONSE_TEXT": "${resp.data.text}", "RESPONSE_NOTES": "${resp.data.notes}"},
+                 "timeoutMs": 300000}
+      }
+    },
+    {
+      "id": "t-steward-revise-prep",
+      "kind": "map",
+      "label": "Reshaped question to a new proposal brief",
+      "reads": {"resp": {"place": "p-steward-responses", "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1"}},
+      "writes": {"cmd": "p-steward-context-cmd"},
+      "template": {
+        "kind": "command", "id": "ctx-revise-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "propose", "iterationId": "${resp.data.iterationId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-context", "argv": ["context", "propose", "${resp.data.iterationId}"],
+                 "env": {"MODEL_ID": "steward", "REVISION_TEXT": "${resp.data.text}"}, "timeoutMs": 300000}
+      }
+    },
+    {
+      "id": "t-steward-spec",
+      "kind": "agent",
+      "label": "Write the change spec",
+      "reads": {"ctx": {"place": "p-steward-context", "arcql": "FROM $ WHERE $.purpose == \"spec\" LIMIT 1", "ttl": 600000}},
+      "writes": {"specs": "p-steward-specs", "drafts": "p-steward-spec-drafts", "errors": {"place": "p-steward-llm-errors", "retain": 100}},
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": ["specId", "iterationId", "promptId", "kind", "title", "summary", "why", "nets", "touches", "changes", "files", "verify", "status"],
+          "types": {"nets": "array", "touches": "array", "changes": "array", "files": "array", "reads": "array", "writes": "array", "title": "string", "kind": "string", "verify": "string"},
+          "retries": 1
+        },
+        "nl": "You are the Steward, writing the change spec for the increment the person chose. Read the brief, then reply with ONE JSON object and nothing else. The spec is the contract the coder implements inside the pack repository and the verifier checks after the new pack version is installed. The kind is one of the closed grammar: tune, view, crystallise, add-lane, remove-lane, add-net, add-script, app. Never touch the protected set named in the brief; never propose a change to the charter. Every change is expressed as edits to the pack's sources (compact net sources under nets/, scripts under assets/, seeds, the app manifest and its web component) and must build with the pack tool.\n\n${ctx.data.brief}\n\nReply with exactly this shape: {\"specId\": \"<specId from the brief>\", \"iterationId\": \"<iterationId from the brief>\", \"promptId\": \"<promptId from the brief>\", \"kind\": \"<spec kind>\", \"title\": \"<imperative, under 70 characters>\", \"summary\": \"<three sentences>\", \"why\": \"<the signals this answers, with their numbers>\", \"nets\": [\"<net ids touched>\"], \"touches\": [\"<lane and place ids changed, added or removed>\"], \"reads\": [\"<place ids a new lane reads>\"], \"writes\": [\"<place ids a new lane writes>\"], \"changes\": [\"<one ordered step for the coder per line: which file, what edit>\"], \"files\": [\"<pack files expected to change>\"], \"verify\": \"<one measurable condition after install: which lane runs, which place receives what, which number goes down>\", \"rollback\": \"previous pack version\", \"blastRadius\": \"<one sentence: nets touched, lanes stopped>\", \"status\": \"draft\", \"at\": \"<now from the brief>\"}"
+      },
+      "emit": [
+        {"from": "@response", "to": "specs", "when": "status == 'draft'"},
+        {"from": "@response", "to": "drafts", "when": "status == 'draft'"},
+        {"from": "@response", "to": "errors", "when": "status != 'draft'"},
+        {"from": "@response", "to": "errors", "when": "error"}
+      ]
+    },
+    {
+      "id": "t-steward-gate-prep",
+      "kind": "map",
+      "label": "Draft to gate command",
+      "reads": {"d": {"place": "p-steward-spec-drafts", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {"cmd": "p-steward-gate-cmd"},
+      "template": {
+        "kind": "command", "id": "gate-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "gate", "specId": "${d.data.specId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-gate", "argv": ["gate", "${d.data.specId}"], "env": {"MODEL_ID": "steward", "SPEC_ID": "${d.data.specId}"}, "timeoutMs": 120000}
+      }
+    },
+    {
+      "id": "t-steward-gate-cmd",
+      "kind": "command",
+      "label": "Policy gate: approve, ask the person, or refuse",
+      "description": "steward-gate checks the spec against the charter: closed kinds, the protected set, the scope, the budget, the autonomy level. It writes an approval decision, a question for the person, or a refusal with the reason.",
+      "reads": {"input": {"place": "p-steward-gate-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-loop-log", "retain": 200},
+        "decisions": "p-steward-decisions",
+        "prompts": "p-steward-prompts",
+        "refused": "p-steward-refused",
+        "specs": "p-steward-specs",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 120000}
+    },
+    {
+      "id": "t-steward-approve-prep",
+      "kind": "map",
+      "label": "Approved spec to apply command",
+      "reads": {"dec": {"place": "p-steward-decisions", "arcql": "FROM $ WHERE $.kind == \"spec-approval\" AND $.verdict == \"approved\" LIMIT 1"}},
+      "writes": {"cmd": "p-steward-apply-cmd"},
+      "template": {
+        "kind": "command", "id": "apply-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "apply", "specId": "${dec.data.specId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-apply", "argv": ["apply", "${dec.data.specId}"], "env": {"MODEL_ID": "steward", "DECISION_NOTES": "${dec.data.notes}", "DECIDED_BY": "${dec.data.by}"}, "timeoutMs": 3000000}
+      }
+    },
+    {
+      "id": "t-steward-apply-cmd",
+      "kind": "command",
+      "label": "Apply: the coder edits the pack on a branch, build, package",
+      "description": "steward-apply spawns the configured headless agent (p-steward-coders, chosen by the charter) inside the pack repository with the spec, the charter, the compact-source conventions, the knowledge and the protected set as its brief; then inlines the library, builds and packages the pack, bumps the version, checks the invariants and queues verification.",
+      "reads": {
+        "input": {"place": "p-steward-apply-cmd", "arcql": "FROM $ LIMIT 1"},
+        "coders": {"place": "p-steward-coders", "arcql": "FROM $ LIMIT 1", "consume": false, "optional": true}
+      },
+      "writes": {
+        "log": {"place": "p-steward-build-log", "retain": 300},
+        "runs": "p-steward-runs",
+        "specs": "p-steward-specs",
+        "verify_cmd": "p-steward-verify-cmd",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 3000000}
+    },
+    {
+      "id": "t-steward-verify-cmd",
+      "kind": "command",
+      "label": "Verify: invariants, lint, publish, install, smoke, or roll back",
+      "reads": {"input": {"place": "p-steward-verify-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-build-log", "retain": 300},
+        "verification": "p-steward-verification",
+        "runs": "p-steward-runs",
+        "release_cmd": "p-steward-release-cmd",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 1800000}
+    },
+    {
+      "id": "t-steward-rollback-prep",
+      "kind": "map",
+      "label": "Rollback decision to release command",
+      "reads": {"dec": {"place": "p-steward-decisions", "arcql": "FROM $ WHERE $.kind == \"rollback\" LIMIT 1"}},
+      "writes": {"cmd": "p-steward-release-cmd"},
+      "template": {
+        "kind": "command", "id": "rollback-${now()}", "executor": "script", "command": "invoke", "expect": "text",
+        "stage": "rollback", "runId": "${dec.data.runId}", "filedAt": "${now()}",
+        "args": {"toolId": "steward-release", "argv": ["rollback", "${dec.data.runId}"], "env": {"MODEL_ID": "steward", "DECISION_NOTES": "${dec.data.notes}"}, "timeoutMs": 900000}
+      }
+    },
+    {
+      "id": "t-steward-release-cmd",
+      "kind": "command",
+      "label": "Release: merge, tag, record, observe, next iteration; or roll back",
+      "reads": {"input": {"place": "p-steward-release-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {
+        "log": {"place": "p-steward-build-log", "retain": 300},
+        "runs": "p-steward-runs",
+        "specs": "p-steward-specs",
+        "repo": "p-steward-repo",
+        "brain_cmd": "p-steward-brain-cmd",
+        "iterate": "p-steward-iterate",
+        "journal": "p-steward-journal",
+        "errors": "p-steward-errors"
+      },
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 900000}
+    }
+  ]
+}

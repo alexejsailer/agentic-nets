@@ -1,0 +1,125 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "health"
+          ],
+          "env": {
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 120000,
+          "toolId": "steward-infra"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "infra-health-${now()}",
+        "kind": "command",
+        "stage": "health"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-steward-infra-tick",
+    "kind": "map",
+    "label": "Host health tick (hourly)",
+    "metadata": {
+      "netId": "steward-setup",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-setup-cmd"
+      }
+    },
+    "presets": {
+      "charter": {
+        "arcql": "FROM $ WHERE $.charterId == \"steward\" LIMIT 1",
+        "consume": false,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-charter",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 12 * * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "description": "steward-infra: health measures the host and the MCP endpoint; provision stores the MCP token in the vault for charter.tokenLanes and clones the pack repository; pause and resume act on the whole model through the MCP.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-steward-setup-cmd",
+    "kind": "command",
+    "label": "Run a setup process",
+    "metadata": {
+      "netId": "steward-setup",
+      "sessionId": "agent-steward"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-errors"
+      },
+      "infra": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-infra"
+      },
+      "journal": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-journal"
+      },
+      "log": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-setup-log",
+        "retain": 200
+      },
+      "repo": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-repo"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "steward@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-steward-setup-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

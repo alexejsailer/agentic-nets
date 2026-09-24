@@ -1,0 +1,121 @@
+{
+  "net": {
+    "arcs": {
+      "a-steward-setup-01": {
+        "id": "a-steward-setup-01",
+        "source": "p-steward-charter",
+        "target": "t-steward-infra-tick",
+        "weight": 1
+      },
+      "a-steward-setup-02": {
+        "id": "a-steward-setup-02",
+        "source": "t-steward-infra-tick",
+        "target": "p-steward-setup-cmd",
+        "weight": 1
+      },
+      "a-steward-setup-03": {
+        "id": "a-steward-setup-03",
+        "source": "p-steward-setup-cmd",
+        "target": "t-steward-setup-cmd",
+        "weight": 1
+      },
+      "a-steward-setup-04": {
+        "id": "a-steward-setup-04",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-setup-log",
+        "weight": 1
+      },
+      "a-steward-setup-05": {
+        "id": "a-steward-setup-05",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-infra",
+        "weight": 1
+      },
+      "a-steward-setup-06": {
+        "id": "a-steward-setup-06",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-repo",
+        "weight": 1
+      },
+      "a-steward-setup-07": {
+        "id": "a-steward-setup-07",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-setup-08": {
+        "id": "a-steward-setup-08",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    },
+    "description": "Configuration and the executor host. The charter and the coder definitions are seeded and edited in the application; an hourly tick measures the host (coder binaries, node, git, the MCP endpoint, the pack repository) and a setup process provisions the MCP token into the vault, clones the pack repository, pauses or resumes the model.",
+    "id": "steward-setup",
+    "places": {
+      "p-steward-charter": {
+        "id": "p-steward-charter",
+        "label": "The charter (goal, principles, scope, autonomy, budget, schedule, repository, coder); edited in the app",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-steward-infra": {
+        "id": "p-steward-infra",
+        "label": "Host measurements (coder binaries, node, git, MCP, repository, disk)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "Journal: every lane writes what it did",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-steward-repo": {
+        "id": "p-steward-repo",
+        "label": "The pack repository record (path, remote, head, installed version)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-steward-setup-cmd": {
+        "id": "p-steward-setup-cmd",
+        "label": "Setup commands (health, provision, clone, pause, resume)",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-steward-setup-log": {
+        "id": "p-steward-setup-log",
+        "label": "Setup command results",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-steward-infra-tick": {
+        "id": "t-steward-infra-tick",
+        "label": "Host health tick (hourly)",
+        "x": 320,
+        "y": 100
+      },
+      "t-steward-setup-cmd": {
+        "id": "t-steward-setup-cmd",
+        "label": "Run a setup process",
+        "x": 760,
+        "y": 100
+      }
+    }
+  }
+}

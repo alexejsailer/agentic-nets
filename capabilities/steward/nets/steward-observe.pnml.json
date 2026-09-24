@@ -1,0 +1,160 @@
+{
+  "net": {
+    "arcs": {
+      "a-steward-observe-01": {
+        "id": "a-steward-observe-01",
+        "source": "p-steward-charter",
+        "target": "t-steward-observe-cron",
+        "weight": 1
+      },
+      "a-steward-observe-02": {
+        "id": "a-steward-observe-02",
+        "source": "t-steward-observe-cron",
+        "target": "p-steward-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-observe-03": {
+        "id": "a-steward-observe-03",
+        "source": "p-steward-observe-cmd",
+        "target": "t-steward-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-observe-04": {
+        "id": "a-steward-observe-04",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-observe-log",
+        "weight": 1
+      },
+      "a-steward-observe-05": {
+        "id": "a-steward-observe-05",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-health",
+        "weight": 1
+      },
+      "a-steward-observe-06": {
+        "id": "a-steward-observe-06",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-lanes",
+        "weight": 1
+      },
+      "a-steward-observe-07": {
+        "id": "a-steward-observe-07",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-map",
+        "weight": 1
+      },
+      "a-steward-observe-08": {
+        "id": "a-steward-observe-08",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-budget",
+        "weight": 1
+      },
+      "a-steward-observe-09": {
+        "id": "a-steward-observe-09",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-observe-10": {
+        "id": "a-steward-observe-10",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-observe-11": {
+        "id": "a-steward-observe-11",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    },
+    "description": "Measurement, no model involved. On the charter's schedule and after every released change a script measures the model the Steward lives in: every lane's status, kind, schedule and recent fires, errors, contract misses, stranded tokens, tokens per place, cost per lane. It writes the health summary, one row per lane, the model map and the budget, and starts an iteration when nothing is waiting for the person.",
+    "id": "steward-observe",
+    "places": {
+      "p-steward-budget": {
+        "id": "p-steward-budget",
+        "label": "The daily budget: spent, remaining, exhausted",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-steward-charter": {
+        "id": "p-steward-charter",
+        "label": "The charter",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-steward-health": {
+        "id": "p-steward-health",
+        "label": "Health per observation (the model summarised, with the trend)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-steward-iterate": {
+        "id": "p-steward-iterate",
+        "label": "Iteration triggers",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-steward-lanes": {
+        "id": "p-steward-lanes",
+        "label": "One row per lane per observation",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-steward-map": {
+        "id": "p-steward-map",
+        "label": "The model map: nets, places, lanes and their kinds, measured",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-steward-observe-cmd": {
+        "id": "p-steward-observe-cmd",
+        "label": "Observe commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-steward-observe-log": {
+        "id": "p-steward-observe-log",
+        "label": "Observe command results",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-steward-observe-cmd": {
+        "id": "t-steward-observe-cmd",
+        "label": "Observe: lanes, places, errors, cost, map",
+        "x": 760,
+        "y": 100
+      },
+      "t-steward-observe-cron": {
+        "id": "t-steward-observe-cron",
+        "label": "Observe the model (scheduled)",
+        "x": 320,
+        "y": 100
+      }
+    }
+  }
+}
