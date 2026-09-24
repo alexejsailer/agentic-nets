@@ -1,0 +1,121 @@
+{
+  "net": {
+    "arcs": {
+      "a-office-setup-01": {
+        "id": "a-office-setup-01",
+        "source": "p-product-charter",
+        "target": "t-office-infra-tick",
+        "weight": 1
+      },
+      "a-office-setup-02": {
+        "id": "a-office-setup-02",
+        "source": "t-office-infra-tick",
+        "target": "p-product-setup-cmd",
+        "weight": 1
+      },
+      "a-office-setup-03": {
+        "id": "a-office-setup-03",
+        "source": "p-product-setup-cmd",
+        "target": "t-office-setup-cmd",
+        "weight": 1
+      },
+      "a-office-setup-04": {
+        "id": "a-office-setup-04",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-setup-log",
+        "weight": 1
+      },
+      "a-office-setup-05": {
+        "id": "a-office-setup-05",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-infra",
+        "weight": 1
+      },
+      "a-office-setup-06": {
+        "id": "a-office-setup-06",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-teams",
+        "weight": 1
+      },
+      "a-office-setup-07": {
+        "id": "a-office-setup-07",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-setup-08": {
+        "id": "a-office-setup-08",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      }
+    },
+    "description": "Setup of the product office: an hourly health tick measures the executor host and the MCP endpoint; the setup command lane provisions the MCP token for the office's lanes, keeps the team registry (a team registers itself when provisioned) and pauses or resumes the office.",
+    "id": "office-setup",
+    "places": {
+      "p-product-charter": {
+        "id": "p-product-charter",
+        "label": "The product charter: principles, goals, services, coder, budgets, autonomy (the person's; never changed by a net)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-product-errors": {
+        "id": "p-product-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-product-infra": {
+        "id": "p-product-infra",
+        "label": "Infrastructure measurements and pause records",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-product-setup-cmd": {
+        "id": "p-product-setup-cmd",
+        "label": "Setup commands (health, provision, pause, resume, register-team)",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-product-setup-log": {
+        "id": "p-product-setup-log",
+        "label": "Setup command results",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-product-teams": {
+        "id": "p-product-teams",
+        "label": "The team registry: one token per installed service team (service, session, namespace, app route, places)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      }
+    },
+    "transitions": {
+      "t-office-infra-tick": {
+        "id": "t-office-infra-tick",
+        "label": "Health tick (hourly)",
+        "x": 320,
+        "y": 100
+      },
+      "t-office-setup-cmd": {
+        "id": "t-office-setup-cmd",
+        "label": "Setup process",
+        "x": 760,
+        "y": 100
+      }
+    }
+  }
+}

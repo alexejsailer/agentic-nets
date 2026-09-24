@@ -1,0 +1,28 @@
+{
+  "net": "net-team-specs",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "The spec catalog: one place per module of the service's code (created by the architect's catalog command from the code structure), linked to the catalog root and to each other with typed link transitions; specs live in the specs place with their module path, and every module place carries its index token.",
+  "places": {
+    "p-team-spec-catalog": "The catalog root: modules mirroring the code, their places and specs",
+    "p-team-specs": "Specs, every one in a module of the catalog"
+  },
+  "transitions": [
+    {
+      "id": "t-team-spec-index",
+      "kind": "link",
+      "label": "indexes",
+      "relation": "indexes",
+      "reads": {
+        "root": {
+          "place": "p-team-spec-catalog",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false
+        }
+      },
+      "writes": {
+        "specs": "p-team-specs"
+      }
+    }
+  ]
+}

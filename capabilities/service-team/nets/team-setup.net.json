@@ -1,0 +1,103 @@
+{
+  "net": "net-team-setup",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "Setup of a service team: an hourly health tick, and the setup command lane that provisions the MCP token for the team's lanes, clones the workspace repository, fills the service from the install namespace, registers the team with the product office and pauses or resumes the team.",
+  "places": {
+    "p-team-charter": "The team charter (the person's; never changed by a net)",
+    "p-team-coders": "Coder overrides for this team (optional)",
+    "p-team-setup-cmd": "Setup commands",
+    "p-team-setup-log": "Setup command results",
+    "p-team-infra": "Infrastructure measurements and pause records",
+    "p-team-repo": "The repository checkout record",
+    "p-team-status": "This team's status rows (also pushed to the office)",
+    "p-team-journal": "What every lane did",
+    "p-team-errors": "Script errors",
+    "p-product-setup-cmd": "Product office setup commands (register-team)",
+    "p-product-status": "Product office status rows",
+    "p-product-inbox": "Product office inbox"
+  },
+  "transitions": [
+    {
+      "id": "t-team-infra-tick",
+      "kind": "map",
+      "label": "Health tick (hourly)",
+      "reads": {
+        "charter": {
+          "place": "p-team-charter",
+          "arcql": "FROM $ WHERE $.charterId == \"team\" LIMIT 1",
+          "consume": false
+        }
+      },
+      "writes": {
+        "cmd": "p-team-setup-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "health-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "health",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-infra",
+          "argv": [
+            "health",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 120000
+        }
+      },
+      "schedule": {
+        "type": "cron",
+        "cron": "0 40 * * * *",
+        "timezone": "Europe/Berlin"
+      }
+    },
+    {
+      "id": "t-team-setup-cmd",
+      "kind": "command",
+      "label": "Setup process",
+      "description": "team-infra: health, provision (MCP token, clone, register with the office), pause, resume, status push.",
+      "reads": {
+        "input": {
+          "place": "p-team-setup-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        },
+        "coders": {
+          "place": "p-team-coders",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-setup-log",
+          "retain": 200
+        },
+        "infra": "p-team-infra",
+        "repo": "p-team-repo",
+        "status": "p-team-status",
+        "office_setup": "p-product-setup-cmd",
+        "office_status": "p-product-status",
+        "office_inbox": "p-product-inbox",
+        "journal": "p-team-journal",
+        "errors": "p-team-errors"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 900000
+      }
+    }
+  ]
+}

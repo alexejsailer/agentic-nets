@@ -1,0 +1,682 @@
+{
+  "name": "product-office",
+  "displayName": "Product office",
+  "version": "0.1.0",
+  "description": "The product office of a product managed in a model: principles and goals, the roadmap across service teams, the inbox of everything waiting for you, the registry of teams with their apps, the daily digest and the brain. Teams are service-team packs installed once per service.",
+  "author": "AgenticNetOS",
+  "tags": [
+    "application",
+    "product",
+    "product-office",
+    "teams"
+  ],
+  "visibility": "public",
+  "ui": {
+    "element": "agenticos-product-office-v1",
+    "entryFile": "ui/main.mjs",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": {
+      "route": "product",
+      "icon": "hub",
+      "defaultView": "stores"
+    },
+    "stores": [
+      {
+        "role": "charter",
+        "placeId": "p-product-charter",
+        "required": true,
+        "description": "The product charter (newest token wins)."
+      },
+      {
+        "role": "coders",
+        "placeId": "p-product-coders",
+        "required": true,
+        "description": "Headless coding agent definitions."
+      },
+      {
+        "role": "teams",
+        "placeId": "p-product-teams",
+        "required": true,
+        "description": "The team registry."
+      },
+      {
+        "role": "inbox",
+        "placeId": "p-product-inbox",
+        "required": true,
+        "description": "Everything that waits for the person, from the office and every team."
+      },
+      {
+        "role": "status",
+        "placeId": "p-product-status",
+        "required": true,
+        "description": "Status rows every team pushes."
+      },
+      {
+        "role": "prompts",
+        "placeId": "p-product-prompts",
+        "required": true,
+        "description": "The product manager's questions."
+      },
+      {
+        "role": "responses",
+        "placeId": "p-product-responses",
+        "required": true,
+        "description": "The person's answers."
+      },
+      {
+        "role": "iterate",
+        "placeId": "p-product-iterate",
+        "required": true,
+        "description": "Iteration triggers."
+      },
+      {
+        "role": "roadmap",
+        "placeId": "p-product-roadmap",
+        "required": true,
+        "description": "Roadmap items."
+      },
+      {
+        "role": "infra",
+        "placeId": "p-product-infra",
+        "required": true,
+        "description": "Infrastructure measurements and pause records."
+      },
+      {
+        "role": "digest",
+        "placeId": "p-product-digest",
+        "required": true,
+        "description": "Daily digests."
+      },
+      {
+        "role": "journal",
+        "placeId": "p-product-journal",
+        "required": true,
+        "description": "What every lane did."
+      },
+      {
+        "role": "errors",
+        "placeId": "p-product-errors",
+        "required": true,
+        "description": "Script errors."
+      },
+      {
+        "role": "llm-errors",
+        "placeId": "p-product-llm-errors",
+        "required": true,
+        "description": "Answers that missed their contract."
+      },
+      {
+        "role": "setup-cmd",
+        "placeId": "p-product-setup-cmd",
+        "required": true,
+        "description": "Setup commands."
+      },
+      {
+        "role": "plan-cmd",
+        "placeId": "p-product-plan-cmd",
+        "required": true,
+        "description": "Planning commands."
+      },
+      {
+        "role": "digest-cmd",
+        "placeId": "p-product-digest-cmd",
+        "required": true,
+        "description": "Digest commands."
+      },
+      {
+        "role": "brain-cmd",
+        "placeId": "p-product-brain-cmd",
+        "required": true,
+        "description": "Brain commands."
+      },
+      {
+        "role": "knowledge",
+        "placeId": "p-product-knowledge",
+        "required": true,
+        "description": "Curated facts."
+      },
+      {
+        "role": "plan",
+        "placeId": "p-product-plan",
+        "required": true,
+        "description": "The plan across teams."
+      },
+      {
+        "role": "adr",
+        "placeId": "p-product-adr",
+        "required": true,
+        "description": "Decision records (newest per adrId wins)."
+      },
+      {
+        "role": "ideas",
+        "placeId": "p-product-ideas",
+        "required": true,
+        "description": "Ideas from the person and the brain."
+      },
+      {
+        "role": "curations",
+        "placeId": "p-product-curations",
+        "required": true,
+        "description": "Curation archive."
+      },
+      {
+        "role": "signals",
+        "placeId": "p-product-signals",
+        "required": true,
+        "description": "Release signals."
+      },
+      {
+        "role": "specs",
+        "placeId": "p-product-specs",
+        "required": true,
+        "description": "Product-level specs (the top of the spec catalog)."
+      }
+    ],
+    "actions": [
+      {
+        "name": "set-charter",
+        "targetRole": "charter",
+        "description": "Save the product charter (a new version; the newest wins).",
+        "defaults": {
+          "charterId": "office"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "updatedAt"
+          ],
+          "properties": {
+            "product": {
+              "type": "string"
+            },
+            "goal": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "autonomyLevel": {
+              "type": "string"
+            },
+            "dailyBudgetUsd": {
+              "type": "string"
+            },
+            "digestCron": {
+              "type": "string"
+            },
+            "home": {
+              "type": "string"
+            },
+            "repoRoot": {
+              "type": "string"
+            },
+            "mcpUrl": {
+              "type": "string"
+            },
+            "coderAgent": {
+              "type": "string"
+            },
+            "coderModel": {
+              "type": "string"
+            },
+            "coderMaxTurns": {
+              "type": "string"
+            },
+            "coderAllowedTools": {
+              "type": "string"
+            },
+            "coderTimeoutMin": {
+              "type": "string"
+            },
+            "brainAgent": {
+              "type": "string"
+            },
+            "brainModel": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            },
+            "principles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "constraints": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "services": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tokenLanes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "start-iteration",
+        "targetRole": "iterate",
+        "description": "Ask the product manager for the next roadmap step.",
+        "defaults": {
+          "reason": "app",
+          "requestedBy": "app"
+        },
+        "guard": {
+          "role": "iterate",
+          "matchKey": "iterationId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "iterationId",
+            "at"
+          ],
+          "properties": {
+            "iterationId": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "respond",
+        "targetRole": "responses",
+        "description": "Answer, reshape or skip one of the product manager's questions.",
+        "defaults": {
+          "by": "app"
+        },
+        "guard": {
+          "role": "responses",
+          "matchKey": "promptId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "promptId",
+            "iterationId",
+            "intent",
+            "at"
+          ],
+          "properties": {
+            "promptId": {
+              "type": "string"
+            },
+            "iterationId": {
+              "type": "string"
+            },
+            "intent": {
+              "type": "string"
+            },
+            "selected": {
+              "type": "string",
+              "description": "Chosen option values, comma-joined (a string survives the command environment; an array does not)."
+            },
+            "text": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "add-idea",
+        "targetRole": "ideas",
+        "description": "Give the product manager an idea.",
+        "defaults": {
+          "status": "open",
+          "by": "person"
+        },
+        "guard": {
+          "role": "ideas",
+          "matchKey": "ideaId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "ideaId",
+            "text",
+            "at"
+          ],
+          "properties": {
+            "ideaId": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "service": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "drop-idea",
+        "targetRole": "ideas",
+        "description": "Drop an idea (a new version with status dropped).",
+        "defaults": {
+          "status": "dropped"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "ideaId",
+            "text",
+            "at"
+          ],
+          "properties": {
+            "ideaId": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "close-inbox-item",
+        "targetRole": "inbox",
+        "description": "Mark an inbox item done (a new version with status done).",
+        "defaults": {
+          "status": "done"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "itemId",
+            "title",
+            "at"
+          ],
+          "properties": {
+            "itemId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "service": {
+              "type": "string"
+            },
+            "persona": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "route": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            },
+            "doneAt": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "decide-adr",
+        "targetRole": "adr",
+        "description": "Accept, reject or supersede a decision record (writes a new version).",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "adrId",
+            "title",
+            "decision",
+            "status",
+            "updatedAt"
+          ],
+          "properties": {
+            "adrId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            },
+            "decision": {
+              "type": "string"
+            },
+            "consequences": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "check-infra",
+        "targetRole": "setup-cmd",
+        "description": "Measure the executor host: coding agents, node, git, the MCP endpoint, the workspace repositories.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "office-infra",
+          "argv": [
+            "health"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 120000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "provision",
+        "targetRole": "setup-cmd",
+        "description": "Store the MCP token in the vault for the office's lanes and measure.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "office-infra",
+          "argv": [
+            "provision"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 900000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "pause",
+        "targetRole": "setup-cmd",
+        "description": "Stop every office lane except the setup lane.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "office-infra",
+          "argv": [
+            "pause"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 300000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "resume",
+        "targetRole": "setup-cmd",
+        "description": "Start the lanes that pause stopped.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "office-infra",
+          "argv": [
+            "resume"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 300000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "digest-now",
+        "targetRole": "digest-cmd",
+        "description": "Digest every team's status and the open inbox now.",
+        "command": {
+          "role": "digest-cmd",
+          "toolId": "office-digest",
+          "argv": [
+            "digest",
+            "manual"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 300000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "curate-now",
+        "targetRole": "brain-cmd",
+        "description": "Observe the last release a team reported and curate the brain now.",
+        "command": {
+          "role": "brain-cmd",
+          "toolId": "office-brain",
+          "argv": [
+            "observe",
+            "latest"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 600000
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ],
+    "permissions": {
+      "readStores": [
+        "charter",
+        "coders",
+        "teams",
+        "inbox",
+        "status",
+        "prompts",
+        "responses",
+        "iterate",
+        "roadmap",
+        "infra",
+        "digest",
+        "journal",
+        "errors",
+        "llm-errors",
+        "setup-cmd",
+        "plan-cmd",
+        "digest-cmd",
+        "brain-cmd",
+        "knowledge",
+        "plan",
+        "adr",
+        "ideas",
+        "curations",
+        "signals",
+        "specs"
+      ],
+      "watchStores": [
+        "inbox",
+        "prompts",
+        "teams",
+        "status",
+        "roadmap",
+        "journal",
+        "knowledge",
+        "plan",
+        "digest",
+        "infra"
+      ],
+      "actions": [
+        "set-charter",
+        "start-iteration",
+        "respond",
+        "add-idea",
+        "drop-idea",
+        "close-inbox-item",
+        "decide-adr",
+        "check-infra",
+        "provision",
+        "pause",
+        "resume",
+        "digest-now",
+        "curate-now"
+      ]
+    }
+  }
+}

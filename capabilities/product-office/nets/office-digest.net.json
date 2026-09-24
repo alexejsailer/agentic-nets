@@ -1,0 +1,39 @@
+{
+  "net": "office-digest",
+  "model": "agenticnets-product",
+  "session": "product",
+  "description": "Every morning the office digests the status every team pushed and the open inbox items into one token the person reads first; a digest with a red team or an old open item is also an inbox item.",
+  "places": {
+    "p-product-charter": "The product charter",
+    "p-product-digest-cmd": "Digest commands",
+    "p-product-digest-log": "Digest command results",
+    "p-product-status": "Status rows every team pushes (service, phase, open items, last release, audit)",
+    "p-product-inbox": "Everything that waits for the person",
+    "p-product-digest": "Daily digests across teams",
+    "p-product-journal": "What every lane did",
+    "p-product-errors": "Script errors"
+  },
+  "transitions": [
+    {
+      "id": "t-office-digest-cron",
+      "kind": "map",
+      "label": "Digest (daily)",
+      "schedule": {"type": "cron", "cron": "0 0 6 * * *", "timezone": "Europe/Berlin"},
+      "reads": {"charter": {"place": "p-product-charter", "arcql": "FROM $ WHERE $.charterId == \"office\" LIMIT 1", "consume": false}},
+      "writes": {"cmd": "p-product-digest-cmd"},
+      "template": {
+        "kind": "command", "id": "office-digest-${now()}", "executor": "script", "command": "invoke", "expect": "text", "stage": "digest", "filedAt": "${now()}",
+        "args": {"toolId": "office-digest", "argv": ["digest", "scheduled"], "env": {"MODEL_ID": "agenticnets-product"}, "timeoutMs": 300000}
+      }
+    },
+    {
+      "id": "t-office-digest-cmd",
+      "kind": "command",
+      "label": "Digest across teams",
+      "reads": {"input": {"place": "p-product-digest-cmd", "arcql": "FROM $ LIMIT 1"}, "status": {"place": "p-product-status", "arcql": "FROM $ LIMIT 1", "consume": false, "optional": true}},
+      "writes": {"log": {"place": "p-product-digest-log", "retain": 100}, "digest": {"place": "p-product-digest", "retain": 60}, "inbox": "p-product-inbox", "journal": "p-product-journal", "errors": "p-product-errors"},
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 300000}
+    }
+  ]
+}

@@ -1,0 +1,347 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "brief",
+            "${it.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000,
+          "toolId": "office-plan"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "office-brief-${now()}",
+        "iterationId": "${it.data.iterationId}",
+        "kind": "command",
+        "stage": "brief"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-office-iterate-prep",
+    "kind": "map",
+    "label": "Iteration trigger to planning brief",
+    "metadata": {
+      "netId": "office-plan",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-plan-cmd"
+      }
+    },
+    "presets": {
+      "it": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-iterate",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "description": "office-plan brief <iterationId> renders the planning brief; office-plan allocate <promptId> turns the person's answer into an iteration for a team and a roadmap item.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-office-plan-cmd",
+    "kind": "command",
+    "label": "Render a brief, or allocate",
+    "metadata": {
+      "netId": "office-plan",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "context": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-context"
+      },
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-errors"
+      },
+      "inbox": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-inbox"
+      },
+      "journal": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-journal"
+      },
+      "log": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-plan-log",
+        "retain": 200
+      },
+      "responses": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-responses"
+      },
+      "roadmap": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-roadmap"
+      },
+      "specs": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-specs"
+      }
+    },
+    "presets": {
+      "coders": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-product-coders",
+        "take": "FIRST"
+      },
+      "ideas": {
+        "arcql": "FROM $ WHERE $.status == \"open\" LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-product-ideas",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-plan-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "promptId",
+          "iterationId",
+          "mode",
+          "question",
+          "options",
+          "rationale"
+        ],
+        "retries": 1,
+        "types": {
+          "mode": "string",
+          "options": "array",
+          "question": "string",
+          "rationale": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "agenticnets-product",
+      "nl": "You are the product manager of the product described in the brief, deciding with the person what the whole product does next across its service teams. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the product goal is NOT DEFINED: ask the person what the product must become in this period; give 3 example goal statements they can adapt; the question asks for the goal in one line plus a paragraph.\n- \"interview\" when the next step cannot be chosen without information only the person has (a priority between teams, a constraint, a deadline): ask at most 3 precise questions; each question is an option {value: \"q1\", label: <the question>, description: <why the answer matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete next steps. Each step is ONE of: allocate an iteration to a registered team with a direction the team's product owner turns into a requirement (kind \"allocate\", service <the team's service>, direction <one sentence>), or install a team for a service that has none yet (kind \"install-team\", service <service>). Prefer, in this order: a team with a red audit or a failed verification, an open idea that names a service, the goal's most valuable missing capability, then balance across teams. If the brief carries THE PLAN, follow its order; deviate only with a stated reason. Each option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, kind: \"allocate|install-team\", service: <service>, direction: <one sentence the team's product owner starts from>, effort: \"S|M|L\", risk: \"low|medium|high\", evidence: [<lines from the brief>], recommended: true|false}. Exactly one option is recommended.\n\nAlways: promptId and iterationId exactly as the brief says; question is one sentence for the person; rationale is 3 sentences on what the brief showed; never invent a service the brief does not list under TEAMS or SERVICES.",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "product",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "prompts",
+        "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-office-plan",
+    "kind": "agent",
+    "label": "Propose the next roadmap step (choice, interview or goal)",
+    "metadata": {
+      "netId": "office-plan",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-llm-errors",
+        "retain": 100
+      },
+      "prompts": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-prompts"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"plan\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-context",
+        "reservationTtlMs": 600000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "allocate",
+            "${resp.data.iterationId}",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "RESPONSE_NOTES": "${resp.data.notes}",
+            "RESPONSE_SELECTED": "${resp.data.selected}",
+            "RESPONSE_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "office-plan"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "office-allocate-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "promptId": "${resp.data.promptId}",
+        "stage": "allocate"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-office-answer-prep",
+    "kind": "map",
+    "label": "Answer to allocation",
+    "metadata": {
+      "netId": "office-plan",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-plan-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "brief",
+            "${resp.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "REVISION_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "office-plan"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "office-rebrief-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "stage": "brief"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-office-revise-prep",
+    "kind": "map",
+    "label": "Reshaped question to a new brief",
+    "metadata": {
+      "netId": "office-plan",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-plan-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-responses",
+        "take": "FIRST"
+      }
+    }
+  }
+]

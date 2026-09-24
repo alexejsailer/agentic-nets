@@ -1,0 +1,93 @@
+[
+  {
+    "name": "coder-claude-opus",
+    "agentId": "claude-code",
+    "title": "Claude Code, Claude Opus 5 (headless)",
+    "binary": "claude",
+    "description": "Anthropic's Claude Code run headless by the executor with Claude Opus 5: the brief on stdin, least-privilege tools, JSON result. The default.",
+    "command": [
+      "claude",
+      "-p",
+      "--model",
+      "${model}",
+      "--allowedTools",
+      "${allowedTools}",
+      "--max-turns",
+      "${maxTurns}",
+      "--no-session-persistence",
+      "--output-format",
+      "json"
+    ],
+    "promptVia": "stdin",
+    "resultFormat": "claude-json",
+    "defaultModel": "claude-opus-5",
+    "models": [
+      "claude-opus-5",
+      "claude-fable-5-1",
+      "claude-sonnet-5"
+    ],
+    "allowedTools": "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(npm test:*),Bash(npx tsup:*),Bash(npx vitest:*),Bash(node --check:*),Bash(python3 -m py_compile:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git checkout:*),Bash(git switch:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)",
+    "maxTurns": "80",
+    "timeoutMin": "45",
+    "notes": "Placeholders: ${model}, ${allowedTools}, ${maxTurns}. The context pack is piped on stdin. Tools cover editing, the Maven and npm test suites and local git on a branch; no push."
+  },
+  {
+    "name": "coder-claude-fable",
+    "agentId": "claude-code-fable",
+    "title": "Claude Code, Claude Fable 5.1 (headless)",
+    "binary": "claude",
+    "description": "The same headless Claude Code with Claude Fable 5.1 as the model. Choose it in the configuration tab; the run token records which model wrote each change.",
+    "command": [
+      "claude",
+      "-p",
+      "--model",
+      "${model}",
+      "--allowedTools",
+      "${allowedTools}",
+      "--max-turns",
+      "${maxTurns}",
+      "--no-session-persistence",
+      "--output-format",
+      "json"
+    ],
+    "promptVia": "stdin",
+    "resultFormat": "claude-json",
+    "defaultModel": "claude-fable-5-1",
+    "models": [
+      "claude-fable-5-1",
+      "claude-opus-5"
+    ],
+    "allowedTools": "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(npm test:*),Bash(npx tsup:*),Bash(npx vitest:*),Bash(node --check:*),Bash(python3 -m py_compile:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git checkout:*),Bash(git switch:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)",
+    "maxTurns": "80",
+    "timeoutMin": "45",
+    "notes": "Placeholders: ${model}, ${allowedTools}, ${maxTurns}. The context pack is piped on stdin. Tools cover editing, the Maven and npm test suites and local git on a branch; no push."
+  },
+  {
+    "name": "coder-codex",
+    "agentId": "codex",
+    "title": "OpenAI Codex CLI (headless)",
+    "binary": "codex",
+    "description": "OpenAI's Codex CLI in non-interactive exec mode with a workspace-write sandbox; the brief on stdin, plain-text result. Not exercised by the product office's own proof.",
+    "command": [
+      "codex",
+      "exec",
+      "--model",
+      "${model}",
+      "--sandbox",
+      "workspace-write",
+      "--skip-git-repo-check",
+      "-"
+    ],
+    "promptVia": "stdin",
+    "resultFormat": "text",
+    "defaultModel": "gpt-5-codex",
+    "models": [
+      "gpt-5-codex",
+      "o4-mini"
+    ],
+    "allowedTools": "Read,Grep,Glob,Edit,Write,MultiEdit,Bash(./mvnw:*),Bash(npm test:*),Bash(npx tsup:*),Bash(npx vitest:*),Bash(node --check:*),Bash(python3 -m py_compile:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git checkout:*),Bash(git switch:*),Bash(ls:*),Bash(cat:*),Bash(find:*),Bash(mkdir:*)",
+    "maxTurns": "",
+    "timeoutMin": "45",
+    "notes": "Placeholders: ${model}, ${allowedTools}, ${maxTurns}. The context pack is piped on stdin. Tools cover editing, the Maven and npm test suites and local git on a branch; no push."
+  }
+]

@@ -1,0 +1,6 @@
+[
+  {"id": "office-infra", "name": "Product office infrastructure", "file": "office-infra.py", "runtime": "python3", "description": "health of the executor host and the MCP endpoint; provision stores the MCP token for the office's lanes; team registry maintenance"},
+  {"id": "office-plan", "name": "Product office planning", "file": "office-plan.py", "runtime": "python3", "description": "brief for the product manager (principles, goals, teams, status, inbox, roadmap, knowledge, ideas); allocate an iteration to a team from the person's answer"},
+  {"id": "office-digest", "name": "Product office digest", "file": "office-digest.py", "runtime": "python3", "description": "daily digest across teams from their status and the open inbox items"},
+  {"id": "office-brain", "name": "Product office brain", "file": "office-brain.py", "runtime": "python3", "description": "observe a team's release, curate facts, plan, decisions, questions and ideas, apply the curation"}
+]

@@ -1,0 +1,61 @@
+apiVersion: agentic-nets.com/capability/v1
+name: product-office
+version: 0.1.0
+displayName: Product office
+domain: product
+description: "The product office of a product managed in a model: a product manager persona that holds the principles and goals, keeps the roadmap across the service teams, allocates iterations to teams, gathers what waits for the person in one inbox, digests every team's status daily and learns from every release. Teams are service-team packs installed once per service; they register themselves here and push their status and their open questions."
+tags: [agents, capability-pack, product, product-office, teams]
+engineMin: "2.59.0"
+
+entry:
+  inbox: p-product-iterate
+  outbox: p-product-roadmap
+  correlationField: iterationId
+
+nets:
+  - name: office-setup
+    pnml: nets/office-setup.pnml.json
+    inscriptions: nets/office-setup.inscriptions.json
+    role: configuration
+  - name: office-plan
+    pnml: nets/office-plan.pnml.json
+    inscriptions: nets/office-plan.inscriptions.json
+    role: iteration
+  - name: office-digest
+    pnml: nets/office-digest.pnml.json
+    inscriptions: nets/office-digest.inscriptions.json
+    role: measurement
+  - name: office-brain
+    pnml: nets/office-brain.pnml.json
+    inscriptions: nets/office-brain.inscriptions.json
+    role: curated-model
+
+scripts:
+  - id: office-infra
+    file: assets/office-infra.py
+  - id: office-plan
+    file: assets/office-plan.py
+  - id: office-digest
+    file: assets/office-digest.py
+  - id: office-brain
+    file: assets/office-brain.py
+
+config:
+  - key: p-product-charter
+    seed: seeds/p-product-charter.json
+    description: "The product charter: principles, goals, the services, the coder and its model, budgets and autonomy defaults for every team. Edited in the application's Setup tab; a team's own charter may override the coder."
+  - key: p-product-coders
+    seed: seeds/p-product-coders.json
+    description: "Headless coding agent definitions every team may use: command template, prompt via stdin, result format."
+
+credentials:
+  - key: OFFICE_MCP_TOKEN
+    transition: t-office-setup-cmd
+    description: "Bearer token of the runtime's own MCP server; provision stores it for the office's command lanes."
+
+install:
+  targetModelDefault: agenticnets-product
+  sessionId: product
+  instancePolicy: singleton
+
+verify: verify/smoke.json

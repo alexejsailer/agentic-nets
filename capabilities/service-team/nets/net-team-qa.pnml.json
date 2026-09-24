@@ -1,0 +1,275 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-qa-01": {
+        "id": "a-net-team-qa-01",
+        "source": "p-team-decisions",
+        "target": "t-team-acceptance-prep",
+        "weight": 1
+      },
+      "a-net-team-qa-02": {
+        "id": "a-net-team-qa-02",
+        "source": "t-team-acceptance-prep",
+        "target": "p-team-qa-cmd",
+        "weight": 1
+      },
+      "a-net-team-qa-03": {
+        "id": "a-net-team-qa-03",
+        "source": "p-team-qa-cmd",
+        "target": "t-team-qa-cmd",
+        "weight": 1
+      },
+      "a-net-team-qa-04": {
+        "id": "a-net-team-qa-04",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-qa-log",
+        "weight": 1
+      },
+      "a-net-team-qa-05": {
+        "id": "a-net-team-qa-05",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-context",
+        "weight": 1
+      },
+      "a-net-team-qa-06": {
+        "id": "a-net-team-qa-06",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-verification",
+        "weight": 1
+      },
+      "a-net-team-qa-07": {
+        "id": "a-net-team-qa-07",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-scorecard",
+        "weight": 1
+      },
+      "a-net-team-qa-08": {
+        "id": "a-net-team-qa-08",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-bugs",
+        "weight": 1
+      },
+      "a-net-team-qa-09": {
+        "id": "a-net-team-qa-09",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-runs",
+        "weight": 1
+      },
+      "a-net-team-qa-10": {
+        "id": "a-net-team-qa-10",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-dev-cmd",
+        "weight": 1
+      },
+      "a-net-team-qa-11": {
+        "id": "a-net-team-qa-11",
+        "source": "t-team-qa-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-net-team-qa-12": {
+        "id": "a-net-team-qa-12",
+        "source": "t-team-qa-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-net-team-qa-13": {
+        "id": "a-net-team-qa-13",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-qa-14": {
+        "id": "a-net-team-qa-14",
+        "source": "t-team-qa-cmd",
+        "target": "p-team-errors",
+        "weight": 1
+      },
+      "a-net-team-qa-15": {
+        "id": "a-net-team-qa-15",
+        "source": "p-team-context",
+        "target": "t-team-acceptance",
+        "weight": 1
+      },
+      "a-net-team-qa-16": {
+        "id": "a-net-team-qa-16",
+        "source": "t-team-acceptance",
+        "target": "p-team-acceptance",
+        "weight": 1
+      },
+      "a-net-team-qa-17": {
+        "id": "a-net-team-qa-17",
+        "source": "t-team-acceptance",
+        "target": "p-team-llm-errors",
+        "weight": 1
+      },
+      "a-net-team-qa-18": {
+        "id": "a-net-team-qa-18",
+        "source": "t-team-acceptance",
+        "target": "p-team-acceptance-new",
+        "weight": 1
+      },
+      "a-net-team-qa-19": {
+        "id": "a-net-team-qa-19",
+        "source": "p-team-charter",
+        "target": "t-team-audit-cron",
+        "weight": 1
+      },
+      "a-net-team-qa-20": {
+        "id": "a-net-team-qa-20",
+        "source": "t-team-audit-cron",
+        "target": "p-team-qa-cmd",
+        "weight": 1
+      }
+    },
+    "description": "The QA. An approved spec becomes an acceptance brief; the QA writes acceptance criteria with runnable checks; a built run is verified on the real suites with evidence; a weekly audit measures production readiness into a scorecard; failures become bugs and questions.",
+    "id": "net-team-qa",
+    "places": {
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Product office inbox",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "Product office status rows",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-team-acceptance": {
+        "id": "p-team-acceptance",
+        "label": "Acceptance criteria per spec",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-team-acceptance-new": {
+        "id": "p-team-acceptance-new",
+        "label": "A copy of every new acceptance record, consumed by the context pack step",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-team-bugs": {
+        "id": "p-team-bugs",
+        "label": "Bugs found by verification or audit",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-team-charter": {
+        "id": "p-team-charter",
+        "label": "The team charter",
+        "tokens": 0,
+        "x": 980,
+        "y": 610
+      },
+      "p-team-context": {
+        "id": "p-team-context",
+        "label": "Briefs for the one-shot lanes",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-team-decisions": {
+        "id": "p-team-decisions",
+        "label": "The person's decisions",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-dev-cmd": {
+        "id": "p-team-dev-cmd",
+        "label": "Developer commands (the review brief after a passing verification)",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-team-errors": {
+        "id": "p-team-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 540,
+        "y": 440
+      },
+      "p-team-journal": {
+        "id": "p-team-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      },
+      "p-team-llm-errors": {
+        "id": "p-team-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-team-qa-cmd": {
+        "id": "p-team-qa-cmd",
+        "label": "QA commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-team-qa-log": {
+        "id": "p-team-qa-log",
+        "label": "QA command results",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-team-runs": {
+        "id": "p-team-runs",
+        "label": "Coder runs",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-team-scorecard": {
+        "id": "p-team-scorecard",
+        "label": "Production-readiness scorecards",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-team-verification": {
+        "id": "p-team-verification",
+        "label": "Verification results per run, with evidence",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      }
+    },
+    "transitions": {
+      "t-team-acceptance": {
+        "id": "t-team-acceptance",
+        "label": "Write the acceptance criteria",
+        "x": 760,
+        "y": 440
+      },
+      "t-team-acceptance-prep": {
+        "id": "t-team-acceptance-prep",
+        "label": "Approved spec to acceptance brief",
+        "x": 320,
+        "y": 100
+      },
+      "t-team-audit-cron": {
+        "id": "t-team-audit-cron",
+        "label": "Readiness audit (weekly)",
+        "x": 760,
+        "y": 610
+      },
+      "t-team-qa-cmd": {
+        "id": "t-team-qa-cmd",
+        "label": "QA process",
+        "x": 760,
+        "y": 100
+      }
+    }
+  }
+}

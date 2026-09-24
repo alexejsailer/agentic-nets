@@ -1,0 +1,1019 @@
+{
+  "name": "service-team",
+  "displayName": "Service team",
+  "version": "0.1.0",
+  "description": "The app of one service team: the product owner's questions and requirements, the architect's spec catalog and decisions, the QA's acceptance criteria, verifications and readiness, the developer's runs and reviews, the person's approvals and merges, iterations, ideas and the brain. Installed once per service with the service-team pack.",
+  "author": "AgenticNetOS",
+  "tags": [
+    "application",
+    "product",
+    "service-team",
+    "specs"
+  ],
+  "visibility": "public",
+  "ui": {
+    "element": "agenticos-service-team-v1",
+    "entryFile": "ui/main.mjs",
+    "sdkVersion": "^0.1.0",
+    "isolation": "trusted-element"
+  },
+  "application": {
+    "scope": "model",
+    "instancePolicy": "multiple",
+    "surface": {
+      "route": "team",
+      "icon": "groups",
+      "defaultView": "stores"
+    },
+    "stores": [
+      {
+        "role": "charter",
+        "placeId": "p-team-charter",
+        "required": true,
+        "description": "The team charter (newest token wins)."
+      },
+      {
+        "role": "coders",
+        "placeId": "p-team-coders",
+        "required": true,
+        "description": "Coder overrides for this team."
+      },
+      {
+        "role": "iterate",
+        "placeId": "p-team-iterate",
+        "required": true,
+        "description": "Iteration triggers."
+      },
+      {
+        "role": "prompts",
+        "placeId": "p-team-prompts",
+        "required": true,
+        "description": "Questions for the person from every persona."
+      },
+      {
+        "role": "responses",
+        "placeId": "p-team-responses",
+        "required": true,
+        "description": "The person's answers."
+      },
+      {
+        "role": "requirements",
+        "placeId": "p-team-requirements",
+        "required": true,
+        "description": "Requirements (product owner)."
+      },
+      {
+        "role": "specs",
+        "placeId": "p-team-specs",
+        "required": true,
+        "description": "Specs in the catalog (architect)."
+      },
+      {
+        "role": "spec-catalog",
+        "placeId": "p-team-spec-catalog",
+        "required": true,
+        "description": "The spec catalog index mirroring the code."
+      },
+      {
+        "role": "adr",
+        "placeId": "p-team-adr",
+        "required": true,
+        "description": "Decision records."
+      },
+      {
+        "role": "arch",
+        "placeId": "p-team-arch",
+        "required": true,
+        "description": "Architecture notes."
+      },
+      {
+        "role": "acceptance",
+        "placeId": "p-team-acceptance",
+        "required": true,
+        "description": "Acceptance criteria per spec (QA)."
+      },
+      {
+        "role": "verification",
+        "placeId": "p-team-verification",
+        "required": true,
+        "description": "Verification results with evidence (QA)."
+      },
+      {
+        "role": "scorecard",
+        "placeId": "p-team-scorecard",
+        "required": true,
+        "description": "Readiness scorecards (QA)."
+      },
+      {
+        "role": "bugs",
+        "placeId": "p-team-bugs",
+        "required": true,
+        "description": "Bugs (QA)."
+      },
+      {
+        "role": "briefs",
+        "placeId": "p-team-briefs",
+        "required": true,
+        "description": "Context packs for the coder."
+      },
+      {
+        "role": "runs",
+        "placeId": "p-team-runs",
+        "required": true,
+        "description": "Coder runs (developer)."
+      },
+      {
+        "role": "reviews",
+        "placeId": "p-team-reviews",
+        "required": true,
+        "description": "Review verdicts."
+      },
+      {
+        "role": "decisions",
+        "placeId": "p-team-decisions",
+        "required": true,
+        "description": "The person's decisions."
+      },
+      {
+        "role": "refused",
+        "placeId": "p-team-refused",
+        "required": true,
+        "description": "Context packs the gate refused."
+      },
+      {
+        "role": "state",
+        "placeId": "p-team-state",
+        "required": true,
+        "description": "The measured module state."
+      },
+      {
+        "role": "ideas",
+        "placeId": "p-team-ideas",
+        "required": true,
+        "description": "Ideas for this team."
+      },
+      {
+        "role": "knowledge",
+        "placeId": "p-team-knowledge",
+        "required": true,
+        "description": "Curated facts (brain)."
+      },
+      {
+        "role": "plan",
+        "placeId": "p-team-plan",
+        "required": true,
+        "description": "The team's plan (brain)."
+      },
+      {
+        "role": "journal",
+        "placeId": "p-team-journal",
+        "required": true,
+        "description": "What every lane did."
+      },
+      {
+        "role": "errors",
+        "placeId": "p-team-errors",
+        "required": true,
+        "description": "Script errors."
+      },
+      {
+        "role": "llm-errors",
+        "placeId": "p-team-llm-errors",
+        "required": true,
+        "description": "Answers that missed their contract."
+      },
+      {
+        "role": "infra",
+        "placeId": "p-team-infra",
+        "required": true,
+        "description": "Infrastructure measurements and pause records."
+      },
+      {
+        "role": "status",
+        "placeId": "p-team-status",
+        "required": true,
+        "description": "This team's status rows."
+      },
+      {
+        "role": "setup-cmd",
+        "placeId": "p-team-setup-cmd",
+        "required": true,
+        "description": "Setup commands."
+      },
+      {
+        "role": "po-cmd",
+        "placeId": "p-team-po-cmd",
+        "required": true,
+        "description": "Product owner commands."
+      },
+      {
+        "role": "arch-cmd",
+        "placeId": "p-team-arch-cmd",
+        "required": true,
+        "description": "Architect commands."
+      },
+      {
+        "role": "qa-cmd",
+        "placeId": "p-team-qa-cmd",
+        "required": true,
+        "description": "QA commands."
+      },
+      {
+        "role": "dev-cmd",
+        "placeId": "p-team-dev-cmd",
+        "required": true,
+        "description": "Developer commands."
+      },
+      {
+        "role": "brain-cmd",
+        "placeId": "p-team-brain-cmd",
+        "required": true,
+        "description": "Brain commands."
+      }
+    ],
+    "actions": [
+      {
+        "name": "set-charter",
+        "description": "Save the team charter.",
+        "targetRole": "charter",
+        "defaults": {
+          "charterId": "team"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "updatedAt"
+          ],
+          "properties": {
+            "service": {
+              "type": "string"
+            },
+            "goal": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "repoDir": {
+              "type": "string"
+            },
+            "testCommand": {
+              "type": "string"
+            },
+            "buildCommand": {
+              "type": "string"
+            },
+            "auditCron": {
+              "type": "string"
+            },
+            "coderAgent": {
+              "type": "string"
+            },
+            "coderModel": {
+              "type": "string"
+            },
+            "coderMaxTurns": {
+              "type": "string"
+            },
+            "coderTimeoutMin": {
+              "type": "string"
+            },
+            "coderAllowedTools": {
+              "type": "string"
+            },
+            "brainAgent": {
+              "type": "string"
+            },
+            "autonomyLevel": {
+              "type": "string"
+            },
+            "dailyBudgetUsd": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            },
+            "scopePaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "readinessChecks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "tokenLanes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "start-iteration",
+        "description": "Ask the product owner for the next requirement.",
+        "targetRole": "iterate",
+        "defaults": {
+          "reason": "app",
+          "requestedBy": "app"
+        },
+        "guard": {
+          "role": "iterate",
+          "matchKey": "iterationId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "iterationId",
+            "at"
+          ],
+          "properties": {
+            "iterationId": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "direction": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "respond",
+        "description": "Answer, reshape or skip a question.",
+        "targetRole": "responses",
+        "defaults": {
+          "by": "app"
+        },
+        "guard": {
+          "role": "responses",
+          "matchKey": "promptId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "promptId",
+            "iterationId",
+            "intent",
+            "at"
+          ],
+          "properties": {
+            "promptId": {
+              "type": "string"
+            },
+            "iterationId": {
+              "type": "string"
+            },
+            "intent": {
+              "type": "string"
+            },
+            "selected": {
+              "type": "string",
+              "description": "Chosen option values, comma-joined (a string survives the command environment; an array does not)."
+            },
+            "text": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "approve-spec",
+        "description": "Approve a spec; QA writes the acceptance criteria next.",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "spec-approval",
+          "verdict": "approved",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "specId",
+            "requirementId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "specId": {
+              "type": "string"
+            },
+            "requirementId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "reject-spec",
+        "description": "Reject a spec.",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "spec-approval",
+          "verdict": "rejected",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "specId",
+            "requirementId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "specId": {
+              "type": "string"
+            },
+            "requirementId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "approve-pack",
+        "description": "Start the coder with the context pack.",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "pack-approval",
+          "verdict": "approved",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "specId",
+            "packId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "specId": {
+              "type": "string"
+            },
+            "packId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "reject-pack",
+        "description": "Do not implement now.",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "pack-approval",
+          "verdict": "rejected",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "specId",
+            "packId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "specId": {
+              "type": "string"
+            },
+            "packId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "merge",
+        "description": "Merge the run's branch (the merge runs as a command transition).",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "merge",
+          "verdict": "merge",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "runId",
+            "specId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "runId": {
+              "type": "string"
+            },
+            "specId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "request-changes",
+        "description": "Send the coder back with notes.",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "merge",
+          "verdict": "changes",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "runId",
+            "specId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "runId": {
+              "type": "string"
+            },
+            "specId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "reject-run",
+        "description": "Drop the run.",
+        "targetRole": "decisions",
+        "defaults": {
+          "kind": "merge",
+          "verdict": "reject",
+          "by": "person"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "runId",
+            "specId",
+            "promptId",
+            "at"
+          ],
+          "properties": {
+            "runId": {
+              "type": "string"
+            },
+            "specId": {
+              "type": "string"
+            },
+            "promptId": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "add-idea",
+        "description": "Give the team an idea.",
+        "targetRole": "ideas",
+        "defaults": {
+          "by": "person",
+          "status": "open"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "ideaId",
+            "text",
+            "at"
+          ],
+          "properties": {
+            "ideaId": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "decide-adr",
+        "description": "Accept, reject or supersede a decision record.",
+        "targetRole": "adr",
+        "guard": {
+          "role": "adr",
+          "matchKey": "adrId",
+          "exists": true,
+          "replace": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "adrId",
+            "status",
+            "updatedAt"
+          ],
+          "properties": {
+            "adrId": {
+              "type": "string"
+            },
+            "specId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "context": {
+              "type": "string"
+            },
+            "decision": {
+              "type": "string"
+            },
+            "consequences": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string"
+            },
+            "decidedBy": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "close-bug",
+        "description": "Close a bug.",
+        "targetRole": "bugs",
+        "guard": {
+          "role": "bugs",
+          "matchKey": "bugId",
+          "exists": true,
+          "replace": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "bugId",
+            "status"
+          ],
+          "properties": {
+            "bugId": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "check": {
+              "type": "string"
+            },
+            "runId": {
+              "type": "string"
+            },
+            "specId": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            },
+            "closedAt": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "check-infra",
+        "description": "Measure the team's infrastructure.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "team-infra",
+          "argv": [
+            "health",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 120000
+        },
+        "targetRole": "setup-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "provision",
+        "description": "Store the MCP token, clone the repository and register with the product office.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "team-infra",
+          "argv": [
+            "provision",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 900000
+        },
+        "targetRole": "setup-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "pause",
+        "description": "Stop every team lane except setup and the health tick.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "team-infra",
+          "argv": [
+            "pause",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 120000
+        },
+        "targetRole": "setup-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "resume",
+        "description": "Start the paused lanes again.",
+        "command": {
+          "role": "setup-cmd",
+          "toolId": "team-infra",
+          "argv": [
+            "resume",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 120000
+        },
+        "targetRole": "setup-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "measure-state",
+        "description": "Measure and describe the module again.",
+        "command": {
+          "role": "po-cmd",
+          "toolId": "team-po",
+          "argv": [
+            "state",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 900000
+        },
+        "targetRole": "po-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "build-catalog",
+        "description": "Mirror the code structure into the spec catalog again.",
+        "command": {
+          "role": "arch-cmd",
+          "toolId": "team-arch",
+          "argv": [
+            "catalog",
+            "force",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 600000
+        },
+        "targetRole": "arch-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "audit-now",
+        "description": "Run the readiness audit now.",
+        "command": {
+          "role": "qa-cmd",
+          "toolId": "team-qa",
+          "argv": [
+            "audit",
+            "manual",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "${modelId}"
+          },
+          "timeoutMs": 2400000
+        },
+        "targetRole": "qa-cmd",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      }
+    ],
+    "permissions": {
+      "readStores": [
+        "charter",
+        "coders",
+        "iterate",
+        "prompts",
+        "responses",
+        "requirements",
+        "specs",
+        "spec-catalog",
+        "adr",
+        "arch",
+        "acceptance",
+        "verification",
+        "scorecard",
+        "bugs",
+        "briefs",
+        "runs",
+        "reviews",
+        "decisions",
+        "refused",
+        "state",
+        "ideas",
+        "knowledge",
+        "plan",
+        "journal",
+        "errors",
+        "llm-errors",
+        "infra",
+        "status",
+        "setup-cmd",
+        "po-cmd",
+        "arch-cmd",
+        "qa-cmd",
+        "dev-cmd",
+        "brain-cmd"
+      ],
+      "watchStores": [
+        "prompts",
+        "requirements",
+        "specs",
+        "acceptance",
+        "verification",
+        "runs",
+        "reviews",
+        "decisions",
+        "journal",
+        "status",
+        "bugs",
+        "scorecard",
+        "infra",
+        "state",
+        "spec-catalog"
+      ],
+      "actions": [
+        "set-charter",
+        "start-iteration",
+        "respond",
+        "approve-spec",
+        "reject-spec",
+        "approve-pack",
+        "reject-pack",
+        "merge",
+        "request-changes",
+        "reject-run",
+        "add-idea",
+        "decide-adr",
+        "close-bug",
+        "check-infra",
+        "provision",
+        "pause",
+        "resume",
+        "measure-state",
+        "build-catalog",
+        "audit-now"
+      ]
+    }
+  }
+}

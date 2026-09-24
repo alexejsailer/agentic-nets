@@ -1,0 +1,73 @@
+apiVersion: agentic-nets.com/capability/v1
+name: service-team
+version: 0.1.0
+displayName: Service team
+domain: product
+description: "A team of four personas for one service of a product, installed once per service (instancePolicy multiple; every id is namespaced with the service). The product owner owns requirements and asks the person what the service needs next; the architect owns decisions and the spec catalog that mirrors the code, and assembles the context pack; the QA owns acceptance criteria, verification on the real suites and the production-readiness audit; the developer implements through a coding agent on a branch and reviews the diff. The person approves specs and context packs and merges. Every change has a spec before it is implemented. The team registers itself with the product office and pushes its status and its open questions there."
+tags: [agents, capability-pack, product, service-team, spec-catalog]
+engineMin: "2.59.0"
+
+entry:
+  inbox: p-team-iterate
+  outbox: p-team-runs
+  correlationField: specId
+
+nets:
+  - name: team-setup
+    pnml: nets/net-team-setup.pnml.json
+    inscriptions: nets/net-team-setup.inscriptions.json
+    role: configuration
+  - name: team-po
+    pnml: nets/net-team-po.pnml.json
+    inscriptions: nets/net-team-po.inscriptions.json
+    role: iteration
+  - name: team-arch
+    pnml: nets/net-team-arch.pnml.json
+    inscriptions: nets/net-team-arch.inscriptions.json
+    role: iteration
+  - name: team-qa
+    pnml: nets/net-team-qa.pnml.json
+    inscriptions: nets/net-team-qa.inscriptions.json
+    role: measurement
+  - name: team-dev
+    pnml: nets/net-team-dev.pnml.json
+    inscriptions: nets/net-team-dev.inscriptions.json
+    role: iteration
+  - name: team-brain
+    pnml: nets/net-team-brain.pnml.json
+    inscriptions: nets/net-team-brain.inscriptions.json
+    role: curated-model
+  - name: team-specs
+    pnml: nets/net-team-specs.pnml.json
+    inscriptions: nets/net-team-specs.inscriptions.json
+    role: knowledge
+
+scripts:
+  - id: team-infra
+    file: assets/team-infra.py
+  - id: team-po
+    file: assets/team-po.py
+  - id: team-arch
+    file: assets/team-arch.py
+  - id: team-qa
+    file: assets/team-qa.py
+  - id: team-dev
+    file: assets/team-dev.py
+  - id: team-brain
+    file: assets/team-brain.py
+
+config:
+  - key: p-team-charter
+    seed: seeds/p-team-charter.json
+    description: "The team charter: the service, its repository directory and scope paths, the test commands, the coder override, autonomy and budget. Edited in the team app's Setup tab."
+
+credentials:
+  - key: TEAM_MCP_TOKEN
+    transition: t-team-setup-cmd
+    description: "Bearer token of the runtime's own MCP server; provision stores it for the team's command lanes."
+
+install:
+  targetModelDefault: agenticnets-product
+  instancePolicy: multiple
+
+verify: verify/smoke.json

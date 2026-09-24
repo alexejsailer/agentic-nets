@@ -1,0 +1,514 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "brief",
+            "${it.data.iterationId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "DIRECTION": "${it.data.direction}",
+            "DIRECTION_NOTES": "${it.data.notes}",
+            "MODEL_ID": "agenticnets-product",
+            "ROADMAP_ID": "${it.data.roadmapId}"
+          },
+          "timeoutMs": 900000,
+          "toolId": "team-po"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "brief-${now()}",
+        "iterationId": "${it.data.iterationId}",
+        "kind": "command",
+        "stage": "brief"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-iterate-prep",
+    "kind": "map",
+    "label": "Iteration trigger to proposal brief",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-po-cmd"
+      }
+    },
+    "presets": {
+      "it": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-iterate",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "description": "team-po: state (the coding agent describes the module read-only), brief (proposal), requirement-brief (after the answer).",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-team-po-cmd",
+    "kind": "command",
+    "label": "Product owner process",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "charter": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-charter"
+      },
+      "context": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-context"
+      },
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-errors"
+      },
+      "journal": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-journal"
+      },
+      "log": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-po-log",
+        "retain": 200
+      },
+      "office_inbox": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-inbox"
+      },
+      "po_cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-po-cmd"
+      },
+      "prompts": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-prompts"
+      },
+      "responses": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-responses"
+      },
+      "state": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-state",
+        "retain": 10
+      }
+    },
+    "presets": {
+      "ideas": {
+        "arcql": "FROM $ WHERE $.status == \"open\" LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-team-ideas",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-po-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "promptId",
+          "iterationId",
+          "mode",
+          "question",
+          "options",
+          "rationale"
+        ],
+        "retries": 1,
+        "types": {
+          "mode": "string",
+          "options": "array",
+          "question": "string",
+          "rationale": "string"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "agenticnets-product",
+      "nl": "You are the PRODUCT OWNER of the ${ctx.data.service} service in the product described in the brief, deciding with the person what the service needs next. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the TEAM GOAL is NOT DEFINED and no direction from the product office is given: ask the person what this service must become; give 3 example goals they can adapt.\n- \"interview\" when the next requirement cannot be chosen without information only the person has: at most 3 precise questions as options {value: \"q1\", label: <question>, description: <why it matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete requirements for this service, each ONE bounded change a developer can implement in one run with a spec and acceptance criteria. Follow the office's DIRECTION when the brief carries one; prefer a red audit, a failed verification, an open bug, an open idea naming this service, then the goal's most valuable gap. Every option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, kind: \"feature|bug|docs|tests|refactor|readiness\", module: <the code path from THE MODULE STATE it touches>, effort: \"S|M|L\", risk: \"low|medium|high\", evidence: [<lines from the brief>], recommended: true|false}. Exactly one is recommended.\n\nAlways: promptId and iterationId exactly as the brief says; question is one sentence; rationale is 3 sentences on what the brief showed.",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "team",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out",
+        "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "new",
+        "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-team-propose",
+    "kind": "agent",
+    "label": "Propose the next requirement",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-llm-errors",
+        "retain": 100
+      },
+      "new": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-prompt-new"
+      },
+      "out": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-prompts"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"propose\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-context",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "mirror",
+            "${q.data.promptId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 120000,
+          "toolId": "team-po"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "mirror-${now()}",
+        "kind": "command",
+        "promptId": "${q.data.promptId}",
+        "stage": "mirror"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-prompt-prep",
+    "kind": "map",
+    "label": "New question to the office inbox",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-po-cmd"
+      }
+    },
+    "presets": {
+      "q": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-prompt-new",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "requirement-brief",
+            "${resp.data.iterationId}",
+            "${resp.data.promptId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "RESPONSE_NOTES": "${resp.data.notes}",
+            "RESPONSE_SELECTED": "${resp.data.selected}",
+            "RESPONSE_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000,
+          "toolId": "team-po"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "requirement-brief-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "promptId": "${resp.data.promptId}",
+        "stage": "requirement-brief"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-answer-prep",
+    "kind": "map",
+    "label": "Answer to requirement brief",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-po-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "brief",
+            "${resp.data.iterationId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "REVISION_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 900000,
+          "toolId": "team-po"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "brief-${now()}",
+        "iterationId": "${resp.data.iterationId}",
+        "kind": "command",
+        "stage": "brief"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-revise-prep",
+    "kind": "map",
+    "label": "Reshaped question to a new brief",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-po-cmd"
+      }
+    },
+    "presets": {
+      "resp": {
+        "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-responses",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "requirementId",
+          "iterationId",
+          "promptId",
+          "kind",
+          "title",
+          "story",
+          "summary",
+          "module",
+          "scope",
+          "done",
+          "priority",
+          "status"
+        ],
+        "retries": 1,
+        "types": {
+          "done": "array",
+          "outOfScope": "array",
+          "risks": "array",
+          "scope": "array"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "agenticnets-product",
+      "nl": "You are the PRODUCT OWNER of the ${ctx.data.service} service writing the requirement the person chose. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nReply EXACTLY: {\"requirementId\": <from the brief>, \"iterationId\": <from the brief>, \"promptId\": <from the brief>, \"kind\": \"feature|bug|docs|tests|refactor|readiness\", \"title\": <one line>, \"story\": <as a user of this service I want ... so that ...>, \"summary\": <three sentences>, \"module\": <the code path it touches, from THE MODULE STATE>, \"scope\": [<what is in>], \"outOfScope\": [<what is not>], \"done\": [<observable conditions of done, each measurable by QA>], \"risks\": [<risks>], \"priority\": \"high|medium|low\", \"status\": \"draft\"}. Rules: one bounded change; done conditions are measurable (a test, an endpoint answering, a log line, a document present); never widen beyond the person's choice.",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "team",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out",
+        "when": "status == 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "drafts",
+        "when": "status == 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "status != 'draft'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-team-requirement",
+    "kind": "agent",
+    "label": "Write the requirement",
+    "metadata": {
+      "netId": "net-team-po",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "drafts": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-requirement-drafts"
+      },
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-llm-errors",
+        "retain": 100
+      },
+      "out": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-requirements"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"requirement\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-context",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  }
+]

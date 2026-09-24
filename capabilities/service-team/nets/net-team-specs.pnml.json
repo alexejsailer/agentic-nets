@@ -1,0 +1,44 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-specs-01": {
+        "id": "a-net-team-specs-01",
+        "source": "p-team-spec-catalog",
+        "target": "t-team-spec-index",
+        "weight": 1
+      },
+      "a-net-team-specs-02": {
+        "id": "a-net-team-specs-02",
+        "source": "t-team-spec-index",
+        "target": "p-team-specs",
+        "weight": 1
+      }
+    },
+    "description": "The spec catalog: one place per module of the service's code (created by the architect's catalog command from the code structure), linked to the catalog root and to each other with typed link transitions; specs live in the specs place with their module path, and every module place carries its index token.",
+    "id": "net-team-specs",
+    "places": {
+      "p-team-spec-catalog": {
+        "id": "p-team-spec-catalog",
+        "label": "The catalog root: modules mirroring the code, their places and specs",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-specs": {
+        "id": "p-team-specs",
+        "label": "Specs, every one in a module of the catalog",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-team-spec-index": {
+        "id": "t-team-spec-index",
+        "label": "indexes",
+        "x": 320,
+        "y": 100
+      }
+    }
+  }
+}

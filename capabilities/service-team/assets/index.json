@@ -1,0 +1,8 @@
+[
+  {"id": "team-infra", "name": "Team infrastructure", "file": "team-infra.py", "runtime": "python3", "description": "health, provision (MCP token, repository checkout, registration with the product office), pause, resume, status push"},
+  {"id": "team-po", "name": "Product owner", "file": "team-po.py", "runtime": "python3", "description": "state of the module through the coding agent (read-only), the proposal brief, the requirement brief"},
+  {"id": "team-arch", "name": "Architect", "file": "team-arch.py", "runtime": "python3", "description": "design brief, the spec catalog mirroring the code (places and link transitions), the context pack, the policy gate"},
+  {"id": "team-qa", "name": "QA", "file": "team-qa.py", "runtime": "python3", "description": "acceptance brief, verification on the real suites with evidence, the production-readiness audit"},
+  {"id": "team-dev", "name": "Developer", "file": "team-dev.py", "runtime": "python3", "description": "implement through the coding agent on a branch, the review brief, the merge on the person's decision"},
+  {"id": "team-brain", "name": "Team brain", "file": "team-brain.py", "runtime": "python3", "description": "observe a merge, curate facts, plan, decisions, questions and ideas, apply the curation, push the release to the office"}
+]

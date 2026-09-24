@@ -1,0 +1,292 @@
+{
+  "net": "net-team-dev",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "The developer. An approved context pack starts the coding agent on a branch of the workspace repository; the built run is verified by QA; a passing verification becomes a review brief; the reviewer's verdict waits for the person; the person's merge decision runs the merge command (branches only, never a push); changes requested send the coder back with notes; a merge is reported to the office and observed by the brain.",
+  "places": {
+    "p-team-charter": "The team charter",
+    "p-team-coders": "Coder overrides",
+    "p-team-decisions": "The person's decisions",
+    "p-team-dev-cmd": "Developer commands",
+    "p-team-dev-log": "Developer command results",
+    "p-team-context": "Briefs for the one-shot lanes",
+    "p-team-briefs": "Context packs for the coder",
+    "p-team-runs": "Coder runs",
+    "p-team-reviews": "Review verdicts",
+    "p-team-qa-cmd": "QA commands (verify after a build)",
+    "p-team-brain-cmd": "Brain commands",
+    "p-team-prompts": "Questions for the person",
+    "p-team-specs": "Specs",
+    "p-team-status": "This team's status rows",
+    "p-team-llm-errors": "Answers that missed their contract",
+    "p-team-journal": "What every lane did",
+    "p-team-errors": "Script errors",
+    "p-product-inbox": "Product office inbox",
+    "p-product-status": "Product office status rows",
+    "p-team-review-new": "A copy of every review verdict, consumed by the merge question"
+  },
+  "transitions": [
+    {
+      "id": "t-team-approve-prep",
+      "kind": "map",
+      "label": "Approved context pack to the coder",
+      "reads": {
+        "dec": {
+          "place": "p-team-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"pack-approval\" AND $.verdict == \"approved\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-dev-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "implement-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "implement",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-dev",
+          "argv": [
+            "implement",
+            "${dec.data.specId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "DECISION_NOTES": "${dec.data.notes}",
+            "DECIDED_BY": "${dec.data.by}"
+          },
+          "timeoutMs": 3600000
+        },
+        "specId": "${dec.data.specId}"
+      }
+    },
+    {
+      "id": "t-team-dev-cmd",
+      "kind": "command",
+      "label": "Developer process",
+      "description": "team-dev: implement <specId> (the coding agent on a branch, from the context pack only), review-brief <runId>, merge-ask <runId>, merge <runId>.",
+      "reads": {
+        "input": {
+          "place": "p-team-dev-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        },
+        "coders": {
+          "place": "p-team-coders",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-dev-log",
+          "retain": 200
+        },
+        "context": "p-team-context",
+        "runs": "p-team-runs",
+        "qa_cmd": "p-team-qa-cmd",
+        "brain_cmd": "p-team-brain-cmd",
+        "prompts": "p-team-prompts",
+        "specs": "p-team-specs",
+        "status": "p-team-status",
+        "office_inbox": "p-product-inbox",
+        "office_status": "p-product-status",
+        "journal": "p-team-journal",
+        "errors": "p-team-errors"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 3600000
+      }
+    },
+    {
+      "id": "t-team-review",
+      "kind": "agent",
+      "label": "Review the diff against spec and acceptance",
+      "reads": {
+        "ctx": {
+          "place": "p-team-context",
+          "arcql": "FROM $ WHERE $.purpose == \"review\" LIMIT 1",
+          "ttl": 900000
+        }
+      },
+      "writes": {
+        "out": "p-team-reviews",
+        "errors": {
+          "place": "p-team-llm-errors",
+          "retain": 100
+        },
+        "new": "p-team-review-new"
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "reviewId",
+            "runId",
+            "specId",
+            "verdict",
+            "summary"
+          ],
+          "types": {
+            "points": "array",
+            "acceptanceMissing": "array",
+            "specDeviations": "array"
+          },
+          "retries": 1
+        },
+        "nl": "You are the DEVELOPER's reviewer of the ${ctx.data.service} service (a second pair of eyes). Read the brief with the diff, the spec and the acceptance, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nReply EXACTLY: {\"reviewId\": <from the brief>, \"runId\": <from the brief>, \"specId\": <from the brief>, \"verdict\": \"approve|changes\", \"summary\": <three sentences>, \"points\": [{\"severity\": \"blocking|major|minor\", \"file\": <file>, \"comment\": <what and why>}], \"acceptanceMissing\": [<criteria the diff does not satisfy>], \"specDeviations\": [<where the diff departs from the spec>]}. Rules: verdict changes when any point is blocking, a criterion is missing, or the diff touches files outside the spec's files and scope without reason; otherwise approve."
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "out",
+          "when": "verdict == 'approve' OR verdict == 'changes'"
+        },
+        {
+          "from": "@response",
+          "to": "new",
+          "when": "verdict == 'approve' OR verdict == 'changes'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "verdict != 'approve' AND verdict != 'changes'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-team-merge-ask-prep",
+      "kind": "map",
+      "label": "Review verdict to the person",
+      "reads": {
+        "rev": {
+          "place": "p-team-review-new",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-dev-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "merge-ask-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "merge-ask",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-dev",
+          "argv": [
+            "merge-ask",
+            "${rev.data.runId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "REVIEW_VERDICT": "${rev.data.verdict}",
+            "REVIEW_SUMMARY": "${rev.data.summary}"
+          },
+          "timeoutMs": 300000
+        },
+        "runId": "${rev.data.runId}"
+      }
+    },
+    {
+      "id": "t-team-merge-prep",
+      "kind": "map",
+      "label": "Merge decision to the merge command",
+      "reads": {
+        "dec": {
+          "place": "p-team-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"merge\" AND $.verdict == \"merge\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-dev-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "merge-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "merge",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-dev",
+          "argv": [
+            "merge",
+            "${dec.data.runId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "DECISION_NOTES": "${dec.data.notes}"
+          },
+          "timeoutMs": 900000
+        },
+        "runId": "${dec.data.runId}"
+      }
+    },
+    {
+      "id": "t-team-changes-prep",
+      "kind": "map",
+      "label": "Change request back to the coder",
+      "reads": {
+        "dec": {
+          "place": "p-team-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"merge\" AND $.verdict == \"changes\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-dev-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "implement-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "implement",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-dev",
+          "argv": [
+            "implement",
+            "${dec.data.specId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "DECISION_NOTES": "${dec.data.notes}",
+            "PREVIOUS_RUN": "${dec.data.runId}"
+          },
+          "timeoutMs": 3600000
+        },
+        "specId": "${dec.data.specId}",
+        "runId": "${dec.data.runId}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,325 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-arch-01": {
+        "id": "a-net-team-arch-01",
+        "source": "p-team-requirement-drafts",
+        "target": "t-team-design-prep",
+        "weight": 1
+      },
+      "a-net-team-arch-02": {
+        "id": "a-net-team-arch-02",
+        "source": "t-team-design-prep",
+        "target": "p-team-arch-cmd",
+        "weight": 1
+      },
+      "a-net-team-arch-03": {
+        "id": "a-net-team-arch-03",
+        "source": "p-team-arch-cmd",
+        "target": "t-team-arch-cmd",
+        "weight": 1
+      },
+      "a-net-team-arch-04": {
+        "id": "a-net-team-arch-04",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-arch-log",
+        "weight": 1
+      },
+      "a-net-team-arch-05": {
+        "id": "a-net-team-arch-05",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-context",
+        "weight": 1
+      },
+      "a-net-team-arch-06": {
+        "id": "a-net-team-arch-06",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-spec-catalog",
+        "weight": 1
+      },
+      "a-net-team-arch-07": {
+        "id": "a-net-team-arch-07",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-adr",
+        "weight": 1
+      },
+      "a-net-team-arch-08": {
+        "id": "a-net-team-arch-08",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-arch",
+        "weight": 1
+      },
+      "a-net-team-arch-09": {
+        "id": "a-net-team-arch-09",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-briefs",
+        "weight": 1
+      },
+      "a-net-team-arch-10": {
+        "id": "a-net-team-arch-10",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-decisions",
+        "weight": 1
+      },
+      "a-net-team-arch-11": {
+        "id": "a-net-team-arch-11",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-refused",
+        "weight": 1
+      },
+      "a-net-team-arch-12": {
+        "id": "a-net-team-arch-12",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-prompts",
+        "weight": 1
+      },
+      "a-net-team-arch-13": {
+        "id": "a-net-team-arch-13",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-specs",
+        "weight": 1
+      },
+      "a-net-team-arch-14": {
+        "id": "a-net-team-arch-14",
+        "source": "t-team-arch-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-net-team-arch-15": {
+        "id": "a-net-team-arch-15",
+        "source": "t-team-arch-cmd",
+        "target": "p-product-specs",
+        "weight": 1
+      },
+      "a-net-team-arch-16": {
+        "id": "a-net-team-arch-16",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-arch-17": {
+        "id": "a-net-team-arch-17",
+        "source": "t-team-arch-cmd",
+        "target": "p-team-errors",
+        "weight": 1
+      },
+      "a-net-team-arch-18": {
+        "id": "a-net-team-arch-18",
+        "source": "p-team-context",
+        "target": "t-team-design",
+        "weight": 1
+      },
+      "a-net-team-arch-19": {
+        "id": "a-net-team-arch-19",
+        "source": "t-team-design",
+        "target": "p-team-specs",
+        "weight": 1
+      },
+      "a-net-team-arch-20": {
+        "id": "a-net-team-arch-20",
+        "source": "t-team-design",
+        "target": "p-team-spec-drafts",
+        "weight": 1
+      },
+      "a-net-team-arch-21": {
+        "id": "a-net-team-arch-21",
+        "source": "t-team-design",
+        "target": "p-team-llm-errors",
+        "weight": 1
+      },
+      "a-net-team-arch-22": {
+        "id": "a-net-team-arch-22",
+        "source": "p-team-spec-drafts",
+        "target": "t-team-spec-gate-prep",
+        "weight": 1
+      },
+      "a-net-team-arch-23": {
+        "id": "a-net-team-arch-23",
+        "source": "t-team-spec-gate-prep",
+        "target": "p-team-arch-cmd",
+        "weight": 1
+      },
+      "a-net-team-arch-24": {
+        "id": "a-net-team-arch-24",
+        "source": "p-team-acceptance-new",
+        "target": "t-team-pack-prep",
+        "weight": 1
+      },
+      "a-net-team-arch-25": {
+        "id": "a-net-team-arch-25",
+        "source": "t-team-pack-prep",
+        "target": "p-team-arch-cmd",
+        "weight": 1
+      }
+    },
+    "description": "The architect. A requirement draft becomes a design brief; the architect writes THE SPEC into the spec catalog (which mirrors the code structure: one place per module, linked) and may propose a decision record; the person approves the spec in the app; once QA wrote the acceptance, the architect assembles the context pack for the coder and the policy gate decides whether the person approves it.",
+    "id": "net-team-arch",
+    "places": {
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Product office inbox",
+        "tokens": 0,
+        "x": 540,
+        "y": 440
+      },
+      "p-product-specs": {
+        "id": "p-product-specs",
+        "label": "Product-level specs (the top of the catalog)",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-team-acceptance-new": {
+        "id": "p-team-acceptance-new",
+        "label": "A copy of every new acceptance record, consumed by the context pack step",
+        "tokens": 0,
+        "x": 320,
+        "y": 610
+      },
+      "p-team-adr": {
+        "id": "p-team-adr",
+        "label": "Decision records",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-team-arch": {
+        "id": "p-team-arch",
+        "label": "Architecture notes and definitions",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-team-arch-cmd": {
+        "id": "p-team-arch-cmd",
+        "label": "Architect commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-team-arch-log": {
+        "id": "p-team-arch-log",
+        "label": "Architect command results",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-team-briefs": {
+        "id": "p-team-briefs",
+        "label": "Context packs for the coder",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-team-context": {
+        "id": "p-team-context",
+        "label": "Briefs for the one-shot lanes",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-team-decisions": {
+        "id": "p-team-decisions",
+        "label": "The person's decisions",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-team-errors": {
+        "id": "p-team-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-team-journal": {
+        "id": "p-team-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-team-llm-errors": {
+        "id": "p-team-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 760,
+        "y": 610
+      },
+      "p-team-prompts": {
+        "id": "p-team-prompts",
+        "label": "Questions for the person",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-team-refused": {
+        "id": "p-team-refused",
+        "label": "Context packs the gate refused",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-team-requirement-drafts": {
+        "id": "p-team-requirement-drafts",
+        "label": "Requirements on their way to the architect",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-spec-catalog": {
+        "id": "p-team-spec-catalog",
+        "label": "The spec catalog index: modules mirroring the code, their places and specs",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-team-spec-drafts": {
+        "id": "p-team-spec-drafts",
+        "label": "Specs on their way to the person's approval",
+        "tokens": 0,
+        "x": 980,
+        "y": 610
+      },
+      "p-team-specs": {
+        "id": "p-team-specs",
+        "label": "Specs, every one in a module of the catalog",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      }
+    },
+    "transitions": {
+      "t-team-arch-cmd": {
+        "id": "t-team-arch-cmd",
+        "label": "Architect process",
+        "x": 760,
+        "y": 100
+      },
+      "t-team-design": {
+        "id": "t-team-design",
+        "label": "Write the spec",
+        "x": 1200,
+        "y": 610
+      },
+      "t-team-design-prep": {
+        "id": "t-team-design-prep",
+        "label": "Requirement to design brief",
+        "x": 320,
+        "y": 100
+      },
+      "t-team-pack-prep": {
+        "id": "t-team-pack-prep",
+        "label": "Acceptance to context pack",
+        "x": 100,
+        "y": 610
+      },
+      "t-team-spec-gate-prep": {
+        "id": "t-team-spec-gate-prep",
+        "label": "Spec draft to the person's approval",
+        "x": 540,
+        "y": 610
+      }
+    }
+  }
+}

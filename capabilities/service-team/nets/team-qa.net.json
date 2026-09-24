@@ -1,0 +1,212 @@
+{
+  "net": "net-team-qa",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "The QA. An approved spec becomes an acceptance brief; the QA writes acceptance criteria with runnable checks; a built run is verified on the real suites with evidence; a weekly audit measures production readiness into a scorecard; failures become bugs and questions.",
+  "places": {
+    "p-team-charter": "The team charter",
+    "p-team-decisions": "The person's decisions",
+    "p-team-qa-cmd": "QA commands",
+    "p-team-qa-log": "QA command results",
+    "p-team-context": "Briefs for the one-shot lanes",
+    "p-team-acceptance": "Acceptance criteria per spec",
+    "p-team-verification": "Verification results per run, with evidence",
+    "p-team-scorecard": "Production-readiness scorecards",
+    "p-team-bugs": "Bugs found by verification or audit",
+    "p-team-runs": "Coder runs",
+    "p-team-dev-cmd": "Developer commands (the review brief after a passing verification)",
+    "p-team-llm-errors": "Answers that missed their contract",
+    "p-team-journal": "What every lane did",
+    "p-team-errors": "Script errors",
+    "p-product-inbox": "Product office inbox",
+    "p-product-status": "Product office status rows",
+    "p-team-acceptance-new": "A copy of every new acceptance record, consumed by the context pack step"
+  },
+  "transitions": [
+    {
+      "id": "t-team-acceptance-prep",
+      "kind": "map",
+      "label": "Approved spec to acceptance brief",
+      "reads": {
+        "dec": {
+          "place": "p-team-decisions",
+          "arcql": "FROM $ WHERE $.kind == \"spec-approval\" AND $.verdict == \"approved\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-qa-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "acceptance-brief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "acceptance-brief",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-qa",
+          "argv": [
+            "acceptance-brief",
+            "${dec.data.specId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "DECISION_NOTES": "${dec.data.notes}"
+          },
+          "timeoutMs": 300000
+        },
+        "specId": "${dec.data.specId}"
+      }
+    },
+    {
+      "id": "t-team-qa-cmd",
+      "kind": "command",
+      "label": "QA process",
+      "description": "team-qa: acceptance-brief, verify <runId> (suites, acceptance checks, evidence), audit.",
+      "reads": {
+        "input": {
+          "place": "p-team-qa-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-qa-log",
+          "retain": 200
+        },
+        "context": "p-team-context",
+        "verification": "p-team-verification",
+        "scorecard": {
+          "place": "p-team-scorecard",
+          "retain": 30
+        },
+        "bugs": "p-team-bugs",
+        "runs": "p-team-runs",
+        "dev_cmd": "p-team-dev-cmd",
+        "office_inbox": "p-product-inbox",
+        "office_status": "p-product-status",
+        "journal": "p-team-journal",
+        "errors": "p-team-errors"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 2400000
+      }
+    },
+    {
+      "id": "t-team-acceptance",
+      "kind": "agent",
+      "label": "Write the acceptance criteria",
+      "reads": {
+        "ctx": {
+          "place": "p-team-context",
+          "arcql": "FROM $ WHERE $.purpose == \"acceptance\" LIMIT 1",
+          "ttl": 900000
+        }
+      },
+      "writes": {
+        "out": "p-team-acceptance",
+        "errors": {
+          "place": "p-team-llm-errors",
+          "retain": 100
+        },
+        "new": "p-team-acceptance-new"
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "acceptanceId",
+            "specId",
+            "requirementId",
+            "criteria",
+            "status"
+          ],
+          "types": {
+            "criteria": "array",
+            "tests": "array",
+            "suites": "array",
+            "readiness": "array"
+          },
+          "retries": 1
+        },
+        "nl": "You are the QA of the ${ctx.data.service} service. A spec was approved; you write the acceptance criteria and the tests that prove them before anyone implements. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nReply EXACTLY: {\"acceptanceId\": <from the brief>, \"specId\": <from the brief>, \"requirementId\": <from the brief>, \"criteria\": [{\"id\": \"ac-1\", \"given\": <precondition>, \"when\": <action>, \"then\": <observable result>, \"check\": <the command, test name or request that proves it>}], \"tests\": [<test classes or scripts the developer must add or extend, with their location>], \"suites\": [<the existing commands QA runs to verify, e.g. the module's test command>], \"readiness\": [<production-readiness checks this change touches>], \"status\": \"ready\"}. Rules: every done condition of the requirement maps to at least one criterion; every criterion has a check a script can run; no criterion depends on a person's opinion."
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "out",
+          "when": "status == 'ready'"
+        },
+        {
+          "from": "@response",
+          "to": "new",
+          "when": "status == 'ready'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "status != 'ready'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-team-audit-cron",
+      "kind": "map",
+      "label": "Readiness audit (weekly)",
+      "reads": {
+        "charter": {
+          "place": "p-team-charter",
+          "arcql": "FROM $ WHERE $.charterId == \"team\" LIMIT 1",
+          "consume": false
+        }
+      },
+      "writes": {
+        "cmd": "p-team-qa-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "audit-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "audit",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-qa",
+          "argv": [
+            "audit",
+            "scheduled",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 2400000
+        }
+      },
+      "schedule": {
+        "type": "cron",
+        "cron": "0 0 7 * * 1",
+        "timezone": "Europe/Berlin"
+      }
+    }
+  ]
+}

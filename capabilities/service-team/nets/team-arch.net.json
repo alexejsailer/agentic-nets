@@ -1,0 +1,256 @@
+{
+  "net": "net-team-arch",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "The architect. A requirement draft becomes a design brief; the architect writes THE SPEC into the spec catalog (which mirrors the code structure: one place per module, linked) and may propose a decision record; the person approves the spec in the app; once QA wrote the acceptance, the architect assembles the context pack for the coder and the policy gate decides whether the person approves it.",
+  "places": {
+    "p-team-charter": "The team charter",
+    "p-team-requirement-drafts": "Requirements on their way to the architect",
+    "p-team-arch-cmd": "Architect commands",
+    "p-team-arch-log": "Architect command results",
+    "p-team-context": "Briefs for the one-shot lanes",
+    "p-team-specs": "Specs, every one in a module of the catalog",
+    "p-team-spec-drafts": "Specs on their way to the person's approval",
+    "p-team-spec-catalog": "The spec catalog index: modules mirroring the code, their places and specs",
+    "p-team-adr": "Decision records",
+    "p-team-arch": "Architecture notes and definitions",
+    "p-team-briefs": "Context packs for the coder",
+    "p-team-acceptance": "Acceptance criteria per spec",
+    "p-team-decisions": "The person's decisions",
+    "p-team-refused": "Context packs the gate refused",
+    "p-team-prompts": "Questions for the person",
+    "p-team-llm-errors": "Answers that missed their contract",
+    "p-team-journal": "What every lane did",
+    "p-team-errors": "Script errors",
+    "p-product-inbox": "Product office inbox",
+    "p-product-specs": "Product-level specs (the top of the catalog)",
+    "p-team-acceptance-new": "A copy of every new acceptance record, consumed by the context pack step"
+  },
+  "transitions": [
+    {
+      "id": "t-team-design-prep",
+      "kind": "map",
+      "label": "Requirement to design brief",
+      "reads": {
+        "req": {
+          "place": "p-team-requirement-drafts",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-arch-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "design-brief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "design-brief",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-arch",
+          "argv": [
+            "design-brief",
+            "${req.data.requirementId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000
+        },
+        "requirementId": "${req.data.requirementId}"
+      }
+    },
+    {
+      "id": "t-team-arch-cmd",
+      "kind": "command",
+      "label": "Architect process",
+      "description": "team-arch: design-brief, catalog (mirror the code structure into places and links), spec-gate (ask the person to approve a spec), pack (the context pack for the coder, then the policy gate).",
+      "reads": {
+        "input": {
+          "place": "p-team-arch-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-arch-log",
+          "retain": 200
+        },
+        "context": "p-team-context",
+        "catalog": {
+          "place": "p-team-spec-catalog",
+          "retain": 20
+        },
+        "adr": "p-team-adr",
+        "arch": "p-team-arch",
+        "briefs": "p-team-briefs",
+        "decisions": "p-team-decisions",
+        "refused": "p-team-refused",
+        "prompts": "p-team-prompts",
+        "specs": "p-team-specs",
+        "office_inbox": "p-product-inbox",
+        "office_specs": "p-product-specs",
+        "journal": "p-team-journal",
+        "errors": "p-team-errors"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 900000
+      }
+    },
+    {
+      "id": "t-team-design",
+      "kind": "agent",
+      "label": "Write the spec",
+      "reads": {
+        "ctx": {
+          "place": "p-team-context",
+          "arcql": "FROM $ WHERE $.purpose == \"design\" LIMIT 1",
+          "ttl": 900000
+        }
+      },
+      "writes": {
+        "out": "p-team-specs",
+        "drafts": "p-team-spec-drafts",
+        "errors": {
+          "place": "p-team-llm-errors",
+          "retain": 100
+        }
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "specId",
+            "requirementId",
+            "iterationId",
+            "title",
+            "module",
+            "summary",
+            "design",
+            "files",
+            "verify",
+            "status"
+          ],
+          "types": {
+            "design": "array",
+            "interfaces": "array",
+            "data": "array",
+            "files": "array",
+            "constraints": "array",
+            "risks": "array"
+          },
+          "retries": 1
+        },
+        "nl": "You are the ARCHITECT of the ${ctx.data.service} service. A requirement was written; you write THE SPEC that must exist before anyone implements it, in the team's spec catalog which mirrors the code structure. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nReply EXACTLY: {\"specId\": <from the brief>, \"requirementId\": <from the brief>, \"iterationId\": <from the brief>, \"title\": <one line>, \"module\": <the catalog module path this spec belongs to, from THE SPEC CATALOG; the closest existing module, or a new path under it>, \"summary\": <three sentences: what changes and why>, \"design\": [<numbered design steps, each one concrete change to one file or component>], \"interfaces\": [<endpoints, classes, messages, config keys added or changed>], \"data\": [<schema, storage or token shape changes, or none>], \"files\": [<files expected to change, relative to the service directory>], \"constraints\": [<what must not change>], \"verify\": <how QA proves it after implementation, one paragraph>, \"risks\": [<risks>], \"adr\": null or {\"title\": <short>, \"context\": <why a decision is needed>, \"decision\": <what is decided>, \"consequences\": <what it constrains>}, \"status\": \"draft\"}. Rules: respect the ACCEPTED DECISIONS and the principles; the spec is complete enough that a coder needs nothing else but the files; propose an adr only for a choice that constrains future changes."
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "out",
+          "when": "status == 'draft'"
+        },
+        {
+          "from": "@response",
+          "to": "drafts",
+          "when": "status == 'draft'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "status != 'draft'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-team-spec-gate-prep",
+      "kind": "map",
+      "label": "Spec draft to the person's approval",
+      "reads": {
+        "d": {
+          "place": "p-team-spec-drafts",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-arch-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "spec-gate-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "spec-gate",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-arch",
+          "argv": [
+            "spec-gate",
+            "${d.data.specId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000
+        },
+        "specId": "${d.data.specId}"
+      }
+    },
+    {
+      "id": "t-team-pack-prep",
+      "kind": "map",
+      "label": "Acceptance to context pack",
+      "reads": {
+        "acc": {
+          "place": "p-team-acceptance-new",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-arch-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "pack-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "pack",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-arch",
+          "argv": [
+            "pack",
+            "${acc.data.specId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000
+        },
+        "specId": "${acc.data.specId}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,334 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-brain-01": {
+        "id": "a-net-team-brain-01",
+        "source": "p-team-brain-cmd",
+        "target": "t-team-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-02": {
+        "id": "a-net-team-brain-02",
+        "source": "t-team-brain-observe-cmd",
+        "target": "p-team-brain-log",
+        "weight": 1
+      },
+      "a-net-team-brain-03": {
+        "id": "a-net-team-brain-03",
+        "source": "t-team-brain-observe-cmd",
+        "target": "p-team-signals",
+        "weight": 1
+      },
+      "a-net-team-brain-04": {
+        "id": "a-net-team-brain-04",
+        "source": "t-team-brain-observe-cmd",
+        "target": "p-team-context",
+        "weight": 1
+      },
+      "a-net-team-brain-05": {
+        "id": "a-net-team-brain-05",
+        "source": "t-team-brain-observe-cmd",
+        "target": "p-team-brain-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-06": {
+        "id": "a-net-team-brain-06",
+        "source": "t-team-brain-observe-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-brain-07": {
+        "id": "a-net-team-brain-07",
+        "source": "p-team-context",
+        "target": "t-team-curate",
+        "weight": 1
+      },
+      "a-net-team-brain-08": {
+        "id": "a-net-team-brain-08",
+        "source": "t-team-curate",
+        "target": "p-team-curation",
+        "weight": 1
+      },
+      "a-net-team-brain-09": {
+        "id": "a-net-team-brain-09",
+        "source": "t-team-curate",
+        "target": "p-team-curations",
+        "weight": 1
+      },
+      "a-net-team-brain-10": {
+        "id": "a-net-team-brain-10",
+        "source": "t-team-curate",
+        "target": "p-team-llm-errors",
+        "weight": 1
+      },
+      "a-net-team-brain-11": {
+        "id": "a-net-team-brain-11",
+        "source": "p-team-brain-cmd",
+        "target": "t-team-curate-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-12": {
+        "id": "a-net-team-brain-12",
+        "source": "t-team-curate-cmd",
+        "target": "p-team-brain-log",
+        "weight": 1
+      },
+      "a-net-team-brain-13": {
+        "id": "a-net-team-brain-13",
+        "source": "t-team-curate-cmd",
+        "target": "p-team-curation",
+        "weight": 1
+      },
+      "a-net-team-brain-14": {
+        "id": "a-net-team-brain-14",
+        "source": "t-team-curate-cmd",
+        "target": "p-team-curations",
+        "weight": 1
+      },
+      "a-net-team-brain-15": {
+        "id": "a-net-team-brain-15",
+        "source": "p-team-curation",
+        "target": "t-team-apply-prep",
+        "weight": 1
+      },
+      "a-net-team-brain-16": {
+        "id": "a-net-team-brain-16",
+        "source": "t-team-apply-prep",
+        "target": "p-team-brain-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-17": {
+        "id": "a-net-team-brain-17",
+        "source": "p-team-responses",
+        "target": "t-team-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-net-team-brain-18": {
+        "id": "a-net-team-brain-18",
+        "source": "t-team-answer-knowledge-prep",
+        "target": "p-team-brain-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-19": {
+        "id": "a-net-team-brain-19",
+        "source": "p-team-brain-cmd",
+        "target": "t-team-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-20": {
+        "id": "a-net-team-brain-20",
+        "source": "p-team-curations",
+        "target": "t-team-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-net-team-brain-21": {
+        "id": "a-net-team-brain-21",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-brain-log",
+        "weight": 1
+      },
+      "a-net-team-brain-22": {
+        "id": "a-net-team-brain-22",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-knowledge",
+        "weight": 1
+      },
+      "a-net-team-brain-23": {
+        "id": "a-net-team-brain-23",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-plan",
+        "weight": 1
+      },
+      "a-net-team-brain-24": {
+        "id": "a-net-team-brain-24",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-adr",
+        "weight": 1
+      },
+      "a-net-team-brain-25": {
+        "id": "a-net-team-brain-25",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-prompts",
+        "weight": 1
+      },
+      "a-net-team-brain-26": {
+        "id": "a-net-team-brain-26",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-iterate",
+        "weight": 1
+      },
+      "a-net-team-brain-27": {
+        "id": "a-net-team-brain-27",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-brain-28": {
+        "id": "a-net-team-brain-28",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-net-team-brain-29": {
+        "id": "a-net-team-brain-29",
+        "source": "t-team-brain-apply-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      }
+    },
+    "description": "The team's brain: after a merge, the signals (the requirement, the spec, what QA measured, what the reviewer said, what the coder reported) become a curation, the curation becomes facts with source and confidence, the team's plan, decision proposals, questions and ideas; applying it starts the next iteration and reports the release to the product office.",
+    "id": "net-team-brain",
+    "places": {
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Product office inbox",
+        "tokens": 0,
+        "x": 760,
+        "y": 610
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "Product office status rows",
+        "tokens": 0,
+        "x": 540,
+        "y": 610
+      },
+      "p-team-adr": {
+        "id": "p-team-adr",
+        "label": "Decision records (the brain proposes, the person decides)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-team-brain-cmd": {
+        "id": "p-team-brain-cmd",
+        "label": "Brain commands (observe, curate, apply, answer)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-brain-log": {
+        "id": "p-team-brain-log",
+        "label": "Brain command results",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-team-context": {
+        "id": "p-team-context",
+        "label": "Briefs for the judgement lanes",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-team-curation": {
+        "id": "p-team-curation",
+        "label": "Curations (the curator's answer)",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-team-curations": {
+        "id": "p-team-curations",
+        "label": "Curation archive (every curation as answered, kept)",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-team-iterate": {
+        "id": "p-team-iterate",
+        "label": "Iteration triggers",
+        "tokens": 0,
+        "x": 980,
+        "y": 610
+      },
+      "p-team-journal": {
+        "id": "p-team-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-team-knowledge": {
+        "id": "p-team-knowledge",
+        "label": "Knowledge facts: kind, scope, source, confidence, active or retired",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-team-llm-errors": {
+        "id": "p-team-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-team-plan": {
+        "id": "p-team-plan",
+        "label": "The plan: remaining increments toward the goal",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-team-prompts": {
+        "id": "p-team-prompts",
+        "label": "Questions for the person",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-team-responses": {
+        "id": "p-team-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-team-signals": {
+        "id": "p-team-signals",
+        "label": "Signals per released run",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-team-answer-knowledge-prep": {
+        "id": "t-team-answer-knowledge-prep",
+        "label": "A person's answer to a brain question",
+        "x": 320,
+        "y": 440
+      },
+      "t-team-apply-prep": {
+        "id": "t-team-apply-prep",
+        "label": "Curation to apply command",
+        "x": 100,
+        "y": 270
+      },
+      "t-team-brain-apply-cmd": {
+        "id": "t-team-brain-apply-cmd",
+        "label": "Apply: knowledge, plan, proposed decisions, questions, next iteration",
+        "x": 540,
+        "y": 440
+      },
+      "t-team-brain-observe-cmd": {
+        "id": "t-team-brain-observe-cmd",
+        "label": "Observe: signals of a released run",
+        "x": 320,
+        "y": 100
+      },
+      "t-team-curate": {
+        "id": "t-team-curate",
+        "label": "Curate (one-shot model call)",
+        "x": 1200,
+        "y": 270
+      },
+      "t-team-curate-cmd": {
+        "id": "t-team-curate-cmd",
+        "label": "Curate (headless agent, may read the pack repository)",
+        "x": 320,
+        "y": 270
+      }
+    }
+  }
+}

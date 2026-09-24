@@ -1,0 +1,134 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "digest",
+            "scheduled"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000,
+          "toolId": "office-digest"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "office-digest-${now()}",
+        "kind": "command",
+        "stage": "digest"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-office-digest-cron",
+    "kind": "map",
+    "label": "Digest (daily)",
+    "metadata": {
+      "netId": "office-digest",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-digest-cmd"
+      }
+    },
+    "presets": {
+      "charter": {
+        "arcql": "FROM $ WHERE $.charterId == \"office\" LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-charter",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 0 6 * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 300000,
+      "type": "command"
+    },
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-office-digest-cmd",
+    "kind": "command",
+    "label": "Digest across teams",
+    "metadata": {
+      "netId": "office-digest",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "digest": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-digest",
+        "retain": 60
+      },
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-errors"
+      },
+      "inbox": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-inbox"
+      },
+      "journal": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-journal"
+      },
+      "log": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-digest-log",
+        "retain": 100
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-digest-cmd",
+        "take": "FIRST"
+      },
+      "status": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-product-status",
+        "take": "FIRST"
+      }
+    }
+  }
+]

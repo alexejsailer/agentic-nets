@@ -1,0 +1,366 @@
+{
+  "net": "net-team-po",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "The product owner. An iteration trigger (from the app or an allocation by the product office) becomes a brief with the measured state of the module; the product owner proposes the next requirement as a choice, an interview or asks for the team goal; the person answers in the app; the answer becomes a requirement under a contract that goes to the architect.",
+  "places": {
+    "p-team-charter": "The team charter",
+    "p-team-iterate": "Iteration triggers (the app, or the product office's allocation)",
+    "p-team-po-cmd": "Product owner commands",
+    "p-team-po-log": "Product owner command results",
+    "p-team-context": "Briefs for the one-shot lanes",
+    "p-team-state": "The measured state of the module (structure, tests, health, debt)",
+    "p-team-prompts": "Questions for the person",
+    "p-team-responses": "The person's answers",
+    "p-team-requirements": "Requirements",
+    "p-team-requirement-drafts": "Requirements on their way to the architect",
+    "p-team-ideas": "Ideas from the person and the brain",
+    "p-team-llm-errors": "Answers that missed their contract",
+    "p-team-journal": "What every lane did",
+    "p-team-errors": "Script errors",
+    "p-product-inbox": "Product office inbox",
+    "p-team-prompt-new": "A copy of every new question, consumed by the mirror step that tells the product office"
+  },
+  "transitions": [
+    {
+      "id": "t-team-iterate-prep",
+      "kind": "map",
+      "label": "Iteration trigger to proposal brief",
+      "reads": {
+        "it": {
+          "place": "p-team-iterate",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-po-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "brief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "brief",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-po",
+          "argv": [
+            "brief",
+            "${it.data.iterationId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "DIRECTION": "${it.data.direction}",
+            "DIRECTION_NOTES": "${it.data.notes}",
+            "ROADMAP_ID": "${it.data.roadmapId}"
+          },
+          "timeoutMs": 900000
+        },
+        "iterationId": "${it.data.iterationId}"
+      }
+    },
+    {
+      "id": "t-team-po-cmd",
+      "kind": "command",
+      "label": "Product owner process",
+      "description": "team-po: state (the coding agent describes the module read-only), brief (proposal), requirement-brief (after the answer).",
+      "reads": {
+        "input": {
+          "place": "p-team-po-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        },
+        "ideas": {
+          "place": "p-team-ideas",
+          "arcql": "FROM $ WHERE $.status == \"open\" LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-po-log",
+          "retain": 200
+        },
+        "context": "p-team-context",
+        "state": {
+          "place": "p-team-state",
+          "retain": 10
+        },
+        "responses": "p-team-responses",
+        "office_inbox": "p-product-inbox",
+        "journal": "p-team-journal",
+        "errors": "p-team-errors",
+        "prompts": "p-team-prompts",
+        "po_cmd": "p-team-po-cmd",
+        "charter": "p-team-charter"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 900000
+      }
+    },
+    {
+      "id": "t-team-propose",
+      "kind": "agent",
+      "label": "Propose the next requirement",
+      "reads": {
+        "ctx": {
+          "place": "p-team-context",
+          "arcql": "FROM $ WHERE $.purpose == \"propose\" LIMIT 1",
+          "ttl": 900000
+        }
+      },
+      "writes": {
+        "out": "p-team-prompts",
+        "errors": {
+          "place": "p-team-llm-errors",
+          "retain": 100
+        },
+        "new": "p-team-prompt-new"
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "promptId",
+            "iterationId",
+            "mode",
+            "question",
+            "options",
+            "rationale"
+          ],
+          "types": {
+            "options": "array",
+            "question": "string",
+            "mode": "string",
+            "rationale": "string"
+          },
+          "retries": 1
+        },
+        "nl": "You are the PRODUCT OWNER of the ${ctx.data.service} service in the product described in the brief, deciding with the person what the service needs next. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the TEAM GOAL is NOT DEFINED and no direction from the product office is given: ask the person what this service must become; give 3 example goals they can adapt.\n- \"interview\" when the next requirement cannot be chosen without information only the person has: at most 3 precise questions as options {value: \"q1\", label: <question>, description: <why it matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete requirements for this service, each ONE bounded change a developer can implement in one run with a spec and acceptance criteria. Follow the office's DIRECTION when the brief carries one; prefer a red audit, a failed verification, an open bug, an open idea naming this service, then the goal's most valuable gap. Every option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, kind: \"feature|bug|docs|tests|refactor|readiness\", module: <the code path from THE MODULE STATE it touches>, effort: \"S|M|L\", risk: \"low|medium|high\", evidence: [<lines from the brief>], recommended: true|false}. Exactly one is recommended.\n\nAlways: promptId and iterationId exactly as the brief says; question is one sentence; rationale is 3 sentences on what the brief showed."
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "out",
+          "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+        },
+        {
+          "from": "@response",
+          "to": "new",
+          "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-team-prompt-prep",
+      "kind": "map",
+      "label": "New question to the office inbox",
+      "reads": {
+        "q": {
+          "place": "p-team-prompt-new",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-po-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "mirror-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "mirror",
+        "promptId": "${q.data.promptId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-po",
+          "argv": [
+            "mirror",
+            "${q.data.promptId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 120000
+        }
+      }
+    },
+    {
+      "id": "t-team-answer-prep",
+      "kind": "map",
+      "label": "Answer to requirement brief",
+      "reads": {
+        "resp": {
+          "place": "p-team-responses",
+          "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-po-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "requirement-brief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "requirement-brief",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-po",
+          "argv": [
+            "requirement-brief",
+            "${resp.data.iterationId}",
+            "${resp.data.promptId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "RESPONSE_SELECTED": "${resp.data.selected}",
+            "RESPONSE_TEXT": "${resp.data.text}",
+            "RESPONSE_NOTES": "${resp.data.notes}"
+          },
+          "timeoutMs": 300000
+        },
+        "iterationId": "${resp.data.iterationId}",
+        "promptId": "${resp.data.promptId}"
+      }
+    },
+    {
+      "id": "t-team-revise-prep",
+      "kind": "map",
+      "label": "Reshaped question to a new brief",
+      "reads": {
+        "resp": {
+          "place": "p-team-responses",
+          "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-po-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "brief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "brief",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-po",
+          "argv": [
+            "brief",
+            "${resp.data.iterationId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "REVISION_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 900000
+        },
+        "iterationId": "${resp.data.iterationId}"
+      }
+    },
+    {
+      "id": "t-team-requirement",
+      "kind": "agent",
+      "label": "Write the requirement",
+      "reads": {
+        "ctx": {
+          "place": "p-team-context",
+          "arcql": "FROM $ WHERE $.purpose == \"requirement\" LIMIT 1",
+          "ttl": 900000
+        }
+      },
+      "writes": {
+        "out": "p-team-requirements",
+        "drafts": "p-team-requirement-drafts",
+        "errors": {
+          "place": "p-team-llm-errors",
+          "retain": 100
+        }
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "requirementId",
+            "iterationId",
+            "promptId",
+            "kind",
+            "title",
+            "story",
+            "summary",
+            "module",
+            "scope",
+            "done",
+            "priority",
+            "status"
+          ],
+          "types": {
+            "scope": "array",
+            "outOfScope": "array",
+            "done": "array",
+            "risks": "array"
+          },
+          "retries": 1
+        },
+        "nl": "You are the PRODUCT OWNER of the ${ctx.data.service} service writing the requirement the person chose. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nReply EXACTLY: {\"requirementId\": <from the brief>, \"iterationId\": <from the brief>, \"promptId\": <from the brief>, \"kind\": \"feature|bug|docs|tests|refactor|readiness\", \"title\": <one line>, \"story\": <as a user of this service I want ... so that ...>, \"summary\": <three sentences>, \"module\": <the code path it touches, from THE MODULE STATE>, \"scope\": [<what is in>], \"outOfScope\": [<what is not>], \"done\": [<observable conditions of done, each measurable by QA>], \"risks\": [<risks>], \"priority\": \"high|medium|low\", \"status\": \"draft\"}. Rules: one bounded change; done conditions are measurable (a test, an endpoint answering, a log line, a document present); never widen beyond the person's choice."
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "out",
+          "when": "status == 'draft'"
+        },
+        {
+          "from": "@response",
+          "to": "drafts",
+          "when": "status == 'draft'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "status != 'draft'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    }
+  ]
+}

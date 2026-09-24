@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {"name": "scripts registered", "check": "every script of assets/index.json answers in the model's tool catalog"},
+    {"name": "charter seeded once", "check": "p-product-charter holds exactly one seed token after install and after reinstall"},
+    {"name": "goal asked first", "check": "with goal REPLACE ME an iteration ends in a prompt of mode goal"},
+    {"name": "allocation reaches a team", "check": "answering a choice that names a registered team writes an iterate token into that team's iterate place and a roadmap item"},
+    {"name": "inbox is the person's view", "check": "every open prompt of the office and every open item a team pushed appears in p-product-inbox until answered"}
+  ]
+}

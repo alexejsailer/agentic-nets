@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {"name": "namespaced install", "check": "installed into session <service>, every place is p-<service>-team-* and every lane t-<service>-team-*"},
+    {"name": "registration", "check": "provision fills the service from the namespace, clones the repository and writes the team into p-product-teams"},
+    {"name": "spec before code", "check": "no context pack is written and no run starts without an approved spec token for the requirement"},
+    {"name": "branches only", "check": "the developer commits on <service>/<specId>; nothing is pushed; merge happens only through the merge command after the person's decision"},
+    {"name": "office inbox", "check": "every question, approval and merge decision waiting for the person is mirrored into p-product-inbox and cleared when answered"}
+  ]
+}

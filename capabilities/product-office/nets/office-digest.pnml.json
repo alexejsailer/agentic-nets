@@ -1,0 +1,134 @@
+{
+  "net": {
+    "arcs": {
+      "a-office-digest-01": {
+        "id": "a-office-digest-01",
+        "source": "p-product-charter",
+        "target": "t-office-digest-cron",
+        "weight": 1
+      },
+      "a-office-digest-02": {
+        "id": "a-office-digest-02",
+        "source": "t-office-digest-cron",
+        "target": "p-product-digest-cmd",
+        "weight": 1
+      },
+      "a-office-digest-03": {
+        "id": "a-office-digest-03",
+        "source": "p-product-digest-cmd",
+        "target": "t-office-digest-cmd",
+        "weight": 1
+      },
+      "a-office-digest-04": {
+        "id": "a-office-digest-04",
+        "source": "p-product-status",
+        "target": "t-office-digest-cmd",
+        "weight": 1
+      },
+      "a-office-digest-05": {
+        "id": "a-office-digest-05",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-digest-log",
+        "weight": 1
+      },
+      "a-office-digest-06": {
+        "id": "a-office-digest-06",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-digest",
+        "weight": 1
+      },
+      "a-office-digest-07": {
+        "id": "a-office-digest-07",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-office-digest-08": {
+        "id": "a-office-digest-08",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-digest-09": {
+        "id": "a-office-digest-09",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      }
+    },
+    "description": "Every morning the office digests the status every team pushed and the open inbox items into one token the person reads first; a digest with a red team or an old open item is also an inbox item.",
+    "id": "office-digest",
+    "places": {
+      "p-product-charter": {
+        "id": "p-product-charter",
+        "label": "The product charter",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-product-digest": {
+        "id": "p-product-digest",
+        "label": "Daily digests across teams",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-product-digest-cmd": {
+        "id": "p-product-digest-cmd",
+        "label": "Digest commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-product-digest-log": {
+        "id": "p-product-digest-log",
+        "label": "Digest command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-product-errors": {
+        "id": "p-product-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Everything that waits for the person",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "Status rows every team pushes (service, phase, open items, last release, audit)",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-office-digest-cmd": {
+        "id": "t-office-digest-cmd",
+        "label": "Digest across teams",
+        "x": 980,
+        "y": 100
+      },
+      "t-office-digest-cron": {
+        "id": "t-office-digest-cron",
+        "label": "Digest (daily)",
+        "x": 320,
+        "y": 100
+      }
+    }
+  }
+}

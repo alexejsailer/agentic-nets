@@ -1,0 +1,308 @@
+{
+  "net": {
+    "arcs": {
+      "a-office-brain-01": {
+        "id": "a-office-brain-01",
+        "source": "p-product-brain-cmd",
+        "target": "t-office-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-office-brain-02": {
+        "id": "a-office-brain-02",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-brain-log",
+        "weight": 1
+      },
+      "a-office-brain-03": {
+        "id": "a-office-brain-03",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-signals",
+        "weight": 1
+      },
+      "a-office-brain-04": {
+        "id": "a-office-brain-04",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-context",
+        "weight": 1
+      },
+      "a-office-brain-05": {
+        "id": "a-office-brain-05",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-brain-cmd",
+        "weight": 1
+      },
+      "a-office-brain-06": {
+        "id": "a-office-brain-06",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-brain-07": {
+        "id": "a-office-brain-07",
+        "source": "p-product-context",
+        "target": "t-office-curate",
+        "weight": 1
+      },
+      "a-office-brain-08": {
+        "id": "a-office-brain-08",
+        "source": "t-office-curate",
+        "target": "p-product-curation",
+        "weight": 1
+      },
+      "a-office-brain-09": {
+        "id": "a-office-brain-09",
+        "source": "t-office-curate",
+        "target": "p-product-curations",
+        "weight": 1
+      },
+      "a-office-brain-10": {
+        "id": "a-office-brain-10",
+        "source": "t-office-curate",
+        "target": "p-product-llm-errors",
+        "weight": 1
+      },
+      "a-office-brain-11": {
+        "id": "a-office-brain-11",
+        "source": "p-product-brain-cmd",
+        "target": "t-office-curate-cmd",
+        "weight": 1
+      },
+      "a-office-brain-12": {
+        "id": "a-office-brain-12",
+        "source": "t-office-curate-cmd",
+        "target": "p-product-brain-log",
+        "weight": 1
+      },
+      "a-office-brain-13": {
+        "id": "a-office-brain-13",
+        "source": "t-office-curate-cmd",
+        "target": "p-product-curation",
+        "weight": 1
+      },
+      "a-office-brain-14": {
+        "id": "a-office-brain-14",
+        "source": "t-office-curate-cmd",
+        "target": "p-product-curations",
+        "weight": 1
+      },
+      "a-office-brain-15": {
+        "id": "a-office-brain-15",
+        "source": "p-product-curation",
+        "target": "t-office-apply-prep",
+        "weight": 1
+      },
+      "a-office-brain-16": {
+        "id": "a-office-brain-16",
+        "source": "t-office-apply-prep",
+        "target": "p-product-brain-cmd",
+        "weight": 1
+      },
+      "a-office-brain-17": {
+        "id": "a-office-brain-17",
+        "source": "p-product-responses",
+        "target": "t-office-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-office-brain-18": {
+        "id": "a-office-brain-18",
+        "source": "t-office-answer-knowledge-prep",
+        "target": "p-product-brain-cmd",
+        "weight": 1
+      },
+      "a-office-brain-19": {
+        "id": "a-office-brain-19",
+        "source": "p-product-brain-cmd",
+        "target": "t-office-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-office-brain-20": {
+        "id": "a-office-brain-20",
+        "source": "p-product-curations",
+        "target": "t-office-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-office-brain-21": {
+        "id": "a-office-brain-21",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-brain-log",
+        "weight": 1
+      },
+      "a-office-brain-22": {
+        "id": "a-office-brain-22",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-knowledge",
+        "weight": 1
+      },
+      "a-office-brain-23": {
+        "id": "a-office-brain-23",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-plan",
+        "weight": 1
+      },
+      "a-office-brain-24": {
+        "id": "a-office-brain-24",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-adr",
+        "weight": 1
+      },
+      "a-office-brain-25": {
+        "id": "a-office-brain-25",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-prompts",
+        "weight": 1
+      },
+      "a-office-brain-26": {
+        "id": "a-office-brain-26",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-iterate",
+        "weight": 1
+      },
+      "a-office-brain-27": {
+        "id": "a-office-brain-27",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      }
+    },
+    "description": "The product office's brain: after a team reports a release, the signals (what was released, what the team's QA measured, what the coder reported) become a curation (one-shot lane or headless agent), the curation becomes facts with source and confidence, a cross-team plan, decision proposals, questions and ideas; applying it can start the next planning iteration.",
+    "id": "office-brain",
+    "places": {
+      "p-product-adr": {
+        "id": "p-product-adr",
+        "label": "Decision records (the brain proposes, the person decides)",
+        "tokens": 0,
+        "x": 1200,
+        "y": 440
+      },
+      "p-product-brain-cmd": {
+        "id": "p-product-brain-cmd",
+        "label": "Brain commands (observe, curate, apply, answer)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-product-brain-log": {
+        "id": "p-product-brain-log",
+        "label": "Brain command results",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-product-context": {
+        "id": "p-product-context",
+        "label": "Briefs for the judgement lanes",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-product-curation": {
+        "id": "p-product-curation",
+        "label": "Curations (the curator's answer)",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-product-curations": {
+        "id": "p-product-curations",
+        "label": "Curation archive (every curation as answered, kept)",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-product-iterate": {
+        "id": "p-product-iterate",
+        "label": "Iteration triggers",
+        "tokens": 0,
+        "x": 980,
+        "y": 610
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "Journal",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-product-knowledge": {
+        "id": "p-product-knowledge",
+        "label": "Knowledge facts: kind, scope, source, confidence, active or retired",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-product-llm-errors": {
+        "id": "p-product-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-product-plan": {
+        "id": "p-product-plan",
+        "label": "The plan: remaining increments toward the goal",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-product-prompts": {
+        "id": "p-product-prompts",
+        "label": "Questions for the person",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-product-responses": {
+        "id": "p-product-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-product-signals": {
+        "id": "p-product-signals",
+        "label": "Signals per released run",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      }
+    },
+    "transitions": {
+      "t-office-answer-knowledge-prep": {
+        "id": "t-office-answer-knowledge-prep",
+        "label": "A person's answer to a brain question",
+        "x": 320,
+        "y": 440
+      },
+      "t-office-apply-prep": {
+        "id": "t-office-apply-prep",
+        "label": "Curation to apply command",
+        "x": 100,
+        "y": 270
+      },
+      "t-office-brain-apply-cmd": {
+        "id": "t-office-brain-apply-cmd",
+        "label": "Apply: knowledge, plan, proposed decisions, questions, next iteration",
+        "x": 540,
+        "y": 440
+      },
+      "t-office-brain-observe-cmd": {
+        "id": "t-office-brain-observe-cmd",
+        "label": "Observe: signals of a released run",
+        "x": 320,
+        "y": 100
+      },
+      "t-office-curate": {
+        "id": "t-office-curate",
+        "label": "Curate (one-shot model call)",
+        "x": 1200,
+        "y": 270
+      },
+      "t-office-curate-cmd": {
+        "id": "t-office-curate-cmd",
+        "label": "Curate (headless agent, may read the pack repository)",
+        "x": 320,
+        "y": 270
+      }
+    }
+  }
+}

@@ -1,0 +1,334 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-po-01": {
+        "id": "a-net-team-po-01",
+        "source": "p-team-iterate",
+        "target": "t-team-iterate-prep",
+        "weight": 1
+      },
+      "a-net-team-po-02": {
+        "id": "a-net-team-po-02",
+        "source": "t-team-iterate-prep",
+        "target": "p-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-03": {
+        "id": "a-net-team-po-03",
+        "source": "p-team-po-cmd",
+        "target": "t-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-04": {
+        "id": "a-net-team-po-04",
+        "source": "p-team-ideas",
+        "target": "t-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-05": {
+        "id": "a-net-team-po-05",
+        "source": "t-team-po-cmd",
+        "target": "p-team-po-log",
+        "weight": 1
+      },
+      "a-net-team-po-06": {
+        "id": "a-net-team-po-06",
+        "source": "t-team-po-cmd",
+        "target": "p-team-context",
+        "weight": 1
+      },
+      "a-net-team-po-07": {
+        "id": "a-net-team-po-07",
+        "source": "t-team-po-cmd",
+        "target": "p-team-state",
+        "weight": 1
+      },
+      "a-net-team-po-08": {
+        "id": "a-net-team-po-08",
+        "source": "t-team-po-cmd",
+        "target": "p-team-responses",
+        "weight": 1
+      },
+      "a-net-team-po-09": {
+        "id": "a-net-team-po-09",
+        "source": "t-team-po-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-net-team-po-10": {
+        "id": "a-net-team-po-10",
+        "source": "t-team-po-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-po-11": {
+        "id": "a-net-team-po-11",
+        "source": "t-team-po-cmd",
+        "target": "p-team-errors",
+        "weight": 1
+      },
+      "a-net-team-po-12": {
+        "id": "a-net-team-po-12",
+        "source": "t-team-po-cmd",
+        "target": "p-team-prompts",
+        "weight": 1
+      },
+      "a-net-team-po-13": {
+        "id": "a-net-team-po-13",
+        "source": "t-team-po-cmd",
+        "target": "p-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-14": {
+        "id": "a-net-team-po-14",
+        "source": "t-team-po-cmd",
+        "target": "p-team-charter",
+        "weight": 1
+      },
+      "a-net-team-po-15": {
+        "id": "a-net-team-po-15",
+        "source": "p-team-context",
+        "target": "t-team-propose",
+        "weight": 1
+      },
+      "a-net-team-po-16": {
+        "id": "a-net-team-po-16",
+        "source": "t-team-propose",
+        "target": "p-team-prompts",
+        "weight": 1
+      },
+      "a-net-team-po-17": {
+        "id": "a-net-team-po-17",
+        "source": "t-team-propose",
+        "target": "p-team-llm-errors",
+        "weight": 1
+      },
+      "a-net-team-po-18": {
+        "id": "a-net-team-po-18",
+        "source": "t-team-propose",
+        "target": "p-team-prompt-new",
+        "weight": 1
+      },
+      "a-net-team-po-19": {
+        "id": "a-net-team-po-19",
+        "source": "p-team-prompt-new",
+        "target": "t-team-prompt-prep",
+        "weight": 1
+      },
+      "a-net-team-po-20": {
+        "id": "a-net-team-po-20",
+        "source": "t-team-prompt-prep",
+        "target": "p-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-21": {
+        "id": "a-net-team-po-21",
+        "source": "p-team-responses",
+        "target": "t-team-answer-prep",
+        "weight": 1
+      },
+      "a-net-team-po-22": {
+        "id": "a-net-team-po-22",
+        "source": "t-team-answer-prep",
+        "target": "p-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-23": {
+        "id": "a-net-team-po-23",
+        "source": "p-team-responses",
+        "target": "t-team-revise-prep",
+        "weight": 1
+      },
+      "a-net-team-po-24": {
+        "id": "a-net-team-po-24",
+        "source": "t-team-revise-prep",
+        "target": "p-team-po-cmd",
+        "weight": 1
+      },
+      "a-net-team-po-25": {
+        "id": "a-net-team-po-25",
+        "source": "p-team-context",
+        "target": "t-team-requirement",
+        "weight": 1
+      },
+      "a-net-team-po-26": {
+        "id": "a-net-team-po-26",
+        "source": "t-team-requirement",
+        "target": "p-team-requirements",
+        "weight": 1
+      },
+      "a-net-team-po-27": {
+        "id": "a-net-team-po-27",
+        "source": "t-team-requirement",
+        "target": "p-team-requirement-drafts",
+        "weight": 1
+      },
+      "a-net-team-po-28": {
+        "id": "a-net-team-po-28",
+        "source": "t-team-requirement",
+        "target": "p-team-llm-errors",
+        "weight": 1
+      }
+    },
+    "description": "The product owner. An iteration trigger (from the app or an allocation by the product office) becomes a brief with the measured state of the module; the product owner proposes the next requirement as a choice, an interview or asks for the team goal; the person answers in the app; the answer becomes a requirement under a contract that goes to the architect.",
+    "id": "net-team-po",
+    "places": {
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Product office inbox",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-team-charter": {
+        "id": "p-team-charter",
+        "label": "The team charter",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      },
+      "p-team-context": {
+        "id": "p-team-context",
+        "label": "Briefs for the one-shot lanes",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-team-errors": {
+        "id": "p-team-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-team-ideas": {
+        "id": "p-team-ideas",
+        "label": "Ideas from the person and the brain",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      },
+      "p-team-iterate": {
+        "id": "p-team-iterate",
+        "label": "Iteration triggers (the app, or the product office's allocation)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-journal": {
+        "id": "p-team-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-team-llm-errors": {
+        "id": "p-team-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-team-po-cmd": {
+        "id": "p-team-po-cmd",
+        "label": "Product owner commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-team-po-log": {
+        "id": "p-team-po-log",
+        "label": "Product owner command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-team-prompt-new": {
+        "id": "p-team-prompt-new",
+        "label": "A copy of every new question, consumed by the mirror step that tells the product office",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-team-prompts": {
+        "id": "p-team-prompts",
+        "label": "Questions for the person",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-team-requirement-drafts": {
+        "id": "p-team-requirement-drafts",
+        "label": "Requirements on their way to the architect",
+        "tokens": 0,
+        "x": 320,
+        "y": 610
+      },
+      "p-team-requirements": {
+        "id": "p-team-requirements",
+        "label": "Requirements",
+        "tokens": 0,
+        "x": 540,
+        "y": 610
+      },
+      "p-team-responses": {
+        "id": "p-team-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-team-state": {
+        "id": "p-team-state",
+        "label": "The measured state of the module (structure, tests, health, debt)",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      }
+    },
+    "transitions": {
+      "t-team-answer-prep": {
+        "id": "t-team-answer-prep",
+        "label": "Answer to requirement brief",
+        "x": 1200,
+        "y": 610
+      },
+      "t-team-iterate-prep": {
+        "id": "t-team-iterate-prep",
+        "label": "Iteration trigger to proposal brief",
+        "x": 320,
+        "y": 100
+      },
+      "t-team-po-cmd": {
+        "id": "t-team-po-cmd",
+        "label": "Product owner process",
+        "x": 980,
+        "y": 100
+      },
+      "t-team-prompt-prep": {
+        "id": "t-team-prompt-prep",
+        "label": "New question to the office inbox",
+        "x": 1200,
+        "y": 440
+      },
+      "t-team-propose": {
+        "id": "t-team-propose",
+        "label": "Propose the next requirement",
+        "x": 540,
+        "y": 440
+      },
+      "t-team-requirement": {
+        "id": "t-team-requirement",
+        "label": "Write the requirement",
+        "x": 760,
+        "y": 610
+      },
+      "t-team-revise-prep": {
+        "id": "t-team-revise-prep",
+        "label": "Reshaped question to a new brief",
+        "x": 980,
+        "y": 610
+      }
+    }
+  }
+}

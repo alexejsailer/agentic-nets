@@ -1,0 +1,40 @@
+{
+  "net": "office-setup",
+  "model": "agenticnets-product",
+  "session": "product",
+  "description": "Setup of the product office: an hourly health tick measures the executor host and the MCP endpoint; the setup command lane provisions the MCP token for the office's lanes, keeps the team registry (a team registers itself when provisioned) and pauses or resumes the office.",
+  "places": {
+    "p-product-charter": "The product charter: principles, goals, services, coder, budgets, autonomy (the person's; never changed by a net)",
+    "p-product-coders": "Headless coding agent definitions",
+    "p-product-setup-cmd": "Setup commands (health, provision, pause, resume, register-team)",
+    "p-product-setup-log": "Setup command results",
+    "p-product-infra": "Infrastructure measurements and pause records",
+    "p-product-teams": "The team registry: one token per installed service team (service, session, namespace, app route, places)",
+    "p-product-journal": "What every lane did",
+    "p-product-errors": "Script errors"
+  },
+  "transitions": [
+    {
+      "id": "t-office-infra-tick",
+      "kind": "map",
+      "label": "Health tick (hourly)",
+      "schedule": {"type": "cron", "cron": "0 20 * * * *", "timezone": "Europe/Berlin"},
+      "reads": {"charter": {"place": "p-product-charter", "arcql": "FROM $ WHERE $.charterId == \"office\" LIMIT 1", "consume": false}},
+      "writes": {"cmd": "p-product-setup-cmd"},
+      "template": {
+        "kind": "command", "id": "office-health-${now()}", "executor": "script", "command": "invoke", "expect": "text", "stage": "health", "filedAt": "${now()}",
+        "args": {"toolId": "office-infra", "argv": ["health"], "env": {"MODEL_ID": "agenticnets-product"}, "timeoutMs": 120000}
+      }
+    },
+    {
+      "id": "t-office-setup-cmd",
+      "kind": "command",
+      "label": "Setup process",
+      "description": "office-infra: health, provision (MCP token into the vault for the office lanes), register-team, pause, resume.",
+      "reads": {"input": {"place": "p-product-setup-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "writes": {"log": {"place": "p-product-setup-log", "retain": 200}, "infra": "p-product-infra", "teams": "p-product-teams", "journal": "p-product-journal", "errors": "p-product-errors"},
+      "emit": [{"from": "@result", "to": "log"}],
+      "command": {"timeoutMs": 900000}
+    }
+  ]
+}

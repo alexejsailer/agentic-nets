@@ -1,0 +1,150 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "health",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 120000,
+          "toolId": "team-infra"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "health-${now()}",
+        "kind": "command",
+        "stage": "health"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-infra-tick",
+    "kind": "map",
+    "label": "Health tick (hourly)",
+    "metadata": {
+      "netId": "net-team-setup",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-setup-cmd"
+      }
+    },
+    "presets": {
+      "charter": {
+        "arcql": "FROM $ WHERE $.charterId == \"team\" LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-charter",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 40 * * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "description": "team-infra: health, provision (MCP token, clone, register with the office), pause, resume, status push.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-team-setup-cmd",
+    "kind": "command",
+    "label": "Setup process",
+    "metadata": {
+      "netId": "net-team-setup",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-errors"
+      },
+      "infra": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-infra"
+      },
+      "journal": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-journal"
+      },
+      "log": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-setup-log",
+        "retain": 200
+      },
+      "office_inbox": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-inbox"
+      },
+      "office_setup": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-setup-cmd"
+      },
+      "office_status": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-status"
+      },
+      "repo": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-repo"
+      },
+      "status": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-status"
+      }
+    },
+    "presets": {
+      "coders": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-team-coders",
+        "take": "FIRST"
+      },
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-setup-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

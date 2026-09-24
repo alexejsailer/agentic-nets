@@ -1,0 +1,186 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-setup-01": {
+        "id": "a-net-team-setup-01",
+        "source": "p-team-charter",
+        "target": "t-team-infra-tick",
+        "weight": 1
+      },
+      "a-net-team-setup-02": {
+        "id": "a-net-team-setup-02",
+        "source": "t-team-infra-tick",
+        "target": "p-team-setup-cmd",
+        "weight": 1
+      },
+      "a-net-team-setup-03": {
+        "id": "a-net-team-setup-03",
+        "source": "p-team-setup-cmd",
+        "target": "t-team-setup-cmd",
+        "weight": 1
+      },
+      "a-net-team-setup-04": {
+        "id": "a-net-team-setup-04",
+        "source": "p-team-coders",
+        "target": "t-team-setup-cmd",
+        "weight": 1
+      },
+      "a-net-team-setup-05": {
+        "id": "a-net-team-setup-05",
+        "source": "t-team-setup-cmd",
+        "target": "p-team-setup-log",
+        "weight": 1
+      },
+      "a-net-team-setup-06": {
+        "id": "a-net-team-setup-06",
+        "source": "t-team-setup-cmd",
+        "target": "p-team-infra",
+        "weight": 1
+      },
+      "a-net-team-setup-07": {
+        "id": "a-net-team-setup-07",
+        "source": "t-team-setup-cmd",
+        "target": "p-team-repo",
+        "weight": 1
+      },
+      "a-net-team-setup-08": {
+        "id": "a-net-team-setup-08",
+        "source": "t-team-setup-cmd",
+        "target": "p-team-status",
+        "weight": 1
+      },
+      "a-net-team-setup-09": {
+        "id": "a-net-team-setup-09",
+        "source": "t-team-setup-cmd",
+        "target": "p-product-setup-cmd",
+        "weight": 1
+      },
+      "a-net-team-setup-10": {
+        "id": "a-net-team-setup-10",
+        "source": "t-team-setup-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-net-team-setup-11": {
+        "id": "a-net-team-setup-11",
+        "source": "t-team-setup-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-net-team-setup-12": {
+        "id": "a-net-team-setup-12",
+        "source": "t-team-setup-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-setup-13": {
+        "id": "a-net-team-setup-13",
+        "source": "t-team-setup-cmd",
+        "target": "p-team-errors",
+        "weight": 1
+      }
+    },
+    "description": "Setup of a service team: an hourly health tick, and the setup command lane that provisions the MCP token for the team's lanes, clones the workspace repository, fills the service from the install namespace, registers the team with the product office and pauses or resumes the team.",
+    "id": "net-team-setup",
+    "places": {
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Product office inbox",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-product-setup-cmd": {
+        "id": "p-product-setup-cmd",
+        "label": "Product office setup commands (register-team)",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "Product office status rows",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-team-charter": {
+        "id": "p-team-charter",
+        "label": "The team charter (the person's; never changed by a net)",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-coders": {
+        "id": "p-team-coders",
+        "label": "Coder overrides for this team (optional)",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      },
+      "p-team-errors": {
+        "id": "p-team-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      },
+      "p-team-infra": {
+        "id": "p-team-infra",
+        "label": "Infrastructure measurements and pause records",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-team-journal": {
+        "id": "p-team-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-team-repo": {
+        "id": "p-team-repo",
+        "label": "The repository checkout record",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-team-setup-cmd": {
+        "id": "p-team-setup-cmd",
+        "label": "Setup commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-team-setup-log": {
+        "id": "p-team-setup-log",
+        "label": "Setup command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-team-status": {
+        "id": "p-team-status",
+        "label": "This team's status rows (also pushed to the office)",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      }
+    },
+    "transitions": {
+      "t-team-infra-tick": {
+        "id": "t-team-infra-tick",
+        "label": "Health tick (hourly)",
+        "x": 320,
+        "y": 100
+      },
+      "t-team-setup-cmd": {
+        "id": "t-team-setup-cmd",
+        "label": "Setup process",
+        "x": 980,
+        "y": 100
+      }
+    }
+  }
+}

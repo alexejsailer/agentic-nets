@@ -1,0 +1,30 @@
+[
+  {
+    "emit": [],
+    "id": "t-team-spec-index",
+    "kind": "link",
+    "label": "indexes",
+    "metadata": {
+      "netId": "net-team-specs",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "specs": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-specs"
+      }
+    },
+    "presets": {
+      "root": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": true,
+        "placeId": "p-team-spec-catalog",
+        "take": "FIRST"
+      }
+    },
+    "relation": "indexes"
+  }
+]

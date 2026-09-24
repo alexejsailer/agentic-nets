@@ -231,8 +231,14 @@ function compileNet(dir, srcPath) {
         timeoutMs: c.timeoutMs ?? 600000,
       };
       emit ??= postsets.log ? [{ from: '@result', to: 'log' }] : [];
+    } else if (t.kind === 'link') {
+      // A typed, directional relationship between two places (relation = what the target is to the
+      // source); links never fire, so they carry no action. Reads are never consumed.
+      for (const p of Object.values(presets)) { p.consume = false; p.optional = true; }
+      action = undefined;
+      emit ??= [];
     } else {
-      throw new Error(`${t.id}: unsupported kind '${t.kind}' in compact source (map|http|agent|command)`);
+      throw new Error(`${t.id}: unsupported kind '${t.kind}' in compact source (map|http|agent|command|link)`);
     }
 
     return {
@@ -241,9 +247,10 @@ function compileNet(dir, srcPath) {
       label: t.label,
       ...(t.description ? { description: t.description } : {}),
       ...(t.kind === 'agent' ? { role: t.agent?.role ?? 'rw' } : {}),
+      ...(t.kind === 'link' && t.relation ? { relation: t.relation } : {}),
       presets,
       postsets,
-      action,
+      ...(action ? { action } : {}),
       emit,
       ...(t.schedule ? { schedule: t.schedule } : {}),
       mode: t.mode ?? 'SINGLE',
@@ -482,9 +489,15 @@ function readCapabilityYaml(dir) {
   const p = join(dir, 'capability.yaml');
   if (!existsSync(p)) return {};
   const out = {};
+  let section = '';
   for (const line of readFileSync(p, 'utf8').split('\n')) {
     const m = line.match(/^(name|version|description|engineMin):\s*(.+?)\s*$/);
-    if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    if (m) { out[m[1]] = m[2].replace(/^["']|["']$/g, ''); section = ''; continue; }
+    const top = line.match(/^([A-Za-z]+):\s*$/);
+    if (top) { section = top[1]; continue; }
+    // the install block (targetModelDefault, instancePolicy, sessionId) travels into the artifact
+    const sub = section === 'install' ? line.match(/^\s{2}([A-Za-z]+):\s*(.+?)\s*$/) : null;
+    if (sub) { out.install ??= {}; out.install[sub[1]] = sub[2].replace(/^["']|["']$/g, ''); }
   }
   return out;
 }
@@ -496,7 +509,7 @@ async function cmdPackage(a) {
   const rt = existsSync(runtimeManifestPath) ? JSON.parse(readFileSync(runtimeManifestPath, 'utf8')) : {};
   const name = a.name ?? cap.name ?? rt.name ?? basename(dir);
   const version = a.version ?? cap.version ?? rt.version ?? '0.0.0';
-  const session = a.session ?? `agent-${name}`;
+  const session = a.session ?? cap.install?.sessionId ?? `agent-${name}`;   // the pack manifest may name its session (install.sessionId)
   const sha = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
   const b64 = (text) => Buffer.from(text, 'utf8').toString('base64');
 
@@ -556,6 +569,8 @@ async function cmdPackage(a) {
   delete agentManifest.armed; delete agentManifest.transitions; delete agentManifest.configReady;
   agentManifest.name = name; agentManifest.displayName = agentManifest.displayName ?? name;
   agentManifest.version = version; agentManifest.session = session; agentManifest.sessionId = session;
+  // install.instancePolicy: 'multiple' lets the hub install the pack once per target session, namespacing every id
+  if (cap.install?.instancePolicy) agentManifest.instancePolicy = cap.install.instancePolicy;
   if (cap.description) agentManifest.description = cap.description;
 
   // optional Studio application (app/agenticos.app.json + its UI entry)

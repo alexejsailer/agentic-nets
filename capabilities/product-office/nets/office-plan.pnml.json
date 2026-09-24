@@ -1,0 +1,260 @@
+{
+  "net": {
+    "arcs": {
+      "a-office-plan-01": {
+        "id": "a-office-plan-01",
+        "source": "p-product-iterate",
+        "target": "t-office-iterate-prep",
+        "weight": 1
+      },
+      "a-office-plan-02": {
+        "id": "a-office-plan-02",
+        "source": "t-office-iterate-prep",
+        "target": "p-product-plan-cmd",
+        "weight": 1
+      },
+      "a-office-plan-03": {
+        "id": "a-office-plan-03",
+        "source": "p-product-plan-cmd",
+        "target": "t-office-plan-cmd",
+        "weight": 1
+      },
+      "a-office-plan-04": {
+        "id": "a-office-plan-04",
+        "source": "p-product-ideas",
+        "target": "t-office-plan-cmd",
+        "weight": 1
+      },
+      "a-office-plan-05": {
+        "id": "a-office-plan-05",
+        "source": "p-product-coders",
+        "target": "t-office-plan-cmd",
+        "weight": 1
+      },
+      "a-office-plan-06": {
+        "id": "a-office-plan-06",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-plan-log",
+        "weight": 1
+      },
+      "a-office-plan-07": {
+        "id": "a-office-plan-07",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-context",
+        "weight": 1
+      },
+      "a-office-plan-08": {
+        "id": "a-office-plan-08",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-responses",
+        "weight": 1
+      },
+      "a-office-plan-09": {
+        "id": "a-office-plan-09",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-roadmap",
+        "weight": 1
+      },
+      "a-office-plan-10": {
+        "id": "a-office-plan-10",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-office-plan-11": {
+        "id": "a-office-plan-11",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-plan-12": {
+        "id": "a-office-plan-12",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      },
+      "a-office-plan-13": {
+        "id": "a-office-plan-13",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-specs",
+        "weight": 1
+      },
+      "a-office-plan-14": {
+        "id": "a-office-plan-14",
+        "source": "p-product-context",
+        "target": "t-office-plan",
+        "weight": 1
+      },
+      "a-office-plan-15": {
+        "id": "a-office-plan-15",
+        "source": "t-office-plan",
+        "target": "p-product-prompts",
+        "weight": 1
+      },
+      "a-office-plan-16": {
+        "id": "a-office-plan-16",
+        "source": "t-office-plan",
+        "target": "p-product-llm-errors",
+        "weight": 1
+      },
+      "a-office-plan-17": {
+        "id": "a-office-plan-17",
+        "source": "p-product-responses",
+        "target": "t-office-answer-prep",
+        "weight": 1
+      },
+      "a-office-plan-18": {
+        "id": "a-office-plan-18",
+        "source": "t-office-answer-prep",
+        "target": "p-product-plan-cmd",
+        "weight": 1
+      },
+      "a-office-plan-19": {
+        "id": "a-office-plan-19",
+        "source": "p-product-responses",
+        "target": "t-office-revise-prep",
+        "weight": 1
+      },
+      "a-office-plan-20": {
+        "id": "a-office-plan-20",
+        "source": "t-office-revise-prep",
+        "target": "p-product-plan-cmd",
+        "weight": 1
+      }
+    },
+    "description": "The product manager's loop. An iteration trigger becomes a brief (principles, goals, teams, their status, the inbox, the roadmap, the knowledge, the ideas); the product manager proposes the next roadmap step as a choice across teams, an interview, or asks for the product goal; the person answers in the application; the answer allocates an iteration to a team (an iterate token in that team's place) and records the roadmap item; a reshaped question is asked again.",
+    "id": "office-plan",
+    "places": {
+      "p-product-coders": {
+        "id": "p-product-coders",
+        "label": "Headless coding agent definitions (read, never consumed)",
+        "tokens": 0,
+        "x": 980,
+        "y": 100
+      },
+      "p-product-context": {
+        "id": "p-product-context",
+        "label": "Briefs for the one-shot lanes",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-product-errors": {
+        "id": "p-product-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
+      "p-product-ideas": {
+        "id": "p-product-ideas",
+        "label": "Ideas from the person and the brain",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Everything that waits for the person, from the office and from every team",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-product-iterate": {
+        "id": "p-product-iterate",
+        "label": "Iteration triggers for the product office",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-product-llm-errors": {
+        "id": "p-product-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-product-plan-cmd": {
+        "id": "p-product-plan-cmd",
+        "label": "Planning commands (brief, allocate)",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-product-plan-log": {
+        "id": "p-product-plan-log",
+        "label": "Planning command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-product-prompts": {
+        "id": "p-product-prompts",
+        "label": "Questions for the person: roadmap choices, interviews, the goal, brain questions",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-product-responses": {
+        "id": "p-product-responses",
+        "label": "The person's answers",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-product-roadmap": {
+        "id": "p-product-roadmap",
+        "label": "Roadmap items: which team runs which iteration, and why",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-product-specs": {
+        "id": "p-product-specs",
+        "label": "Product-level specs: the top of the spec catalog every team links to",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      }
+    },
+    "transitions": {
+      "t-office-answer-prep": {
+        "id": "t-office-answer-prep",
+        "label": "Answer to allocation",
+        "x": 1200,
+        "y": 440
+      },
+      "t-office-iterate-prep": {
+        "id": "t-office-iterate-prep",
+        "label": "Iteration trigger to planning brief",
+        "x": 320,
+        "y": 100
+      },
+      "t-office-plan": {
+        "id": "t-office-plan",
+        "label": "Propose the next roadmap step (choice, interview or goal)",
+        "x": 540,
+        "y": 440
+      },
+      "t-office-plan-cmd": {
+        "id": "t-office-plan-cmd",
+        "label": "Render a brief, or allocate",
+        "x": 1200,
+        "y": 100
+      },
+      "t-office-revise-prep": {
+        "id": "t-office-revise-prep",
+        "label": "Reshaped question to a new brief",
+        "x": 1200,
+        "y": 610
+      }
+    }
+  }
+}

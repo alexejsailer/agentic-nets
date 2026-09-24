@@ -1,0 +1,26 @@
+[
+  {
+    "name": "team-charter",
+    "charterId": "team",
+    "status": "draft",
+    "service": "REPLACE ME",
+    "goal": "REPLACE ME",
+    "description": "",
+    "repo": "core",
+    "repoDir": "agentic-net-master",
+    "scopePaths": [],
+    "testCommand": "./mvnw -o -q test",
+    "buildCommand": "./mvnw -o -q -DskipTests compile",
+    "readinessChecks": ["health endpoint", "structured logs", "metrics", "config via env", "tests", "docs"],
+    "auditCron": "0 0 7 * * 1",
+    "coderAgent": "",
+    "coderModel": "",
+    "coderMaxTurns": "",
+    "coderTimeoutMin": "",
+    "brainAgent": "llm",
+    "autonomyLevel": "3",
+    "dailyBudgetUsd": "20",
+    "tokenLanes": ["t-team-setup-cmd", "t-team-po-cmd", "t-team-arch-cmd", "t-team-qa-cmd", "t-team-dev-cmd", "t-team-brain-observe-cmd", "t-team-curate-cmd", "t-team-brain-apply-cmd"],
+    "notes": "service and goal ship as REPLACE ME: provision fills the service from the install namespace; the product owner asks for the team goal first unless the product office allocated a direction. repo is the workspace repository (core, agentic-nets, ci) and repoDir the service's directory in it; scopePaths (optional) narrows what the coder may touch. Empty coder fields inherit the product office's charter."
+  }
+]

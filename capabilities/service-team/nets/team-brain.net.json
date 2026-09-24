@@ -1,0 +1,274 @@
+{
+  "net": "net-team-brain",
+  "model": "agenticnets-product",
+  "session": "team",
+  "description": "The team's brain: after a merge, the signals (the requirement, the spec, what QA measured, what the reviewer said, what the coder reported) become a curation, the curation becomes facts with source and confidence, the team's plan, decision proposals, questions and ideas; applying it starts the next iteration and reports the release to the product office.",
+  "places": {
+    "p-team-brain-cmd": "Brain commands (observe, curate, apply, answer)",
+    "p-team-brain-log": "Brain command results",
+    "p-team-signals": "Signals per released run",
+    "p-team-context": "Briefs for the judgement lanes",
+    "p-team-curation": "Curations (the curator's answer)",
+    "p-team-curations": "Curation archive (every curation as answered, kept)",
+    "p-team-knowledge": "Knowledge facts: kind, scope, source, confidence, active or retired",
+    "p-team-map": "The model map, measured",
+    "p-team-plan": "The plan: remaining increments toward the goal",
+    "p-team-adr": "Decision records (the brain proposes, the person decides)",
+    "p-team-prompts": "Questions for the person",
+    "p-team-responses": "The person's answers",
+    "p-team-runs": "Runs",
+    "p-team-iterate": "Iteration triggers",
+    "p-team-llm-errors": "Answers that missed their contract",
+    "p-team-journal": "Journal",
+    "p-product-inbox": "Product office inbox",
+    "p-product-status": "Product office status rows"
+  },
+  "transitions": [
+    {
+      "id": "t-team-brain-observe-cmd",
+      "kind": "command",
+      "label": "Observe: signals of a released run",
+      "reads": {
+        "input": {
+          "place": "p-team-brain-cmd",
+          "arcql": "FROM $ WHERE $.stage == \"observe\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-brain-log",
+          "retain": 200
+        },
+        "signals": "p-team-signals",
+        "context": "p-team-context",
+        "brain_cmd": "p-team-brain-cmd",
+        "journal": "p-team-journal"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 600000
+      }
+    },
+    {
+      "id": "t-team-curate",
+      "kind": "agent",
+      "label": "Curate (one-shot model call)",
+      "reads": {
+        "ctx": {
+          "place": "p-team-context",
+          "arcql": "FROM $ WHERE $.purpose == \"curate\" LIMIT 1",
+          "ttl": 600000
+        }
+      },
+      "writes": {
+        "curation": "p-team-curation",
+        "archive": {
+          "place": "p-team-curations",
+          "retain": 50
+        },
+        "errors": {
+          "place": "p-team-llm-errors",
+          "retain": 100
+        }
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "curationId",
+            "runId",
+            "addFacts",
+            "plan",
+            "summary"
+          ],
+          "types": {
+            "addFacts": "array",
+            "plan": "object",
+            "summary": "string"
+          },
+          "retries": 1
+        },
+        "nl": "You are the team's brain, curating what the model knows after one released change. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nRules: facts must be specific and sourced from the brief (a lane id, a place id, a measured number, a file in the pack); prefer few good facts over many; mark as platform what is true for the runtime and reusable in other models, as project what is about this model; propose a decision for every choice the coder made that constrains future changes; keep the plan as the remaining increments toward the goal in dependency order, marking what is released; ask a question only when the next increment genuinely depends on the answer. Always include every array, empty when there is nothing.\n\nReply with exactly this shape: {\"curationId\": \"<from the brief>\", \"runId\": \"<from the brief>\", \"addFacts\": [{\"kind\": \"platform|convention|decision|gap|risk|question\", \"scope\": \"project|platform\", \"text\": \"<one specific, checkable sentence>\", \"source\": \"<runId, specId, lane id or file>\", \"confidence\": \"high|medium|low\"}], \"retireFacts\": [\"<factId>\"], \"plan\": {\"increments\": [{\"id\": \"inc-1\", \"title\": \"<one line>\", \"kind\": \"<spec kind>\", \"status\": \"planned|in-progress|released|dropped\", \"dependsOn\": [\"inc-0\"], \"specId\": \"<specId or empty>\"}]}, \"proposedDecisions\": [{\"title\": \"<short>\", \"context\": \"<why it came up>\", \"decision\": \"<what was decided>\", \"consequences\": \"<what it constrains>\"}], \"questions\": [{\"question\": \"<what only the person can answer>\", \"why\": \"<what depends on it>\"}], \"summary\": \"<three sentences>\"}"
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "archive",
+          "when": "summary != ''"
+        },
+        {
+          "from": "@response",
+          "to": "curation",
+          "when": "summary != ''"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "summary == ''"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-team-curate-cmd",
+      "kind": "command",
+      "label": "Curate (headless agent, may read the pack repository)",
+      "reads": {
+        "input": {
+          "place": "p-team-brain-cmd",
+          "arcql": "FROM $ WHERE $.stage == \"curate\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-brain-log",
+          "retain": 200
+        },
+        "curation": "p-team-curation",
+        "archive": {
+          "place": "p-team-curations",
+          "retain": 50
+        }
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 1800000
+      }
+    },
+    {
+      "id": "t-team-apply-prep",
+      "kind": "map",
+      "label": "Curation to apply command",
+      "reads": {
+        "cur": {
+          "place": "p-team-curation",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-brain-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "brain-apply-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "apply",
+        "curationId": "${cur.data.curationId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-brain",
+          "argv": [
+            "apply",
+            "${cur.data.curationId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "CURATION_ID": "${cur.data.curationId}",
+            "RUN_ID": "${cur.data.runId}"
+          },
+          "timeoutMs": 300000
+        }
+      }
+    },
+    {
+      "id": "t-team-answer-knowledge-prep",
+      "kind": "map",
+      "label": "A person's answer to a brain question",
+      "reads": {
+        "resp": {
+          "place": "p-team-responses",
+          "arcql": "FROM $ WHERE $.intent == \"knowledge\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-team-brain-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "brain-answer-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "answer",
+        "promptId": "${resp.data.promptId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "team-brain",
+          "argv": [
+            "answer",
+            "${resp.data.promptId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "PROMPT_ID": "${resp.data.promptId}",
+            "ANSWER_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 120000
+        }
+      }
+    },
+    {
+      "id": "t-team-brain-apply-cmd",
+      "kind": "command",
+      "label": "Apply: knowledge, plan, proposed decisions, questions, next iteration",
+      "reads": {
+        "input": {
+          "place": "p-team-brain-cmd",
+          "arcql": "FROM $ WHERE $.stage == \"apply\" OR $.stage == \"answer\" LIMIT 1"
+        },
+        "archive": {
+          "place": "p-team-curations",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-team-brain-log",
+          "retain": 200
+        },
+        "knowledge": "p-team-knowledge",
+        "plan": "p-team-plan",
+        "adr": "p-team-adr",
+        "prompts": "p-team-prompts",
+        "iterate": "p-team-iterate",
+        "journal": "p-team-journal",
+        "office_inbox": "p-product-inbox",
+        "office_status": "p-product-status"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 300000
+      }
+    }
+  ]
+}

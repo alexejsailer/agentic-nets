@@ -1,0 +1,125 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "health"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 120000,
+          "toolId": "office-infra"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "office-health-${now()}",
+        "kind": "command",
+        "stage": "health"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-office-infra-tick",
+    "kind": "map",
+    "label": "Health tick (hourly)",
+    "metadata": {
+      "netId": "office-setup",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-setup-cmd"
+      }
+    },
+    "presets": {
+      "charter": {
+        "arcql": "FROM $ WHERE $.charterId == \"office\" LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-charter",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 20 * * * *",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 900000,
+      "type": "command"
+    },
+    "description": "office-infra: health, provision (MCP token into the vault for the office lanes), register-team, pause, resume.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-office-setup-cmd",
+    "kind": "command",
+    "label": "Setup process",
+    "metadata": {
+      "netId": "office-setup",
+      "sessionId": "product"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-errors"
+      },
+      "infra": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-infra"
+      },
+      "journal": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-journal"
+      },
+      "log": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-setup-log",
+        "retain": 200
+      },
+      "teams": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-teams"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-product-setup-cmd",
+        "take": "FIRST"
+      }
+    }
+  }
+]

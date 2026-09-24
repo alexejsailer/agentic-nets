@@ -1,0 +1,243 @@
+{
+  "net": "office-plan",
+  "model": "agenticnets-product",
+  "session": "product",
+  "description": "The product manager's loop. An iteration trigger becomes a brief (principles, goals, teams, their status, the inbox, the roadmap, the knowledge, the ideas); the product manager proposes the next roadmap step as a choice across teams, an interview, or asks for the product goal; the person answers in the application; the answer allocates an iteration to a team (an iterate token in that team's place) and records the roadmap item; a reshaped question is asked again.",
+  "places": {
+    "p-product-iterate": "Iteration triggers for the product office",
+    "p-product-plan-cmd": "Planning commands (brief, allocate)",
+    "p-product-plan-log": "Planning command results",
+    "p-product-context": "Briefs for the one-shot lanes",
+    "p-product-prompts": "Questions for the person: roadmap choices, interviews, the goal, brain questions",
+    "p-product-responses": "The person's answers",
+    "p-product-roadmap": "Roadmap items: which team runs which iteration, and why",
+    "p-product-inbox": "Everything that waits for the person, from the office and from every team",
+    "p-product-ideas": "Ideas from the person and the brain",
+    "p-product-llm-errors": "Answers that missed their contract",
+    "p-product-journal": "What every lane did",
+    "p-product-errors": "Script errors",
+    "p-product-coders": "Headless coding agent definitions (read, never consumed)",
+    "p-product-specs": "Product-level specs: the top of the spec catalog every team links to"
+  },
+  "transitions": [
+    {
+      "id": "t-office-iterate-prep",
+      "kind": "map",
+      "label": "Iteration trigger to planning brief",
+      "reads": {
+        "it": {
+          "place": "p-product-iterate",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-product-plan-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "office-brief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "brief",
+        "iterationId": "${it.data.iterationId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "office-plan",
+          "argv": [
+            "brief",
+            "${it.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000
+        }
+      }
+    },
+    {
+      "id": "t-office-plan-cmd",
+      "kind": "command",
+      "label": "Render a brief, or allocate",
+      "description": "office-plan brief <iterationId> renders the planning brief; office-plan allocate <promptId> turns the person's answer into an iteration for a team and a roadmap item.",
+      "reads": {
+        "input": {
+          "place": "p-product-plan-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        },
+        "ideas": {
+          "place": "p-product-ideas",
+          "arcql": "FROM $ WHERE $.status == \"open\" LIMIT 1",
+          "consume": false,
+          "optional": true
+        },
+        "coders": {
+          "place": "p-product-coders",
+          "arcql": "FROM $ LIMIT 1",
+          "consume": false,
+          "optional": true
+        }
+      },
+      "writes": {
+        "log": {
+          "place": "p-product-plan-log",
+          "retain": 200
+        },
+        "context": "p-product-context",
+        "responses": "p-product-responses",
+        "roadmap": "p-product-roadmap",
+        "inbox": "p-product-inbox",
+        "journal": "p-product-journal",
+        "errors": "p-product-errors",
+        "specs": "p-product-specs"
+      },
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 300000
+      }
+    },
+    {
+      "id": "t-office-plan",
+      "kind": "agent",
+      "label": "Propose the next roadmap step (choice, interview or goal)",
+      "reads": {
+        "ctx": {
+          "place": "p-product-context",
+          "arcql": "FROM $ WHERE $.purpose == \"plan\" LIMIT 1",
+          "ttl": 600000
+        }
+      },
+      "writes": {
+        "prompts": "p-product-prompts",
+        "errors": {
+          "place": "p-product-llm-errors",
+          "retain": 100
+        }
+      },
+      "agent": {
+        "role": "r",
+        "tier": "medium",
+        "maxIterations": 1,
+        "oneShot": true,
+        "autoEmit": true,
+        "allowedTools": [],
+        "answerSchema": {
+          "required": [
+            "promptId",
+            "iterationId",
+            "mode",
+            "question",
+            "options",
+            "rationale"
+          ],
+          "types": {
+            "options": "array",
+            "question": "string",
+            "mode": "string",
+            "rationale": "string"
+          },
+          "retries": 1
+        },
+        "nl": "You are the product manager of the product described in the brief, deciding with the person what the whole product does next across its service teams. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nChoose the mode:\n- \"goal\" when the brief says the product goal is NOT DEFINED: ask the person what the product must become in this period; give 3 example goal statements they can adapt; the question asks for the goal in one line plus a paragraph.\n- \"interview\" when the next step cannot be chosen without information only the person has (a priority between teams, a constraint, a deadline): ask at most 3 precise questions; each question is an option {value: \"q1\", label: <the question>, description: <why the answer matters>}.\n- \"choice\" otherwise: propose 3 or 4 concrete next steps. Each step is ONE of: allocate an iteration to a registered team with a direction the team's product owner turns into a requirement (kind \"allocate\", service <the team's service>, direction <one sentence>), or install a team for a service that has none yet (kind \"install-team\", service <service>). Prefer, in this order: a team with a red audit or a failed verification, an open idea that names a service, the goal's most valuable missing capability, then balance across teams. If the brief carries THE PLAN, follow its order; deviate only with a stated reason. Each option: {value: \"opt-1\", label: <one line>, description: <what and why, two sentences>, kind: \"allocate|install-team\", service: <service>, direction: <one sentence the team's product owner starts from>, effort: \"S|M|L\", risk: \"low|medium|high\", evidence: [<lines from the brief>], recommended: true|false}. Exactly one option is recommended.\n\nAlways: promptId and iterationId exactly as the brief says; question is one sentence for the person; rationale is 3 sentences on what the brief showed; never invent a service the brief does not list under TEAMS or SERVICES."
+      },
+      "emit": [
+        {
+          "from": "@response",
+          "to": "prompts",
+          "when": "mode == 'choice' OR mode == 'interview' OR mode == 'goal'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "mode != 'choice' AND mode != 'interview' AND mode != 'goal'"
+        },
+        {
+          "from": "@response",
+          "to": "errors",
+          "when": "error"
+        }
+      ]
+    },
+    {
+      "id": "t-office-answer-prep",
+      "kind": "map",
+      "label": "Answer to allocation",
+      "reads": {
+        "resp": {
+          "place": "p-product-responses",
+          "arcql": "FROM $ WHERE $.intent == \"answer\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-product-plan-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "office-allocate-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "allocate",
+        "promptId": "${resp.data.promptId}",
+        "iterationId": "${resp.data.iterationId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "office-plan",
+          "argv": [
+            "allocate",
+            "${resp.data.iterationId}",
+            "${resp.data.promptId}"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "RESPONSE_SELECTED": "${resp.data.selected}",
+            "RESPONSE_TEXT": "${resp.data.text}",
+            "RESPONSE_NOTES": "${resp.data.notes}"
+          },
+          "timeoutMs": 300000
+        }
+      }
+    },
+    {
+      "id": "t-office-revise-prep",
+      "kind": "map",
+      "label": "Reshaped question to a new brief",
+      "reads": {
+        "resp": {
+          "place": "p-product-responses",
+          "arcql": "FROM $ WHERE $.intent == \"revise\" LIMIT 1"
+        }
+      },
+      "writes": {
+        "cmd": "p-product-plan-cmd"
+      },
+      "template": {
+        "kind": "command",
+        "id": "office-rebrief-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "brief",
+        "iterationId": "${resp.data.iterationId}",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "office-plan",
+          "argv": [
+            "brief",
+            "${resp.data.iterationId}"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product",
+            "REVISION_TEXT": "${resp.data.text}"
+          },
+          "timeoutMs": 300000
+        }
+      }
+    }
+  ]
+}

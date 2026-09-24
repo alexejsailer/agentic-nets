@@ -1,0 +1,297 @@
+[
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "acceptance-brief",
+            "${dec.data.specId}",
+            "p-team-charter"
+          ],
+          "env": {
+            "DECISION_NOTES": "${dec.data.notes}",
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 300000,
+          "toolId": "team-qa"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "acceptance-brief-${now()}",
+        "kind": "command",
+        "specId": "${dec.data.specId}",
+        "stage": "acceptance-brief"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-acceptance-prep",
+    "kind": "map",
+    "label": "Approved spec to acceptance brief",
+    "metadata": {
+      "netId": "net-team-qa",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-qa-cmd"
+      }
+    },
+    "presets": {
+      "dec": {
+        "arcql": "FROM $ WHERE $.kind == \"spec-approval\" AND $.verdict == \"approved\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-decisions",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "await": "ALL",
+      "dispatch": [
+        {
+          "channel": "default",
+          "executor": "bash"
+        }
+      ],
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "inputPlace": "input",
+      "timeoutMs": 2400000,
+      "type": "command"
+    },
+    "description": "team-qa: acceptance-brief, verify <runId> (suites, acceptance checks, evidence), audit.",
+    "emit": [
+      {
+        "from": "@result",
+        "to": "log"
+      }
+    ],
+    "id": "t-team-qa-cmd",
+    "kind": "command",
+    "label": "QA process",
+    "metadata": {
+      "netId": "net-team-qa",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "bugs": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-bugs"
+      },
+      "context": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-context"
+      },
+      "dev_cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-dev-cmd"
+      },
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-errors"
+      },
+      "journal": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-journal"
+      },
+      "log": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-qa-log",
+        "retain": 200
+      },
+      "office_inbox": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-inbox"
+      },
+      "office_status": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-product-status"
+      },
+      "runs": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-runs"
+      },
+      "scorecard": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-scorecard",
+        "retain": 30
+      },
+      "verification": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-verification"
+      }
+    },
+    "presets": {
+      "input": {
+        "arcql": "FROM $ LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-qa-cmd",
+        "take": "FIRST"
+      }
+    }
+  },
+  {
+    "action": {
+      "allowedTools": [],
+      "answerSchema": {
+        "required": [
+          "acceptanceId",
+          "specId",
+          "requirementId",
+          "criteria",
+          "status"
+        ],
+        "retries": 1,
+        "types": {
+          "criteria": "array",
+          "readiness": "array",
+          "suites": "array",
+          "tests": "array"
+        }
+      },
+      "autoEmit": true,
+      "maxIterations": 1,
+      "modelId": "agenticnets-product",
+      "nl": "You are the QA of the ${ctx.data.service} service. A spec was approved; you write the acceptance criteria and the tests that prove them before anyone implements. Read the brief, then reply with ONE JSON object and nothing else.\n\n${ctx.data.brief}\n\nReply EXACTLY: {\"acceptanceId\": <from the brief>, \"specId\": <from the brief>, \"requirementId\": <from the brief>, \"criteria\": [{\"id\": \"ac-1\", \"given\": <precondition>, \"when\": <action>, \"then\": <observable result>, \"check\": <the command, test name or request that proves it>}], \"tests\": [<test classes or scripts the developer must add or extend, with their location>], \"suites\": [<the existing commands QA runs to verify, e.g. the module's test command>], \"readiness\": [<production-readiness checks this change touches>], \"status\": \"ready\"}. Rules: every done condition of the requirement maps to at least one criterion; every criterion has a check a script can run; no criterion depends on a person's opinion.",
+      "oneShot": true,
+      "role": "r",
+      "sessionId": "team",
+      "tier": "medium",
+      "type": "agent"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "out",
+        "when": "status == 'ready'"
+      },
+      {
+        "from": "@response",
+        "to": "new",
+        "when": "status == 'ready'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "status != 'ready'"
+      },
+      {
+        "from": "@response",
+        "to": "errors",
+        "when": "error"
+      }
+    ],
+    "id": "t-team-acceptance",
+    "kind": "agent",
+    "label": "Write the acceptance criteria",
+    "metadata": {
+      "netId": "net-team-qa",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "errors": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-llm-errors",
+        "retain": 100
+      },
+      "new": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-acceptance-new"
+      },
+      "out": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-acceptance"
+      }
+    },
+    "presets": {
+      "ctx": {
+        "arcql": "FROM $ WHERE $.purpose == \"acceptance\" LIMIT 1",
+        "consume": true,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-context",
+        "reservationTtlMs": 900000,
+        "take": "FIRST"
+      }
+    },
+    "role": "r"
+  },
+  {
+    "action": {
+      "template": {
+        "args": {
+          "argv": [
+            "audit",
+            "scheduled",
+            "p-team-charter"
+          ],
+          "env": {
+            "MODEL_ID": "agenticnets-product"
+          },
+          "timeoutMs": 2400000,
+          "toolId": "team-qa"
+        },
+        "command": "invoke",
+        "executor": "script",
+        "expect": "text",
+        "filedAt": "${now()}",
+        "id": "audit-${now()}",
+        "kind": "command",
+        "stage": "audit"
+      },
+      "type": "map"
+    },
+    "emit": [
+      {
+        "from": "@response",
+        "to": "cmd"
+      }
+    ],
+    "id": "t-team-audit-cron",
+    "kind": "map",
+    "label": "Readiness audit (weekly)",
+    "metadata": {
+      "netId": "net-team-qa",
+      "sessionId": "team"
+    },
+    "mode": "SINGLE",
+    "postsets": {
+      "cmd": {
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "placeId": "p-team-qa-cmd"
+      }
+    },
+    "presets": {
+      "charter": {
+        "arcql": "FROM $ WHERE $.charterId == \"team\" LIMIT 1",
+        "consume": false,
+        "host": "agenticnets-product@agentic-net-node:8080",
+        "optional": false,
+        "placeId": "p-team-charter",
+        "take": "FIRST"
+      }
+    },
+    "schedule": {
+      "cron": "0 0 7 * * 1",
+      "timezone": "Europe/Berlin",
+      "type": "cron"
+    }
+  }
+]

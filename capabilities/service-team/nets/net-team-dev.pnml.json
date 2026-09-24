@@ -1,0 +1,330 @@
+{
+  "net": {
+    "arcs": {
+      "a-net-team-dev-01": {
+        "id": "a-net-team-dev-01",
+        "source": "p-team-decisions",
+        "target": "t-team-approve-prep",
+        "weight": 1
+      },
+      "a-net-team-dev-02": {
+        "id": "a-net-team-dev-02",
+        "source": "t-team-approve-prep",
+        "target": "p-team-dev-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-03": {
+        "id": "a-net-team-dev-03",
+        "source": "p-team-dev-cmd",
+        "target": "t-team-dev-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-04": {
+        "id": "a-net-team-dev-04",
+        "source": "p-team-coders",
+        "target": "t-team-dev-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-05": {
+        "id": "a-net-team-dev-05",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-dev-log",
+        "weight": 1
+      },
+      "a-net-team-dev-06": {
+        "id": "a-net-team-dev-06",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-context",
+        "weight": 1
+      },
+      "a-net-team-dev-07": {
+        "id": "a-net-team-dev-07",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-runs",
+        "weight": 1
+      },
+      "a-net-team-dev-08": {
+        "id": "a-net-team-dev-08",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-qa-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-09": {
+        "id": "a-net-team-dev-09",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-brain-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-10": {
+        "id": "a-net-team-dev-10",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-prompts",
+        "weight": 1
+      },
+      "a-net-team-dev-11": {
+        "id": "a-net-team-dev-11",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-specs",
+        "weight": 1
+      },
+      "a-net-team-dev-12": {
+        "id": "a-net-team-dev-12",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-status",
+        "weight": 1
+      },
+      "a-net-team-dev-13": {
+        "id": "a-net-team-dev-13",
+        "source": "t-team-dev-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-net-team-dev-14": {
+        "id": "a-net-team-dev-14",
+        "source": "t-team-dev-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-net-team-dev-15": {
+        "id": "a-net-team-dev-15",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-journal",
+        "weight": 1
+      },
+      "a-net-team-dev-16": {
+        "id": "a-net-team-dev-16",
+        "source": "t-team-dev-cmd",
+        "target": "p-team-errors",
+        "weight": 1
+      },
+      "a-net-team-dev-17": {
+        "id": "a-net-team-dev-17",
+        "source": "p-team-context",
+        "target": "t-team-review",
+        "weight": 1
+      },
+      "a-net-team-dev-18": {
+        "id": "a-net-team-dev-18",
+        "source": "t-team-review",
+        "target": "p-team-reviews",
+        "weight": 1
+      },
+      "a-net-team-dev-19": {
+        "id": "a-net-team-dev-19",
+        "source": "t-team-review",
+        "target": "p-team-llm-errors",
+        "weight": 1
+      },
+      "a-net-team-dev-20": {
+        "id": "a-net-team-dev-20",
+        "source": "t-team-review",
+        "target": "p-team-review-new",
+        "weight": 1
+      },
+      "a-net-team-dev-21": {
+        "id": "a-net-team-dev-21",
+        "source": "p-team-review-new",
+        "target": "t-team-merge-ask-prep",
+        "weight": 1
+      },
+      "a-net-team-dev-22": {
+        "id": "a-net-team-dev-22",
+        "source": "t-team-merge-ask-prep",
+        "target": "p-team-dev-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-23": {
+        "id": "a-net-team-dev-23",
+        "source": "p-team-decisions",
+        "target": "t-team-merge-prep",
+        "weight": 1
+      },
+      "a-net-team-dev-24": {
+        "id": "a-net-team-dev-24",
+        "source": "t-team-merge-prep",
+        "target": "p-team-dev-cmd",
+        "weight": 1
+      },
+      "a-net-team-dev-25": {
+        "id": "a-net-team-dev-25",
+        "source": "p-team-decisions",
+        "target": "t-team-changes-prep",
+        "weight": 1
+      },
+      "a-net-team-dev-26": {
+        "id": "a-net-team-dev-26",
+        "source": "t-team-changes-prep",
+        "target": "p-team-dev-cmd",
+        "weight": 1
+      }
+    },
+    "description": "The developer. An approved context pack starts the coding agent on a branch of the workspace repository; the built run is verified by QA; a passing verification becomes a review brief; the reviewer's verdict waits for the person; the person's merge decision runs the merge command (branches only, never a push); changes requested send the coder back with notes; a merge is reported to the office and observed by the brain.",
+    "id": "net-team-dev",
+    "places": {
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "Product office inbox",
+        "tokens": 0,
+        "x": 320,
+        "y": 440
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "Product office status rows",
+        "tokens": 0,
+        "x": 540,
+        "y": 440
+      },
+      "p-team-brain-cmd": {
+        "id": "p-team-brain-cmd",
+        "label": "Brain commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 270
+      },
+      "p-team-coders": {
+        "id": "p-team-coders",
+        "label": "Coder overrides",
+        "tokens": 0,
+        "x": 760,
+        "y": 100
+      },
+      "p-team-context": {
+        "id": "p-team-context",
+        "label": "Briefs for the one-shot lanes",
+        "tokens": 0,
+        "x": 1200,
+        "y": 270
+      },
+      "p-team-decisions": {
+        "id": "p-team-decisions",
+        "label": "The person's decisions",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      },
+      "p-team-dev-cmd": {
+        "id": "p-team-dev-cmd",
+        "label": "Developer commands",
+        "tokens": 0,
+        "x": 540,
+        "y": 100
+      },
+      "p-team-dev-log": {
+        "id": "p-team-dev-log",
+        "label": "Developer command results",
+        "tokens": 0,
+        "x": 1200,
+        "y": 100
+      },
+      "p-team-errors": {
+        "id": "p-team-errors",
+        "label": "Script errors",
+        "tokens": 0,
+        "x": 980,
+        "y": 440
+      },
+      "p-team-journal": {
+        "id": "p-team-journal",
+        "label": "What every lane did",
+        "tokens": 0,
+        "x": 760,
+        "y": 440
+      },
+      "p-team-llm-errors": {
+        "id": "p-team-llm-errors",
+        "label": "Answers that missed their contract",
+        "tokens": 0,
+        "x": 980,
+        "y": 610
+      },
+      "p-team-prompts": {
+        "id": "p-team-prompts",
+        "label": "Questions for the person",
+        "tokens": 0,
+        "x": 320,
+        "y": 270
+      },
+      "p-team-qa-cmd": {
+        "id": "p-team-qa-cmd",
+        "label": "QA commands (verify after a build)",
+        "tokens": 0,
+        "x": 760,
+        "y": 270
+      },
+      "p-team-review-new": {
+        "id": "p-team-review-new",
+        "label": "A copy of every review verdict, consumed by the merge question",
+        "tokens": 0,
+        "x": 760,
+        "y": 610
+      },
+      "p-team-reviews": {
+        "id": "p-team-reviews",
+        "label": "Review verdicts",
+        "tokens": 0,
+        "x": 1200,
+        "y": 610
+      },
+      "p-team-runs": {
+        "id": "p-team-runs",
+        "label": "Coder runs",
+        "tokens": 0,
+        "x": 980,
+        "y": 270
+      },
+      "p-team-specs": {
+        "id": "p-team-specs",
+        "label": "Specs",
+        "tokens": 0,
+        "x": 100,
+        "y": 270
+      },
+      "p-team-status": {
+        "id": "p-team-status",
+        "label": "This team's status rows",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      }
+    },
+    "transitions": {
+      "t-team-approve-prep": {
+        "id": "t-team-approve-prep",
+        "label": "Approved context pack to the coder",
+        "x": 320,
+        "y": 100
+      },
+      "t-team-changes-prep": {
+        "id": "t-team-changes-prep",
+        "label": "Change request back to the coder",
+        "x": 100,
+        "y": 610
+      },
+      "t-team-dev-cmd": {
+        "id": "t-team-dev-cmd",
+        "label": "Developer process",
+        "x": 980,
+        "y": 100
+      },
+      "t-team-merge-ask-prep": {
+        "id": "t-team-merge-ask-prep",
+        "label": "Review verdict to the person",
+        "x": 540,
+        "y": 610
+      },
+      "t-team-merge-prep": {
+        "id": "t-team-merge-prep",
+        "label": "Merge decision to the merge command",
+        "x": 320,
+        "y": 610
+      },
+      "t-team-review": {
+        "id": "t-team-review",
+        "label": "Review the diff against spec and acceptance",
+        "x": 1200,
+        "y": 440
+      }
+    }
+  }
+}

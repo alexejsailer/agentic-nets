@@ -1,0 +1,28 @@
+[
+  {
+    "name": "product-charter",
+    "charterId": "office",
+    "status": "draft",
+    "product": "Agentic-Nets",
+    "goal": "REPLACE ME",
+    "description": "",
+    "principles": ["Every change has a spec before it is implemented, and every spec lives in the spec catalog of its team.", "Nets create context; only a coding agent behind a command transition writes code, and only from the context pack it is given.", "The person merges. Branches only; nothing is pushed by a net.", "Scripts measure, one-shot lanes judge, the brain keeps what was learned."],
+    "constraints": [],
+    "services": [],
+    "repoRoot": "/Users/alexejsailer/Developer/AgenticOS",
+    "home": "~/product",
+    "mcpUrl": "http://127.0.0.1:8091/mcp",
+    "coderAgent": "claude-code",
+    "coderModel": "claude-opus-5",
+    "coderMaxTurns": "120",
+    "coderAllowedTools": "",
+    "coderTimeoutMin": "60",
+    "brainAgent": "llm",
+    "brainModel": "",
+    "autonomyLevel": "3",
+    "dailyBudgetUsd": "20",
+    "digestCron": "0 0 6 * * *",
+    "tokenLanes": ["t-office-setup-cmd", "t-office-plan-cmd", "t-office-digest-cmd", "t-office-brain-observe-cmd", "t-office-curate-cmd", "t-office-brain-apply-cmd"],
+    "notes": "goal ships as REPLACE ME: the product manager asks for it first. services lists the teams to install (node, master, ...); a team registers itself in p-product-teams when provisioned."
+  }
+]
