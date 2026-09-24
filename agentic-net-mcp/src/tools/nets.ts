@@ -552,12 +552,14 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       inputSchema: {
         netId: z.string(),
         name: z.string().optional(),
+        sessionId: z.string().optional().describe(`Session that holds the net (default: this connection's session, ${config.session}); a pack's own session keeps its drawing where its lanes are`),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'create_net', mutates: true }, async (model, args) => {
+      const sessionOf = String(args.sessionId ?? config.session);
       try {
-        await ctx.master.createNet({ modelId: model, sessionId: config.session, netId: args.netId, name: args.name ?? args.netId });
+        await ctx.master.createNet({ modelId: model, sessionId: sessionOf, netId: args.netId, name: args.name ?? args.netId });
       } catch (err: any) {
         // An error after a successful mutation is the worst possible output: a
         // careless caller retries and double-creates, a careful one debugs a
@@ -565,19 +567,19 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         if (err?.name === 'GatewayError' && Number(err.status) >= 500) {
           const check = await ctx
             .executorFor(model)
-            .execute('GET_NET_OVERVIEW', { netId: args.netId, sessionId: config.session })
+            .execute('GET_NET_OVERVIEW', { netId: args.netId, sessionId: sessionOf })
             .catch(() => null);
           if (check?.success) {
             return {
               created: args.netId,
-              session: config.session,
+              session: sessionOf,
               note: `master answered ${err.status}, but the net verifiably exists — treated as created. Do NOT retry the create.`,
             };
           }
         }
         throw err;
       }
-      return { created: args.netId, session: config.session };
+      return { created: args.netId, session: sessionOf };
     }),
   );
 
@@ -597,17 +599,19 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           .boolean()
           .optional()
           .describe('Create the net when it does not exist (default false — an unknown netId is an error, because it is almost always a typo).'),
+        sessionId: z.string().optional().describe(`Session that holds the net (default: this connection's session, ${config.session}); a pack's own session keeps its drawing where its lanes are`),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'add_place', mutates: true }, async (model, args) => {
+      const sessionOf = String(args.sessionId ?? config.session);
       // Referential integrity on netId. Auto-vivification made a single typo split a topology across
       // two nets with no warning: both are individually valid, nothing downstream complains, and you
       // find half your places missing from the net you thought you were building.
       if (!args.createIfMissing) {
         const known: any = await ctx
           .executorFor(model)
-          .execute('LIST_SESSION_NETS', { sessionId: config.session })
+          .execute('LIST_SESSION_NETS', { sessionId: sessionOf })
           .catch(() => null);
         const netIds: string[] = (known?.data?.nets ?? known?.data ?? [])
           .map((n: any) => (typeof n === 'string' ? n : n?.netId ?? n?.name))
@@ -615,7 +619,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         // Only enforce when we could actually read the net list — never block a write on a failed read.
         if (netIds.length && !netIds.includes(String(args.netId))) {
           throw new Error(
-            `Net '${args.netId}' does not exist in model '${model}' (session '${config.session}'). ` +
+            `Net '${args.netId}' does not exist in model '${model}' (session '${sessionOf}'). ` +
               `Known nets: ${netIds.join(', ')}. Check the id for a typo, create it with create_net, ` +
               `or pass createIfMissing:true if you intend a new net here.`,
           );
@@ -624,7 +628,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       // Without explicit coords, take the next free grid slot instead of stacking every
       // place on (100,100) — and never reposition/relabel a place that already exists
       // (the designtime POST is an upsert, so a blind re-POST clobbers layout).
-      const netLayout = await loadNetLayout(ctx, model, config.session, String(args.netId));
+      const netLayout = await loadNetLayout(ctx, model, sessionOf, String(args.netId));
       if (!netLayout.existing.has(String(args.placeId))) {
         const slot = args.x != null && args.y != null
           ? { x: args.x, y: args.y }
@@ -632,7 +636,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         await ctx.master
           .createPlace(args.netId, {
             modelId: model,
-            sessionId: config.session,
+            sessionId: sessionOf,
             placeId: args.placeId,
             label: args.label ?? args.placeId,
             x: slot.x,
@@ -763,10 +767,12 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         batchSize: z.number().int().min(1).max(100).optional().describe('FOREACH only: bind/process this many tokens per firing (default 1); the lane drains the place across repeated polls'),
         start: z.boolean().optional().describe('Default true for NEW lanes (links are never started). A REPLACED lane stays STOPPED unless start:true is explicit.'),
         replace: z.boolean().optional().describe('Required (true) to overwrite an EXISTING transitionId, and rejected when that id does NOT exist (a replace that creates is a contradiction, and a mistyped id would add a competing consumer on the same input place). This is the inscription-edit path; the response returns the previous inscription.'),
+        sessionId: z.string().optional().describe(`Session that holds the net (default: this connection's session, ${config.session}); a pack's own session keeps its drawing where its lanes are`),
         ...modelParam,
       },
     },
     (addTransitionHandler = wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
+      const sessionOf = String(args.sessionId ?? config.session);
       validateKindArgs(String(args.kind), args);
       validateAgentBackendArgs(String(args.kind), args);
       validateScheduleArgs(args);
@@ -823,7 +829,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       // spine (place → transition → place, 200/180px pitch). Elements that already exist are
       // never re-POSTed: the designtime POST is an upsert, so a blind re-create used to reset
       // a carefully positioned place back to the default column and its label to the place id.
-      const netLayout = await loadNetLayout(ctx, model, config.session, String(args.netId));
+      const netLayout = await loadNetLayout(ctx, model, sessionOf, String(args.netId));
       const plan = netLayout.layout.planTransition({
         transitionId: String(args.transitionId),
         inputPlace: String(args.inputPlace),
@@ -844,7 +850,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           await ctx.master
             .createPlace(args.netId, {
               modelId: model,
-              sessionId: config.session,
+              sessionId: sessionOf,
               placeId,
               label: placeId,
               x: p.x,
@@ -867,7 +873,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         await ctx.master
           .createTransition(args.netId, {
             modelId: model,
-            sessionId: config.session,
+            sessionId: sessionOf,
             transitionId: args.transitionId,
             label: args.label ?? args.transitionId,
             x: plan.transition.x,
@@ -878,7 +884,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       await ctx.master
         .createArc(args.netId, {
           modelId: model,
-          sessionId: config.session,
+          sessionId: sessionOf,
           arcId: `a-${args.transitionId}-in`,
           sourceId: args.inputPlace,
           targetId: args.transitionId,
@@ -888,7 +894,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         await ctx.master
           .createArc(args.netId, {
             modelId: model,
-            sessionId: config.session,
+            sessionId: sessionOf,
             arcId: `a-${args.transitionId}-out`,
             sourceId: args.transitionId,
             targetId: args.outputPlace,
@@ -900,7 +906,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         await ctx.master
           .createArc(args.netId, {
             modelId: model,
-            sessionId: config.session,
+            sessionId: sessionOf,
             arcId: `a-${args.transitionId}-b${bi}`,
             sourceId: args.transitionId,
             targetId: branchPlaces[bi],
@@ -959,7 +965,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
       // Keep it on both runtime and designtime copies so re-deploys preserve the scope.
       inscription.metadata = {
         ...(inscription.metadata ?? {}),
-        sessionId: config.session,
+        sessionId: sessionOf,
         netId: String(args.netId),
       };
       // A concrete executorId doubles as the assignedAgent; '*' keeps the default
