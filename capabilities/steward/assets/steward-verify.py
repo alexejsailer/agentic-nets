@@ -84,6 +84,7 @@ P = {
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
     "ideas": "p-steward-ideas",
+    "candidates": "p-steward-candidates",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -344,6 +345,8 @@ def loop_busy():
     answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
     answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
     for t in query(P["prompts"], "FROM $", 200):
         d = t.get("data") or {}
         if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
@@ -731,7 +734,11 @@ def pack_lanes(artifact_path):
             ids |= {str(x.get("id") or x.get("transitionId")) for x in v if isinstance(x, dict) and (x.get("id") or x.get("transitionId"))}
     for net in as_list(art.get("nets")):
         net = as_dict(net) if not isinstance(net, dict) else net
-        for ins in as_list(net.get("inscriptions")):
+        ins_map = net.get("inscriptions")
+        if isinstance(ins_map, dict):  # the artifact keys inscriptions by transition id
+            ids |= {str(k) for k, v in ins_map.items() if not (isinstance(v, dict) and v.get("kind") == "link")}
+            continue
+        for ins in as_list(ins_map):
             ins = as_dict(ins) if not isinstance(ins, dict) else ins
             if ins.get("id") or ins.get("transitionId"):
                 ids.add(str(ins.get("id") or ins.get("transitionId")))

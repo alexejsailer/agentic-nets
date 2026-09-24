@@ -95,6 +95,11 @@
         "host": "steward@agentic-net-node:8080",
         "placeId": "p-steward-budget"
       },
+      "candidates": {
+        "host": "steward@agentic-net-node:8080",
+        "placeId": "p-steward-candidates",
+        "retain": 60
+      },
       "errors": {
         "host": "steward@agentic-net-node:8080",
         "placeId": "p-steward-errors"

@@ -1,7 +1,7 @@
 {
   "name": "steward",
   "displayName": "Steward",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Drive the Steward: a self-improving net that measures the model it lives in, proposes one bounded change at a time, and lets a headless coder apply it as a new pack version once you approve. Set the goal and the autonomy level, answer its questions, approve or reject specs, roll back a release, pause it. The configuration tab is always here.",
   "author": "AgenticNetOS",
   "tags": [
@@ -199,6 +199,12 @@
         "placeId": "p-steward-ideas",
         "required": true,
         "description": "Ideas from the person and the brain: open, taken (by a released spec) or dropped."
+      },
+      {
+        "role": "candidates",
+        "placeId": "p-steward-candidates",
+        "required": true,
+        "description": "Crystallisation and tuning candidates, measured per observation."
       }
     ],
     "actions": [
@@ -738,7 +744,8 @@
         "adr",
         "curations",
         "signals",
-        "ideas"
+        "ideas",
+        "candidates"
       ],
       "watchStores": [
         "prompts",
@@ -753,7 +760,8 @@
         "repo",
         "decisions",
         "refused",
-        "ideas"
+        "ideas",
+        "candidates"
       ],
       "actions": [
         "set-charter",

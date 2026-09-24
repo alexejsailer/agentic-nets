@@ -79,6 +79,7 @@ P = {
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
     "ideas": "p-steward-ideas",
+    "candidates": "p-steward-candidates",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -339,6 +340,8 @@ def loop_busy():
     answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
     answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
     for t in query(P["prompts"], "FROM $", 200):
         d = t.get("data") or {}
         if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
@@ -636,6 +639,19 @@ GRAMMAR = """## THE CLOSED GRAMMAR OF CHANGE SPECS (kind)
 """
 
 
+def candidates_section():
+    """Measured crystallisation and tuning candidates from the last observation."""
+    h = latest(P["health"], "at")
+    obs = h.get("observationId", "")
+    rows = [t.get("data") or {} for t in query(P["candidates"], 'FROM $ WHERE $.observationId == "%s"' % obs, 20)] if obs else []
+    if not rows:
+        return "## CRYSTALLISATION CANDIDATES (measured)\n- none: no AI lane fired often enough with one-iteration, same-shape outputs\n"
+    txt = "## CRYSTALLISATION CANDIDATES (measured; a crystallise or tune option is expected for each)\n"
+    for c in rows:
+        txt += "- %s (%s): %s. %s\n" % (c.get("lane"), c.get("suggestion"), c.get("reason"), ("output place %s" % c.get("outputPlace")) if c.get("outputPlace") else "")
+    return txt
+
+
 def ideas_section(for_spec=False):
     """Open ideas from the person (kind person) and the brain (kind brain): every proposal must offer at
     least one option that serves an open idea, carrying its ideaId; a spec that serves one carries it too."""
@@ -782,7 +798,7 @@ def propose(iteration_id, goal_note=""):
     brief = "\n".join([
         "# BRIEF FOR THE STEWARD: what should the next increment be?",
         "iterationId: %s\npromptId to use: %s\nnow: %s\nmodel: %s" % (iteration_id, prompt_id, now(), MODEL),
-        charter_txt, health_section(), lanes_section(), map_section(), brain_sections(), ideas_section(), history_section(), GRAMMAR,
+        charter_txt, health_section(), lanes_section(), map_section(), candidates_section(), brain_sections(), ideas_section(), history_section(), GRAMMAR,
     ])
     revision = envv("REVISION_TEXT")
     if revision:

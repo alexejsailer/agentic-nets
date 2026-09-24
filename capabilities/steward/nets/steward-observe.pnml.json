@@ -69,12 +69,18 @@
       },
       "a-steward-observe-12": {
         "id": "a-steward-observe-12",
-        "source": "p-steward-health",
-        "target": "t-steward-observe-digest",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-candidates",
         "weight": 1
       },
       "a-steward-observe-13": {
         "id": "a-steward-observe-13",
+        "source": "p-steward-health",
+        "target": "t-steward-observe-digest",
+        "weight": 1
+      },
+      "a-steward-observe-14": {
+        "id": "a-steward-observe-14",
         "source": "t-steward-observe-digest",
         "target": "p-steward-digest",
         "weight": 1
@@ -90,6 +96,13 @@
         "x": 760,
         "y": 270
       },
+      "p-steward-candidates": {
+        "id": "p-steward-candidates",
+        "label": "Crystallisation and tuning candidates, measured per observation",
+        "tokens": 0,
+        "x": 100,
+        "y": 440
+      },
       "p-steward-charter": {
         "id": "p-steward-charter",
         "label": "The charter",
@@ -101,7 +114,7 @@
         "id": "p-steward-digest",
         "label": "The daily digest: the newest health condensed once a day, kept 30 days",
         "tokens": 0,
-        "x": 320,
+        "x": 540,
         "y": 440
       },
       "p-steward-errors": {
@@ -177,7 +190,7 @@
       "t-steward-observe-digest": {
         "id": "t-steward-observe-digest",
         "label": "Digest the newest health (daily)",
-        "x": 100,
+        "x": 320,
         "y": 440
       }
     }

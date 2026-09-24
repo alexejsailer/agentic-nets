@@ -87,7 +87,7 @@ details summary { cursor: pointer; color: var(--muted); }
 `;
 
 const ROLES = ['charter', 'coders', 'infra', 'repo', 'iterate', 'prompts', 'responses', 'specs', 'refused', 'decisions', 'runs', 'verification', 'health', 'lanes', 'map', 'budget',
-  'journal', 'errors', 'llm-errors', 'knowledge', 'plan', 'adr', 'curations', 'signals', 'ideas'];
+  'journal', 'errors', 'llm-errors', 'knowledge', 'plan', 'adr', 'curations', 'signals', 'ideas', 'candidates'];
 const CHARTER_KEYS = ['goal', 'description', 'principles', 'constraints', 'scope', 'autonomyLevel', 'dailyBudgetUsd', 'observeCron', 'home', 'repoUrl', 'repoBranch', 'packDir', 'mcpUrl',
   'coderAgent', 'coderModel', 'coderMaxTurns', 'coderAllowedTools', 'coderTimeoutMin', 'brainAgent', 'brainModel'];
 const LIST_KEYS = ['principles', 'constraints', 'scope'];
@@ -372,6 +372,7 @@ class StewardApp extends HTMLElement {
     lanes.sort((a, b2) => String(a.transitionId).localeCompare(String(b2.transitionId)));
     const trend = obj(h?.trend);
     const errs = newest(props(this._s.errors), 'at').slice(0, 8), llm = newest(props(this._s['llm-errors']), 'at').slice(0, 5);
+    const cands = h ? props(this._s.candidates).filter((c) => c.observationId === h.observationId) : [];
     const t = (k) => { const s = signed(trend[k]); return s ? ` <span class="muted">(${esc(s)})</span>` : ''; };
     return `<div class="grid">
       <div class="card"><h2>Health ${h ? `<span class="muted">${esc(when(h.at))} · ${esc(h.reason)}</span>` : ''}</h2>
@@ -389,6 +390,9 @@ class StewardApp extends HTMLElement {
         ${b ? `<div class="big">$${num(b.spentUsd)}<span class="muted" style="font-size:14px"> of $${num(b.limitUsd)} today</span></div>${isTrue(b.exhausted) ? '<div class="pill bad">exhausted: the gate asks before every change</div>' : `<div class="muted">$${num(b.remainingUsd)} remaining</div>`}` : '<div class="muted">No ledger yet.</div>'}
         <h3>The map</h3>
         ${m ? `<div>${esc(m.summary)}</div><table><tr><th>Session</th><th>Net</th><th>Places</th><th>Lanes</th></tr>${arr(m.nets).map((n) => `<tr><td>${esc(n.session)}</td><td>${esc(n.netId)}</td><td>${esc(n.places)}</td><td>${esc(n.transitions)}</td></tr>`).join('')}</table>` : '<div class="muted">No map yet.</div>'}</div>
+      <div class="card"><h2>Crystallisation candidates ${cands.length ? `<span class="pill warn">${cands.length}</span>` : ''}</h2>
+        <div class="muted">Measured: an AI lane that fires often with one iteration, no errors and same-shape outputs is doing a deterministic job at model prices; a lane far above the median tokens per fire is a tuning candidate. The Steward proposes a crystallise or tune spec for each.</div>
+        ${cands.length ? `<table>${cands.map((c) => `<tr><td class="mono">${esc(c.lane)}</td><td><span class="pill ${c.suggestion === 'crystallise' ? 'warn' : ''}">${esc(c.suggestion)}</span></td><td>${esc(c.reason)}</td></tr>`).join('')}</table>` : '<div class="muted">None in the last observation.</div>'}</div>
       <div class="card"><h2>Lanes ${lanes.length ? `<span class="pill">${lanes.length}</span>` : ''}</h2>
         ${lanes.length ? `<div style="overflow-x:auto"><table><tr><th>Lane</th><th>Kind</th><th>Status</th><th>Schedule</th><th>Fires</th><th>Errors</th><th>Cost</th></tr>${lanes.map((l) => `<tr><td class="mono">${esc(l.transitionId)}</td><td>${esc(l.kind)}</td><td><span class="pill ${l.status === 'RUNNING' ? 'ok' : l.status === 'ERROR' ? 'bad' : ''}">${esc(l.status)}</span></td><td class="muted">${esc(l.schedule || '')}${isTrue(l.overdue) ? ' <span class="pill bad">overdue</span>' : ''}</td><td>${esc(l.fires)}</td><td>${esc(l.llmErrors)}</td><td>${Number(l.costUsd) ? '$' + num(l.costUsd) : ''}</td></tr>`).join('')}</table></div>` : '<div class="muted">No lane measurements yet.</div>'}</div>
       ${errs.length || llm.length ? `<div class="card"><h2>Errors</h2>${errs.map((e) => `<div><span class="muted">${esc(when(e.at))} ${esc(e.lane)}/${esc(e.stage)}</span> ${esc(e.message)}</div>`).join('')}${llm.map((e) => `<div><span class="muted">answer contract</span> ${esc(arr(e.problems).join('; ') || e.problems || e.error || '')}</div>`).join('')}</div>` : ''}

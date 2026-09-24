@@ -86,12 +86,42 @@ Then open the Steward application in Studio:
 
 Lanes the installer leaves in `STARTING` are re-armed by the verify step (stop and start).
 
+## Crystallisation candidates
+
+Every observation measures the model's AI lanes through the usage report: a lane that fired at
+least ten times in a week with one iteration per fire, no errors and outputs that all share one
+shape is doing a deterministic job at model prices; the observation writes it to the candidates
+place as a `crystallise` candidate, and a lane far above the median tokens per fire as a `tune`
+candidate. The proposal brief lists them and the Steward is expected to offer a spec for each.
+The runtime does not expose the tools an agent called per fire, so the evidence is usage plus
+output shape (`verify/test_detector.py` checks the scoring).
+
+## Tests
+
+- `verify/test_detector.py`: the detector's scoring, no runtime needed.
+- `verify/e2e.py`: the whole loop against a live runtime on a proof model (`steward-e2e`) with a
+  deterministic fake coder (`verify/fake-coder.py`) and the pack on its own version line (9.0.x
+  in a private copy of the repository under `--home`). Stages: install (lanes running, seeds),
+  provision, observe, the goal question and the choice after it, a refused protected-set spec
+  with no stacked iteration, an injected add-lane spec through gate, approval, coder, verify,
+  install, release and the brain, a rollback that removes the added lane, an idea reaching the
+  next brief, pause and resume. Every stage measures and fails on its own; dependent stages are
+  skipped with the reason. It refuses to run against the live `steward` model.
+
 ## Facts measured on 2026-09-09 (Desktop Lite 2.59.0)
 
 - Install: 4 nets, 23 lanes, 8 scripts, 27 stores, one application; a manual observation
   measured 23 lanes and started the first iteration; the propose lane asked for the goal 9 s later.
 - Provision stores the MCP token for 10 command lanes and clones the repository in one command.
 - A pause stops every lane except the setup lane, so resume can run through the same net.
+- First live cycle end to end after one approval click: coder 211 s and 37 turns, verify, install
+  as an upgrade, release, curation, next proposal. A protected-set spec was refused in 20 s. A
+  rollback through the app reinstalled the previous version.
+- Three runtime findings went into master the same day: a hub install left master-side lanes in
+  STARTING (now started through the runtime: 24 of 24 running within 6 s); a downgrade kept lanes
+  the newer version had added (now removed and reported); a singleton agent tool executor shared
+  its emission tracking across concurrent sessions and suppressed a one-shot answer (now per
+  session). The e2e harness found the third one.
 
 ## Files
 

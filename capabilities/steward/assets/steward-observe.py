@@ -85,6 +85,7 @@ P = {
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
     "ideas": "p-steward-ideas",
+    "candidates": "p-steward-candidates",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -345,6 +346,8 @@ def loop_busy():
     answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
     answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
     for t in query(P["prompts"], "FROM $", 200):
         d = t.get("data") or {}
         if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
@@ -693,6 +696,58 @@ def lane_rows(stats, listed, sched, usage):
     return rows
 
 
+def shape_repetition(tokens):
+    """How alike a lane's last outputs are: the share of tokens whose key set and short scalar values
+    (enum-like fields up to 24 chars) equal the most common shape. 1.0 = every output looks the same."""
+    shapes = {}
+    for t in tokens:
+        d = t.get("data") or {}
+        keys = tuple(sorted(k for k in d.keys() if not k.startswith("_")))
+        short = tuple(sorted((k, str(v)) for k, v in d.items() if not k.startswith("_") and isinstance(v, (str, int, float, bool)) and len(str(v)) <= 24))
+        shapes[(keys, short)] = shapes.get((keys, short), 0) + 1
+    return (max(shapes.values()) / len(tokens)) if tokens else 0.0
+
+
+def candidates(rows, hours=168, min_fires=10):
+    """Crystallisation and tuning candidates, measured: an agent or llm lane that fired at least
+    min_fires times in the window with one iteration per fire, no errors and outputs that all look
+    alike is doing a deterministic job at model prices (crystallise); a lane whose tokens per fire
+    are twice the median of its kind is a tuning candidate. The runtime does not expose the tools
+    an agent called per fire, so the evidence is the usage report plus the output shape."""
+    ai = [r for r in rows if r["kind"] in ("agent", "llm")]
+    found, per_fire = [], {}
+    for r in ai:
+        try:
+            u = mcp("usage_report", {"transitionId": r["transitionId"], "hours": hours})
+        except Exception:  # noqa: BLE001
+            continue
+        agg = u.get("aggregate") if isinstance(u, dict) else {}
+        agg = as_dict(agg) if not isinstance(agg, dict) else agg
+        fires = as_int(agg.get("fires"), 0)
+        if fires <= 0:
+            continue
+        per_fire[r["transitionId"]] = as_int(agg.get("totalTokens"), 0) / fires
+        if fires < min_fires:
+            continue
+        avg_it = as_float(agg.get("avgIterations"), 0.0)
+        err = as_float(agg.get("errorRate"), 0.0)
+        outs = [str(x) for x in as_list(r.get("outputs")) if str(x).startswith("p-")]
+        sample = query(outs[0], "FROM $", 20) if outs else []
+        rep = shape_repetition(sample) if len(sample) >= 5 else 0.0
+        if avg_it <= 1.2 and err == 0 and rep >= 0.8:
+            found.append({"lane": r["transitionId"], "kind": r["kind"], "suggestion": "crystallise", "fires": fires, "avgIterations": avg_it, "errorRate": err,
+                          "repetition": round(rep, 2), "tokensPerFire": round(per_fire[r["transitionId"]]), "outputPlace": outs[0] if outs else "",
+                          "reason": "%d fires in %dh, one iteration each, no errors, %d%% of the last %d outputs share one shape: a map or command lane could do this" % (fires, hours, round(rep * 100), len(sample))})
+    if len(per_fire) >= 2:
+        med = sorted(per_fire.values())[len(per_fire) // 2]
+        for tid, tpf in per_fire.items():
+            if med > 0 and tpf >= 2 * med and not any(c["lane"] == tid for c in found):
+                r = next(x for x in ai if x["transitionId"] == tid)
+                found.append({"lane": tid, "kind": r["kind"], "suggestion": "tune", "fires": 0, "tokensPerFire": round(tpf), "medianTokensPerFire": round(med),
+                              "reason": "%d tokens per fire against a median of %d for the model's AI lanes: trim the brief, close the tool list or lower the tier" % (round(tpf), round(med))})
+    return found[:10]
+
+
 def place_counts(rows, limit=120):
     places = []
     for r in rows:
@@ -760,6 +815,8 @@ def waiting_for_person():
     answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
     answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
     for t in query(P["prompts"], "FROM $", 200):
         d = t.get("data") or {}
         if d.get("kind") == "approval":
@@ -816,6 +873,11 @@ def observe(argv):
         row["inputs"] = ",".join(r["inputs"]); row["outputs"] = ",".join(r["outputs"])
         put_token(P["lanes"], row, name="%s-%s" % (obs_id, r["transitionId"]))
     keep_last(P["lanes"], "at", 400)
+    cands = candidates(rows)
+    for c in cands:
+        c.update({"at": at, "observationId": obs_id})
+        put_token(P["candidates"], c, name="%s-%s" % (obs_id, c["lane"]))
+    keep_last(P["candidates"], "at", 60)
     # the map
     kinds = {}
     for r in rows:
@@ -840,6 +902,7 @@ def observe(argv):
         "scheduled": len(as_list(stats.get("scheduled"))), "overdue": overdue[:10], "llmCalls": as_int((stats.get("llm") or {}).get("calls"), 0), "llmErrors": as_int((stats.get("llm") or {}).get("errors"), 0),
         "fires": as_int((stats.get("activity") or {}).get("fires"), 0), "fireErrors": as_int((stats.get("activity") or {}).get("fireErrors"), 0),
         "contractMisses": misses, "stranded": strand, "costUsd24h": cost, "executor": str((stats.get("executorCoverage") or {}).get("state", "")),
+        "candidates": [{"lane": c["lane"], "suggestion": c["suggestion"]} for c in cands],
         "paused": str(stats.get("paused", "")).lower(), "topCost": [{"lane": r["transitionId"], "usd": r["costUsd"]} for r in top_cost], "topErrors": [{"lane": r["transitionId"], "errors": r["llmErrors"]} for r in top_err],
         "recentErrors": [str(e.get("summary", ""))[:160] for e in errors_recent], "places": len(counts), "tokens": sum(max(v, 0) for v in counts.values()),
         "trend": {"llmErrors": as_int((stats.get("llm") or {}).get("errors"), 0) - as_int(prev.get("llmErrors"), 0), "fireErrors": as_int((stats.get("activity") or {}).get("fireErrors"), 0) - as_int(prev.get("fireErrors"), 0),

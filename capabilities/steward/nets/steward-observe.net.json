@@ -14,22 +14,49 @@
     "p-steward-budget": "The daily budget: spent, remaining, exhausted",
     "p-steward-iterate": "Iteration triggers",
     "p-steward-journal": "Journal",
-    "p-steward-errors": "Script errors"
+    "p-steward-errors": "Script errors",
+    "p-steward-candidates": "Crystallisation and tuning candidates, measured per observation"
   },
   "transitions": [
     {
       "id": "t-steward-observe-cron",
       "kind": "map",
       "label": "Observe the model (scheduled)",
-      "schedule": {"type": "cron", "cron": "0 30 5 * * *", "timezone": "Europe/Berlin"},
-      "reads": {
-        "charter": {"place": "p-steward-charter", "arcql": "FROM $ WHERE $.charterId == \"steward\" LIMIT 1", "consume": false}
+      "schedule": {
+        "type": "cron",
+        "cron": "0 30 5 * * *",
+        "timezone": "Europe/Berlin"
       },
-      "writes": {"cmd": "p-steward-observe-cmd"},
+      "reads": {
+        "charter": {
+          "place": "p-steward-charter",
+          "arcql": "FROM $ WHERE $.charterId == \"steward\" LIMIT 1",
+          "consume": false
+        }
+      },
+      "writes": {
+        "cmd": "p-steward-observe-cmd"
+      },
       "template": {
-        "kind": "command", "id": "observe-${now()}", "executor": "script", "command": "invoke", "expect": "text",
-        "stage": "observe", "reason": "scheduled", "filedAt": "${now()}",
-        "args": {"toolId": "steward-observe", "argv": ["observe", "scheduled"], "env": {"MODEL_ID": "steward"}, "timeoutMs": 600000}
+        "kind": "command",
+        "id": "observe-${now()}",
+        "executor": "script",
+        "command": "invoke",
+        "expect": "text",
+        "stage": "observe",
+        "reason": "scheduled",
+        "filedAt": "${now()}",
+        "args": {
+          "toolId": "steward-observe",
+          "argv": [
+            "observe",
+            "scheduled"
+          ],
+          "env": {
+            "MODEL_ID": "steward"
+          },
+          "timeoutMs": 600000
+        }
       }
     },
     {
@@ -37,37 +64,84 @@
       "kind": "command",
       "label": "Observe: lanes, places, errors, cost, map",
       "description": "steward-observe measures through master and the runtime's MCP (net_stats, list_transitions, scheduler_status, usage_report, net_overview) and writes health, lanes, map and budget; it starts an iteration when no prompt, spec or run is waiting.",
-      "reads": {"input": {"place": "p-steward-observe-cmd", "arcql": "FROM $ LIMIT 1"}},
+      "reads": {
+        "input": {
+          "place": "p-steward-observe-cmd",
+          "arcql": "FROM $ LIMIT 1"
+        }
+      },
       "writes": {
-        "log": {"place": "p-steward-observe-log", "retain": 200},
+        "log": {
+          "place": "p-steward-observe-log",
+          "retain": 200
+        },
         "health": "p-steward-health",
         "lanes": "p-steward-lanes",
         "map": "p-steward-map",
         "budget": "p-steward-budget",
         "iterate": "p-steward-iterate",
         "journal": "p-steward-journal",
-        "errors": "p-steward-errors"
+        "errors": "p-steward-errors",
+        "candidates": {
+          "place": "p-steward-candidates",
+          "retain": 60
+        }
       },
-      "emit": [{"from": "@result", "to": "log"}],
-      "command": {"timeoutMs": 600000}
+      "emit": [
+        {
+          "from": "@result",
+          "to": "log"
+        }
+      ],
+      "command": {
+        "timeoutMs": 600000
+      }
     },
     {
       "id": "t-steward-observe-digest",
       "kind": "map",
       "label": "Digest the newest health (daily)",
       "description": "Every morning at 06:00 Europe/Berlin it reads the newest health token without consuming it and writes one compact digest token, so the person reads a day at a glance instead of every observation. Nothing else moves: the observe lanes and their places are untouched.",
-      "schedule": {"type": "cron", "cron": "0 0 6 * * *", "timezone": "Europe/Berlin"},
-      "reads": {
-        "health": {"place": "p-steward-health", "arcql": "FROM $ ORDER BY $.at DESC LIMIT 1", "consume": false}
+      "schedule": {
+        "type": "cron",
+        "cron": "0 0 6 * * *",
+        "timezone": "Europe/Berlin"
       },
-      "writes": {"digest": {"place": "p-steward-digest", "retain": 30}},
+      "reads": {
+        "health": {
+          "place": "p-steward-health",
+          "arcql": "FROM $ ORDER BY $.at DESC LIMIT 1",
+          "consume": false
+        }
+      },
+      "writes": {
+        "digest": {
+          "place": "p-steward-digest",
+          "retain": 30
+        }
+      },
       "template": {
-        "kind": "digest", "digestId": "digest-${now()}", "at": "${now()}", "period": "daily",
-        "observationId": "${health.data.observationId}", "observedAt": "${health.data.at}",
-        "lanes": "${health.data.lanes}", "running": "${health.data.running}", "stopped": "${health.data.stopped}", "errorState": "${health.data.errorState}",
-        "fires": "${health.data.fires}", "fireErrors": "${health.data.fireErrors}", "llmErrors": "${health.data.llmErrors}", "contractMisses": "${health.data.contractMisses}",
-        "stranded": "${health.data.stranded}", "overdue": "${health.data.overdue}", "costUsd24h": "${health.data.costUsd24h}",
-        "paused": "${health.data.paused}", "executor": "${health.data.executor}", "trend": "${health.data.trend}", "recentErrors": "${health.data.recentErrors}",
+        "kind": "digest",
+        "digestId": "digest-${now()}",
+        "at": "${now()}",
+        "period": "daily",
+        "observationId": "${health.data.observationId}",
+        "observedAt": "${health.data.at}",
+        "lanes": "${health.data.lanes}",
+        "running": "${health.data.running}",
+        "stopped": "${health.data.stopped}",
+        "errorState": "${health.data.errorState}",
+        "fires": "${health.data.fires}",
+        "fireErrors": "${health.data.fireErrors}",
+        "llmErrors": "${health.data.llmErrors}",
+        "contractMisses": "${health.data.contractMisses}",
+        "stranded": "${health.data.stranded}",
+        "overdue": "${health.data.overdue}",
+        "costUsd24h": "${health.data.costUsd24h}",
+        "paused": "${health.data.paused}",
+        "executor": "${health.data.executor}",
+        "trend": "${health.data.trend}",
+        "recentErrors": "${health.data.recentErrors}",
         "summary": "${health.data.summary}",
         "text": "Daily digest of ${health.data.at}: ${health.data.summary}; cost 24h ${health.data.costUsd24h} USD; executor ${health.data.executor}"
       }

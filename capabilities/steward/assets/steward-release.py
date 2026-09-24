@@ -81,6 +81,7 @@ P = {
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
     "ideas": "p-steward-ideas",
+    "candidates": "p-steward-candidates",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -341,6 +342,8 @@ def loop_busy():
     answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
     answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
+    decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
     for t in query(P["prompts"], "FROM $", 200):
         d = t.get("data") or {}
         if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
