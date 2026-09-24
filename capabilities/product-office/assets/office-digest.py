@@ -659,6 +659,9 @@ def digest(argv):
     put_token(P["digest"], d, name="digest-%s" % stamp())
     keep_last(P["digest"], "at", 60)
     if red or (oldest and str(oldest.get("at", ""))[:10] < day_ago):
+        # one standing digest item, not one per run: a digest supersedes the previous one
+        for t in query(P["inbox"], 'FROM $ WHERE $.kind == "digest"', 50):
+            delete_token(P["inbox"], t["id"])
         put_token(P["inbox"], {"itemId": "inbox-digest-%s" % stamp(), "service": "", "persona": "office", "kind": "digest", "title": summary[:200], "status": "open", "at": now()}, name="inbox-digest-%s" % stamp())
     journal(LANE, "digest", summary)
     return {"success": True, "summary": summary, "teams": len(rows), "openItems": len(inbox)}
