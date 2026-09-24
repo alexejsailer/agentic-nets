@@ -666,9 +666,30 @@ def pack_lanes(artifact_path):
     return ids
 
 
+def rearm_starting():
+    """A lane the installer just (re)started can sit in STARTING until it is stopped and started
+    once more (measured 2026-09-09 on 2.59.0: 13 of 23 lanes after hub install). Re-arm them."""
+    rearmed = []
+    listed = mcp("list_transitions", {})
+    rows = as_list(listed.get("transitions")) if isinstance(listed, dict) else as_list(listed)
+    for t in rows:
+        t = as_dict(t) if not isinstance(t, dict) else t
+        tid = str(t.get("transitionId") or t.get("id") or "")
+        if tid.startswith("t-steward-") and str(t.get("status")) == "STARTING":
+            try:
+                mcp("stop_transition", {"transitionId": tid}); mcp("start_transition", {"transitionId": tid}); rearmed.append(tid)
+            except Exception as e:  # noqa: BLE001
+                rearmed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return rearmed
+
+
 def smoke(touched, expected_lanes):
     checks, ok = [], True
     time.sleep(12)
+    rearmed = rearm_starting()
+    if rearmed:
+        checks.append("re-armed %d lane(s) left in STARTING by the installer" % len(rearmed))
+        time.sleep(3)
     stats = mcp("net_stats", {"window": 200})
     running = set(str(x) for x in as_list((stats.get("transitions") or {}).get("running")))
     not_running = {str((as_dict(x) if not isinstance(x, dict) else x).get("transitionId")): (as_dict(x) if not isinstance(x, dict) else x).get("status") for x in as_list((stats.get("transitions") or {}).get("notRunning"))}

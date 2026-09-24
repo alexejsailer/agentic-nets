@@ -646,14 +646,28 @@ def stranded(rows, counts):
         for p in r["inputs"]:
             readers.setdefault(p, []).append(r)
     found = []
+    config_places = {P["charter"], P["coders"]}
     for p, rs in readers.items():
         n = counts.get(p, 0)
-        if n <= 0:
+        if n <= 0 or p in config_places:
             continue
         idle = [r for r in rs if r["status"] == "RUNNING" and not r["schedule"] and (not r["lastFiredAt"] or r["lastFiredAt"] < cutoff)]
         if idle and len(idle) == len([r for r in rs if r["status"] == "RUNNING"]):
-            found.append({"place": p, "tokens": n, "lanes": [r["transitionId"] for r in idle][:4]})
+            oldest = aged_token(p, cutoff)
+            if oldest is not None:
+                found.append({"place": p, "tokens": n, "lanes": [r["transitionId"] for r in idle][:4], "oldest": oldest})
     return found[:12]
+
+
+def aged_token(place, cutoff):
+    """The timestamp of a token older than the cutoff (or '' for one without a timestamp), else None:
+    a token that arrived a moment ago is work in flight, not a stranded one."""
+    for t in query(place, "FROM $", 5):
+        d = t.get("data") or {}
+        ts = str(d.get("at") or d.get("filedAt") or d.get("_emittedAt") or d.get("updatedAt") or "")
+        if not ts or ts < cutoff:
+            return ts
+    return None
 
 
 def contract_misses(counts):

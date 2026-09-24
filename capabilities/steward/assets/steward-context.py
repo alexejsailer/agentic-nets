@@ -685,7 +685,7 @@ def pack_section():
     return "## THE PACK REPOSITORY (%s, pack dir %s)\nCompact sources compile with `node capabilities/tools/pack.mjs build --dir capabilities/steward`; scripts inline the shared library with `python3 capabilities/tools/inline-shared.py capabilities/steward stewardlib`.\nfiles:\n%s\n" % (root, os.path.relpath(pack, root), lines(files, 60))
 
 
-def propose(iteration_id):
+def propose(iteration_id, goal_note=""):
     c = charter()
     charter_txt, goal_status = charter_section(c)
     earlier = query(P["prompts"], 'FROM $ WHERE $.iterationId == "%s" LIMIT 50' % iteration_id, 50)
@@ -698,6 +698,8 @@ def propose(iteration_id):
     revision = envv("REVISION_TEXT")
     if revision:
         brief += "\n## THE PERSON RESHAPED THE LAST QUESTION\n%s\nAsk again, taking this into account.\n" % revision[:1500]
+    if goal_note:
+        brief += "\n## THE PERSON JUST DEFINED THE GOAL\n%s\nDo not ask for the goal again: propose the first increment toward it as a choice (mode choice) with two to four options inside the grammar.\n" % goal_note[:2000]
     data = {"at": now(), "iterationId": iteration_id, "purpose": "propose", "promptId": prompt_id, "goalStatus": goal_status, "brief": brief[:20000]}
     put_token(P["context"], data, name="ctx-propose-%s" % iteration_id)
     journal(LANE, "context", "proposal brief for %s: goal %s, %d chars" % (iteration_id, goal_status, len(brief)), iterationId=iteration_id)
@@ -713,6 +715,11 @@ def spec(iteration_id, prompt_id):
     selected = as_list(envv("RESPONSE_SELECTED"))
     text = envv("RESPONSE_TEXT")
     notes = envv("RESPONSE_NOTES")
+    if str(pr.get("mode")) == "goal":
+        # the goal is now in the charter (the application saved it); the first increment is the person's choice, not a spec
+        put_token(P["responses"], {"at": now(), "promptId": prompt_id, "iterationId": iteration_id, "intent": "answered", "selected": selected, "text": text, "notes": notes, "specId": "", "by": "steward"}, name="receipt-%s" % prompt_id)
+        journal(LANE, "context", "the goal was defined in %s; asking for the first increment" % prompt_id, iterationId=iteration_id)
+        return propose(iteration_id, goal_note="%s\n%s" % (c.get("goal", ""), text))
     chosen = []
     for o in as_list(pr.get("options")) if pr else []:
         o = as_dict(o) if not isinstance(o, dict) else o
