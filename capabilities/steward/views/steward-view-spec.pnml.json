@@ -1,0 +1,265 @@
+{
+  "net": {
+    "id": "steward-view-spec",
+    "description": "Designtime view: stage 3, the person answers, the spec is written, the gate decides or asks",
+    "places": {
+      "p-steward-context": {
+        "id": "p-steward-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-steward-context-cmd": {
+        "id": "p-steward-context-cmd",
+        "label": "brief commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-steward-decisions": {
+        "id": "p-steward-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 390.0
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 490.0
+      },
+      "p-steward-gate-cmd": {
+        "id": "p-steward-gate-cmd",
+        "label": "gate commands",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 190.0
+      },
+      "p-steward-llm-errors": {
+        "id": "p-steward-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 290.0
+      },
+      "p-steward-loop-log": {
+        "id": "p-steward-loop-log",
+        "label": "loop log",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 240.0
+      },
+      "p-steward-prompts": {
+        "id": "p-steward-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 290.0
+      },
+      "p-steward-refused": {
+        "id": "p-steward-refused",
+        "label": "refused by the gate",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 340.0
+      },
+      "p-steward-responses": {
+        "id": "p-steward-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-steward-spec-drafts": {
+        "id": "p-steward-spec-drafts",
+        "label": "drafts for the gate",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 390.0
+      },
+      "p-steward-specs": {
+        "id": "p-steward-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 440.0
+      }
+    },
+    "transitions": {
+      "t-steward-answer-prep": {
+        "id": "t-steward-answer-prep",
+        "label": "answer to brief",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-steward-context-cmd": {
+        "id": "t-steward-context-cmd",
+        "label": "render the brief",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-steward-gate-cmd": {
+        "id": "t-steward-gate-cmd",
+        "label": "policy gate",
+        "x": 1685.0,
+        "y": 340.0
+      },
+      "t-steward-gate-prep": {
+        "id": "t-steward-gate-prep",
+        "label": "draft to gate",
+        "x": 1335.0,
+        "y": 340.0
+      },
+      "t-steward-spec": {
+        "id": "t-steward-spec",
+        "label": "write the spec, one shot",
+        "x": 985.0,
+        "y": 340.0
+      }
+    },
+    "arcs": {
+      "a-steward-view-spec-01": {
+        "id": "a-steward-view-spec-01",
+        "source": "p-steward-context-cmd",
+        "target": "t-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-view-spec-02": {
+        "id": "a-steward-view-spec-02",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-loop-log",
+        "weight": 1
+      },
+      "a-steward-view-spec-03": {
+        "id": "a-steward-view-spec-03",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-context",
+        "weight": 1
+      },
+      "a-steward-view-spec-04": {
+        "id": "a-steward-view-spec-04",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-responses",
+        "weight": 1
+      },
+      "a-steward-view-spec-05": {
+        "id": "a-steward-view-spec-05",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-view-spec-06": {
+        "id": "a-steward-view-spec-06",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-view-spec-07": {
+        "id": "a-steward-view-spec-07",
+        "source": "p-steward-responses",
+        "target": "t-steward-answer-prep",
+        "weight": 1
+      },
+      "a-steward-view-spec-08": {
+        "id": "a-steward-view-spec-08",
+        "source": "t-steward-answer-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-view-spec-09": {
+        "id": "a-steward-view-spec-09",
+        "source": "p-steward-context",
+        "target": "t-steward-spec",
+        "weight": 1
+      },
+      "a-steward-view-spec-10": {
+        "id": "a-steward-view-spec-10",
+        "source": "t-steward-spec",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-view-spec-11": {
+        "id": "a-steward-view-spec-11",
+        "source": "t-steward-spec",
+        "target": "p-steward-spec-drafts",
+        "weight": 1
+      },
+      "a-steward-view-spec-12": {
+        "id": "a-steward-view-spec-12",
+        "source": "t-steward-spec",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-view-spec-13": {
+        "id": "a-steward-view-spec-13",
+        "source": "p-steward-spec-drafts",
+        "target": "t-steward-gate-prep",
+        "weight": 1
+      },
+      "a-steward-view-spec-14": {
+        "id": "a-steward-view-spec-14",
+        "source": "t-steward-gate-prep",
+        "target": "p-steward-gate-cmd",
+        "weight": 1
+      },
+      "a-steward-view-spec-15": {
+        "id": "a-steward-view-spec-15",
+        "source": "p-steward-gate-cmd",
+        "target": "t-steward-gate-cmd",
+        "weight": 1
+      },
+      "a-steward-view-spec-16": {
+        "id": "a-steward-view-spec-16",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-loop-log",
+        "weight": 1
+      },
+      "a-steward-view-spec-17": {
+        "id": "a-steward-view-spec-17",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-decisions",
+        "weight": 1
+      },
+      "a-steward-view-spec-18": {
+        "id": "a-steward-view-spec-18",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-view-spec-19": {
+        "id": "a-steward-view-spec-19",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-refused",
+        "weight": 1
+      },
+      "a-steward-view-spec-20": {
+        "id": "a-steward-view-spec-20",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-view-spec-21": {
+        "id": "a-steward-view-spec-21",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-view-spec-22": {
+        "id": "a-steward-view-spec-22",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    }
+  }
+}

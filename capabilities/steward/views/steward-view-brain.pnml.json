@@ -1,0 +1,308 @@
+{
+  "net": {
+    "id": "steward-view-brain",
+    "description": "Designtime view: the brain, observe, curate, apply, answer",
+    "places": {
+      "p-steward-adr": {
+        "id": "p-steward-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 390.0
+      },
+      "p-steward-brain-cmd": {
+        "id": "p-steward-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-steward-brain-log": {
+        "id": "p-steward-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 290.0
+      },
+      "p-steward-context": {
+        "id": "p-steward-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-steward-curation": {
+        "id": "p-steward-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-steward-curations": {
+        "id": "p-steward-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      },
+      "p-steward-iterate": {
+        "id": "p-steward-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 490.0
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 190.0
+      },
+      "p-steward-knowledge": {
+        "id": "p-steward-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 240.0
+      },
+      "p-steward-llm-errors": {
+        "id": "p-steward-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-steward-plan": {
+        "id": "p-steward-plan",
+        "label": "the plan",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 340.0
+      },
+      "p-steward-prompts": {
+        "id": "p-steward-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 440.0
+      },
+      "p-steward-responses": {
+        "id": "p-steward-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-steward-signals": {
+        "id": "p-steward-signals",
+        "label": "signals per release",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      }
+    },
+    "transitions": {
+      "t-steward-answer-knowledge-prep": {
+        "id": "t-steward-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-steward-apply-prep": {
+        "id": "t-steward-apply-prep",
+        "label": "curation to apply",
+        "x": 1335.0,
+        "y": 290.0
+      },
+      "t-steward-brain-apply-cmd": {
+        "id": "t-steward-brain-apply-cmd",
+        "label": "apply the curation",
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "t-steward-brain-observe-cmd": {
+        "id": "t-steward-brain-observe-cmd",
+        "label": "observe the release",
+        "x": 635.0,
+        "y": 290.0
+      },
+      "t-steward-curate": {
+        "id": "t-steward-curate",
+        "label": "curate, one shot",
+        "x": 985.0,
+        "y": 340.0
+      },
+      "t-steward-curate-cmd": {
+        "id": "t-steward-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 635.0,
+        "y": 390.0
+      }
+    },
+    "arcs": {
+      "a-steward-view-brain-01": {
+        "id": "a-steward-view-brain-01",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-02": {
+        "id": "a-steward-view-brain-02",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-view-brain-03": {
+        "id": "a-steward-view-brain-03",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-signals",
+        "weight": 1
+      },
+      "a-steward-view-brain-04": {
+        "id": "a-steward-view-brain-04",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-context",
+        "weight": 1
+      },
+      "a-steward-view-brain-05": {
+        "id": "a-steward-view-brain-05",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-06": {
+        "id": "a-steward-view-brain-06",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-view-brain-07": {
+        "id": "a-steward-view-brain-07",
+        "source": "p-steward-context",
+        "target": "t-steward-curate",
+        "weight": 1
+      },
+      "a-steward-view-brain-08": {
+        "id": "a-steward-view-brain-08",
+        "source": "t-steward-curate",
+        "target": "p-steward-curation",
+        "weight": 1
+      },
+      "a-steward-view-brain-09": {
+        "id": "a-steward-view-brain-09",
+        "source": "t-steward-curate",
+        "target": "p-steward-curations",
+        "weight": 1
+      },
+      "a-steward-view-brain-10": {
+        "id": "a-steward-view-brain-10",
+        "source": "t-steward-curate",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-view-brain-11": {
+        "id": "a-steward-view-brain-11",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-curate-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-12": {
+        "id": "a-steward-view-brain-12",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-view-brain-13": {
+        "id": "a-steward-view-brain-13",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-curation",
+        "weight": 1
+      },
+      "a-steward-view-brain-14": {
+        "id": "a-steward-view-brain-14",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-curations",
+        "weight": 1
+      },
+      "a-steward-view-brain-15": {
+        "id": "a-steward-view-brain-15",
+        "source": "p-steward-curation",
+        "target": "t-steward-apply-prep",
+        "weight": 1
+      },
+      "a-steward-view-brain-16": {
+        "id": "a-steward-view-brain-16",
+        "source": "t-steward-apply-prep",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-17": {
+        "id": "a-steward-view-brain-17",
+        "source": "p-steward-responses",
+        "target": "t-steward-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-steward-view-brain-18": {
+        "id": "a-steward-view-brain-18",
+        "source": "t-steward-answer-knowledge-prep",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-19": {
+        "id": "a-steward-view-brain-19",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-20": {
+        "id": "a-steward-view-brain-20",
+        "source": "p-steward-curations",
+        "target": "t-steward-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-view-brain-21": {
+        "id": "a-steward-view-brain-21",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-view-brain-22": {
+        "id": "a-steward-view-brain-22",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-knowledge",
+        "weight": 1
+      },
+      "a-steward-view-brain-23": {
+        "id": "a-steward-view-brain-23",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-plan",
+        "weight": 1
+      },
+      "a-steward-view-brain-24": {
+        "id": "a-steward-view-brain-24",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-adr",
+        "weight": 1
+      },
+      "a-steward-view-brain-25": {
+        "id": "a-steward-view-brain-25",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-view-brain-26": {
+        "id": "a-steward-view-brain-26",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-view-brain-27": {
+        "id": "a-steward-view-brain-27",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      }
+    }
+  }
+}

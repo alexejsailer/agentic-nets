@@ -1,0 +1,160 @@
+{
+  "net": {
+    "id": "steward-view-observe",
+    "description": "Designtime view: stage 1, observe the model daily and start an iteration when nothing waits",
+    "places": {
+      "p-steward-budget": {
+        "id": "p-steward-budget",
+        "label": "daily budget",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      },
+      "p-steward-charter": {
+        "id": "p-steward-charter",
+        "label": "charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-steward-health": {
+        "id": "p-steward-health",
+        "label": "health per observation",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 190.0
+      },
+      "p-steward-iterate": {
+        "id": "p-steward-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-steward-lanes": {
+        "id": "p-steward-lanes",
+        "label": "lane measurements",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 290.0
+      },
+      "p-steward-map": {
+        "id": "p-steward-map",
+        "label": "the map",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 390.0
+      },
+      "p-steward-observe-cmd": {
+        "id": "p-steward-observe-cmd",
+        "label": "observe commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-steward-observe-log": {
+        "id": "p-steward-observe-log",
+        "label": "observe log",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 490.0
+      }
+    },
+    "transitions": {
+      "t-steward-observe-cmd": {
+        "id": "t-steward-observe-cmd",
+        "label": "observe, measure",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-steward-observe-cron": {
+        "id": "t-steward-observe-cron",
+        "label": "observe, daily",
+        "x": 285.0,
+        "y": 340.0
+      }
+    },
+    "arcs": {
+      "a-steward-view-observe-01": {
+        "id": "a-steward-view-observe-01",
+        "source": "p-steward-charter",
+        "target": "t-steward-observe-cron",
+        "weight": 1
+      },
+      "a-steward-view-observe-02": {
+        "id": "a-steward-view-observe-02",
+        "source": "t-steward-observe-cron",
+        "target": "p-steward-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-view-observe-03": {
+        "id": "a-steward-view-observe-03",
+        "source": "p-steward-observe-cmd",
+        "target": "t-steward-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-view-observe-04": {
+        "id": "a-steward-view-observe-04",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-observe-log",
+        "weight": 1
+      },
+      "a-steward-view-observe-05": {
+        "id": "a-steward-view-observe-05",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-health",
+        "weight": 1
+      },
+      "a-steward-view-observe-06": {
+        "id": "a-steward-view-observe-06",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-lanes",
+        "weight": 1
+      },
+      "a-steward-view-observe-07": {
+        "id": "a-steward-view-observe-07",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-map",
+        "weight": 1
+      },
+      "a-steward-view-observe-08": {
+        "id": "a-steward-view-observe-08",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-budget",
+        "weight": 1
+      },
+      "a-steward-view-observe-09": {
+        "id": "a-steward-view-observe-09",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-view-observe-10": {
+        "id": "a-steward-view-observe-10",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-view-observe-11": {
+        "id": "a-steward-view-observe-11",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    }
+  }
+}

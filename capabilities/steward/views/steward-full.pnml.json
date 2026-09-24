@@ -1,0 +1,1048 @@
+{
+  "net": {
+    "id": "steward-full",
+    "description": "Designtime view of the Steward: every lane of the four nets in one drawing",
+    "places": {
+      "p-steward-adr": {
+        "id": "p-steward-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 290.0
+      },
+      "p-steward-apply-cmd": {
+        "id": "p-steward-apply-cmd",
+        "label": "coder commands",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 540.0
+      },
+      "p-steward-brain-cmd": {
+        "id": "p-steward-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 190.0
+      },
+      "p-steward-brain-log": {
+        "id": "p-steward-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 90.0
+      },
+      "p-steward-budget": {
+        "id": "p-steward-budget",
+        "label": "daily budget",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-steward-build-log": {
+        "id": "p-steward-build-log",
+        "label": "build log",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 290.0
+      },
+      "p-steward-charter": {
+        "id": "p-steward-charter",
+        "label": "charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-steward-coders": {
+        "id": "p-steward-coders",
+        "label": "coder definitions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-steward-context": {
+        "id": "p-steward-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 290.0
+      },
+      "p-steward-context-cmd": {
+        "id": "p-steward-context-cmd",
+        "label": "brief commands",
+        "tokens": 0,
+        "x": 2735.0,
+        "y": 140.0
+      },
+      "p-steward-curation": {
+        "id": "p-steward-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 190.0
+      },
+      "p-steward-curations": {
+        "id": "p-steward-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 290.0
+      },
+      "p-steward-decisions": {
+        "id": "p-steward-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 2735.0,
+        "y": 440.0
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 440.0
+      },
+      "p-steward-gate-cmd": {
+        "id": "p-steward-gate-cmd",
+        "label": "gate commands",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 590.0
+      },
+      "p-steward-health": {
+        "id": "p-steward-health",
+        "label": "health per observation",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 440.0
+      },
+      "p-steward-infra": {
+        "id": "p-steward-infra",
+        "label": "infra health",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 390.0
+      },
+      "p-steward-iterate": {
+        "id": "p-steward-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 190.0
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 340.0
+      },
+      "p-steward-knowledge": {
+        "id": "p-steward-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 390.0
+      },
+      "p-steward-lanes": {
+        "id": "p-steward-lanes",
+        "label": "lane measurements",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 540.0
+      },
+      "p-steward-llm-errors": {
+        "id": "p-steward-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 390.0
+      },
+      "p-steward-loop-log": {
+        "id": "p-steward-loop-log",
+        "label": "loop log",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 240.0
+      },
+      "p-steward-map": {
+        "id": "p-steward-map",
+        "label": "the map",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 190.0
+      },
+      "p-steward-observe-cmd": {
+        "id": "p-steward-observe-cmd",
+        "label": "observe commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-steward-observe-log": {
+        "id": "p-steward-observe-log",
+        "label": "observe log",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 290.0
+      },
+      "p-steward-plan": {
+        "id": "p-steward-plan",
+        "label": "the plan",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 490.0
+      },
+      "p-steward-prompts": {
+        "id": "p-steward-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 2735.0,
+        "y": 340.0
+      },
+      "p-steward-refused": {
+        "id": "p-steward-refused",
+        "label": "refused by the gate",
+        "tokens": 0,
+        "x": 2735.0,
+        "y": 540.0
+      },
+      "p-steward-release-cmd": {
+        "id": "p-steward-release-cmd",
+        "label": "release commands",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 140.0
+      },
+      "p-steward-repo": {
+        "id": "p-steward-repo",
+        "label": "pack repository record",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 490.0
+      },
+      "p-steward-responses": {
+        "id": "p-steward-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 3085.0,
+        "y": 140.0
+      },
+      "p-steward-runs": {
+        "id": "p-steward-runs",
+        "label": "runs",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "p-steward-setup-cmd": {
+        "id": "p-steward-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 440.0
+      },
+      "p-steward-setup-log": {
+        "id": "p-steward-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 490.0
+      },
+      "p-steward-signals": {
+        "id": "p-steward-signals",
+        "label": "signals per release",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 390.0
+      },
+      "p-steward-spec-drafts": {
+        "id": "p-steward-spec-drafts",
+        "label": "drafts for the gate",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 490.0
+      },
+      "p-steward-specs": {
+        "id": "p-steward-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 2735.0,
+        "y": 240.0
+      },
+      "p-steward-verification": {
+        "id": "p-steward-verification",
+        "label": "verification results",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 240.0
+      },
+      "p-steward-verify-cmd": {
+        "id": "p-steward-verify-cmd",
+        "label": "verify commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 240.0
+      }
+    },
+    "transitions": {
+      "t-steward-answer-knowledge-prep": {
+        "id": "t-steward-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 3260.0,
+        "y": 240.0
+      },
+      "t-steward-answer-prep": {
+        "id": "t-steward-answer-prep",
+        "label": "answer to brief",
+        "x": 3260.0,
+        "y": 340.0
+      },
+      "t-steward-apply-cmd": {
+        "id": "t-steward-apply-cmd",
+        "label": "coder, headless",
+        "x": 285.0,
+        "y": 240.0
+      },
+      "t-steward-apply-prep": {
+        "id": "t-steward-apply-prep",
+        "label": "curation to apply",
+        "x": 2210.0,
+        "y": 240.0
+      },
+      "t-steward-approve-prep": {
+        "id": "t-steward-approve-prep",
+        "label": "approval to coder",
+        "x": 2910.0,
+        "y": 340.0
+      },
+      "t-steward-brain-apply-cmd": {
+        "id": "t-steward-brain-apply-cmd",
+        "label": "apply the curation",
+        "x": 2210.0,
+        "y": 340.0
+      },
+      "t-steward-brain-observe-cmd": {
+        "id": "t-steward-brain-observe-cmd",
+        "label": "observe the release",
+        "x": 1510.0,
+        "y": 290.0
+      },
+      "t-steward-context-cmd": {
+        "id": "t-steward-context-cmd",
+        "label": "render the brief",
+        "x": 2910.0,
+        "y": 240.0
+      },
+      "t-steward-curate": {
+        "id": "t-steward-curate",
+        "label": "curate, one shot",
+        "x": 1860.0,
+        "y": 240.0
+      },
+      "t-steward-curate-cmd": {
+        "id": "t-steward-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 1510.0,
+        "y": 390.0
+      },
+      "t-steward-gate-cmd": {
+        "id": "t-steward-gate-cmd",
+        "label": "policy gate",
+        "x": 2560.0,
+        "y": 390.0
+      },
+      "t-steward-gate-prep": {
+        "id": "t-steward-gate-prep",
+        "label": "draft to gate",
+        "x": 2210.0,
+        "y": 440.0
+      },
+      "t-steward-infra-tick": {
+        "id": "t-steward-infra-tick",
+        "label": "health tick, hourly",
+        "x": 285.0,
+        "y": 440.0
+      },
+      "t-steward-iterate-prep": {
+        "id": "t-steward-iterate-prep",
+        "label": "trigger to brief",
+        "x": 2560.0,
+        "y": 290.0
+      },
+      "t-steward-observe-cmd": {
+        "id": "t-steward-observe-cmd",
+        "label": "observe, measure",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-steward-observe-cron": {
+        "id": "t-steward-observe-cron",
+        "label": "observe, daily",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-steward-propose": {
+        "id": "t-steward-propose",
+        "label": "propose, one shot",
+        "x": 1860.0,
+        "y": 340.0
+      },
+      "t-steward-release-cmd": {
+        "id": "t-steward-release-cmd",
+        "label": "release, tag, next",
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "t-steward-revise-prep": {
+        "id": "t-steward-revise-prep",
+        "label": "reshape to brief",
+        "x": 3260.0,
+        "y": 440.0
+      },
+      "t-steward-rollback-prep": {
+        "id": "t-steward-rollback-prep",
+        "label": "rollback to release",
+        "x": 2910.0,
+        "y": 440.0
+      },
+      "t-steward-setup-cmd": {
+        "id": "t-steward-setup-cmd",
+        "label": "setup process",
+        "x": 635.0,
+        "y": 440.0
+      },
+      "t-steward-spec": {
+        "id": "t-steward-spec",
+        "label": "write the spec, one shot",
+        "x": 1860.0,
+        "y": 440.0
+      },
+      "t-steward-verify-cmd": {
+        "id": "t-steward-verify-cmd",
+        "label": "verify, install, roll back",
+        "x": 635.0,
+        "y": 240.0
+      }
+    },
+    "arcs": {
+      "a-steward-full-01": {
+        "id": "a-steward-full-01",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-full-02": {
+        "id": "a-steward-full-02",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-full-03": {
+        "id": "a-steward-full-03",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-signals",
+        "weight": 1
+      },
+      "a-steward-full-04": {
+        "id": "a-steward-full-04",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-context",
+        "weight": 1
+      },
+      "a-steward-full-05": {
+        "id": "a-steward-full-05",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-full-06": {
+        "id": "a-steward-full-06",
+        "source": "t-steward-brain-observe-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-07": {
+        "id": "a-steward-full-07",
+        "source": "p-steward-context",
+        "target": "t-steward-curate",
+        "weight": 1
+      },
+      "a-steward-full-08": {
+        "id": "a-steward-full-08",
+        "source": "t-steward-curate",
+        "target": "p-steward-curation",
+        "weight": 1
+      },
+      "a-steward-full-09": {
+        "id": "a-steward-full-09",
+        "source": "t-steward-curate",
+        "target": "p-steward-curations",
+        "weight": 1
+      },
+      "a-steward-full-10": {
+        "id": "a-steward-full-10",
+        "source": "t-steward-curate",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-full-11": {
+        "id": "a-steward-full-11",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-curate-cmd",
+        "weight": 1
+      },
+      "a-steward-full-12": {
+        "id": "a-steward-full-12",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-full-13": {
+        "id": "a-steward-full-13",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-curation",
+        "weight": 1
+      },
+      "a-steward-full-14": {
+        "id": "a-steward-full-14",
+        "source": "t-steward-curate-cmd",
+        "target": "p-steward-curations",
+        "weight": 1
+      },
+      "a-steward-full-15": {
+        "id": "a-steward-full-15",
+        "source": "p-steward-curation",
+        "target": "t-steward-apply-prep",
+        "weight": 1
+      },
+      "a-steward-full-16": {
+        "id": "a-steward-full-16",
+        "source": "t-steward-apply-prep",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-full-17": {
+        "id": "a-steward-full-17",
+        "source": "p-steward-responses",
+        "target": "t-steward-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-steward-full-18": {
+        "id": "a-steward-full-18",
+        "source": "t-steward-answer-knowledge-prep",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-full-19": {
+        "id": "a-steward-full-19",
+        "source": "p-steward-brain-cmd",
+        "target": "t-steward-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-full-20": {
+        "id": "a-steward-full-20",
+        "source": "p-steward-curations",
+        "target": "t-steward-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-full-21": {
+        "id": "a-steward-full-21",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-brain-log",
+        "weight": 1
+      },
+      "a-steward-full-22": {
+        "id": "a-steward-full-22",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-knowledge",
+        "weight": 1
+      },
+      "a-steward-full-23": {
+        "id": "a-steward-full-23",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-plan",
+        "weight": 1
+      },
+      "a-steward-full-24": {
+        "id": "a-steward-full-24",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-adr",
+        "weight": 1
+      },
+      "a-steward-full-25": {
+        "id": "a-steward-full-25",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-full-26": {
+        "id": "a-steward-full-26",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-full-27": {
+        "id": "a-steward-full-27",
+        "source": "t-steward-brain-apply-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-28": {
+        "id": "a-steward-full-28",
+        "source": "p-steward-iterate",
+        "target": "t-steward-iterate-prep",
+        "weight": 1
+      },
+      "a-steward-full-29": {
+        "id": "a-steward-full-29",
+        "source": "t-steward-iterate-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-full-30": {
+        "id": "a-steward-full-30",
+        "source": "p-steward-context-cmd",
+        "target": "t-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-full-31": {
+        "id": "a-steward-full-31",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-loop-log",
+        "weight": 1
+      },
+      "a-steward-full-32": {
+        "id": "a-steward-full-32",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-context",
+        "weight": 1
+      },
+      "a-steward-full-33": {
+        "id": "a-steward-full-33",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-responses",
+        "weight": 1
+      },
+      "a-steward-full-34": {
+        "id": "a-steward-full-34",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-35": {
+        "id": "a-steward-full-35",
+        "source": "t-steward-context-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-full-36": {
+        "id": "a-steward-full-36",
+        "source": "p-steward-context",
+        "target": "t-steward-propose",
+        "weight": 1
+      },
+      "a-steward-full-37": {
+        "id": "a-steward-full-37",
+        "source": "t-steward-propose",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-full-38": {
+        "id": "a-steward-full-38",
+        "source": "t-steward-propose",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-full-39": {
+        "id": "a-steward-full-39",
+        "source": "p-steward-responses",
+        "target": "t-steward-answer-prep",
+        "weight": 1
+      },
+      "a-steward-full-40": {
+        "id": "a-steward-full-40",
+        "source": "t-steward-answer-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-full-41": {
+        "id": "a-steward-full-41",
+        "source": "p-steward-responses",
+        "target": "t-steward-revise-prep",
+        "weight": 1
+      },
+      "a-steward-full-42": {
+        "id": "a-steward-full-42",
+        "source": "t-steward-revise-prep",
+        "target": "p-steward-context-cmd",
+        "weight": 1
+      },
+      "a-steward-full-43": {
+        "id": "a-steward-full-43",
+        "source": "p-steward-context",
+        "target": "t-steward-spec",
+        "weight": 1
+      },
+      "a-steward-full-44": {
+        "id": "a-steward-full-44",
+        "source": "t-steward-spec",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-full-45": {
+        "id": "a-steward-full-45",
+        "source": "t-steward-spec",
+        "target": "p-steward-spec-drafts",
+        "weight": 1
+      },
+      "a-steward-full-46": {
+        "id": "a-steward-full-46",
+        "source": "t-steward-spec",
+        "target": "p-steward-llm-errors",
+        "weight": 1
+      },
+      "a-steward-full-47": {
+        "id": "a-steward-full-47",
+        "source": "p-steward-spec-drafts",
+        "target": "t-steward-gate-prep",
+        "weight": 1
+      },
+      "a-steward-full-48": {
+        "id": "a-steward-full-48",
+        "source": "t-steward-gate-prep",
+        "target": "p-steward-gate-cmd",
+        "weight": 1
+      },
+      "a-steward-full-49": {
+        "id": "a-steward-full-49",
+        "source": "p-steward-gate-cmd",
+        "target": "t-steward-gate-cmd",
+        "weight": 1
+      },
+      "a-steward-full-50": {
+        "id": "a-steward-full-50",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-loop-log",
+        "weight": 1
+      },
+      "a-steward-full-51": {
+        "id": "a-steward-full-51",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-decisions",
+        "weight": 1
+      },
+      "a-steward-full-52": {
+        "id": "a-steward-full-52",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-prompts",
+        "weight": 1
+      },
+      "a-steward-full-53": {
+        "id": "a-steward-full-53",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-refused",
+        "weight": 1
+      },
+      "a-steward-full-54": {
+        "id": "a-steward-full-54",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-full-55": {
+        "id": "a-steward-full-55",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-56": {
+        "id": "a-steward-full-56",
+        "source": "t-steward-gate-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-full-57": {
+        "id": "a-steward-full-57",
+        "source": "p-steward-decisions",
+        "target": "t-steward-approve-prep",
+        "weight": 1
+      },
+      "a-steward-full-58": {
+        "id": "a-steward-full-58",
+        "source": "t-steward-approve-prep",
+        "target": "p-steward-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-full-59": {
+        "id": "a-steward-full-59",
+        "source": "p-steward-apply-cmd",
+        "target": "t-steward-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-full-60": {
+        "id": "a-steward-full-60",
+        "source": "p-steward-coders",
+        "target": "t-steward-apply-cmd",
+        "weight": 1
+      },
+      "a-steward-full-61": {
+        "id": "a-steward-full-61",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-build-log",
+        "weight": 1
+      },
+      "a-steward-full-62": {
+        "id": "a-steward-full-62",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-runs",
+        "weight": 1
+      },
+      "a-steward-full-63": {
+        "id": "a-steward-full-63",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-full-64": {
+        "id": "a-steward-full-64",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-verify-cmd",
+        "weight": 1
+      },
+      "a-steward-full-65": {
+        "id": "a-steward-full-65",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-66": {
+        "id": "a-steward-full-66",
+        "source": "t-steward-apply-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-full-67": {
+        "id": "a-steward-full-67",
+        "source": "p-steward-verify-cmd",
+        "target": "t-steward-verify-cmd",
+        "weight": 1
+      },
+      "a-steward-full-68": {
+        "id": "a-steward-full-68",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-build-log",
+        "weight": 1
+      },
+      "a-steward-full-69": {
+        "id": "a-steward-full-69",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-verification",
+        "weight": 1
+      },
+      "a-steward-full-70": {
+        "id": "a-steward-full-70",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-runs",
+        "weight": 1
+      },
+      "a-steward-full-71": {
+        "id": "a-steward-full-71",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-release-cmd",
+        "weight": 1
+      },
+      "a-steward-full-72": {
+        "id": "a-steward-full-72",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-73": {
+        "id": "a-steward-full-73",
+        "source": "t-steward-verify-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-full-74": {
+        "id": "a-steward-full-74",
+        "source": "p-steward-decisions",
+        "target": "t-steward-rollback-prep",
+        "weight": 1
+      },
+      "a-steward-full-75": {
+        "id": "a-steward-full-75",
+        "source": "t-steward-rollback-prep",
+        "target": "p-steward-release-cmd",
+        "weight": 1
+      },
+      "a-steward-full-76": {
+        "id": "a-steward-full-76",
+        "source": "p-steward-release-cmd",
+        "target": "t-steward-release-cmd",
+        "weight": 1
+      },
+      "a-steward-full-77": {
+        "id": "a-steward-full-77",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-build-log",
+        "weight": 1
+      },
+      "a-steward-full-78": {
+        "id": "a-steward-full-78",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-runs",
+        "weight": 1
+      },
+      "a-steward-full-79": {
+        "id": "a-steward-full-79",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-specs",
+        "weight": 1
+      },
+      "a-steward-full-80": {
+        "id": "a-steward-full-80",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-repo",
+        "weight": 1
+      },
+      "a-steward-full-81": {
+        "id": "a-steward-full-81",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-brain-cmd",
+        "weight": 1
+      },
+      "a-steward-full-82": {
+        "id": "a-steward-full-82",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-full-83": {
+        "id": "a-steward-full-83",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-84": {
+        "id": "a-steward-full-84",
+        "source": "t-steward-release-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-full-85": {
+        "id": "a-steward-full-85",
+        "source": "p-steward-charter",
+        "target": "t-steward-observe-cron",
+        "weight": 1
+      },
+      "a-steward-full-86": {
+        "id": "a-steward-full-86",
+        "source": "t-steward-observe-cron",
+        "target": "p-steward-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-full-87": {
+        "id": "a-steward-full-87",
+        "source": "p-steward-observe-cmd",
+        "target": "t-steward-observe-cmd",
+        "weight": 1
+      },
+      "a-steward-full-88": {
+        "id": "a-steward-full-88",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-observe-log",
+        "weight": 1
+      },
+      "a-steward-full-89": {
+        "id": "a-steward-full-89",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-health",
+        "weight": 1
+      },
+      "a-steward-full-90": {
+        "id": "a-steward-full-90",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-lanes",
+        "weight": 1
+      },
+      "a-steward-full-91": {
+        "id": "a-steward-full-91",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-map",
+        "weight": 1
+      },
+      "a-steward-full-92": {
+        "id": "a-steward-full-92",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-budget",
+        "weight": 1
+      },
+      "a-steward-full-93": {
+        "id": "a-steward-full-93",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-iterate",
+        "weight": 1
+      },
+      "a-steward-full-94": {
+        "id": "a-steward-full-94",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-95": {
+        "id": "a-steward-full-95",
+        "source": "t-steward-observe-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      },
+      "a-steward-full-96": {
+        "id": "a-steward-full-96",
+        "source": "p-steward-charter",
+        "target": "t-steward-infra-tick",
+        "weight": 1
+      },
+      "a-steward-full-97": {
+        "id": "a-steward-full-97",
+        "source": "t-steward-infra-tick",
+        "target": "p-steward-setup-cmd",
+        "weight": 1
+      },
+      "a-steward-full-98": {
+        "id": "a-steward-full-98",
+        "source": "p-steward-setup-cmd",
+        "target": "t-steward-setup-cmd",
+        "weight": 1
+      },
+      "a-steward-full-99": {
+        "id": "a-steward-full-99",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-setup-log",
+        "weight": 1
+      },
+      "a-steward-full-100": {
+        "id": "a-steward-full-100",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-infra",
+        "weight": 1
+      },
+      "a-steward-full-101": {
+        "id": "a-steward-full-101",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-repo",
+        "weight": 1
+      },
+      "a-steward-full-102": {
+        "id": "a-steward-full-102",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-full-103": {
+        "id": "a-steward-full-103",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    }
+  }
+}

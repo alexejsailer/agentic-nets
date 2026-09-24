@@ -1,0 +1,121 @@
+{
+  "net": {
+    "id": "steward-view-setup",
+    "description": "Designtime view: stage 0, measure the host, store the token, clone the pack repository",
+    "places": {
+      "p-steward-charter": {
+        "id": "p-steward-charter",
+        "label": "charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-steward-errors": {
+        "id": "p-steward-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-steward-infra": {
+        "id": "p-steward-infra",
+        "label": "infra health",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-steward-journal": {
+        "id": "p-steward-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-steward-repo": {
+        "id": "p-steward-repo",
+        "label": "pack repository record",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-steward-setup-cmd": {
+        "id": "p-steward-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-steward-setup-log": {
+        "id": "p-steward-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      }
+    },
+    "transitions": {
+      "t-steward-infra-tick": {
+        "id": "t-steward-infra-tick",
+        "label": "health tick, hourly",
+        "x": 285.0,
+        "y": 290.0
+      },
+      "t-steward-setup-cmd": {
+        "id": "t-steward-setup-cmd",
+        "label": "setup process",
+        "x": 635.0,
+        "y": 290.0
+      }
+    },
+    "arcs": {
+      "a-steward-view-setup-01": {
+        "id": "a-steward-view-setup-01",
+        "source": "p-steward-charter",
+        "target": "t-steward-infra-tick",
+        "weight": 1
+      },
+      "a-steward-view-setup-02": {
+        "id": "a-steward-view-setup-02",
+        "source": "t-steward-infra-tick",
+        "target": "p-steward-setup-cmd",
+        "weight": 1
+      },
+      "a-steward-view-setup-03": {
+        "id": "a-steward-view-setup-03",
+        "source": "p-steward-setup-cmd",
+        "target": "t-steward-setup-cmd",
+        "weight": 1
+      },
+      "a-steward-view-setup-04": {
+        "id": "a-steward-view-setup-04",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-setup-log",
+        "weight": 1
+      },
+      "a-steward-view-setup-05": {
+        "id": "a-steward-view-setup-05",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-infra",
+        "weight": 1
+      },
+      "a-steward-view-setup-06": {
+        "id": "a-steward-view-setup-06",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-repo",
+        "weight": 1
+      },
+      "a-steward-view-setup-07": {
+        "id": "a-steward-view-setup-07",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-journal",
+        "weight": 1
+      },
+      "a-steward-view-setup-08": {
+        "id": "a-steward-view-setup-08",
+        "source": "t-steward-setup-cmd",
+        "target": "p-steward-errors",
+        "weight": 1
+      }
+    }
+  }
+}
