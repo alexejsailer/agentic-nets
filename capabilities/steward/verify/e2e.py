@@ -327,7 +327,8 @@ def main():
                 for t in m.query("p-steward-context"):
                     m.delete("p-steward-context", t["id"])
                 m.put("p-steward-prompts", {"promptId": ctx.get("promptId"), "iterationId": ctx.get("iterationId"), "mode": "goal", "question": "What should this model become?", "options": [], "rationale": "injected", "at": now()}, "injected-goal")
-            goal_prompt, dt = m.wait(lambda: m.newest("p-steward-prompts", "at", 'FROM $ WHERE $.mode == "goal"') or None, 240, 3, "goal prompt")
+                    # the first command of a freshly registered lane has been measured at ~4 min on 2.59.0 (later ones fire in seconds); wait long enough to MEASURE it
+            goal_prompt, dt = m.wait(lambda: m.newest("p-steward-prompts", "at", 'FROM $ WHERE $.mode == "goal"') or None, 480, 3, "goal prompt")
             check("goal-ask", bool(goal_prompt.get("promptId")), "the Steward asked for the goal %ss after the observation (brief %d chars)" % (dt, len(str(m.newest("p-steward-context", "at").get("brief", ""))) if m.count("p-steward-context") else 0))
         except Exception as e:  # noqa: BLE001
             stages.fail("observe", e)

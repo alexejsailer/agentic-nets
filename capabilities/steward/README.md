@@ -117,11 +117,13 @@ output shape (`verify/test_detector.py` checks the scoring).
 - First live cycle end to end after one approval click: coder 211 s and 37 turns, verify, install
   as an upgrade, release, curation, next proposal. A protected-set spec was refused in 20 s. A
   rollback through the app reinstalled the previous version.
-- Three runtime findings went into master the same day: a hub install left master-side lanes in
+- Four runtime findings went into master the same day: a hub install left master-side lanes in
   STARTING (now started through the runtime: 24 of 24 running within 6 s); a downgrade kept lanes
   the newer version had added (now removed and reported); a singleton agent tool executor shared
   its emission tracking across concurrent sessions and suppressed a one-shot answer (now per
-  session). The e2e harness found the third one.
+  session); the executor poll path ignored `optional` presets, so the brief lane, which reads open
+  ideas optionally, waited about four minutes for its first fire after an install (now the
+  inscription-aware check). The e2e harness found the last two.
 
 ## Files
 

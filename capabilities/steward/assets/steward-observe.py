@@ -337,6 +337,27 @@ def adrs(status=None):
     return [a for a in rows if status is None or a.get("status") == status]
 
 
+def open_prompts(answered, decided):
+    """The questions still waiting for the person: an approval whose spec has no decision, and for
+    every other iteration only its NEWEST question (a reshaped question supersedes the older one,
+    whose answer was consumed by the reshape) when nobody answered it."""
+    newest_per_iteration = {}
+    out = []
+    for t in query(P["prompts"], "FROM $", 300):
+        d = t.get("data") or {}
+        if d.get("kind") == "approval":
+            if d.get("specId") and d.get("specId") not in decided:
+                out.append(d)
+            continue
+        key = str(d.get("iterationId") or d.get("promptId"))
+        if key not in newest_per_iteration or str(d.get("at", "")) > str(newest_per_iteration[key].get("at", "")):
+            newest_per_iteration[key] = d
+    for d in newest_per_iteration.values():
+        if d.get("promptId") and d.get("promptId") not in answered:
+            out.append(d)
+    return out
+
+
 def loop_busy():
     """True while an iteration is in flight: a trigger, a brief, an unanswered question, a draft at the gate
     or a run. Whoever wants to start the next iteration asks this first, so one refusal or rollback never
@@ -348,12 +369,8 @@ def loop_busy():
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
     decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
     decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
-    for t in query(P["prompts"], "FROM $", 200):
-        d = t.get("data") or {}
-        if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
-            return True
-        if d.get("kind") != "approval" and d.get("promptId") and d.get("promptId") not in answered:
-            return True
+    for d in open_prompts(answered, decided):
+        return True
     return any((t.get("data") or {}).get("status") in ("coding", "building", "verifying", "releasing") for t in query(P["runs"], "FROM $", 100))
 
 
@@ -772,7 +789,8 @@ def stranded(rows, counts):
         for p in r["inputs"]:
             readers.setdefault(p, []).append(r)
     found = []
-    config_places = {P["charter"], P["coders"], P["ideas"]}  # read without consuming: never stranded
+    # read without consuming, or kept as history on purpose (answer receipts, the curation archive): never stranded
+    config_places = {P["charter"], P["coders"], P["ideas"], P["responses"], P["curations"]}
     for p, rs in readers.items():
         n = counts.get(p, 0)
         if n <= 0 or p in config_places:
@@ -817,13 +835,8 @@ def waiting_for_person():
     decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
     decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["runs"], "FROM $", 300)}  # an approval is consumed into a run
     decided |= {str((t.get("data") or {}).get("specId")) for t in query(P["specs"], "FROM $", 300) if (t.get("data") or {}).get("status") not in ("draft", "needs-approval")}
-    for t in query(P["prompts"], "FROM $", 200):
-        d = t.get("data") or {}
-        if d.get("kind") == "approval":
-            if d.get("specId") and d.get("specId") not in decided:
-                return "an approval waits"
-        elif d.get("promptId") and d.get("promptId") not in answered:
-            return "a question waits"
+    for d in open_prompts(answered, decided):
+        return "an approval waits" if d.get("kind") == "approval" else "a question waits"
     for t in query(P["specs"], 'FROM $ WHERE $.status == "draft"', 50):
         d = t.get("data") or {}
         if d.get("specId") not in decided:
