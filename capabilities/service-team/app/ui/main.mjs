@@ -62,7 +62,7 @@ const LIST_KEYS = ['scopePaths', 'readinessChecks'];
 const PERSONA = { proposal: 'product owner', 'spec-approval': 'architect', 'pack-approval': 'architect', merge: 'developer', brain: 'brain' };
 
 class ServiceTeamApp extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this._s = {}; this._tab = 'now'; this._form = {}; this._busy = new Set(); this._unsubs = []; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this._s = {}; this._tab = 'now'; this._form = {}; this._busy = new Set(); this._unsubs = []; this._open = new Set(); }
   set runtime(rt) { this._rt = rt; if (this.isConnected) this._boot(); }
   get runtime() { return this._rt; }
   connectedCallback() { if (this._rt) this._boot(); }
@@ -129,6 +129,7 @@ class ServiceTeamApp extends HTMLElement {
       ${this._paused() ? '<div class="banner">The team is paused. Resume it in Setup.</div>' : ''}
       ${body}</div>`;
     root.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => { this._tab = b.dataset.tab; this._render(); }));
+    root.querySelectorAll('details').forEach((d) => { const k = this._tab + '|' + (d.querySelector('summary')?.textContent || '').trim().slice(0, 120); if (this._open.has(k)) d.open = true; else if (d.open) this._open.add(k); d.addEventListener('toggle', () => { if (d.open) this._open.add(k); else this._open.delete(k); }); });
     root.querySelectorAll('[data-f]').forEach((el) => { el.addEventListener('input', () => { this._form[el.dataset.f] = el.value; }); if (el.tagName === 'SELECT') el.addEventListener('change', () => { this._form[el.dataset.f] = el.value; }); });
     root.querySelectorAll('[data-act]').forEach((el) => el.addEventListener('click', () => this._onAct(el.dataset.act, el.dataset.arg)));
     root.querySelectorAll('.opt[data-opt]').forEach((el) => el.addEventListener('click', (ev) => {
