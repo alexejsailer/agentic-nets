@@ -1,0 +1,121 @@
+{
+  "net": {
+    "id": "office-view-setup",
+    "description": "Designtime view: setup, health, provision, team registration, pause and resume",
+    "places": {
+      "p-product-charter": {
+        "id": "p-product-charter",
+        "label": "product charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-product-errors": {
+        "id": "p-product-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-product-infra": {
+        "id": "p-product-infra",
+        "label": "health, pause records",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-product-setup-cmd": {
+        "id": "p-product-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-product-setup-log": {
+        "id": "p-product-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-product-teams": {
+        "id": "p-product-teams",
+        "label": "team registry",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      }
+    },
+    "transitions": {
+      "t-office-infra-tick": {
+        "id": "t-office-infra-tick",
+        "label": "health tick, hourly",
+        "x": 285.0,
+        "y": 290.0
+      },
+      "t-office-setup-cmd": {
+        "id": "t-office-setup-cmd",
+        "label": "setup process",
+        "x": 635.0,
+        "y": 290.0
+      }
+    },
+    "arcs": {
+      "a-office-view-setup-01": {
+        "id": "a-office-view-setup-01",
+        "source": "p-product-charter",
+        "target": "t-office-infra-tick",
+        "weight": 1
+      },
+      "a-office-view-setup-02": {
+        "id": "a-office-view-setup-02",
+        "source": "t-office-infra-tick",
+        "target": "p-product-setup-cmd",
+        "weight": 1
+      },
+      "a-office-view-setup-03": {
+        "id": "a-office-view-setup-03",
+        "source": "p-product-setup-cmd",
+        "target": "t-office-setup-cmd",
+        "weight": 1
+      },
+      "a-office-view-setup-04": {
+        "id": "a-office-view-setup-04",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-setup-log",
+        "weight": 1
+      },
+      "a-office-view-setup-05": {
+        "id": "a-office-view-setup-05",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-infra",
+        "weight": 1
+      },
+      "a-office-view-setup-06": {
+        "id": "a-office-view-setup-06",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-teams",
+        "weight": 1
+      },
+      "a-office-view-setup-07": {
+        "id": "a-office-view-setup-07",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-view-setup-08": {
+        "id": "a-office-view-setup-08",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      }
+    }
+  }
+}

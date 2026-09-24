@@ -1,0 +1,703 @@
+{
+  "net": {
+    "id": "office-full",
+    "description": "Designtime view of the product office: every lane of the four nets in one drawing",
+    "places": {
+      "p-product-adr": {
+        "id": "p-product-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 190.0
+      },
+      "p-product-brain-cmd": {
+        "id": "p-product-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 340.0
+      },
+      "p-product-brain-log": {
+        "id": "p-product-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 2560.0,
+        "y": 240.0
+      },
+      "p-product-charter": {
+        "id": "p-product-charter",
+        "label": "product charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 190.0
+      },
+      "p-product-coders": {
+        "id": "p-product-coders",
+        "label": "coder definitions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-product-context": {
+        "id": "p-product-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 390.0
+      },
+      "p-product-curation": {
+        "id": "p-product-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "p-product-curations": {
+        "id": "p-product-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 390.0
+      },
+      "p-product-digest": {
+        "id": "p-product-digest",
+        "label": "digests",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 140.0
+      },
+      "p-product-digest-cmd": {
+        "id": "p-product-digest-cmd",
+        "label": "digest commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 190.0
+      },
+      "p-product-digest-log": {
+        "id": "p-product-digest-log",
+        "label": "digest log",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-product-errors": {
+        "id": "p-product-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-product-ideas": {
+        "id": "p-product-ideas",
+        "label": "ideas",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 490.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "inbox",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      },
+      "p-product-infra": {
+        "id": "p-product-infra",
+        "label": "health, pause records",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 540.0
+      },
+      "p-product-iterate": {
+        "id": "p-product-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 290.0
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 2560.0,
+        "y": 340.0
+      },
+      "p-product-knowledge": {
+        "id": "p-product-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 390.0
+      },
+      "p-product-llm-errors": {
+        "id": "p-product-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 490.0
+      },
+      "p-product-plan": {
+        "id": "p-product-plan",
+        "label": "the plan across teams",
+        "tokens": 0,
+        "x": 2385.0,
+        "y": 490.0
+      },
+      "p-product-plan-cmd": {
+        "id": "p-product-plan-cmd",
+        "label": "planning commands",
+        "tokens": 0,
+        "x": 2910.0,
+        "y": 340.0
+      },
+      "p-product-plan-log": {
+        "id": "p-product-plan-log",
+        "label": "planning log",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 240.0
+      },
+      "p-product-prompts": {
+        "id": "p-product-prompts",
+        "label": "the product manager's questions",
+        "tokens": 0,
+        "x": 2560.0,
+        "y": 440.0
+      },
+      "p-product-responses": {
+        "id": "p-product-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 490.0
+      },
+      "p-product-roadmap": {
+        "id": "p-product-roadmap",
+        "label": "roadmap",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 340.0
+      },
+      "p-product-setup-cmd": {
+        "id": "p-product-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-product-setup-log": {
+        "id": "p-product-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 190.0
+      },
+      "p-product-signals": {
+        "id": "p-product-signals",
+        "label": "signals per release",
+        "tokens": 0,
+        "x": 2035.0,
+        "y": 290.0
+      },
+      "p-product-specs": {
+        "id": "p-product-specs",
+        "label": "product-level specs",
+        "tokens": 0,
+        "x": 635.0,
+        "y": 440.0
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "status rows from the teams",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-product-teams": {
+        "id": "p-product-teams",
+        "label": "team registry",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 290.0
+      }
+    },
+    "transitions": {
+      "t-office-answer-knowledge-prep": {
+        "id": "t-office-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 985.0,
+        "y": 240.0
+      },
+      "t-office-answer-prep": {
+        "id": "t-office-answer-prep",
+        "label": "answer to allocation",
+        "x": 985.0,
+        "y": 340.0
+      },
+      "t-office-apply-prep": {
+        "id": "t-office-apply-prep",
+        "label": "curation to apply",
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "t-office-brain-apply-cmd": {
+        "id": "t-office-brain-apply-cmd",
+        "label": "apply the curation",
+        "x": 2210.0,
+        "y": 340.0
+      },
+      "t-office-brain-observe-cmd": {
+        "id": "t-office-brain-observe-cmd",
+        "label": "observe a release",
+        "x": 1860.0,
+        "y": 290.0
+      },
+      "t-office-curate": {
+        "id": "t-office-curate",
+        "label": "curate, one shot",
+        "x": 810.0,
+        "y": 390.0
+      },
+      "t-office-curate-cmd": {
+        "id": "t-office-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 1860.0,
+        "y": 390.0
+      },
+      "t-office-digest-cmd": {
+        "id": "t-office-digest-cmd",
+        "label": "digest across teams",
+        "x": 810.0,
+        "y": 190.0
+      },
+      "t-office-digest-cron": {
+        "id": "t-office-digest-cron",
+        "label": "digest, daily",
+        "x": 285.0,
+        "y": 240.0
+      },
+      "t-office-infra-tick": {
+        "id": "t-office-infra-tick",
+        "label": "health tick, hourly",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-office-iterate-prep": {
+        "id": "t-office-iterate-prep",
+        "label": "trigger to planning brief",
+        "x": 2735.0,
+        "y": 340.0
+      },
+      "t-office-plan": {
+        "id": "t-office-plan",
+        "label": "propose the next step, one shot",
+        "x": 810.0,
+        "y": 490.0
+      },
+      "t-office-plan-cmd": {
+        "id": "t-office-plan-cmd",
+        "label": "render the brief, allocate",
+        "x": 285.0,
+        "y": 440.0
+      },
+      "t-office-revise-prep": {
+        "id": "t-office-revise-prep",
+        "label": "reshape to brief",
+        "x": 985.0,
+        "y": 440.0
+      },
+      "t-office-setup-cmd": {
+        "id": "t-office-setup-cmd",
+        "label": "setup process",
+        "x": 810.0,
+        "y": 290.0
+      }
+    },
+    "arcs": {
+      "a-office-full-01": {
+        "id": "a-office-full-01",
+        "source": "p-product-brain-cmd",
+        "target": "t-office-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-office-full-02": {
+        "id": "a-office-full-02",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-brain-log",
+        "weight": 1
+      },
+      "a-office-full-03": {
+        "id": "a-office-full-03",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-signals",
+        "weight": 1
+      },
+      "a-office-full-04": {
+        "id": "a-office-full-04",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-context",
+        "weight": 1
+      },
+      "a-office-full-05": {
+        "id": "a-office-full-05",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-brain-cmd",
+        "weight": 1
+      },
+      "a-office-full-06": {
+        "id": "a-office-full-06",
+        "source": "t-office-brain-observe-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-full-07": {
+        "id": "a-office-full-07",
+        "source": "p-product-context",
+        "target": "t-office-curate",
+        "weight": 1
+      },
+      "a-office-full-08": {
+        "id": "a-office-full-08",
+        "source": "t-office-curate",
+        "target": "p-product-curation",
+        "weight": 1
+      },
+      "a-office-full-09": {
+        "id": "a-office-full-09",
+        "source": "t-office-curate",
+        "target": "p-product-curations",
+        "weight": 1
+      },
+      "a-office-full-10": {
+        "id": "a-office-full-10",
+        "source": "t-office-curate",
+        "target": "p-product-llm-errors",
+        "weight": 1
+      },
+      "a-office-full-11": {
+        "id": "a-office-full-11",
+        "source": "p-product-brain-cmd",
+        "target": "t-office-curate-cmd",
+        "weight": 1
+      },
+      "a-office-full-12": {
+        "id": "a-office-full-12",
+        "source": "t-office-curate-cmd",
+        "target": "p-product-brain-log",
+        "weight": 1
+      },
+      "a-office-full-13": {
+        "id": "a-office-full-13",
+        "source": "t-office-curate-cmd",
+        "target": "p-product-curation",
+        "weight": 1
+      },
+      "a-office-full-14": {
+        "id": "a-office-full-14",
+        "source": "t-office-curate-cmd",
+        "target": "p-product-curations",
+        "weight": 1
+      },
+      "a-office-full-15": {
+        "id": "a-office-full-15",
+        "source": "p-product-curation",
+        "target": "t-office-apply-prep",
+        "weight": 1
+      },
+      "a-office-full-16": {
+        "id": "a-office-full-16",
+        "source": "t-office-apply-prep",
+        "target": "p-product-brain-cmd",
+        "weight": 1
+      },
+      "a-office-full-17": {
+        "id": "a-office-full-17",
+        "source": "p-product-responses",
+        "target": "t-office-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-office-full-18": {
+        "id": "a-office-full-18",
+        "source": "t-office-answer-knowledge-prep",
+        "target": "p-product-brain-cmd",
+        "weight": 1
+      },
+      "a-office-full-19": {
+        "id": "a-office-full-19",
+        "source": "p-product-brain-cmd",
+        "target": "t-office-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-office-full-20": {
+        "id": "a-office-full-20",
+        "source": "p-product-curations",
+        "target": "t-office-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-office-full-21": {
+        "id": "a-office-full-21",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-brain-log",
+        "weight": 1
+      },
+      "a-office-full-22": {
+        "id": "a-office-full-22",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-knowledge",
+        "weight": 1
+      },
+      "a-office-full-23": {
+        "id": "a-office-full-23",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-plan",
+        "weight": 1
+      },
+      "a-office-full-24": {
+        "id": "a-office-full-24",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-adr",
+        "weight": 1
+      },
+      "a-office-full-25": {
+        "id": "a-office-full-25",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-prompts",
+        "weight": 1
+      },
+      "a-office-full-26": {
+        "id": "a-office-full-26",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-iterate",
+        "weight": 1
+      },
+      "a-office-full-27": {
+        "id": "a-office-full-27",
+        "source": "t-office-brain-apply-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-full-28": {
+        "id": "a-office-full-28",
+        "source": "p-product-charter",
+        "target": "t-office-digest-cron",
+        "weight": 1
+      },
+      "a-office-full-29": {
+        "id": "a-office-full-29",
+        "source": "t-office-digest-cron",
+        "target": "p-product-digest-cmd",
+        "weight": 1
+      },
+      "a-office-full-30": {
+        "id": "a-office-full-30",
+        "source": "p-product-digest-cmd",
+        "target": "t-office-digest-cmd",
+        "weight": 1
+      },
+      "a-office-full-31": {
+        "id": "a-office-full-31",
+        "source": "p-product-status",
+        "target": "t-office-digest-cmd",
+        "weight": 1
+      },
+      "a-office-full-32": {
+        "id": "a-office-full-32",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-digest-log",
+        "weight": 1
+      },
+      "a-office-full-33": {
+        "id": "a-office-full-33",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-digest",
+        "weight": 1
+      },
+      "a-office-full-34": {
+        "id": "a-office-full-34",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-office-full-35": {
+        "id": "a-office-full-35",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-full-36": {
+        "id": "a-office-full-36",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      },
+      "a-office-full-37": {
+        "id": "a-office-full-37",
+        "source": "p-product-iterate",
+        "target": "t-office-iterate-prep",
+        "weight": 1
+      },
+      "a-office-full-38": {
+        "id": "a-office-full-38",
+        "source": "t-office-iterate-prep",
+        "target": "p-product-plan-cmd",
+        "weight": 1
+      },
+      "a-office-full-39": {
+        "id": "a-office-full-39",
+        "source": "p-product-plan-cmd",
+        "target": "t-office-plan-cmd",
+        "weight": 1
+      },
+      "a-office-full-40": {
+        "id": "a-office-full-40",
+        "source": "p-product-ideas",
+        "target": "t-office-plan-cmd",
+        "weight": 1
+      },
+      "a-office-full-41": {
+        "id": "a-office-full-41",
+        "source": "p-product-coders",
+        "target": "t-office-plan-cmd",
+        "weight": 1
+      },
+      "a-office-full-42": {
+        "id": "a-office-full-42",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-plan-log",
+        "weight": 1
+      },
+      "a-office-full-43": {
+        "id": "a-office-full-43",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-context",
+        "weight": 1
+      },
+      "a-office-full-44": {
+        "id": "a-office-full-44",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-responses",
+        "weight": 1
+      },
+      "a-office-full-45": {
+        "id": "a-office-full-45",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-roadmap",
+        "weight": 1
+      },
+      "a-office-full-46": {
+        "id": "a-office-full-46",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-office-full-47": {
+        "id": "a-office-full-47",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-full-48": {
+        "id": "a-office-full-48",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      },
+      "a-office-full-49": {
+        "id": "a-office-full-49",
+        "source": "t-office-plan-cmd",
+        "target": "p-product-specs",
+        "weight": 1
+      },
+      "a-office-full-50": {
+        "id": "a-office-full-50",
+        "source": "p-product-context",
+        "target": "t-office-plan",
+        "weight": 1
+      },
+      "a-office-full-51": {
+        "id": "a-office-full-51",
+        "source": "t-office-plan",
+        "target": "p-product-prompts",
+        "weight": 1
+      },
+      "a-office-full-52": {
+        "id": "a-office-full-52",
+        "source": "t-office-plan",
+        "target": "p-product-llm-errors",
+        "weight": 1
+      },
+      "a-office-full-53": {
+        "id": "a-office-full-53",
+        "source": "p-product-responses",
+        "target": "t-office-answer-prep",
+        "weight": 1
+      },
+      "a-office-full-54": {
+        "id": "a-office-full-54",
+        "source": "t-office-answer-prep",
+        "target": "p-product-plan-cmd",
+        "weight": 1
+      },
+      "a-office-full-55": {
+        "id": "a-office-full-55",
+        "source": "p-product-responses",
+        "target": "t-office-revise-prep",
+        "weight": 1
+      },
+      "a-office-full-56": {
+        "id": "a-office-full-56",
+        "source": "t-office-revise-prep",
+        "target": "p-product-plan-cmd",
+        "weight": 1
+      },
+      "a-office-full-57": {
+        "id": "a-office-full-57",
+        "source": "p-product-charter",
+        "target": "t-office-infra-tick",
+        "weight": 1
+      },
+      "a-office-full-58": {
+        "id": "a-office-full-58",
+        "source": "t-office-infra-tick",
+        "target": "p-product-setup-cmd",
+        "weight": 1
+      },
+      "a-office-full-59": {
+        "id": "a-office-full-59",
+        "source": "p-product-setup-cmd",
+        "target": "t-office-setup-cmd",
+        "weight": 1
+      },
+      "a-office-full-60": {
+        "id": "a-office-full-60",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-setup-log",
+        "weight": 1
+      },
+      "a-office-full-61": {
+        "id": "a-office-full-61",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-infra",
+        "weight": 1
+      },
+      "a-office-full-62": {
+        "id": "a-office-full-62",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-teams",
+        "weight": 1
+      },
+      "a-office-full-63": {
+        "id": "a-office-full-63",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-full-64": {
+        "id": "a-office-full-64",
+        "source": "t-office-setup-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      }
+    }
+  }
+}

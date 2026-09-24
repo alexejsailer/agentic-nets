@@ -799,6 +799,12 @@ def slug(path):
     return "%s-%s" % (tail, hashlib.sha1(path.encode("utf-8")).hexdigest()[:6])
 
 
+def tail(path, n=2):
+    """The last segments of a module path: what a drawing can label without overlapping its neighbours."""
+    segs = [x for x in re.split(r"[/\\]+", str(path)) if x]
+    return "/".join(segs[-n:]) if segs else "root"
+
+
 def spec_place(module_path):
     return "p-%s-spec-%s" % (NAMESPACE or "team", slug(module_path))
 
@@ -856,16 +862,28 @@ def catalog(argv):
         if m["placeId"] in known:
             continue
         try:
-            mcp("add_place", {"netId": net_id, "sessionId": SESSION, "placeId": m["placeId"], "label": "spec: %s" % m["path"], "x": 120 + (i % 6) * 220, "y": 220 + (i // 6) * 140})
+            mcp("add_place", {"netId": net_id, "sessionId": SESSION, "placeId": m["placeId"], "label": "spec: %s" % tail(m["path"]), "x": 120 + (i % 5) * 300, "y": 260 + (i // 5) * 230})
             created += 1
         except Exception as e:  # noqa: BLE001
             if "exists" not in str(e).lower():
                 failed.append("%s: %s" % (m["placeId"], str(e)[:100])); continue
+        tid = "t-%s-spec-has-%s" % (NAMESPACE or "team", slug(m["path"]))
+        tx, ty = 60 + (i % 5) * 300, 160 + (i // 5) * 230
         try:
-            mcp("add_transition", {"netId": net_id, "sessionId": SESSION, "transitionId": "t-%s-spec-has-%s" % (NAMESPACE or "team", slug(m["path"])), "kind": "link", "inputPlace": P["spec_catalog"], "outputPlace": m["placeId"], "label": "contains " + m["path"], "relation": "contains", "start": False, "x": 60 + (i % 6) * 220, "y": 160 + (i // 6) * 140})
+            mcp("add_transition", {"netId": net_id, "sessionId": SESSION, "transitionId": tid, "kind": "link", "inputPlace": P["spec_catalog"], "outputPlace": m["placeId"], "label": "contains " + tail(m["path"]), "relation": "contains", "start": False, "x": tx, "y": ty})
             linked += 1
         except Exception as e:  # noqa: BLE001
-            if "exists" not in str(e).lower():
+            if "exists" in str(e).lower():
+                # the link is registered already (ids are model-global); make sure this session's drawing shows it
+                try:
+                    api("POST", "/api/designtime/nets/%s/transitions" % net_id, {"modelId": MODEL, "sessionId": SESSION, "transitionId": tid, "label": "contains " + tail(m["path"]), "x": tx, "y": ty})
+                    api("POST", "/api/designtime/nets/%s/arcs" % net_id, {"modelId": MODEL, "sessionId": SESSION, "arcId": "a-%s-in" % tid, "sourceId": P["spec_catalog"], "targetId": tid})
+                    api("POST", "/api/designtime/nets/%s/arcs" % net_id, {"modelId": MODEL, "sessionId": SESSION, "arcId": "a-%s-out" % tid, "sourceId": tid, "targetId": m["placeId"]})
+                    linked += 1
+                except RuntimeError as e2:
+                    if "exists" not in str(e2).lower() and "409" not in str(e2):
+                        failed.append("draw link %s: %s" % (tid, str(e2)[:100]))
+            else:
                 failed.append("link %s: %s" % (m["placeId"], str(e)[:100]))
     specs = [t.get("data") or {} for t in query(P["specs"], "FROM $", 300)]
     for m in mods:

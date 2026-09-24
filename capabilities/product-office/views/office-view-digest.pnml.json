@@ -1,0 +1,134 @@
+{
+  "net": {
+    "id": "office-view-digest",
+    "description": "Designtime view: the daily digest across teams",
+    "places": {
+      "p-product-charter": {
+        "id": "p-product-charter",
+        "label": "product charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 240.0
+      },
+      "p-product-digest": {
+        "id": "p-product-digest",
+        "label": "digests",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-product-digest-cmd": {
+        "id": "p-product-digest-cmd",
+        "label": "digest commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-product-digest-log": {
+        "id": "p-product-digest-log",
+        "label": "digest log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-product-errors": {
+        "id": "p-product-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "inbox",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      },
+      "p-product-journal": {
+        "id": "p-product-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "status rows from the teams",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      }
+    },
+    "transitions": {
+      "t-office-digest-cmd": {
+        "id": "t-office-digest-cmd",
+        "label": "digest across teams",
+        "x": 635.0,
+        "y": 290.0
+      },
+      "t-office-digest-cron": {
+        "id": "t-office-digest-cron",
+        "label": "digest, daily",
+        "x": 285.0,
+        "y": 290.0
+      }
+    },
+    "arcs": {
+      "a-office-view-digest-01": {
+        "id": "a-office-view-digest-01",
+        "source": "p-product-charter",
+        "target": "t-office-digest-cron",
+        "weight": 1
+      },
+      "a-office-view-digest-02": {
+        "id": "a-office-view-digest-02",
+        "source": "t-office-digest-cron",
+        "target": "p-product-digest-cmd",
+        "weight": 1
+      },
+      "a-office-view-digest-03": {
+        "id": "a-office-view-digest-03",
+        "source": "p-product-digest-cmd",
+        "target": "t-office-digest-cmd",
+        "weight": 1
+      },
+      "a-office-view-digest-04": {
+        "id": "a-office-view-digest-04",
+        "source": "p-product-status",
+        "target": "t-office-digest-cmd",
+        "weight": 1
+      },
+      "a-office-view-digest-05": {
+        "id": "a-office-view-digest-05",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-digest-log",
+        "weight": 1
+      },
+      "a-office-view-digest-06": {
+        "id": "a-office-view-digest-06",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-digest",
+        "weight": 1
+      },
+      "a-office-view-digest-07": {
+        "id": "a-office-view-digest-07",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-office-view-digest-08": {
+        "id": "a-office-view-digest-08",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-journal",
+        "weight": 1
+      },
+      "a-office-view-digest-09": {
+        "id": "a-office-view-digest-09",
+        "source": "t-office-digest-cmd",
+        "target": "p-product-errors",
+        "weight": 1
+      }
+    }
+  }
+}

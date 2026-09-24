@@ -1,0 +1,186 @@
+{
+  "net": {
+    "id": "node-team-view-setup",
+    "description": "Designtime view: setup, the health tick, provision, pause and resume",
+    "places": {
+      "p-node-team-charter": {
+        "id": "p-node-team-charter",
+        "label": "team charter",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-node-team-coders": {
+        "id": "p-node-team-coders",
+        "label": "coder overrides",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-node-team-errors": {
+        "id": "p-node-team-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 240.0
+      },
+      "p-node-team-infra": {
+        "id": "p-node-team-infra",
+        "label": "health, pause records",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 290.0
+      },
+      "p-node-team-journal": {
+        "id": "p-node-team-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-node-team-repo": {
+        "id": "p-node-team-repo",
+        "label": "clone record",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 390.0
+      },
+      "p-node-team-setup-cmd": {
+        "id": "p-node-team-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-node-team-setup-log": {
+        "id": "p-node-team-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 490.0
+      },
+      "p-node-team-status": {
+        "id": "p-node-team-status",
+        "label": "status rows",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 540.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "office inbox",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 140.0
+      },
+      "p-product-setup-cmd": {
+        "id": "p-product-setup-cmd",
+        "label": "office setup commands",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 190.0
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "office status rows",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 440.0
+      }
+    },
+    "transitions": {
+      "t-node-team-infra-tick": {
+        "id": "t-node-team-infra-tick",
+        "label": "health tick, hourly",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-node-team-setup-cmd": {
+        "id": "t-node-team-setup-cmd",
+        "label": "setup process",
+        "x": 635.0,
+        "y": 340.0
+      }
+    },
+    "arcs": {
+      "a-node-team-view-setup-01": {
+        "id": "a-node-team-view-setup-01",
+        "source": "p-node-team-charter",
+        "target": "t-node-team-infra-tick",
+        "weight": 1
+      },
+      "a-node-team-view-setup-02": {
+        "id": "a-node-team-view-setup-02",
+        "source": "t-node-team-infra-tick",
+        "target": "p-node-team-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-setup-03": {
+        "id": "a-node-team-view-setup-03",
+        "source": "p-node-team-setup-cmd",
+        "target": "t-node-team-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-setup-04": {
+        "id": "a-node-team-view-setup-04",
+        "source": "p-node-team-coders",
+        "target": "t-node-team-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-setup-05": {
+        "id": "a-node-team-view-setup-05",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-setup-log",
+        "weight": 1
+      },
+      "a-node-team-view-setup-06": {
+        "id": "a-node-team-view-setup-06",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-infra",
+        "weight": 1
+      },
+      "a-node-team-view-setup-07": {
+        "id": "a-node-team-view-setup-07",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-repo",
+        "weight": 1
+      },
+      "a-node-team-view-setup-08": {
+        "id": "a-node-team-view-setup-08",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-status",
+        "weight": 1
+      },
+      "a-node-team-view-setup-09": {
+        "id": "a-node-team-view-setup-09",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-product-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-setup-10": {
+        "id": "a-node-team-view-setup-10",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-view-setup-11": {
+        "id": "a-node-team-view-setup-11",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-view-setup-12": {
+        "id": "a-node-team-view-setup-12",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-view-setup-13": {
+        "id": "a-node-team-view-setup-13",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      }
+    }
+  }
+}

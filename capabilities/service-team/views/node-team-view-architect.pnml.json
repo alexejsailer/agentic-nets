@@ -1,0 +1,325 @@
+{
+  "net": {
+    "id": "node-team-view-architect",
+    "description": "Designtime view: the architect, from the requirement to the spec, its approval and the context pack",
+    "places": {
+      "p-node-team-acceptance-new": {
+        "id": "p-node-team-acceptance-new",
+        "label": "new acceptance (copy)",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-node-team-adr": {
+        "id": "p-node-team-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-node-team-arch": {
+        "id": "p-node-team-arch",
+        "label": "architecture notes",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 440.0
+      },
+      "p-node-team-arch-cmd": {
+        "id": "p-node-team-arch-cmd",
+        "label": "architect commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-node-team-arch-log": {
+        "id": "p-node-team-arch-log",
+        "label": "architect log",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 540.0
+      },
+      "p-node-team-briefs": {
+        "id": "p-node-team-briefs",
+        "label": "context packs",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 140.0
+      },
+      "p-node-team-context": {
+        "id": "p-node-team-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 240.0
+      },
+      "p-node-team-decisions": {
+        "id": "p-node-team-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 340.0
+      },
+      "p-node-team-errors": {
+        "id": "p-node-team-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 440.0
+      },
+      "p-node-team-journal": {
+        "id": "p-node-team-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 540.0
+      },
+      "p-node-team-llm-errors": {
+        "id": "p-node-team-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 240.0
+      },
+      "p-node-team-prompts": {
+        "id": "p-node-team-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-node-team-refused": {
+        "id": "p-node-team-refused",
+        "label": "refused by the gate",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-node-team-requirement-drafts": {
+        "id": "p-node-team-requirement-drafts",
+        "label": "drafts for the architect",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-node-team-spec-catalog": {
+        "id": "p-node-team-spec-catalog",
+        "label": "the spec catalog root",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      },
+      "p-node-team-spec-drafts": {
+        "id": "p-node-team-spec-drafts",
+        "label": "drafts for approval",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "p-node-team-specs": {
+        "id": "p-node-team-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 440.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "office inbox",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 140.0
+      },
+      "p-product-specs": {
+        "id": "p-product-specs",
+        "label": "product-level specs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 240.0
+      }
+    },
+    "transitions": {
+      "t-node-team-arch-cmd": {
+        "id": "t-node-team-arch-cmd",
+        "label": "architect process",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-node-team-design": {
+        "id": "t-node-team-design",
+        "label": "write the spec, one shot",
+        "x": 1335.0,
+        "y": 340.0
+      },
+      "t-node-team-design-prep": {
+        "id": "t-node-team-design-prep",
+        "label": "requirement to design brief",
+        "x": 285.0,
+        "y": 390.0
+      },
+      "t-node-team-pack-prep": {
+        "id": "t-node-team-pack-prep",
+        "label": "acceptance to context pack",
+        "x": 285.0,
+        "y": 290.0
+      },
+      "t-node-team-spec-gate-prep": {
+        "id": "t-node-team-spec-gate-prep",
+        "label": "spec to approval",
+        "x": 1685.0,
+        "y": 340.0
+      }
+    },
+    "arcs": {
+      "a-node-team-view-architect-01": {
+        "id": "a-node-team-view-architect-01",
+        "source": "p-node-team-requirement-drafts",
+        "target": "t-node-team-design-prep",
+        "weight": 1
+      },
+      "a-node-team-view-architect-02": {
+        "id": "a-node-team-view-architect-02",
+        "source": "t-node-team-design-prep",
+        "target": "p-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-architect-03": {
+        "id": "a-node-team-view-architect-03",
+        "source": "p-node-team-arch-cmd",
+        "target": "t-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-architect-04": {
+        "id": "a-node-team-view-architect-04",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-arch-log",
+        "weight": 1
+      },
+      "a-node-team-view-architect-05": {
+        "id": "a-node-team-view-architect-05",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-view-architect-06": {
+        "id": "a-node-team-view-architect-06",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-spec-catalog",
+        "weight": 1
+      },
+      "a-node-team-view-architect-07": {
+        "id": "a-node-team-view-architect-07",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-adr",
+        "weight": 1
+      },
+      "a-node-team-view-architect-08": {
+        "id": "a-node-team-view-architect-08",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-arch",
+        "weight": 1
+      },
+      "a-node-team-view-architect-09": {
+        "id": "a-node-team-view-architect-09",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-briefs",
+        "weight": 1
+      },
+      "a-node-team-view-architect-10": {
+        "id": "a-node-team-view-architect-10",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-decisions",
+        "weight": 1
+      },
+      "a-node-team-view-architect-11": {
+        "id": "a-node-team-view-architect-11",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-refused",
+        "weight": 1
+      },
+      "a-node-team-view-architect-12": {
+        "id": "a-node-team-view-architect-12",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-view-architect-13": {
+        "id": "a-node-team-view-architect-13",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-specs",
+        "weight": 1
+      },
+      "a-node-team-view-architect-14": {
+        "id": "a-node-team-view-architect-14",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-view-architect-15": {
+        "id": "a-node-team-view-architect-15",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-product-specs",
+        "weight": 1
+      },
+      "a-node-team-view-architect-16": {
+        "id": "a-node-team-view-architect-16",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-view-architect-17": {
+        "id": "a-node-team-view-architect-17",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-view-architect-18": {
+        "id": "a-node-team-view-architect-18",
+        "source": "p-node-team-context",
+        "target": "t-node-team-design",
+        "weight": 1
+      },
+      "a-node-team-view-architect-19": {
+        "id": "a-node-team-view-architect-19",
+        "source": "t-node-team-design",
+        "target": "p-node-team-specs",
+        "weight": 1
+      },
+      "a-node-team-view-architect-20": {
+        "id": "a-node-team-view-architect-20",
+        "source": "t-node-team-design",
+        "target": "p-node-team-spec-drafts",
+        "weight": 1
+      },
+      "a-node-team-view-architect-21": {
+        "id": "a-node-team-view-architect-21",
+        "source": "t-node-team-design",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-view-architect-22": {
+        "id": "a-node-team-view-architect-22",
+        "source": "p-node-team-spec-drafts",
+        "target": "t-node-team-spec-gate-prep",
+        "weight": 1
+      },
+      "a-node-team-view-architect-23": {
+        "id": "a-node-team-view-architect-23",
+        "source": "t-node-team-spec-gate-prep",
+        "target": "p-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-architect-24": {
+        "id": "a-node-team-view-architect-24",
+        "source": "p-node-team-acceptance-new",
+        "target": "t-node-team-pack-prep",
+        "weight": 1
+      },
+      "a-node-team-view-architect-25": {
+        "id": "a-node-team-view-architect-25",
+        "source": "t-node-team-pack-prep",
+        "target": "p-node-team-arch-cmd",
+        "weight": 1
+      }
+    }
+  }
+}

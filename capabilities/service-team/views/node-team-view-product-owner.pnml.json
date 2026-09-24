@@ -1,0 +1,334 @@
+{
+  "net": {
+    "id": "node-team-view-product-owner",
+    "description": "Designtime view: the product owner, from the allocated iteration to the requirement",
+    "places": {
+      "p-node-team-charter": {
+        "id": "p-node-team-charter",
+        "label": "team charter",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 290.0
+      },
+      "p-node-team-context": {
+        "id": "p-node-team-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-node-team-errors": {
+        "id": "p-node-team-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-node-team-ideas": {
+        "id": "p-node-team-ideas",
+        "label": "ideas",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-node-team-iterate": {
+        "id": "p-node-team-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-node-team-journal": {
+        "id": "p-node-team-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      },
+      "p-node-team-llm-errors": {
+        "id": "p-node-team-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 340.0
+      },
+      "p-node-team-po-cmd": {
+        "id": "p-node-team-po-cmd",
+        "label": "product owner commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-node-team-po-log": {
+        "id": "p-node-team-po-log",
+        "label": "product owner log",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 390.0
+      },
+      "p-node-team-prompt-new": {
+        "id": "p-node-team-prompt-new",
+        "label": "new questions (copy)",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 240.0
+      },
+      "p-node-team-prompts": {
+        "id": "p-node-team-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 140.0
+      },
+      "p-node-team-requirement-drafts": {
+        "id": "p-node-team-requirement-drafts",
+        "label": "drafts for the architect",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 440.0
+      },
+      "p-node-team-requirements": {
+        "id": "p-node-team-requirements",
+        "label": "requirements",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 540.0
+      },
+      "p-node-team-responses": {
+        "id": "p-node-team-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 190.0
+      },
+      "p-node-team-state": {
+        "id": "p-node-team-state",
+        "label": "the measured module",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 490.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "office inbox",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      }
+    },
+    "transitions": {
+      "t-node-team-answer-prep": {
+        "id": "t-node-team-answer-prep",
+        "label": "answer to brief",
+        "x": 1160.0,
+        "y": 390.0
+      },
+      "t-node-team-iterate-prep": {
+        "id": "t-node-team-iterate-prep",
+        "label": "trigger to brief",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-node-team-po-cmd": {
+        "id": "t-node-team-po-cmd",
+        "label": "product owner process",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-node-team-prompt-prep": {
+        "id": "t-node-team-prompt-prep",
+        "label": "question to the office",
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "t-node-team-propose": {
+        "id": "t-node-team-propose",
+        "label": "propose, one shot",
+        "x": 1160.0,
+        "y": 190.0
+      },
+      "t-node-team-requirement": {
+        "id": "t-node-team-requirement",
+        "label": "write the requirement, one shot",
+        "x": 1160.0,
+        "y": 290.0
+      },
+      "t-node-team-revise-prep": {
+        "id": "t-node-team-revise-prep",
+        "label": "reshape to brief",
+        "x": 1160.0,
+        "y": 490.0
+      }
+    },
+    "arcs": {
+      "a-node-team-view-product-owner-01": {
+        "id": "a-node-team-view-product-owner-01",
+        "source": "p-node-team-iterate",
+        "target": "t-node-team-iterate-prep",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-02": {
+        "id": "a-node-team-view-product-owner-02",
+        "source": "t-node-team-iterate-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-03": {
+        "id": "a-node-team-view-product-owner-03",
+        "source": "p-node-team-po-cmd",
+        "target": "t-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-04": {
+        "id": "a-node-team-view-product-owner-04",
+        "source": "p-node-team-ideas",
+        "target": "t-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-05": {
+        "id": "a-node-team-view-product-owner-05",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-po-log",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-06": {
+        "id": "a-node-team-view-product-owner-06",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-07": {
+        "id": "a-node-team-view-product-owner-07",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-state",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-08": {
+        "id": "a-node-team-view-product-owner-08",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-responses",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-09": {
+        "id": "a-node-team-view-product-owner-09",
+        "source": "t-node-team-po-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-10": {
+        "id": "a-node-team-view-product-owner-10",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-11": {
+        "id": "a-node-team-view-product-owner-11",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-12": {
+        "id": "a-node-team-view-product-owner-12",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-13": {
+        "id": "a-node-team-view-product-owner-13",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-14": {
+        "id": "a-node-team-view-product-owner-14",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-charter",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-15": {
+        "id": "a-node-team-view-product-owner-15",
+        "source": "p-node-team-context",
+        "target": "t-node-team-propose",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-16": {
+        "id": "a-node-team-view-product-owner-16",
+        "source": "t-node-team-propose",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-17": {
+        "id": "a-node-team-view-product-owner-17",
+        "source": "t-node-team-propose",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-18": {
+        "id": "a-node-team-view-product-owner-18",
+        "source": "t-node-team-propose",
+        "target": "p-node-team-prompt-new",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-19": {
+        "id": "a-node-team-view-product-owner-19",
+        "source": "p-node-team-prompt-new",
+        "target": "t-node-team-prompt-prep",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-20": {
+        "id": "a-node-team-view-product-owner-20",
+        "source": "t-node-team-prompt-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-21": {
+        "id": "a-node-team-view-product-owner-21",
+        "source": "p-node-team-responses",
+        "target": "t-node-team-answer-prep",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-22": {
+        "id": "a-node-team-view-product-owner-22",
+        "source": "t-node-team-answer-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-23": {
+        "id": "a-node-team-view-product-owner-23",
+        "source": "p-node-team-responses",
+        "target": "t-node-team-revise-prep",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-24": {
+        "id": "a-node-team-view-product-owner-24",
+        "source": "t-node-team-revise-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-25": {
+        "id": "a-node-team-view-product-owner-25",
+        "source": "p-node-team-context",
+        "target": "t-node-team-requirement",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-26": {
+        "id": "a-node-team-view-product-owner-26",
+        "source": "t-node-team-requirement",
+        "target": "p-node-team-requirements",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-27": {
+        "id": "a-node-team-view-product-owner-27",
+        "source": "t-node-team-requirement",
+        "target": "p-node-team-requirement-drafts",
+        "weight": 1
+      },
+      "a-node-team-view-product-owner-28": {
+        "id": "a-node-team-view-product-owner-28",
+        "source": "t-node-team-requirement",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      }
+    }
+  }
+}

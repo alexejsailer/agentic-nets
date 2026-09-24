@@ -1,0 +1,334 @@
+{
+  "net": {
+    "id": "node-team-view-brain",
+    "description": "Designtime view: the brain, observe a merge, curate, apply, answer",
+    "places": {
+      "p-node-team-adr": {
+        "id": "p-node-team-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 440.0
+      },
+      "p-node-team-brain-cmd": {
+        "id": "p-node-team-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-node-team-brain-log": {
+        "id": "p-node-team-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 240.0
+      },
+      "p-node-team-context": {
+        "id": "p-node-team-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-node-team-curation": {
+        "id": "p-node-team-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 340.0
+      },
+      "p-node-team-curations": {
+        "id": "p-node-team-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 440.0
+      },
+      "p-node-team-iterate": {
+        "id": "p-node-team-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 290.0
+      },
+      "p-node-team-journal": {
+        "id": "p-node-team-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 140.0
+      },
+      "p-node-team-knowledge": {
+        "id": "p-node-team-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 390.0
+      },
+      "p-node-team-llm-errors": {
+        "id": "p-node-team-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1160.0,
+        "y": 240.0
+      },
+      "p-node-team-plan": {
+        "id": "p-node-team-plan",
+        "label": "the plan",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 490.0
+      },
+      "p-node-team-prompts": {
+        "id": "p-node-team-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 540.0
+      },
+      "p-node-team-responses": {
+        "id": "p-node-team-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 340.0
+      },
+      "p-node-team-signals": {
+        "id": "p-node-team-signals",
+        "label": "signals per merge",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "office inbox",
+        "tokens": 0,
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "office status rows",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 190.0
+      }
+    },
+    "transitions": {
+      "t-node-team-answer-knowledge-prep": {
+        "id": "t-node-team-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-node-team-apply-prep": {
+        "id": "t-node-team-apply-prep",
+        "label": "curation to apply",
+        "x": 1335.0,
+        "y": 290.0
+      },
+      "t-node-team-brain-apply-cmd": {
+        "id": "t-node-team-brain-apply-cmd",
+        "label": "apply the curation",
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "t-node-team-brain-observe-cmd": {
+        "id": "t-node-team-brain-observe-cmd",
+        "label": "observe the merge",
+        "x": 635.0,
+        "y": 290.0
+      },
+      "t-node-team-curate": {
+        "id": "t-node-team-curate",
+        "label": "curate, one shot",
+        "x": 985.0,
+        "y": 340.0
+      },
+      "t-node-team-curate-cmd": {
+        "id": "t-node-team-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 635.0,
+        "y": 390.0
+      }
+    },
+    "arcs": {
+      "a-node-team-view-brain-01": {
+        "id": "a-node-team-view-brain-01",
+        "source": "p-node-team-brain-cmd",
+        "target": "t-node-team-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-02": {
+        "id": "a-node-team-view-brain-02",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-brain-log",
+        "weight": 1
+      },
+      "a-node-team-view-brain-03": {
+        "id": "a-node-team-view-brain-03",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-signals",
+        "weight": 1
+      },
+      "a-node-team-view-brain-04": {
+        "id": "a-node-team-view-brain-04",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-view-brain-05": {
+        "id": "a-node-team-view-brain-05",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-06": {
+        "id": "a-node-team-view-brain-06",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-view-brain-07": {
+        "id": "a-node-team-view-brain-07",
+        "source": "p-node-team-context",
+        "target": "t-node-team-curate",
+        "weight": 1
+      },
+      "a-node-team-view-brain-08": {
+        "id": "a-node-team-view-brain-08",
+        "source": "t-node-team-curate",
+        "target": "p-node-team-curation",
+        "weight": 1
+      },
+      "a-node-team-view-brain-09": {
+        "id": "a-node-team-view-brain-09",
+        "source": "t-node-team-curate",
+        "target": "p-node-team-curations",
+        "weight": 1
+      },
+      "a-node-team-view-brain-10": {
+        "id": "a-node-team-view-brain-10",
+        "source": "t-node-team-curate",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-view-brain-11": {
+        "id": "a-node-team-view-brain-11",
+        "source": "p-node-team-brain-cmd",
+        "target": "t-node-team-curate-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-12": {
+        "id": "a-node-team-view-brain-12",
+        "source": "t-node-team-curate-cmd",
+        "target": "p-node-team-brain-log",
+        "weight": 1
+      },
+      "a-node-team-view-brain-13": {
+        "id": "a-node-team-view-brain-13",
+        "source": "t-node-team-curate-cmd",
+        "target": "p-node-team-curation",
+        "weight": 1
+      },
+      "a-node-team-view-brain-14": {
+        "id": "a-node-team-view-brain-14",
+        "source": "t-node-team-curate-cmd",
+        "target": "p-node-team-curations",
+        "weight": 1
+      },
+      "a-node-team-view-brain-15": {
+        "id": "a-node-team-view-brain-15",
+        "source": "p-node-team-curation",
+        "target": "t-node-team-apply-prep",
+        "weight": 1
+      },
+      "a-node-team-view-brain-16": {
+        "id": "a-node-team-view-brain-16",
+        "source": "t-node-team-apply-prep",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-17": {
+        "id": "a-node-team-view-brain-17",
+        "source": "p-node-team-responses",
+        "target": "t-node-team-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-node-team-view-brain-18": {
+        "id": "a-node-team-view-brain-18",
+        "source": "t-node-team-answer-knowledge-prep",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-19": {
+        "id": "a-node-team-view-brain-19",
+        "source": "p-node-team-brain-cmd",
+        "target": "t-node-team-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-20": {
+        "id": "a-node-team-view-brain-20",
+        "source": "p-node-team-curations",
+        "target": "t-node-team-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-brain-21": {
+        "id": "a-node-team-view-brain-21",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-brain-log",
+        "weight": 1
+      },
+      "a-node-team-view-brain-22": {
+        "id": "a-node-team-view-brain-22",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-knowledge",
+        "weight": 1
+      },
+      "a-node-team-view-brain-23": {
+        "id": "a-node-team-view-brain-23",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-plan",
+        "weight": 1
+      },
+      "a-node-team-view-brain-24": {
+        "id": "a-node-team-view-brain-24",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-adr",
+        "weight": 1
+      },
+      "a-node-team-view-brain-25": {
+        "id": "a-node-team-view-brain-25",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-view-brain-26": {
+        "id": "a-node-team-view-brain-26",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-iterate",
+        "weight": 1
+      },
+      "a-node-team-view-brain-27": {
+        "id": "a-node-team-view-brain-27",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-view-brain-28": {
+        "id": "a-node-team-view-brain-28",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-view-brain-29": {
+        "id": "a-node-team-view-brain-29",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      }
+    }
+  }
+}

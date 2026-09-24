@@ -1,0 +1,1434 @@
+{
+  "net": {
+    "id": "node-team-full",
+    "description": "Designtime view of the node team: every lane of the seven nets in one drawing",
+    "places": {
+      "p-node-team-acceptance": {
+        "id": "p-node-team-acceptance",
+        "label": "acceptance criteria",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 540.0
+      },
+      "p-node-team-acceptance-new": {
+        "id": "p-node-team-acceptance-new",
+        "label": "new acceptance (copy)",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 440.0
+      },
+      "p-node-team-adr": {
+        "id": "p-node-team-adr",
+        "label": "decision records",
+        "tokens": 0,
+        "x": 2210.0,
+        "y": 490.0
+      },
+      "p-node-team-arch": {
+        "id": "p-node-team-arch",
+        "label": "architecture notes",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 440.0
+      },
+      "p-node-team-arch-cmd": {
+        "id": "p-node-team-arch-cmd",
+        "label": "architect commands",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 390.0
+      },
+      "p-node-team-arch-log": {
+        "id": "p-node-team-arch-log",
+        "label": "architect log",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 540.0
+      },
+      "p-node-team-brain-cmd": {
+        "id": "p-node-team-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 290.0
+      },
+      "p-node-team-brain-log": {
+        "id": "p-node-team-brain-log",
+        "label": "brain log",
+        "tokens": 0,
+        "x": 2210.0,
+        "y": 390.0
+      },
+      "p-node-team-briefs": {
+        "id": "p-node-team-briefs",
+        "label": "context packs",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 190.0
+      },
+      "p-node-team-bugs": {
+        "id": "p-node-team-bugs",
+        "label": "bugs",
+        "tokens": 0,
+        "x": 3610.0,
+        "y": 240.0
+      },
+      "p-node-team-charter": {
+        "id": "p-node-team-charter",
+        "label": "team charter",
+        "tokens": 0,
+        "x": 2910.0,
+        "y": 240.0
+      },
+      "p-node-team-coders": {
+        "id": "p-node-team-coders",
+        "label": "coder overrides",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-node-team-context": {
+        "id": "p-node-team-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 290.0
+      },
+      "p-node-team-curation": {
+        "id": "p-node-team-curation",
+        "label": "curation",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 240.0
+      },
+      "p-node-team-curations": {
+        "id": "p-node-team-curations",
+        "label": "curation archive",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 240.0
+      },
+      "p-node-team-decisions": {
+        "id": "p-node-team-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 290.0
+      },
+      "p-node-team-dev-cmd": {
+        "id": "p-node-team-dev-cmd",
+        "label": "developer commands",
+        "tokens": 0,
+        "x": 3960.0,
+        "y": 540.0
+      },
+      "p-node-team-dev-log": {
+        "id": "p-node-team-dev-log",
+        "label": "developer log",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 390.0
+      },
+      "p-node-team-errors": {
+        "id": "p-node-team-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 3785.0,
+        "y": 540.0
+      },
+      "p-node-team-ideas": {
+        "id": "p-node-team-ideas",
+        "label": "ideas",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-node-team-infra": {
+        "id": "p-node-team-infra",
+        "label": "health, pause records",
+        "tokens": 0,
+        "x": 3960.0,
+        "y": 240.0
+      },
+      "p-node-team-iterate": {
+        "id": "p-node-team-iterate",
+        "label": "iteration triggers",
+        "tokens": 0,
+        "x": 2210.0,
+        "y": 90.0
+      },
+      "p-node-team-journal": {
+        "id": "p-node-team-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 3785.0,
+        "y": 240.0
+      },
+      "p-node-team-knowledge": {
+        "id": "p-node-team-knowledge",
+        "label": "knowledge facts",
+        "tokens": 0,
+        "x": 2210.0,
+        "y": 190.0
+      },
+      "p-node-team-llm-errors": {
+        "id": "p-node-team-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 540.0
+      },
+      "p-node-team-plan": {
+        "id": "p-node-team-plan",
+        "label": "the plan",
+        "tokens": 0,
+        "x": 2210.0,
+        "y": 290.0
+      },
+      "p-node-team-po-cmd": {
+        "id": "p-node-team-po-cmd",
+        "label": "product owner commands",
+        "tokens": 0,
+        "x": 2560.0,
+        "y": 340.0
+      },
+      "p-node-team-po-log": {
+        "id": "p-node-team-po-log",
+        "label": "product owner log",
+        "tokens": 0,
+        "x": 2910.0,
+        "y": 340.0
+      },
+      "p-node-team-prompt-new": {
+        "id": "p-node-team-prompt-new",
+        "label": "new questions (copy)",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 140.0
+      },
+      "p-node-team-prompts": {
+        "id": "p-node-team-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 2910.0,
+        "y": 540.0
+      },
+      "p-node-team-qa-cmd": {
+        "id": "p-node-team-qa-cmd",
+        "label": "QA commands",
+        "tokens": 0,
+        "x": 3260.0,
+        "y": 290.0
+      },
+      "p-node-team-qa-log": {
+        "id": "p-node-team-qa-log",
+        "label": "QA log",
+        "tokens": 0,
+        "x": 3610.0,
+        "y": 340.0
+      },
+      "p-node-team-refused": {
+        "id": "p-node-team-refused",
+        "label": "refused by the gate",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 390.0
+      },
+      "p-node-team-repo": {
+        "id": "p-node-team-repo",
+        "label": "clone record",
+        "tokens": 0,
+        "x": 3960.0,
+        "y": 340.0
+      },
+      "p-node-team-requirement-drafts": {
+        "id": "p-node-team-requirement-drafts",
+        "label": "drafts for the architect",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 240.0
+      },
+      "p-node-team-requirements": {
+        "id": "p-node-team-requirements",
+        "label": "requirements",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 340.0
+      },
+      "p-node-team-responses": {
+        "id": "p-node-team-responses",
+        "label": "the person's answers",
+        "tokens": 0,
+        "x": 2910.0,
+        "y": 140.0
+      },
+      "p-node-team-review-new": {
+        "id": "p-node-team-review-new",
+        "label": "new reviews (copy)",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 340.0
+      },
+      "p-node-team-reviews": {
+        "id": "p-node-team-reviews",
+        "label": "reviews",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 440.0
+      },
+      "p-node-team-runs": {
+        "id": "p-node-team-runs",
+        "label": "coder runs",
+        "tokens": 0,
+        "x": 3610.0,
+        "y": 140.0
+      },
+      "p-node-team-scorecard": {
+        "id": "p-node-team-scorecard",
+        "label": "readiness scorecards",
+        "tokens": 0,
+        "x": 3610.0,
+        "y": 440.0
+      },
+      "p-node-team-setup-cmd": {
+        "id": "p-node-team-setup-cmd",
+        "label": "setup commands",
+        "tokens": 0,
+        "x": 3260.0,
+        "y": 390.0
+      },
+      "p-node-team-setup-log": {
+        "id": "p-node-team-setup-log",
+        "label": "setup log",
+        "tokens": 0,
+        "x": 3960.0,
+        "y": 440.0
+      },
+      "p-node-team-signals": {
+        "id": "p-node-team-signals",
+        "label": "signals per merge",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 140.0
+      },
+      "p-node-team-spec-catalog": {
+        "id": "p-node-team-spec-catalog",
+        "label": "the spec catalog root",
+        "tokens": 0,
+        "x": 1860.0,
+        "y": 490.0
+      },
+      "p-node-team-spec-drafts": {
+        "id": "p-node-team-spec-drafts",
+        "label": "drafts for approval",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 140.0
+      },
+      "p-node-team-specs": {
+        "id": "p-node-team-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 2210.0,
+        "y": 590.0
+      },
+      "p-node-team-state": {
+        "id": "p-node-team-state",
+        "label": "the measured module",
+        "tokens": 0,
+        "x": 2910.0,
+        "y": 440.0
+      },
+      "p-node-team-status": {
+        "id": "p-node-team-status",
+        "label": "status rows",
+        "tokens": 0,
+        "x": 3785.0,
+        "y": 440.0
+      },
+      "p-node-team-verification": {
+        "id": "p-node-team-verification",
+        "label": "verifications",
+        "tokens": 0,
+        "x": 3610.0,
+        "y": 540.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "office inbox",
+        "tokens": 0,
+        "x": 3785.0,
+        "y": 340.0
+      },
+      "p-product-setup-cmd": {
+        "id": "p-product-setup-cmd",
+        "label": "office setup commands",
+        "tokens": 0,
+        "x": 3960.0,
+        "y": 140.0
+      },
+      "p-product-specs": {
+        "id": "p-product-specs",
+        "label": "product-level specs",
+        "tokens": 0,
+        "x": 1685.0,
+        "y": 340.0
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "office status rows",
+        "tokens": 0,
+        "x": 3785.0,
+        "y": 140.0
+      }
+    },
+    "transitions": {
+      "t-node-team-acceptance": {
+        "id": "t-node-team-acceptance",
+        "label": "write the acceptance, one shot",
+        "x": 635.0,
+        "y": 590.0
+      },
+      "t-node-team-acceptance-prep": {
+        "id": "t-node-team-acceptance-prep",
+        "label": "approval to acceptance brief",
+        "x": 2035.0,
+        "y": 490.0
+      },
+      "t-node-team-answer-knowledge-prep": {
+        "id": "t-node-team-answer-knowledge-prep",
+        "label": "answer to brain",
+        "x": 3085.0,
+        "y": 140.0
+      },
+      "t-node-team-answer-prep": {
+        "id": "t-node-team-answer-prep",
+        "label": "answer to brief",
+        "x": 3085.0,
+        "y": 240.0
+      },
+      "t-node-team-apply-prep": {
+        "id": "t-node-team-apply-prep",
+        "label": "curation to apply",
+        "x": 1160.0,
+        "y": 190.0
+      },
+      "t-node-team-approve-prep": {
+        "id": "t-node-team-approve-prep",
+        "label": "approval to coder",
+        "x": 2035.0,
+        "y": 190.0
+      },
+      "t-node-team-arch-cmd": {
+        "id": "t-node-team-arch-cmd",
+        "label": "architect process",
+        "x": 1510.0,
+        "y": 440.0
+      },
+      "t-node-team-audit-cron": {
+        "id": "t-node-team-audit-cron",
+        "label": "readiness audit, weekly",
+        "x": 3085.0,
+        "y": 440.0
+      },
+      "t-node-team-brain-apply-cmd": {
+        "id": "t-node-team-brain-apply-cmd",
+        "label": "apply the curation",
+        "x": 2035.0,
+        "y": 90.0
+      },
+      "t-node-team-brain-observe-cmd": {
+        "id": "t-node-team-brain-observe-cmd",
+        "label": "observe the merge",
+        "x": 1510.0,
+        "y": 240.0
+      },
+      "t-node-team-changes-prep": {
+        "id": "t-node-team-changes-prep",
+        "label": "changes back to coder",
+        "x": 2035.0,
+        "y": 290.0
+      },
+      "t-node-team-curate": {
+        "id": "t-node-team-curate",
+        "label": "curate, one shot",
+        "x": 635.0,
+        "y": 190.0
+      },
+      "t-node-team-curate-cmd": {
+        "id": "t-node-team-curate-cmd",
+        "label": "curate, headless agent",
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "t-node-team-design": {
+        "id": "t-node-team-design",
+        "label": "write the spec, one shot",
+        "x": 635.0,
+        "y": 90.0
+      },
+      "t-node-team-design-prep": {
+        "id": "t-node-team-design-prep",
+        "label": "requirement to design brief",
+        "x": 1160.0,
+        "y": 490.0
+      },
+      "t-node-team-dev-cmd": {
+        "id": "t-node-team-dev-cmd",
+        "label": "developer process",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-node-team-infra-tick": {
+        "id": "t-node-team-infra-tick",
+        "label": "health tick, hourly",
+        "x": 3085.0,
+        "y": 540.0
+      },
+      "t-node-team-iterate-prep": {
+        "id": "t-node-team-iterate-prep",
+        "label": "trigger to brief",
+        "x": 2385.0,
+        "y": 340.0
+      },
+      "t-node-team-merge-ask-prep": {
+        "id": "t-node-team-merge-ask-prep",
+        "label": "verdict to merge question",
+        "x": 1160.0,
+        "y": 290.0
+      },
+      "t-node-team-merge-prep": {
+        "id": "t-node-team-merge-prep",
+        "label": "merge decision to merge",
+        "x": 2035.0,
+        "y": 390.0
+      },
+      "t-node-team-pack-prep": {
+        "id": "t-node-team-pack-prep",
+        "label": "acceptance to context pack",
+        "x": 1160.0,
+        "y": 590.0
+      },
+      "t-node-team-po-cmd": {
+        "id": "t-node-team-po-cmd",
+        "label": "product owner process",
+        "x": 2735.0,
+        "y": 340.0
+      },
+      "t-node-team-prompt-prep": {
+        "id": "t-node-team-prompt-prep",
+        "label": "question to the office",
+        "x": 1160.0,
+        "y": 390.0
+      },
+      "t-node-team-propose": {
+        "id": "t-node-team-propose",
+        "label": "propose, one shot",
+        "x": 635.0,
+        "y": 390.0
+      },
+      "t-node-team-qa-cmd": {
+        "id": "t-node-team-qa-cmd",
+        "label": "QA process",
+        "x": 3435.0,
+        "y": 290.0
+      },
+      "t-node-team-requirement": {
+        "id": "t-node-team-requirement",
+        "label": "write the requirement, one shot",
+        "x": 635.0,
+        "y": 490.0
+      },
+      "t-node-team-review": {
+        "id": "t-node-team-review",
+        "label": "review the diff, one shot",
+        "x": 635.0,
+        "y": 290.0
+      },
+      "t-node-team-revise-prep": {
+        "id": "t-node-team-revise-prep",
+        "label": "reshape to brief",
+        "x": 3085.0,
+        "y": 340.0
+      },
+      "t-node-team-setup-cmd": {
+        "id": "t-node-team-setup-cmd",
+        "label": "setup process",
+        "x": 3435.0,
+        "y": 390.0
+      },
+      "t-node-team-spec-gate-prep": {
+        "id": "t-node-team-spec-gate-prep",
+        "label": "spec to approval",
+        "x": 1160.0,
+        "y": 90.0
+      },
+      "t-node-team-spec-index": {
+        "id": "t-node-team-spec-index",
+        "label": "indexes (link)",
+        "x": 2035.0,
+        "y": 590.0
+      }
+    },
+    "arcs": {
+      "a-node-team-full-01": {
+        "id": "a-node-team-full-01",
+        "source": "p-node-team-requirement-drafts",
+        "target": "t-node-team-design-prep",
+        "weight": 1
+      },
+      "a-node-team-full-02": {
+        "id": "a-node-team-full-02",
+        "source": "t-node-team-design-prep",
+        "target": "p-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-03": {
+        "id": "a-node-team-full-03",
+        "source": "p-node-team-arch-cmd",
+        "target": "t-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-04": {
+        "id": "a-node-team-full-04",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-arch-log",
+        "weight": 1
+      },
+      "a-node-team-full-05": {
+        "id": "a-node-team-full-05",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-full-06": {
+        "id": "a-node-team-full-06",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-spec-catalog",
+        "weight": 1
+      },
+      "a-node-team-full-07": {
+        "id": "a-node-team-full-07",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-adr",
+        "weight": 1
+      },
+      "a-node-team-full-08": {
+        "id": "a-node-team-full-08",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-arch",
+        "weight": 1
+      },
+      "a-node-team-full-09": {
+        "id": "a-node-team-full-09",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-briefs",
+        "weight": 1
+      },
+      "a-node-team-full-10": {
+        "id": "a-node-team-full-10",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-decisions",
+        "weight": 1
+      },
+      "a-node-team-full-11": {
+        "id": "a-node-team-full-11",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-refused",
+        "weight": 1
+      },
+      "a-node-team-full-12": {
+        "id": "a-node-team-full-12",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-full-13": {
+        "id": "a-node-team-full-13",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-specs",
+        "weight": 1
+      },
+      "a-node-team-full-14": {
+        "id": "a-node-team-full-14",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-full-15": {
+        "id": "a-node-team-full-15",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-product-specs",
+        "weight": 1
+      },
+      "a-node-team-full-16": {
+        "id": "a-node-team-full-16",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-17": {
+        "id": "a-node-team-full-17",
+        "source": "t-node-team-arch-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-full-18": {
+        "id": "a-node-team-full-18",
+        "source": "p-node-team-context",
+        "target": "t-node-team-design",
+        "weight": 1
+      },
+      "a-node-team-full-19": {
+        "id": "a-node-team-full-19",
+        "source": "t-node-team-design",
+        "target": "p-node-team-specs",
+        "weight": 1
+      },
+      "a-node-team-full-20": {
+        "id": "a-node-team-full-20",
+        "source": "t-node-team-design",
+        "target": "p-node-team-spec-drafts",
+        "weight": 1
+      },
+      "a-node-team-full-21": {
+        "id": "a-node-team-full-21",
+        "source": "t-node-team-design",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-full-22": {
+        "id": "a-node-team-full-22",
+        "source": "p-node-team-spec-drafts",
+        "target": "t-node-team-spec-gate-prep",
+        "weight": 1
+      },
+      "a-node-team-full-23": {
+        "id": "a-node-team-full-23",
+        "source": "t-node-team-spec-gate-prep",
+        "target": "p-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-24": {
+        "id": "a-node-team-full-24",
+        "source": "p-node-team-acceptance-new",
+        "target": "t-node-team-pack-prep",
+        "weight": 1
+      },
+      "a-node-team-full-25": {
+        "id": "a-node-team-full-25",
+        "source": "t-node-team-pack-prep",
+        "target": "p-node-team-arch-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-26": {
+        "id": "a-node-team-full-26",
+        "source": "p-node-team-brain-cmd",
+        "target": "t-node-team-brain-observe-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-27": {
+        "id": "a-node-team-full-27",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-brain-log",
+        "weight": 1
+      },
+      "a-node-team-full-28": {
+        "id": "a-node-team-full-28",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-signals",
+        "weight": 1
+      },
+      "a-node-team-full-29": {
+        "id": "a-node-team-full-29",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-full-30": {
+        "id": "a-node-team-full-30",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-31": {
+        "id": "a-node-team-full-31",
+        "source": "t-node-team-brain-observe-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-32": {
+        "id": "a-node-team-full-32",
+        "source": "p-node-team-context",
+        "target": "t-node-team-curate",
+        "weight": 1
+      },
+      "a-node-team-full-33": {
+        "id": "a-node-team-full-33",
+        "source": "t-node-team-curate",
+        "target": "p-node-team-curation",
+        "weight": 1
+      },
+      "a-node-team-full-34": {
+        "id": "a-node-team-full-34",
+        "source": "t-node-team-curate",
+        "target": "p-node-team-curations",
+        "weight": 1
+      },
+      "a-node-team-full-35": {
+        "id": "a-node-team-full-35",
+        "source": "t-node-team-curate",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-full-36": {
+        "id": "a-node-team-full-36",
+        "source": "p-node-team-brain-cmd",
+        "target": "t-node-team-curate-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-37": {
+        "id": "a-node-team-full-37",
+        "source": "t-node-team-curate-cmd",
+        "target": "p-node-team-brain-log",
+        "weight": 1
+      },
+      "a-node-team-full-38": {
+        "id": "a-node-team-full-38",
+        "source": "t-node-team-curate-cmd",
+        "target": "p-node-team-curation",
+        "weight": 1
+      },
+      "a-node-team-full-39": {
+        "id": "a-node-team-full-39",
+        "source": "t-node-team-curate-cmd",
+        "target": "p-node-team-curations",
+        "weight": 1
+      },
+      "a-node-team-full-40": {
+        "id": "a-node-team-full-40",
+        "source": "p-node-team-curation",
+        "target": "t-node-team-apply-prep",
+        "weight": 1
+      },
+      "a-node-team-full-41": {
+        "id": "a-node-team-full-41",
+        "source": "t-node-team-apply-prep",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-42": {
+        "id": "a-node-team-full-42",
+        "source": "p-node-team-responses",
+        "target": "t-node-team-answer-knowledge-prep",
+        "weight": 1
+      },
+      "a-node-team-full-43": {
+        "id": "a-node-team-full-43",
+        "source": "t-node-team-answer-knowledge-prep",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-44": {
+        "id": "a-node-team-full-44",
+        "source": "p-node-team-brain-cmd",
+        "target": "t-node-team-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-45": {
+        "id": "a-node-team-full-45",
+        "source": "p-node-team-curations",
+        "target": "t-node-team-brain-apply-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-46": {
+        "id": "a-node-team-full-46",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-brain-log",
+        "weight": 1
+      },
+      "a-node-team-full-47": {
+        "id": "a-node-team-full-47",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-knowledge",
+        "weight": 1
+      },
+      "a-node-team-full-48": {
+        "id": "a-node-team-full-48",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-plan",
+        "weight": 1
+      },
+      "a-node-team-full-49": {
+        "id": "a-node-team-full-49",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-adr",
+        "weight": 1
+      },
+      "a-node-team-full-50": {
+        "id": "a-node-team-full-50",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-full-51": {
+        "id": "a-node-team-full-51",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-iterate",
+        "weight": 1
+      },
+      "a-node-team-full-52": {
+        "id": "a-node-team-full-52",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-53": {
+        "id": "a-node-team-full-53",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-full-54": {
+        "id": "a-node-team-full-54",
+        "source": "t-node-team-brain-apply-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-full-55": {
+        "id": "a-node-team-full-55",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-approve-prep",
+        "weight": 1
+      },
+      "a-node-team-full-56": {
+        "id": "a-node-team-full-56",
+        "source": "t-node-team-approve-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-57": {
+        "id": "a-node-team-full-57",
+        "source": "p-node-team-dev-cmd",
+        "target": "t-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-58": {
+        "id": "a-node-team-full-58",
+        "source": "p-node-team-coders",
+        "target": "t-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-59": {
+        "id": "a-node-team-full-59",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-dev-log",
+        "weight": 1
+      },
+      "a-node-team-full-60": {
+        "id": "a-node-team-full-60",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-full-61": {
+        "id": "a-node-team-full-61",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-runs",
+        "weight": 1
+      },
+      "a-node-team-full-62": {
+        "id": "a-node-team-full-62",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-qa-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-63": {
+        "id": "a-node-team-full-63",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-64": {
+        "id": "a-node-team-full-64",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-full-65": {
+        "id": "a-node-team-full-65",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-specs",
+        "weight": 1
+      },
+      "a-node-team-full-66": {
+        "id": "a-node-team-full-66",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-status",
+        "weight": 1
+      },
+      "a-node-team-full-67": {
+        "id": "a-node-team-full-67",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-full-68": {
+        "id": "a-node-team-full-68",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-full-69": {
+        "id": "a-node-team-full-69",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-70": {
+        "id": "a-node-team-full-70",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-full-71": {
+        "id": "a-node-team-full-71",
+        "source": "p-node-team-context",
+        "target": "t-node-team-review",
+        "weight": 1
+      },
+      "a-node-team-full-72": {
+        "id": "a-node-team-full-72",
+        "source": "t-node-team-review",
+        "target": "p-node-team-reviews",
+        "weight": 1
+      },
+      "a-node-team-full-73": {
+        "id": "a-node-team-full-73",
+        "source": "t-node-team-review",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-full-74": {
+        "id": "a-node-team-full-74",
+        "source": "t-node-team-review",
+        "target": "p-node-team-review-new",
+        "weight": 1
+      },
+      "a-node-team-full-75": {
+        "id": "a-node-team-full-75",
+        "source": "p-node-team-review-new",
+        "target": "t-node-team-merge-ask-prep",
+        "weight": 1
+      },
+      "a-node-team-full-76": {
+        "id": "a-node-team-full-76",
+        "source": "t-node-team-merge-ask-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-77": {
+        "id": "a-node-team-full-77",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-merge-prep",
+        "weight": 1
+      },
+      "a-node-team-full-78": {
+        "id": "a-node-team-full-78",
+        "source": "t-node-team-merge-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-79": {
+        "id": "a-node-team-full-79",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-changes-prep",
+        "weight": 1
+      },
+      "a-node-team-full-80": {
+        "id": "a-node-team-full-80",
+        "source": "t-node-team-changes-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-81": {
+        "id": "a-node-team-full-81",
+        "source": "p-node-team-iterate",
+        "target": "t-node-team-iterate-prep",
+        "weight": 1
+      },
+      "a-node-team-full-82": {
+        "id": "a-node-team-full-82",
+        "source": "t-node-team-iterate-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-83": {
+        "id": "a-node-team-full-83",
+        "source": "p-node-team-po-cmd",
+        "target": "t-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-84": {
+        "id": "a-node-team-full-84",
+        "source": "p-node-team-ideas",
+        "target": "t-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-85": {
+        "id": "a-node-team-full-85",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-po-log",
+        "weight": 1
+      },
+      "a-node-team-full-86": {
+        "id": "a-node-team-full-86",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-full-87": {
+        "id": "a-node-team-full-87",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-state",
+        "weight": 1
+      },
+      "a-node-team-full-88": {
+        "id": "a-node-team-full-88",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-responses",
+        "weight": 1
+      },
+      "a-node-team-full-89": {
+        "id": "a-node-team-full-89",
+        "source": "t-node-team-po-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-full-90": {
+        "id": "a-node-team-full-90",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-91": {
+        "id": "a-node-team-full-91",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-full-92": {
+        "id": "a-node-team-full-92",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-full-93": {
+        "id": "a-node-team-full-93",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-94": {
+        "id": "a-node-team-full-94",
+        "source": "t-node-team-po-cmd",
+        "target": "p-node-team-charter",
+        "weight": 1
+      },
+      "a-node-team-full-95": {
+        "id": "a-node-team-full-95",
+        "source": "p-node-team-context",
+        "target": "t-node-team-propose",
+        "weight": 1
+      },
+      "a-node-team-full-96": {
+        "id": "a-node-team-full-96",
+        "source": "t-node-team-propose",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-full-97": {
+        "id": "a-node-team-full-97",
+        "source": "t-node-team-propose",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-full-98": {
+        "id": "a-node-team-full-98",
+        "source": "t-node-team-propose",
+        "target": "p-node-team-prompt-new",
+        "weight": 1
+      },
+      "a-node-team-full-99": {
+        "id": "a-node-team-full-99",
+        "source": "p-node-team-prompt-new",
+        "target": "t-node-team-prompt-prep",
+        "weight": 1
+      },
+      "a-node-team-full-100": {
+        "id": "a-node-team-full-100",
+        "source": "t-node-team-prompt-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-101": {
+        "id": "a-node-team-full-101",
+        "source": "p-node-team-responses",
+        "target": "t-node-team-answer-prep",
+        "weight": 1
+      },
+      "a-node-team-full-102": {
+        "id": "a-node-team-full-102",
+        "source": "t-node-team-answer-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-103": {
+        "id": "a-node-team-full-103",
+        "source": "p-node-team-responses",
+        "target": "t-node-team-revise-prep",
+        "weight": 1
+      },
+      "a-node-team-full-104": {
+        "id": "a-node-team-full-104",
+        "source": "t-node-team-revise-prep",
+        "target": "p-node-team-po-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-105": {
+        "id": "a-node-team-full-105",
+        "source": "p-node-team-context",
+        "target": "t-node-team-requirement",
+        "weight": 1
+      },
+      "a-node-team-full-106": {
+        "id": "a-node-team-full-106",
+        "source": "t-node-team-requirement",
+        "target": "p-node-team-requirements",
+        "weight": 1
+      },
+      "a-node-team-full-107": {
+        "id": "a-node-team-full-107",
+        "source": "t-node-team-requirement",
+        "target": "p-node-team-requirement-drafts",
+        "weight": 1
+      },
+      "a-node-team-full-108": {
+        "id": "a-node-team-full-108",
+        "source": "t-node-team-requirement",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-full-109": {
+        "id": "a-node-team-full-109",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-acceptance-prep",
+        "weight": 1
+      },
+      "a-node-team-full-110": {
+        "id": "a-node-team-full-110",
+        "source": "t-node-team-acceptance-prep",
+        "target": "p-node-team-qa-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-111": {
+        "id": "a-node-team-full-111",
+        "source": "p-node-team-qa-cmd",
+        "target": "t-node-team-qa-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-112": {
+        "id": "a-node-team-full-112",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-qa-log",
+        "weight": 1
+      },
+      "a-node-team-full-113": {
+        "id": "a-node-team-full-113",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-full-114": {
+        "id": "a-node-team-full-114",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-verification",
+        "weight": 1
+      },
+      "a-node-team-full-115": {
+        "id": "a-node-team-full-115",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-scorecard",
+        "weight": 1
+      },
+      "a-node-team-full-116": {
+        "id": "a-node-team-full-116",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-bugs",
+        "weight": 1
+      },
+      "a-node-team-full-117": {
+        "id": "a-node-team-full-117",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-runs",
+        "weight": 1
+      },
+      "a-node-team-full-118": {
+        "id": "a-node-team-full-118",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-119": {
+        "id": "a-node-team-full-119",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-full-120": {
+        "id": "a-node-team-full-120",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-full-121": {
+        "id": "a-node-team-full-121",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-122": {
+        "id": "a-node-team-full-122",
+        "source": "t-node-team-qa-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-full-123": {
+        "id": "a-node-team-full-123",
+        "source": "p-node-team-context",
+        "target": "t-node-team-acceptance",
+        "weight": 1
+      },
+      "a-node-team-full-124": {
+        "id": "a-node-team-full-124",
+        "source": "t-node-team-acceptance",
+        "target": "p-node-team-acceptance",
+        "weight": 1
+      },
+      "a-node-team-full-125": {
+        "id": "a-node-team-full-125",
+        "source": "t-node-team-acceptance",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-full-126": {
+        "id": "a-node-team-full-126",
+        "source": "t-node-team-acceptance",
+        "target": "p-node-team-acceptance-new",
+        "weight": 1
+      },
+      "a-node-team-full-127": {
+        "id": "a-node-team-full-127",
+        "source": "p-node-team-charter",
+        "target": "t-node-team-audit-cron",
+        "weight": 1
+      },
+      "a-node-team-full-128": {
+        "id": "a-node-team-full-128",
+        "source": "t-node-team-audit-cron",
+        "target": "p-node-team-qa-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-129": {
+        "id": "a-node-team-full-129",
+        "source": "p-node-team-charter",
+        "target": "t-node-team-infra-tick",
+        "weight": 1
+      },
+      "a-node-team-full-130": {
+        "id": "a-node-team-full-130",
+        "source": "t-node-team-infra-tick",
+        "target": "p-node-team-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-131": {
+        "id": "a-node-team-full-131",
+        "source": "p-node-team-setup-cmd",
+        "target": "t-node-team-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-132": {
+        "id": "a-node-team-full-132",
+        "source": "p-node-team-coders",
+        "target": "t-node-team-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-133": {
+        "id": "a-node-team-full-133",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-setup-log",
+        "weight": 1
+      },
+      "a-node-team-full-134": {
+        "id": "a-node-team-full-134",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-infra",
+        "weight": 1
+      },
+      "a-node-team-full-135": {
+        "id": "a-node-team-full-135",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-repo",
+        "weight": 1
+      },
+      "a-node-team-full-136": {
+        "id": "a-node-team-full-136",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-status",
+        "weight": 1
+      },
+      "a-node-team-full-137": {
+        "id": "a-node-team-full-137",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-product-setup-cmd",
+        "weight": 1
+      },
+      "a-node-team-full-138": {
+        "id": "a-node-team-full-138",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-full-139": {
+        "id": "a-node-team-full-139",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-full-140": {
+        "id": "a-node-team-full-140",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-full-141": {
+        "id": "a-node-team-full-141",
+        "source": "t-node-team-setup-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-full-142": {
+        "id": "a-node-team-full-142",
+        "source": "p-node-team-spec-catalog",
+        "target": "t-node-team-spec-index",
+        "weight": 1
+      },
+      "a-node-team-full-143": {
+        "id": "a-node-team-full-143",
+        "source": "t-node-team-spec-index",
+        "target": "p-node-team-specs",
+        "weight": 1
+      }
+    }
+  }
+}

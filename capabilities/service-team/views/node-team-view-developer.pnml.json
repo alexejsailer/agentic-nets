@@ -1,0 +1,330 @@
+{
+  "net": {
+    "id": "node-team-view-developer",
+    "description": "Designtime view: the developer, from the approved pack to the coder, the review and the person's merge",
+    "places": {
+      "p-node-team-brain-cmd": {
+        "id": "p-node-team-brain-cmd",
+        "label": "brain commands",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 190.0
+      },
+      "p-node-team-coders": {
+        "id": "p-node-team-coders",
+        "label": "coder overrides",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 390.0
+      },
+      "p-node-team-context": {
+        "id": "p-node-team-context",
+        "label": "briefs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 190.0
+      },
+      "p-node-team-decisions": {
+        "id": "p-node-team-decisions",
+        "label": "the person's decisions",
+        "tokens": 0,
+        "x": 110.0,
+        "y": 290.0
+      },
+      "p-node-team-dev-cmd": {
+        "id": "p-node-team-dev-cmd",
+        "label": "developer commands",
+        "tokens": 0,
+        "x": 460.0,
+        "y": 340.0
+      },
+      "p-node-team-dev-log": {
+        "id": "p-node-team-dev-log",
+        "label": "developer log",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 290.0
+      },
+      "p-node-team-errors": {
+        "id": "p-node-team-errors",
+        "label": "errors",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 290.0
+      },
+      "p-node-team-journal": {
+        "id": "p-node-team-journal",
+        "label": "journal",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 390.0
+      },
+      "p-node-team-llm-errors": {
+        "id": "p-node-team-llm-errors",
+        "label": "contract misses",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 240.0
+      },
+      "p-node-team-prompts": {
+        "id": "p-node-team-prompts",
+        "label": "questions for the person",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 490.0
+      },
+      "p-node-team-qa-cmd": {
+        "id": "p-node-team-qa-cmd",
+        "label": "QA commands",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 390.0
+      },
+      "p-node-team-review-new": {
+        "id": "p-node-team-review-new",
+        "label": "new reviews (copy)",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 340.0
+      },
+      "p-node-team-reviews": {
+        "id": "p-node-team-reviews",
+        "label": "reviews",
+        "tokens": 0,
+        "x": 1335.0,
+        "y": 440.0
+      },
+      "p-node-team-runs": {
+        "id": "p-node-team-runs",
+        "label": "coder runs",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 490.0
+      },
+      "p-node-team-specs": {
+        "id": "p-node-team-specs",
+        "label": "specs",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 590.0
+      },
+      "p-node-team-status": {
+        "id": "p-node-team-status",
+        "label": "status rows",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 590.0
+      },
+      "p-product-inbox": {
+        "id": "p-product-inbox",
+        "label": "office inbox",
+        "tokens": 0,
+        "x": 810.0,
+        "y": 90.0
+      },
+      "p-product-status": {
+        "id": "p-product-status",
+        "label": "office status rows",
+        "tokens": 0,
+        "x": 985.0,
+        "y": 90.0
+      }
+    },
+    "transitions": {
+      "t-node-team-approve-prep": {
+        "id": "t-node-team-approve-prep",
+        "label": "approval to coder",
+        "x": 285.0,
+        "y": 240.0
+      },
+      "t-node-team-changes-prep": {
+        "id": "t-node-team-changes-prep",
+        "label": "changes back to coder",
+        "x": 285.0,
+        "y": 340.0
+      },
+      "t-node-team-dev-cmd": {
+        "id": "t-node-team-dev-cmd",
+        "label": "developer process",
+        "x": 635.0,
+        "y": 340.0
+      },
+      "t-node-team-merge-ask-prep": {
+        "id": "t-node-team-merge-ask-prep",
+        "label": "verdict to merge question",
+        "x": 1510.0,
+        "y": 340.0
+      },
+      "t-node-team-merge-prep": {
+        "id": "t-node-team-merge-prep",
+        "label": "merge decision to merge",
+        "x": 285.0,
+        "y": 440.0
+      },
+      "t-node-team-review": {
+        "id": "t-node-team-review",
+        "label": "review the diff, one shot",
+        "x": 1160.0,
+        "y": 340.0
+      }
+    },
+    "arcs": {
+      "a-node-team-view-developer-01": {
+        "id": "a-node-team-view-developer-01",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-approve-prep",
+        "weight": 1
+      },
+      "a-node-team-view-developer-02": {
+        "id": "a-node-team-view-developer-02",
+        "source": "t-node-team-approve-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-03": {
+        "id": "a-node-team-view-developer-03",
+        "source": "p-node-team-dev-cmd",
+        "target": "t-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-04": {
+        "id": "a-node-team-view-developer-04",
+        "source": "p-node-team-coders",
+        "target": "t-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-05": {
+        "id": "a-node-team-view-developer-05",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-dev-log",
+        "weight": 1
+      },
+      "a-node-team-view-developer-06": {
+        "id": "a-node-team-view-developer-06",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-context",
+        "weight": 1
+      },
+      "a-node-team-view-developer-07": {
+        "id": "a-node-team-view-developer-07",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-runs",
+        "weight": 1
+      },
+      "a-node-team-view-developer-08": {
+        "id": "a-node-team-view-developer-08",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-qa-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-09": {
+        "id": "a-node-team-view-developer-09",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-brain-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-10": {
+        "id": "a-node-team-view-developer-10",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-prompts",
+        "weight": 1
+      },
+      "a-node-team-view-developer-11": {
+        "id": "a-node-team-view-developer-11",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-specs",
+        "weight": 1
+      },
+      "a-node-team-view-developer-12": {
+        "id": "a-node-team-view-developer-12",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-status",
+        "weight": 1
+      },
+      "a-node-team-view-developer-13": {
+        "id": "a-node-team-view-developer-13",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-product-inbox",
+        "weight": 1
+      },
+      "a-node-team-view-developer-14": {
+        "id": "a-node-team-view-developer-14",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-product-status",
+        "weight": 1
+      },
+      "a-node-team-view-developer-15": {
+        "id": "a-node-team-view-developer-15",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-journal",
+        "weight": 1
+      },
+      "a-node-team-view-developer-16": {
+        "id": "a-node-team-view-developer-16",
+        "source": "t-node-team-dev-cmd",
+        "target": "p-node-team-errors",
+        "weight": 1
+      },
+      "a-node-team-view-developer-17": {
+        "id": "a-node-team-view-developer-17",
+        "source": "p-node-team-context",
+        "target": "t-node-team-review",
+        "weight": 1
+      },
+      "a-node-team-view-developer-18": {
+        "id": "a-node-team-view-developer-18",
+        "source": "t-node-team-review",
+        "target": "p-node-team-reviews",
+        "weight": 1
+      },
+      "a-node-team-view-developer-19": {
+        "id": "a-node-team-view-developer-19",
+        "source": "t-node-team-review",
+        "target": "p-node-team-llm-errors",
+        "weight": 1
+      },
+      "a-node-team-view-developer-20": {
+        "id": "a-node-team-view-developer-20",
+        "source": "t-node-team-review",
+        "target": "p-node-team-review-new",
+        "weight": 1
+      },
+      "a-node-team-view-developer-21": {
+        "id": "a-node-team-view-developer-21",
+        "source": "p-node-team-review-new",
+        "target": "t-node-team-merge-ask-prep",
+        "weight": 1
+      },
+      "a-node-team-view-developer-22": {
+        "id": "a-node-team-view-developer-22",
+        "source": "t-node-team-merge-ask-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-23": {
+        "id": "a-node-team-view-developer-23",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-merge-prep",
+        "weight": 1
+      },
+      "a-node-team-view-developer-24": {
+        "id": "a-node-team-view-developer-24",
+        "source": "t-node-team-merge-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      },
+      "a-node-team-view-developer-25": {
+        "id": "a-node-team-view-developer-25",
+        "source": "p-node-team-decisions",
+        "target": "t-node-team-changes-prep",
+        "weight": 1
+      },
+      "a-node-team-view-developer-26": {
+        "id": "a-node-team-view-developer-26",
+        "source": "t-node-team-changes-prep",
+        "target": "p-node-team-dev-cmd",
+        "weight": 1
+      }
+    }
+  }
+}
