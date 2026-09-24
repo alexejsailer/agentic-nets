@@ -1,7 +1,7 @@
 {
   "name": "steward",
   "displayName": "Steward",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Drive the Steward: a self-improving net that measures the model it lives in, proposes one bounded change at a time, and lets a headless coder apply it as a new pack version once you approve. Set the goal and the autonomy level, answer its questions, approve or reject specs, roll back a release, pause it. The configuration tab is always here.",
   "author": "AgenticNetOS",
   "tags": [
@@ -193,6 +193,12 @@
         "placeId": "p-steward-signals",
         "required": true,
         "description": "Signals collected after a release."
+      },
+      {
+        "role": "ideas",
+        "placeId": "p-steward-ideas",
+        "required": true,
+        "description": "Ideas from the person and the brain: open, taken (by a released spec) or dropped."
       }
     ],
     "actions": [
@@ -637,6 +643,69 @@
           "type": "object",
           "properties": {}
         }
+      },
+      {
+        "name": "add-idea",
+        "targetRole": "ideas",
+        "description": "Give the Steward an idea: a net, a lane, a tool net or a script this model could gain. Every proposal must consider open ideas.",
+        "defaults": {
+          "status": "open",
+          "by": "person"
+        },
+        "guard": {
+          "role": "ideas",
+          "matchKey": "ideaId",
+          "exists": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "ideaId",
+            "text",
+            "at"
+          ],
+          "properties": {
+            "ideaId": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "drop-idea",
+        "targetRole": "ideas",
+        "description": "Drop an idea (writes a new version with status dropped).",
+        "defaults": {
+          "status": "dropped"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "ideaId",
+            "text",
+            "at"
+          ],
+          "properties": {
+            "ideaId": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          }
+        }
       }
     ],
     "permissions": {
@@ -668,7 +737,8 @@
         "plan",
         "adr",
         "curations",
-        "signals"
+        "signals",
+        "ideas"
       ],
       "watchStores": [
         "prompts",
@@ -682,7 +752,8 @@
         "infra",
         "repo",
         "decisions",
-        "refused"
+        "refused",
+        "ideas"
       ],
       "actions": [
         "set-charter",
@@ -697,7 +768,9 @@
         "pause",
         "resume",
         "observe-now",
-        "curate-now"
+        "curate-now",
+        "add-idea",
+        "drop-idea"
       ]
     }
   }

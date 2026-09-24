@@ -80,6 +80,7 @@ P = {
     "knowledge": "p-steward-knowledge",
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
+    "ideas": "p-steward-ideas",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -91,7 +92,7 @@ PROTECTED_LANES = ["t-steward-observe-cron", "t-steward-observe-cmd", "t-steward
                    "t-steward-approve-prep", "t-steward-apply-cmd", "t-steward-verify-cmd", "t-steward-release-cmd", "t-steward-rollback-prep",
                    "t-steward-infra-tick", "t-steward-setup-cmd"]
 # The closed grammar of change specs; anything else is refused. `charter` is never a spec kind.
-SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "app"]
+SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "tool-net", "app"]
 # Which kinds an autonomy level applies WITHOUT a person's approval (levels 1 and 2 apply nothing).
 AUTONOMY_ALONE = {1: [], 2: [], 3: [], 4: ["tune", "view"], 5: ["tune", "view", "crystallise"]}
 # The application manifest must keep these, whatever the coder does to the rest of it.
@@ -329,6 +330,76 @@ def adrs(status=None):
             by_id[key] = d
     rows = sorted(by_id.values(), key=lambda a: str(a.get("adrId", "")))
     return [a for a in rows if status is None or a.get("status") == status]
+
+
+def loop_busy():
+    """True while an iteration is in flight: a trigger, a brief, an unanswered question, a draft at the gate
+    or a run. Whoever wants to start the next iteration asks this first, so one refusal or rollback never
+    stacks a second question on the person."""
+    if count(P["iterate"]) > 0 or count(P["context"]) > 0 or count(P["spec_drafts"]) > 0:
+        return True
+    answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
+    answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
+    decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    for t in query(P["prompts"], "FROM $", 200):
+        d = t.get("data") or {}
+        if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
+            return True
+        if d.get("kind") != "approval" and d.get("promptId") and d.get("promptId") not in answered:
+            return True
+    return any((t.get("data") or {}).get("status") in ("coding", "building", "verifying", "releasing") for t in query(P["runs"], "FROM $", 100))
+
+
+def start_iteration(reason, requested_by):
+    """Start the next iteration unless one is in flight; returns the iteration id or ''."""
+    if loop_busy():
+        return ""
+    it = "it-%s" % stamp()
+    put_token(P["iterate"], {"at": now(), "iterationId": it, "reason": reason, "requestedBy": requested_by}, name=it)
+    return it
+
+
+def pack_lane_ids():
+    """The pack's lanes as the runtime knows them: (transitionId, status) for every t-steward-* lane."""
+    listed = mcp("list_transitions", {})
+    rows = as_list(listed.get("transitions")) if isinstance(listed, dict) else as_list(listed)
+    out = []
+    for t in rows:
+        t = as_dict(t) if not isinstance(t, dict) else t
+        tid = str(t.get("transitionId") or t.get("id") or "")
+        if tid.startswith("t-steward-"):
+            out.append((tid, str(t.get("status", ""))))
+    return out
+
+
+def rearm_starting():
+    """A lane the installer just (re)started can sit in STARTING until it is stopped and started once
+    more (measured 2026-09-09 on 2.59.0: 13 of 23 lanes after a hub install, 12 of 24 after a
+    downgrade). Re-arm them; returns the lane ids."""
+    rearmed = []
+    for tid, status in pack_lane_ids():
+        if status == "STARTING":
+            try:
+                mcp("stop_transition", {"transitionId": tid}); mcp("start_transition", {"transitionId": tid}); rearmed.append(tid)
+            except Exception as e:  # noqa: BLE001
+                rearmed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return rearmed
+
+
+def remove_lanes(lane_ids):
+    """Stop and deregister lanes (a rollback removes what the rolled-back version added: the hub keeps
+    them on a downgrade, measured 2026-09-09)."""
+    removed = []
+    for tid in lane_ids:
+        try:
+            mcp("stop_transition", {"transitionId": tid})
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            mcp("delete_transition", {"transitionId": tid}); removed.append(tid)
+        except Exception as e:  # noqa: BLE001
+            removed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return removed
 
 
 def repo():
@@ -656,7 +727,8 @@ CONTRACT = ('Reply with exactly this shape and nothing else: {"curationId": "<fr
             '"source": "<runId, specId, lane id or file>", "confidence": "high|medium|low"}], "retireFacts": ["<factId>"], '
             '"plan": {"increments": [{"id": "inc-1", "title": "<one line>", "kind": "<spec kind>", "status": "planned|in-progress|released|dropped", "dependsOn": ["inc-0"], "specId": "<specId or empty>"}]}, '
             '"proposedDecisions": [{"title": "<short>", "context": "<why it came up>", "decision": "<what was decided>", "consequences": "<what it constrains>"}], '
-            '"questions": [{"question": "<what only the person can answer>", "why": "<what depends on it>"}], "summary": "<three sentences>"}')
+            '"questions": [{"question": "<what only the person can answer>", "why": "<what depends on it>"}], '
+            '"ideas": [{"text": "<a net, a lane, a tool net or a script this model could gain to serve the goal, one sentence with the evidence>"}], "summary": "<three sentences>"}')
 
 RULES = ("Rules: facts must be specific and sourced from the brief (a lane id, a place id, a measured number, a file); prefer few good facts over many; "
          "mark as platform what is true for the runtime and reusable elsewhere, as project what is about this model; propose a decision for every choice the coder "
@@ -717,6 +789,7 @@ def apply(argv):
     plan = cur.get("plan") if isinstance(cur.get("plan"), dict) else as_dict(cur.get("plan"))
     decisions = [d if isinstance(d, dict) else as_dict(d) for d in as_list(cur.get("proposedDecisions"))]
     questions = [q if isinstance(q, dict) else as_dict(q) for q in as_list(cur.get("questions"))]
+    idea_rows = [i if isinstance(i, dict) else as_dict(i) for i in as_list(cur.get("ideas"))]
     summary = str(cur.get("summary", ""))
     existing_norm = {norm(f.get("text")): f for f in active_facts()}
     added, skipped, retired, skipped_why = [], 0, 0, []
@@ -774,6 +847,15 @@ def apply(argv):
         put_token(P["prompts"], {"promptId": pid, "iterationId": "brain-%s" % curation_id, "kind": "brain", "mode": "interview", "question": question, "context": str(qn.get("why", ""))[:400],
                                  "options": [{"value": "q1", "label": question, "description": str(qn.get("why", ""))[:300]}], "allowFreeText": True, "rationale": "asked by the brain after %s" % run_id, "at": now()}, name=pid)
         asked += 1
+    ideas_added = 0
+    known_ideas = {norm(i.get("text", "")) for i in [t.get("data") or {} for t in query(P["ideas"], "FROM $", 300)]}
+    for i in idea_rows[:5]:
+        text = str(i.get("text", "")).strip()
+        if not text or norm(text) in known_ideas:
+            continue
+        iid = next_id("idea-", P["ideas"], "ideaId")
+        put_token(P["ideas"], {"ideaId": iid, "text": text[:600], "by": "brain", "status": "open", "at": now(), "source": curation_id}, name=iid)
+        known_ideas.add(norm(text)); ideas_added += 1
     started = ""
     sig = one(P["signals"], 'FROM $ WHERE $.runId == "%s" LIMIT 1' % run_id) if run_id else {}
     if str(sig.get("startIteration", "")).lower() == "true" and not sig.get("iterationStarted"):
@@ -782,8 +864,8 @@ def apply(argv):
         for t in query(P["signals"], 'FROM $ WHERE $.runId == "%s" LIMIT 5' % run_id, 5):
             d = t.get("data") or {}; d["iterationStarted"] = started
             delete_token(P["signals"], t["id"]); put_token(P["signals"], d, name="%s-done" % d.get("signalId", run_id))
-    journal("t-steward-brain-apply-cmd", "apply", "curation %s applied: +%d facts (%d skipped: %s), %d retired, plan %s, %d decisions proposed, %d questions%s; %s" % (
-        curation_id, len(added), skipped, ",".join(sorted(set(skipped_why))) or "-", retired, "replaced" if incs else "unchanged", proposed, asked, ("; next iteration %s started" % started) if started else "", summary[:160]), runId=run_id, curationId=curation_id)
+    journal("t-steward-brain-apply-cmd", "apply", "curation %s applied: +%d facts (%d skipped: %s), %d retired, plan %s, %d decisions proposed, %d questions, %d ideas%s; %s" % (
+        curation_id, len(added), skipped, ",".join(sorted(set(skipped_why))) or "-", retired, "replaced" if incs else "unchanged", proposed, asked, ideas_added, ("; next iteration %s started" % started) if started else "", summary[:160]), runId=run_id, curationId=curation_id)
     return {"success": True, "added": added, "skipped": skipped, "retired": retired, "planIncrements": len(incs), "proposedDecisions": proposed, "questions": asked, "nextIteration": started}
 
 

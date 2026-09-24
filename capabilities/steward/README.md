@@ -24,8 +24,16 @@ The pack is code in a repository; the previous version is the rollback. Whatever
 
 A spec is exactly one of: `tune` (an inscription, a prompt, a schedule, a capacity), `view`
 (a designtime drawing), `crystallise` (an agent lane becomes a map or command lane),
-`add-lane`, `remove-lane`, `add-net`, `add-script`, `app` (the application). The gate refuses
+`add-lane`, `remove-lane`, `add-net`, `add-script`, `tool-net` (a reusable tool net: a script or
+command tool in the tool catalog plus the net that exposes it), `app` (the application). The gate refuses
 anything else, anything that touches the protected set, and anything outside the charter's scope.
+
+## Ideas
+
+The person drops ideas in the application (Next step, Ideas); the brain adds ideas after every
+release. Every proposal must offer at least one option that serves an open idea, and a released spec
+that served one marks it taken. This is how the Steward receives which nets, lanes, tool nets or
+scripts the model could gain, instead of inventing everything itself.
 
 ## The protected set
 

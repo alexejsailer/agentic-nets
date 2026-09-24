@@ -9,6 +9,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import sys
 
 # >>> shared: stewardlib (generated, do not edit here)
@@ -80,6 +81,7 @@ P = {
     "knowledge": "p-steward-knowledge",
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
+    "ideas": "p-steward-ideas",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -91,7 +93,7 @@ PROTECTED_LANES = ["t-steward-observe-cron", "t-steward-observe-cmd", "t-steward
                    "t-steward-approve-prep", "t-steward-apply-cmd", "t-steward-verify-cmd", "t-steward-release-cmd", "t-steward-rollback-prep",
                    "t-steward-infra-tick", "t-steward-setup-cmd"]
 # The closed grammar of change specs; anything else is refused. `charter` is never a spec kind.
-SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "app"]
+SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "tool-net", "app"]
 # Which kinds an autonomy level applies WITHOUT a person's approval (levels 1 and 2 apply nothing).
 AUTONOMY_ALONE = {1: [], 2: [], 3: [], 4: ["tune", "view"], 5: ["tune", "view", "crystallise"]}
 # The application manifest must keep these, whatever the coder does to the rest of it.
@@ -329,6 +331,76 @@ def adrs(status=None):
             by_id[key] = d
     rows = sorted(by_id.values(), key=lambda a: str(a.get("adrId", "")))
     return [a for a in rows if status is None or a.get("status") == status]
+
+
+def loop_busy():
+    """True while an iteration is in flight: a trigger, a brief, an unanswered question, a draft at the gate
+    or a run. Whoever wants to start the next iteration asks this first, so one refusal or rollback never
+    stacks a second question on the person."""
+    if count(P["iterate"]) > 0 or count(P["context"]) > 0 or count(P["spec_drafts"]) > 0:
+        return True
+    answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
+    answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
+    decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    for t in query(P["prompts"], "FROM $", 200):
+        d = t.get("data") or {}
+        if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
+            return True
+        if d.get("kind") != "approval" and d.get("promptId") and d.get("promptId") not in answered:
+            return True
+    return any((t.get("data") or {}).get("status") in ("coding", "building", "verifying", "releasing") for t in query(P["runs"], "FROM $", 100))
+
+
+def start_iteration(reason, requested_by):
+    """Start the next iteration unless one is in flight; returns the iteration id or ''."""
+    if loop_busy():
+        return ""
+    it = "it-%s" % stamp()
+    put_token(P["iterate"], {"at": now(), "iterationId": it, "reason": reason, "requestedBy": requested_by}, name=it)
+    return it
+
+
+def pack_lane_ids():
+    """The pack's lanes as the runtime knows them: (transitionId, status) for every t-steward-* lane."""
+    listed = mcp("list_transitions", {})
+    rows = as_list(listed.get("transitions")) if isinstance(listed, dict) else as_list(listed)
+    out = []
+    for t in rows:
+        t = as_dict(t) if not isinstance(t, dict) else t
+        tid = str(t.get("transitionId") or t.get("id") or "")
+        if tid.startswith("t-steward-"):
+            out.append((tid, str(t.get("status", ""))))
+    return out
+
+
+def rearm_starting():
+    """A lane the installer just (re)started can sit in STARTING until it is stopped and started once
+    more (measured 2026-09-09 on 2.59.0: 13 of 23 lanes after a hub install, 12 of 24 after a
+    downgrade). Re-arm them; returns the lane ids."""
+    rearmed = []
+    for tid, status in pack_lane_ids():
+        if status == "STARTING":
+            try:
+                mcp("stop_transition", {"transitionId": tid}); mcp("start_transition", {"transitionId": tid}); rearmed.append(tid)
+            except Exception as e:  # noqa: BLE001
+                rearmed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return rearmed
+
+
+def remove_lanes(lane_ids):
+    """Stop and deregister lanes (a rollback removes what the rolled-back version added: the hub keeps
+    them on a downgrade, measured 2026-09-09)."""
+    removed = []
+    for tid in lane_ids:
+        try:
+            mcp("stop_transition", {"transitionId": tid})
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            mcp("delete_transition", {"transitionId": tid}); removed.append(tid)
+        except Exception as e:  # noqa: BLE001
+            removed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return removed
 
 
 def repo():
@@ -700,8 +772,12 @@ def apply(spec_id):
     started = now()
     old_version = str(rp.get("packVersion") or "")
     journal(LANE, "apply", "%s (%s) starts on %s (%s, kind %s, branch %s)" % (agent["title"], agent["model"], spec_id, str(s.get("title", ""))[:80], s.get("kind"), branch), specId=spec_id, runId=run_id)
+    try:
+        lanes_before = sorted(tid for tid, _ in pack_lane_ids())
+    except Exception:  # noqa: BLE001
+        lanes_before = []
     record_run({"at": now(), "startedAt": started, "runId": run_id, "specId": spec_id, "iterationId": s.get("iterationId", ""), "kind": s.get("kind", ""), "title": s.get("title", ""),
-                "branch": branch, "status": "coding", "coderAgent": agent["agentId"], "coderModel": agent["model"], "previousVersion": old_version})
+                "branch": branch, "status": "coding", "coderAgent": agent["agentId"], "coderModel": agent["model"], "previousVersion": old_version, "lanesBefore": lanes_before})
     replace_token(P["specs"], "specId", spec_id, {"status": "coding", "runId": run_id}, name="spec-%s" % spec_id)
     coder = run_headless(prompt, root, c, agent)
     # the pipeline's own steps: inline, build, compile, package, bump
@@ -726,6 +802,7 @@ def apply(spec_id):
         artifact = os.path.join(pack, "dist", "%s-%s.capability.json" % (PACK_NAME, new_version))
         if ok and not os.path.exists(artifact):
             steps.append("package: artifact %s missing" % artifact); ok = False
+    shutil.rmtree(os.path.join(pack, "assets", "__pycache__"), ignore_errors=True)
     rc2, status_out, _ = run(["git", "status", "--porcelain"], cwd=root, check=False)
     changed = [l[3:] for l in status_out.splitlines() if l.strip() and not l[3:].startswith(pack_rel + "/dist/")]
     git(["add", "-A", "--", pack_rel], cwd=root, check=False)
@@ -737,7 +814,7 @@ def apply(spec_id):
         "branch": branch, "base": base, "headSha": sha, "filesChanged": changed[:60], "diffStat": stat.strip(), "previousVersion": old_version, "packVersion": new_version, "artifact": artifact,
         "buildOk": str(ok).lower(), "buildSteps": steps, "coderSummary": str(coder["summary"].get("summary", ""))[:1200], "coderNotes": str(coder["summary"].get("notes", ""))[:800],
         "coderTouched": as_list(coder["summary"].get("touched"))[:40], "coderTurns": coder["turns"], "coderCostUsd": coder["costUsd"], "coderAgent": agent["agentId"], "coderModel": agent["model"],
-        "coderDurationSec": str(coder["durationSec"]), "coderError": str(coder["isError"]).lower(), "status": "built" if ok else "failed",
+        "coderDurationSec": str(coder["durationSec"]), "coderError": str(coder["isError"]).lower(), "status": "built" if ok else "failed", "lanesBefore": lanes_before,
     }
     record_run(data)
     replace_token(P["specs"], "specId", spec_id, {"status": "built" if ok else "failed", "runId": run_id, "packVersion": new_version}, name="spec-%s" % spec_id)
@@ -745,8 +822,7 @@ def apply(spec_id):
         put_token(P["verify_cmd"], command_token("steward-verify", ["verify", run_id], stage="verify", timeout_ms=1800000, runId=run_id, specId=spec_id), name="verify-%s" % run_id)
     else:
         git(["checkout", "-q", base], cwd=root, check=False)
-        it = "it-%s" % stamp()
-        put_token(P["iterate"], {"at": now(), "iterationId": it, "reason": "failed-%s" % run_id, "requestedBy": "steward-apply"}, name=it)
+        start_iteration("failed-%s" % run_id, "steward-apply")
     journal(LANE, "apply", "%s: %d files, %s -> %s, build %s (%s), %s/%s %ss/%s turns%s" % (
         spec_id, len(changed), old_version, new_version, "ok" if ok else "FAILED", "; ".join(x for x in steps if not x.endswith(": ok"))[:300] or "all steps ok", agent["agentId"], agent["model"], coder["durationSec"], coder["turns"] or "?",
         "" if ok else "; next iteration started"), runId=run_id, specId=spec_id, status=data["status"])

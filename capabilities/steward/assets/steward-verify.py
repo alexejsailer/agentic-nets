@@ -83,6 +83,7 @@ P = {
     "knowledge": "p-steward-knowledge",
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
+    "ideas": "p-steward-ideas",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -94,7 +95,7 @@ PROTECTED_LANES = ["t-steward-observe-cron", "t-steward-observe-cmd", "t-steward
                    "t-steward-approve-prep", "t-steward-apply-cmd", "t-steward-verify-cmd", "t-steward-release-cmd", "t-steward-rollback-prep",
                    "t-steward-infra-tick", "t-steward-setup-cmd"]
 # The closed grammar of change specs; anything else is refused. `charter` is never a spec kind.
-SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "app"]
+SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "tool-net", "app"]
 # Which kinds an autonomy level applies WITHOUT a person's approval (levels 1 and 2 apply nothing).
 AUTONOMY_ALONE = {1: [], 2: [], 3: [], 4: ["tune", "view"], 5: ["tune", "view", "crystallise"]}
 # The application manifest must keep these, whatever the coder does to the rest of it.
@@ -332,6 +333,76 @@ def adrs(status=None):
             by_id[key] = d
     rows = sorted(by_id.values(), key=lambda a: str(a.get("adrId", "")))
     return [a for a in rows if status is None or a.get("status") == status]
+
+
+def loop_busy():
+    """True while an iteration is in flight: a trigger, a brief, an unanswered question, a draft at the gate
+    or a run. Whoever wants to start the next iteration asks this first, so one refusal or rollback never
+    stacks a second question on the person."""
+    if count(P["iterate"]) > 0 or count(P["context"]) > 0 or count(P["spec_drafts"]) > 0:
+        return True
+    answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
+    answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
+    decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    for t in query(P["prompts"], "FROM $", 200):
+        d = t.get("data") or {}
+        if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
+            return True
+        if d.get("kind") != "approval" and d.get("promptId") and d.get("promptId") not in answered:
+            return True
+    return any((t.get("data") or {}).get("status") in ("coding", "building", "verifying", "releasing") for t in query(P["runs"], "FROM $", 100))
+
+
+def start_iteration(reason, requested_by):
+    """Start the next iteration unless one is in flight; returns the iteration id or ''."""
+    if loop_busy():
+        return ""
+    it = "it-%s" % stamp()
+    put_token(P["iterate"], {"at": now(), "iterationId": it, "reason": reason, "requestedBy": requested_by}, name=it)
+    return it
+
+
+def pack_lane_ids():
+    """The pack's lanes as the runtime knows them: (transitionId, status) for every t-steward-* lane."""
+    listed = mcp("list_transitions", {})
+    rows = as_list(listed.get("transitions")) if isinstance(listed, dict) else as_list(listed)
+    out = []
+    for t in rows:
+        t = as_dict(t) if not isinstance(t, dict) else t
+        tid = str(t.get("transitionId") or t.get("id") or "")
+        if tid.startswith("t-steward-"):
+            out.append((tid, str(t.get("status", ""))))
+    return out
+
+
+def rearm_starting():
+    """A lane the installer just (re)started can sit in STARTING until it is stopped and started once
+    more (measured 2026-09-09 on 2.59.0: 13 of 23 lanes after a hub install, 12 of 24 after a
+    downgrade). Re-arm them; returns the lane ids."""
+    rearmed = []
+    for tid, status in pack_lane_ids():
+        if status == "STARTING":
+            try:
+                mcp("stop_transition", {"transitionId": tid}); mcp("start_transition", {"transitionId": tid}); rearmed.append(tid)
+            except Exception as e:  # noqa: BLE001
+                rearmed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return rearmed
+
+
+def remove_lanes(lane_ids):
+    """Stop and deregister lanes (a rollback removes what the rolled-back version added: the hub keeps
+    them on a downgrade, measured 2026-09-09)."""
+    removed = []
+    for tid in lane_ids:
+        try:
+            mcp("stop_transition", {"transitionId": tid})
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            mcp("delete_transition", {"transitionId": tid}); removed.append(tid)
+        except Exception as e:  # noqa: BLE001
+            removed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return removed
 
 
 def repo():
@@ -642,8 +713,11 @@ def publish(artifact_path):
     return name, version, r
 
 
-def install(name, version):
-    return api("POST", "/api/hub/install", {"source": "local", "name": name, "version": version, "targetModelId": MODEL}, timeout=300)
+def install(name, version, allow_downgrade=False):
+    body = {"source": "local", "name": name, "version": version, "targetModelId": MODEL}
+    if allow_downgrade:
+        body["allowDowngrade"] = True  # the hub refuses to install an older version unless asked explicitly
+    return api("POST", "/api/hub/install", body, timeout=300)
 
 
 def pack_lanes(artifact_path):
@@ -659,28 +733,11 @@ def pack_lanes(artifact_path):
         net = as_dict(net) if not isinstance(net, dict) else net
         for ins in as_list(net.get("inscriptions")):
             ins = as_dict(ins) if not isinstance(ins, dict) else ins
-            if ins.get("id"):
-                ids.add(str(ins["id"]))
+            if ins.get("id") or ins.get("transitionId"):
+                ids.add(str(ins.get("id") or ins.get("transitionId")))
         for tid in ((net.get("pnml") or {}).get("net") or {}).get("transitions", {}) if isinstance(net.get("pnml"), dict) else []:
             ids.add(str(tid))
     return ids
-
-
-def rearm_starting():
-    """A lane the installer just (re)started can sit in STARTING until it is stopped and started
-    once more (measured 2026-09-09 on 2.59.0: 13 of 23 lanes after hub install). Re-arm them."""
-    rearmed = []
-    listed = mcp("list_transitions", {})
-    rows = as_list(listed.get("transitions")) if isinstance(listed, dict) else as_list(listed)
-    for t in rows:
-        t = as_dict(t) if not isinstance(t, dict) else t
-        tid = str(t.get("transitionId") or t.get("id") or "")
-        if tid.startswith("t-steward-") and str(t.get("status")) == "STARTING":
-            try:
-                mcp("stop_transition", {"transitionId": tid}); mcp("start_transition", {"transitionId": tid}); rearmed.append(tid)
-            except Exception as e:  # noqa: BLE001
-                rearmed.append("%s (failed: %s)" % (tid, str(e)[:60]))
-    return rearmed
 
 
 def smoke(touched, expected_lanes):
@@ -701,7 +758,7 @@ def smoke(touched, expected_lanes):
         checks.append("all %d pack lanes running or deployed" % len(expected_lanes))
     if errored:
         ok = False; checks.append("lanes in ERROR: %s" % ", ".join(errored[:10]))
-    for tid in [t for t in touched if str(t).startswith("t-")][:8]:
+    for tid in sorted({str(t) for t in touched if str(t).startswith("t-")})[:8]:
         try:
             v = mcp("verify_inscription", {"transitionId": tid})
             errs = [e for e in as_list(v.get("errors") or v.get("problems")) if isinstance(e, (str, dict))]
@@ -766,16 +823,22 @@ def verify(run_id):
     rolled = ""
     if installed and r.get("previousVersion"):
         try:
-            install(PACK_NAME, str(r["previousVersion"])); rolled = str(r["previousVersion"]); checks.append("rolled back to %s" % rolled)
+            install(PACK_NAME, str(r["previousVersion"]), allow_downgrade=True); rolled = str(r["previousVersion"]); checks.append("rolled back to %s" % rolled)
+            before = set(as_list(r.get("lanesBefore")))
+            extra = [tid for tid, _ in pack_lane_ids() if before and tid not in before]
+            if extra:
+                checks.append("removed the lanes the failed version added: %s" % ", ".join(remove_lanes(extra)))
+            rearmed = rearm_starting()
+            if rearmed:
+                checks.append("re-armed %d lane(s) after the rollback" % len(rearmed))
         except Exception as e:  # noqa: BLE001
             checks.append("ROLLBACK FAILED: %s" % str(e)[:300])
     git(["checkout", "-q", base], cwd=root, check=False)
     replace_token(P["runs"], "runId", run_id, {"status": "rolled-back" if (rolled or not installed) else "failed", "verifiedAt": now(), "rolledBackTo": rolled}, name="run-%s" % run_id)
     replace_token(P["specs"], "specId", r.get("specId", ""), {"status": "rolled-back"}, name="spec-%s" % r.get("specId", ""))
     replace_token(P["verification"], "runId", run_id, {"checks": checks, "rolledBackTo": rolled}, name="verification-%s" % run_id)
-    it = "it-%s" % stamp()
-    put_token(P["iterate"], {"at": now(), "iterationId": it, "reason": "rolled-back-%s" % run_id, "requestedBy": "steward-verify"}, name=it)
-    journal(LANE, "verify", "%s FAIL: %s; next iteration %s started" % (run_id, "; ".join(checks)[:400], it), runId=run_id, specId=r.get("specId", ""))
+    it = start_iteration("rolled-back-%s" % run_id, "steward-verify")
+    journal(LANE, "verify", "%s FAIL: %s; %s" % (run_id, "; ".join(checks)[:400], ("next iteration %s started" % it) if it else "an iteration is already in flight"), runId=run_id, specId=r.get("specId", ""))
     return {"success": False, "runId": run_id, "checks": checks, "rolledBackTo": rolled}
 
 

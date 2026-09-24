@@ -87,12 +87,12 @@ details summary { cursor: pointer; color: var(--muted); }
 `;
 
 const ROLES = ['charter', 'coders', 'infra', 'repo', 'iterate', 'prompts', 'responses', 'specs', 'refused', 'decisions', 'runs', 'verification', 'health', 'lanes', 'map', 'budget',
-  'journal', 'errors', 'llm-errors', 'knowledge', 'plan', 'adr', 'curations', 'signals'];
+  'journal', 'errors', 'llm-errors', 'knowledge', 'plan', 'adr', 'curations', 'signals', 'ideas'];
 const CHARTER_KEYS = ['goal', 'description', 'principles', 'constraints', 'scope', 'autonomyLevel', 'dailyBudgetUsd', 'observeCron', 'home', 'repoUrl', 'repoBranch', 'packDir', 'mcpUrl',
   'coderAgent', 'coderModel', 'coderMaxTurns', 'coderAllowedTools', 'coderTimeoutMin', 'brainAgent', 'brainModel'];
 const LIST_KEYS = ['principles', 'constraints', 'scope'];
 const LEVELS = [['1', '1: observe only'], ['2', '2: propose only, apply nothing'], ['3', '3: apply with approval (default)'], ['4', '4: tune and view alone'], ['5', '5: also crystallise alone']];
-const KINDS = ['tune', 'view', 'crystallise', 'add-lane', 'remove-lane', 'add-net', 'add-script', 'app'];
+const KINDS = ['tune', 'view', 'crystallise', 'add-lane', 'remove-lane', 'add-net', 'add-script', 'tool-net', 'app'];
 
 class StewardApp extends HTMLElement {
   constructor() {
@@ -151,6 +151,11 @@ class StewardApp extends HTMLElement {
   _health() { return newest(props(this._s.health), 'at')[0] || null; }
   _budget() { return newest(props(this._s.budget), 'day')[0] || null; }
   _map() { return newest(props(this._s.map), 'at')[0] || null; }
+  _ideas() {
+    const by = new Map();
+    for (const i of newest(props(this._s.ideas), 'at').reverse()) if (i.ideaId) by.set(i.ideaId, i);
+    return [...by.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  }
   _adrs() {
     const by = new Map();
     for (const a of newest(props(this._s.adr), 'updatedAt').reverse()) if (a.adrId) by.set(a.adrId, a);
@@ -327,6 +332,11 @@ class StewardApp extends HTMLElement {
         ${refused && !working ? `<div class="muted" style="margin-top:6px">Last refusal by the gate: ${esc(refused.specId)}: ${esc(refused.reason)}</div>` : ''}
         <div class="row"><button class="act" data-act="start-iteration" ${working || this._paused() ? 'disabled' : ''}>Ask the Steward for the next step</button><button class="act secondary" data-act="observe-now" ${this._paused() ? 'disabled' : ''}>Observe now</button></div></div>`);
     }
+    const ideas = this._ideas();
+    parts.push(`<div class="card"><h2>Ideas ${ideas.filter((i) => i.status === 'open').length ? `<span class="pill">${ideas.filter((i) => i.status === 'open').length} open</span>` : ''}</h2>
+      <div class="muted">A net, a lane, a tool net or a script this model could gain. Every proposal must offer at least one option that serves an open idea; the brain adds ideas after a release.</div>
+      ${this._field('idea.text', 'Your idea', '', 'textarea')}<div class="row"><button class="act" data-act="add-idea">Give the Steward this idea</button></div>
+      ${ideas.length ? `<table>${ideas.slice(0, 20).map((i) => `<tr><td class="muted" style="white-space:nowrap">${esc(when(i.at))}</td><td>${esc(i.text)} <span class="muted">(${esc(i.by)})</span></td><td><span class="pill ${i.status === 'taken' ? 'ok' : i.status === 'dropped' ? 'bad' : 'warn'}">${esc(i.status)}${i.specId ? ' ' + esc(i.specId) : ''}</span>${i.status === 'open' ? ` <button class="act secondary" data-act="drop-idea" data-arg="${esc(i.ideaId)}">Drop</button>` : ''}</td></tr>`).join('')}</table>` : ''}</div>`);
     return `<div class="grid">${parts.join('')}</div>`;
   }
 
@@ -468,6 +478,16 @@ class StewardApp extends HTMLElement {
         return this._invoke('start-iteration', { iterationId: `it-${stamp()}`, at: nowIso(), reason: `rejected-${arg}` }, 'start-iteration');
       }
       case 'rollback': return this._invoke('rollback', { runId: arg, notes: f('run.notes.' + arg), at }, act + arg);
+      case 'add-idea': {
+        if (!f('idea.text')) return this._toast('Write the idea first', true);
+        const ideaId = `idea-${String(this._ideas().length + 1).padStart(3, '0')}`;
+        const r = await this._invoke('add-idea', { ideaId, text: f('idea.text'), at }, act);
+        this._form['idea.text'] = ''; return r;
+      }
+      case 'drop-idea': {
+        const i = this._ideas().find((x) => x.ideaId === arg); if (!i) return;
+        return this._invoke('drop-idea', { ideaId: i.ideaId, text: i.text, by: i.by || 'person', at }, act + arg);
+      }
       case 'adr-accept': case 'adr-reject': case 'adr-supersede': {
         const a = this._adrs().find((x) => x.adrId === arg); if (!a) return;
         const status = { 'adr-accept': 'accepted', 'adr-reject': 'rejected', 'adr-supersede': 'superseded' }[act];

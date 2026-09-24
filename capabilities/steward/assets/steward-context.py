@@ -78,6 +78,7 @@ P = {
     "knowledge": "p-steward-knowledge",
     "plan": "p-steward-plan",
     "adr": "p-steward-adr",
+    "ideas": "p-steward-ideas",
 }
 
 # The governor: the Steward improves every net except the ones that govern it. Any spec that
@@ -89,7 +90,7 @@ PROTECTED_LANES = ["t-steward-observe-cron", "t-steward-observe-cmd", "t-steward
                    "t-steward-approve-prep", "t-steward-apply-cmd", "t-steward-verify-cmd", "t-steward-release-cmd", "t-steward-rollback-prep",
                    "t-steward-infra-tick", "t-steward-setup-cmd"]
 # The closed grammar of change specs; anything else is refused. `charter` is never a spec kind.
-SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "app"]
+SPEC_KINDS = ["tune", "view", "crystallise", "add-lane", "remove-lane", "add-net", "add-script", "tool-net", "app"]
 # Which kinds an autonomy level applies WITHOUT a person's approval (levels 1 and 2 apply nothing).
 AUTONOMY_ALONE = {1: [], 2: [], 3: [], 4: ["tune", "view"], 5: ["tune", "view", "crystallise"]}
 # The application manifest must keep these, whatever the coder does to the rest of it.
@@ -329,6 +330,76 @@ def adrs(status=None):
     return [a for a in rows if status is None or a.get("status") == status]
 
 
+def loop_busy():
+    """True while an iteration is in flight: a trigger, a brief, an unanswered question, a draft at the gate
+    or a run. Whoever wants to start the next iteration asks this first, so one refusal or rollback never
+    stacks a second question on the person."""
+    if count(P["iterate"]) > 0 or count(P["context"]) > 0 or count(P["spec_drafts"]) > 0:
+        return True
+    answered = {str((t.get("data") or {}).get("promptId")) for t in query(P["responses"], "FROM $", 300)}
+    answered |= {str((t.get("data") or {}).get("promptId")) for t in query(P["specs"], "FROM $", 300)}
+    decided = {str((t.get("data") or {}).get("specId")) for t in query(P["decisions"], "FROM $", 300)}
+    for t in query(P["prompts"], "FROM $", 200):
+        d = t.get("data") or {}
+        if d.get("kind") == "approval" and d.get("specId") and d.get("specId") not in decided:
+            return True
+        if d.get("kind") != "approval" and d.get("promptId") and d.get("promptId") not in answered:
+            return True
+    return any((t.get("data") or {}).get("status") in ("coding", "building", "verifying", "releasing") for t in query(P["runs"], "FROM $", 100))
+
+
+def start_iteration(reason, requested_by):
+    """Start the next iteration unless one is in flight; returns the iteration id or ''."""
+    if loop_busy():
+        return ""
+    it = "it-%s" % stamp()
+    put_token(P["iterate"], {"at": now(), "iterationId": it, "reason": reason, "requestedBy": requested_by}, name=it)
+    return it
+
+
+def pack_lane_ids():
+    """The pack's lanes as the runtime knows them: (transitionId, status) for every t-steward-* lane."""
+    listed = mcp("list_transitions", {})
+    rows = as_list(listed.get("transitions")) if isinstance(listed, dict) else as_list(listed)
+    out = []
+    for t in rows:
+        t = as_dict(t) if not isinstance(t, dict) else t
+        tid = str(t.get("transitionId") or t.get("id") or "")
+        if tid.startswith("t-steward-"):
+            out.append((tid, str(t.get("status", ""))))
+    return out
+
+
+def rearm_starting():
+    """A lane the installer just (re)started can sit in STARTING until it is stopped and started once
+    more (measured 2026-09-09 on 2.59.0: 13 of 23 lanes after a hub install, 12 of 24 after a
+    downgrade). Re-arm them; returns the lane ids."""
+    rearmed = []
+    for tid, status in pack_lane_ids():
+        if status == "STARTING":
+            try:
+                mcp("stop_transition", {"transitionId": tid}); mcp("start_transition", {"transitionId": tid}); rearmed.append(tid)
+            except Exception as e:  # noqa: BLE001
+                rearmed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return rearmed
+
+
+def remove_lanes(lane_ids):
+    """Stop and deregister lanes (a rollback removes what the rolled-back version added: the hub keeps
+    them on a downgrade, measured 2026-09-09)."""
+    removed = []
+    for tid in lane_ids:
+        try:
+            mcp("stop_transition", {"transitionId": tid})
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            mcp("delete_transition", {"transitionId": tid}); removed.append(tid)
+        except Exception as e:  # noqa: BLE001
+            removed.append("%s (failed: %s)" % (tid, str(e)[:60]))
+    return removed
+
+
 def repo():
     return latest(P["repo"], "updatedAt")
 
@@ -559,9 +630,27 @@ GRAMMAR = """## THE CLOSED GRAMMAR OF CHANGE SPECS (kind)
 - remove-lane: stop and remove a lane no signal has used for two iterations
 - add-net: a new net with its places, lanes, scripts and seeds
 - add-script: a new executor script, or a change to one
+- tool-net: a reusable tool net: a script or command tool registered in the tool catalog plus the small net that exposes it (scaffold, register, promote), usable by other nets and agents in this model
 - app: stores, actions or surface of the Steward's own application, outside the configuration tab
 - charter: never; the charter is the person's
 """
+
+
+def ideas_section(for_spec=False):
+    """Open ideas from the person (kind person) and the brain (kind brain): every proposal must offer at
+    least one option that serves an open idea, carrying its ideaId; a spec that serves one carries it too."""
+    rows = [t.get("data") or {} for t in query(P["ideas"], 'FROM $ WHERE $.status == "open"', 100)]
+    rows.sort(key=lambda i: str(i.get("at", "")))
+    if not rows:
+        return "## OPEN IDEAS\n- (none; the person can add one in the application, the brain after a release)\n"
+    txt = "## OPEN IDEAS (from the person or the brain; serve them before inventing something else)\n"
+    for i in rows[:15]:
+        txt += "- %s [%s, %s]: %s\n" % (i.get("ideaId"), i.get("by", "?"), str(i.get("at", ""))[:10], str(i.get("text", ""))[:400])
+    if for_spec:
+        txt += "If the chosen option carries an ideaId, put the same ideaId in the spec.\n"
+    else:
+        txt += "At least one option must serve an open idea and carry its ideaId; say in the option what the idea asked for.\n"
+    return txt
 
 
 def lines(items, limit=12, prefix="- "):
@@ -693,7 +782,7 @@ def propose(iteration_id, goal_note=""):
     brief = "\n".join([
         "# BRIEF FOR THE STEWARD: what should the next increment be?",
         "iterationId: %s\npromptId to use: %s\nnow: %s\nmodel: %s" % (iteration_id, prompt_id, now(), MODEL),
-        charter_txt, health_section(), lanes_section(), map_section(), brain_sections(), history_section(), GRAMMAR,
+        charter_txt, health_section(), lanes_section(), map_section(), brain_sections(), ideas_section(), history_section(), GRAMMAR,
     ])
     revision = envv("REVISION_TEXT")
     if revision:
@@ -724,7 +813,7 @@ def spec(iteration_id, prompt_id):
     for o in as_list(pr.get("options")) if pr else []:
         o = as_dict(o) if not isinstance(o, dict) else o
         if str(o.get("value")) in selected:
-            chosen.append("%s: %s [kind %s, nets %s] (%s)" % (o.get("value"), o.get("label"), o.get("kind", "?"), ", ".join(as_list(o.get("nets"))), str(o.get("description", ""))[:400]))
+            chosen.append("%s: %s [kind %s, nets %s%s] (%s)" % (o.get("value"), o.get("label"), o.get("kind", "?"), ", ".join(as_list(o.get("nets"))), (", serves idea " + str(o.get("ideaId"))) if o.get("ideaId") else "", str(o.get("description", ""))[:400]))
     all_specs = query(P["specs"], "FROM $", 300)
     spec_id = "spec-%03d" % (len(all_specs) + 1)
     choice = "## THE DECISION THIS SPEC IMPLEMENTS\nThe Steward asked (%s, mode %s): %s\n" % (prompt_id, pr.get("mode", "?"), pr.get("question", "?"))
@@ -736,7 +825,7 @@ def spec(iteration_id, prompt_id):
     brief = "\n".join([
         "# BRIEF FOR THE STEWARD: write the change spec",
         "iterationId: %s\npromptId: %s\nspecId to use: %s\nnow: %s\nmodel: %s" % (iteration_id, prompt_id, spec_id, now(), MODEL),
-        choice, charter_txt, GRAMMAR, health_section(), lanes_section(), map_section(), pack_section(), brain_sections(for_spec=True), history_section(),
+        choice, charter_txt, GRAMMAR, ideas_section(for_spec=True), health_section(), lanes_section(), map_section(), pack_section(), brain_sections(for_spec=True), history_section(),
     ])
     data = {"at": now(), "iterationId": iteration_id, "purpose": "spec", "promptId": prompt_id, "specId": spec_id, "goalStatus": goal_status, "selected": selected, "responseText": text, "brief": brief[:22000]}
     put_token(P["context"], data, name="ctx-spec-%s" % spec_id)
