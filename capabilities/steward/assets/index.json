@@ -14,5 +14,7 @@
   {"id": "steward-release", "name": "steward-release", "file": "steward-release.py", "runtime": "python3",
    "description": "Merges the branch, tags the version, records the repository and the run, asks the brain to observe and starts the next iteration. rollback installs the previous version."},
   {"id": "steward-brain", "name": "steward-brain", "file": "steward-brain.py", "runtime": "python3",
-   "description": "The brain: observe collects the signals of a released run and the model map; curate answers the curation contract (one-shot lane or headless agent); apply adds and retires facts, rewrites the plan, files decisions and questions; answer records the person's answer as a fact."}
+   "description": "The brain: observe collects the signals of a released run and the model map; curate answers the curation contract (one-shot lane or headless agent); apply adds and retires facts, rewrites the plan, files decisions and questions; answer records the person's answer as a fact."},
+  {"id": "steward-lane-report", "name": "steward-lane-report", "file": "steward-lane-report.py", "runtime": "python3",
+   "description": "Render the newest p-steward-lanes observation as one markdown table for a person: every lane with its kind, status, net, schedule, last and next fire, fires, errors, cost and tokens waiting; writes one lane-report token."}
 ]
