@@ -490,9 +490,29 @@ function readCapabilityYaml(dir) {
   if (!existsSync(p)) return {};
   const out = {};
   let section = '';
-  for (const line of readFileSync(p, 'utf8').split('\n')) {
+  const lines = readFileSync(p, 'utf8').split('\n');
+  for (let ln = 0; ln < lines.length; ln++) {
+    const line = lines[ln];
     const m = line.match(/^(name|version|description|engineMin):\s*(.+?)\s*$/);
-    if (m) { out[m[1]] = m[2].replace(/^["']|["']$/g, ''); section = ''; continue; }
+    if (m) {
+      // A block scalar (`>-`, `>`, `|`, `|-`) keeps its value on the FOLLOWING indented lines.
+      // Without this the capture was the indicator itself, and every pack that wrapped its
+      // description over several lines published `>-` as its catalog description.
+      const block = m[2].match(/^([>|])([-+]?)$/);
+      if (block) {
+        const body = [];
+        while (ln + 1 < lines.length && (/^\s+\S/.test(lines[ln + 1]) || lines[ln + 1].trim() === '')) {
+          body.push(lines[++ln].trim());
+        }
+        while (body.length && body[body.length - 1] === '') body.pop();
+        out[m[1]] = block[1] === '>'
+          ? body.join(' ').replace(/\s+/g, ' ').trim()      // folded: newlines become spaces
+          : body.join('\n');                                 // literal: newlines kept
+        section = '';
+        continue;
+      }
+      out[m[1]] = m[2].replace(/^["']|["']$/g, ''); section = ''; continue;
+    }
     const top = line.match(/^([A-Za-z]+):\s*$/);
     if (top) { section = top[1]; continue; }
     // the install block (targetModelDefault, instancePolicy, sessionId) travels into the artifact
