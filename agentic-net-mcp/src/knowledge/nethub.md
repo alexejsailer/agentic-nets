@@ -1,152 +1,94 @@
-# NetHub: export, import, and self-contained packages
+# NetHub: export, import, remotes and self-contained packages
 
 NetHub is how work leaves one instance and lands runnable on another: publish an artifact,
-search/inspect it, install it — locally or across federated peers. The curated tools are
-`hub_publish`, `hub_search`, `hub_show`, `hub_install`, `hub_add_remote` (plus native `HUB_*` /
-`PACKAGE_*` tools for raw registry access).
+search and inspect it, install it, locally or from a remote. Curated tools: `hub_publish`,
+`hub_search`, `hub_show`, `hub_install`, `hub_add_remote`, `hub_remotes`, `hub_sync_remote`
+(native `HUB_*` / `PACKAGE_*` tools are the raw layer).
 
-## What you can publish (kinds)
+## Kinds you can publish
 
-- **net** — one net: structure + inscriptions.
-- **session** — every net in a session (a whole workflow bundle).
-- **application** — session runtime + semantic manifest + optional verified browser surface.
-  Build/upload with `agentic-net-apps`; `hub_publish` republishes an installed instance.
-- **model** — an entire model; installing creates a NEW model (pass a fresh `targetModelId`) that
-  joins your allowlist immediately.
-- **agent** — a persona-team session with an `agent-manifest` (personas, entry inbox/outbox,
-  startPlan, config places, context requirements). Installs STOPPED: configure → arm. The install
-  response is a machine-readable configure-then-start checklist.
-- **context** — a context-net session with a `context-manifest`: named stores (role → place),
-  hierarchy policies (`readPolicy` local-first|local-only|parent-first, `resolution`
-  nearest|explicit|merge) and structural `kind=link` relations. Links never fire;
-  START_CONTEXT arms only maintenance transitions.
-- **toolnet** — a reusable tool-net (net + inscriptions + manifest; re-scaffolded and its manifest
-  re-registered on install).
-- **tool** — a single tool-catalog entry WITH its blobs (script body / OpenAPI, sha256-pinned).
-- **catalog** — an entire catalog (a model's local one, or the global `default`).
-- **blob** — raw blobs by URN.
+- **net**: one net, structure plus inscriptions. **session**: every net of a session.
+- **application**: session runtime + manifest + optional browser surface.
+- **model**: a whole model; installing creates a NEW model (fresh `targetModelId`, allowlisted).
+- **agent**: a persona team with an `agent-manifest`; installs STOPPED (configure, then arm).
+- **context**: a context-net session with a `context-manifest` (stores, hierarchy policies,
+  structural `kind=link` relations that never fire).
+- **toolnet**, **tool** (one catalog entry with its blobs), **catalog**, **blob**.
+- **capability**: a whole pack (nets, inscriptions, scripts, seeds, contract, optional app) as ONE
+  artifact: `pack.mjs package` then `pack.mjs publish`, then `hub_install {name, version,
+  targetModelId}`. The install verifies the signature, binds the app's stores, imports every net
+  with inscriptions rewritten for the target (hosts, session ids, `MODEL_ID`), registers scripts
+  into the model's LOCAL catalog from sha256-verified blobs, seeds only empty places, writes the
+  manifests into the same session and starts every non-link lane (`autoStart:false` to skip).
 
-## Agent/context/application install semantics (instancePolicy, ownership, upgrades)
+## Install semantics
 
-- **instancePolicy** in the manifest: `singleton` (one instance per model — a second install to a
-  different session is refused) or `multiple` (each install REQUIRES a unique `targetSessionId`,
-  which becomes a deterministic namespace rewriting every net/place/transition id so instances
-  never collide).
-- **scopeOwnerId** (context installs): a context with `scope: session|agent|task` must name its
-  owner (`scopeOwnerId` = the owning session/agent/task id). Model-scoped contexts derive the
-  owner automatically. Agents only bind contexts owned by their own execution frame.
-- **Upgrades** are forward-only: reinstalling a newer version preserves runtime tokens and lands
-  STOPPED; downgrades are refused (republish a forward migration instead). The install response
-  carries `upgrade: {from, to, kind}`.
-- **Model profiles** (create_model `profile` param): `standard` (domain context only), `research`
-  (+ research-analyst), `knowledge` (+ context-curator + crystallizer), `development` (+ dev-crew
-  + crystallizer). Resident agents install STOPPED; a partial provisioning surfaces as an error
-  listing per-artifact status — re-run with the same profile to complete (installs are idempotent).
-- **net/session/toolnet installs do NOT force-stop** (agent/context/application do). Lifecycle
-  leaves are create-if-absent: a cold install lands `stopped`, a reinstall over a running
-  instance stays RUNNING — so a package published from a live model can arrive with ARMED cron
-  schedules. Rule: `pause_model` before `hub_publish`, `resume_model` after.
-- **Template sources:** `create_model {profile}` bakes the model id into ~10 domain-context
-  element ids; a `kind:"model"` package carries them into every install. Create template-source
-  models WITHOUT `profile`, or publish per net (0 baked ids; `host` is rewritten on install and
-  cross-net references survive when installed in dependency order).
+- `instancePolicy`: `singleton` (one per model) or `multiple` (each install needs its own
+  `targetSessionId`, which namespaces every id). Context installs with `scope: session|agent|task`
+  name their owner with `scopeOwnerId`.
+- A newer version is an upgrade (nets and inscriptions upserted, scripts re-registered, seeds left
+  alone, lanes the new version no longer declares removed); the same version is a reinstall; an
+  older one answers 409 `downgrade` unless `allowDowngrade:true`. Agent, context and application
+  installs land STOPPED; net, session and toolnet installs keep a running instance running, so
+  `pause_model` before publishing from a live model and `resume_model` after.
+- `create_model {profile}` bakes the model id into domain-context ids; publish template sources
+  per net or from a model created without a profile.
+- Uninstall (`DELETE /api/applications/{model}/{session}`, Studio: Uninstall) removes lanes, nets
+  and the session and keeps runtime places and tokens.
 
-Canonical local templates include `safe-product-team` (six bounded delivery personas with no
-command/release authority by default) and `model-steward` (advisory-only model review that writes
-only its own findings and Protocol).
+## Self-contained packages
 
-## Capability packages (kind=capability): one artifact for a whole pack
+Publish scans every inscription for `toolId`, `action.image` and blob URNs, resolves them
+local-first and bundles the catalog entries with their blobs (base64 + sha256). Install verifies
+the package hash, re-verifies each blob, uploads it content-addressed and lands each entry in the
+right scope (docker/http global, script/tool-net local), so an installed net RUNS, not just renders.
 
-A capability pack (nets, inscriptions, executor scripts, seeds, its contract, and optionally a
-Studio application) is ONE NetHub artifact since this change. Build and publish it from the pack
-directory, then install it anywhere with `hub_install`:
+## Token policy and credentials
 
-```
-node capabilities/tools/pack.mjs package --dir capabilities/<pack>       # -> <pack>/dist/<name>-<version>.capability.json
-node capabilities/tools/pack.mjs publish --dir capabilities/<pack>       # PUT /api/hub/capabilities/<name>/versions/<version>
-hub_install {name, version, targetModelId}                               # or POST /api/hub/install
-```
+`tokens`: `none`, `config` (default: `*-config`/`*-charter` tokens and tokens marked
+`config:"true"`) or `all`. Credentials are ALWAYS scrubbed; re-set them after install with
+`set_transition_credentials`.
 
-What the install does, in order: verifies the stored signature when one is present; binds the
-application's stores to the target model (bound / created / missing; a required store whose place
-is missing fails before anything is imported); imports every net (upsert), rewriting each
-inscription for the target (hosts to the master's own node, session ids, agent model ids, and
-`MODEL_ID` env literals of command lanes); registers the scripts into the model's LOCAL tool
-catalog from the carried blobs (sha256-verified); seeds tokens, skipping any place that already
-holds a token of the same name; writes the `agent-manifest` leaf (the capability contract) and,
-when present, the application manifest into the SAME session; tags the session `agents` and
-`capability-pack`; starts every non-link lane unless `autoStart:false`. The response carries
-`capability {nets, transitions, started, scripts, seeds}`, `application {stores}` and
-`upgrade {from, to, kind}`.
+## Export and import
 
-Re-installing a newer version into the same session is an upgrade (nets and inscriptions upserted,
-scripts re-registered, seeds left alone, manifests overwritten); the same version is a reinstall;
-an older version answers 409 `downgrade` unless `allowDowngrade:true`. `DELETE
-/api/applications/{model}/{session}` (Studio: Uninstall) stops and removes the lanes, nets and
-session and keeps runtime places and tokens. `pack.mjs install` still works as the legacy
-client-side path and prints a pointer to this one.
+1. `hub_publish {kind, name, version, tokens}`: versioned, survives deletion of the source. A
+   `kind:net` package is the designtime PNML plus the inscriptions of ITS transitions; a lane made
+   with SET_INSCRIPTION alone has no PNML transition and is omitted, so build lanes with
+   `add_transition` or publish `kind:session`/`kind:model`.
+2. `hub_show {name, version?, remote?}`: versions, kind, visibility, token policy, tags, size,
+   readme, origin. It does not itemize places and lanes; install into a throwaway session and read
+   it with `net_overview` when you must know.
+3. `hub_install {source?, name, version, targetModelId?, targetSessionId?}`: where a package lands
+   is always the model and session you name. Installed lanes of net packages arrive stopped.
+4. Start what you want live, re-set credentials, check `list_executors` for command lanes.
 
-Stores of ANY application may point at places outside its own package: the validator warns, and
-the install binds them to the target model. Permissions default to every declared store and
-action when omitted. Catalog summaries carry `signed` and `keyId`.
+## Remotes: two kinds
 
-## Self-contained packages — the part that makes installs actually run
+`hub_add_remote {name, url, kind?, branch?}` registers a source; `hub_search {remote}`,
+`hub_show {remote}` and `hub_install {source: name}` use it; `hub_remotes` lists them.
 
-A published net used to carry only POINTERS to the tools its inscriptions used (a script's URN, a
-docker digest) — installed elsewhere, those dangled and the net could not run. Now publish SCANS
-the inscriptions (including stringified command templates) for every referenced `toolId`,
-`action.image`, and blob URN, resolves them local-first against the catalog, and bundles the
-entries plus the blobs they point at (each base64 + sha256). On install the package integrity hash
-is verified first (a tampered artifact is refused), every blob is re-verified and uploaded
-content-addressed (same URN resolves identically on any instance), and each catalog entry lands in
-the RIGHT scope: docker/http → the global catalog, script/tool-net → the installed model's local
-catalog. Result: a net that uses script/http/docker/tool-net tools runs after install, not just
-renders.
+- **peer** (default): another AgenticOS instance's base URL. You see and install its PUBLIC
+  artifacts, and only when its operator enabled the public catalog
+  (`AGENTICOS_HUB_PUBLIC_CATALOG=true`); without it the peer answers 404. Publishing to your own
+  hub never exposes anything by itself.
+- **repo**: a git repository (https, ssh or `git@` URL, `branch` default main) or an absolute
+  directory path laid out like the node's own package tree,
+  `packages/<name>/versions/<version>.json` plus `packages/<name>/package.json` and a generated
+  `index.json`. The master keeps a checkout under `~/.agenticos/hub/remotes/<name>`, refreshes it
+  at most every five minutes (`hub_sync_remote` forces it; a directory is read in place) and
+  installs straight from the files. Nothing in a repository is served publicly, so this is how
+  private packages travel: put the artifact in with `pack.mjs publish --repo <dir>` or the
+  repository's `tools/nethub.mjs add`, commit, push; every registered runtime sees it on its next
+  sync. `AGENTICOS_HUB_REMOTES=repo:nethub=<url>#main,peer:staging=https://host:8083` registers
+  remotes at start.
 
-## Token policy & credential safety
+The layout mirror is deliberate: the same artifact JSON moves between a repository, a peer and
+the local hub (`/root/packages/<name>/versions/<version>`) without translation. An installed
+artifact keeps the visibility it carried, so a private one never reaches the public catalog.
 
-`tokens` on publish: `none` (structure + inscriptions only), `config` (default — also carries
-`*-config`/`*-charter` place tokens and tokens marked `config:"true"`, i.e. what a net needs to
-run), or `all`. **Credentials are ALWAYS scrubbed** — vault-backed secrets never travel; after
-install, re-set them with `set_transition_credentials` on the target.
+## Where NetHub lives
 
-## The export/import workflow
-
-1. Export: `hub_publish {kind, name, version, tokens}` — versioned, survives deletion of the source.
-   A `kind:net` package is the net's DESIGNTIME PNML (places/transitions/arcs) plus the inscriptions
-   of those PNML transitions. **A lane created with SET_INSCRIPTION only (a runtime inscription with
-   no PNML transition) is NOT in the PNML and is silently omitted** — build lanes with
-   `add_transition` (which creates the designtime transition + arcs) if they must travel, or publish
-   `kind:session`/`kind:model` to capture everything.
-2. Inspect before committing: `hub_show {name, version?}` — versions, kind, tokenPolicy, tags, size,
-   readme. Honest limit: it does NOT itemize a net's places/transitions/kinds or its dependency
-   manifest (model kind returns only a node count; net/session kinds return no structure). To truly
-   evaluate contents, `hub_install` into a THROWAWAY session and inspect with net_overview /
-   list_transitions. Browse with `hub_search` (paginated, true totals) or `agenticnets://hub`.
-3. Import: `hub_install {name, version, targetModelId?}` — model-kind creates the new model;
-   installed nets arrive with runtime places provisioned and lifecycle wired.
-4. After install: start the lanes you want live (installed transitions arrive stopped), re-set
-   credentials, and check `list_executors` coverage if the net has command lanes (docs/commands).
-   Verified: an installed command lane fires within seconds of start (executor auto-discovers the
-   new model).
-
-## Federation (peer instances)
-
-`hub_add_remote {name, url}` registers a peer; `hub_search {remote}` browses it and `hub_install`
-pulls from it. A peer serves anonymous reads only when its operator enabled the public-catalog
-flag — otherwise no token ⇒ nothing. Publishing to your own hub never exposes it externally by
-itself.
-
-## Curated vs native, and where NetHub lives
-
-Prefer the curated lowercase `hub_*` tools: the native UPPERCASE `HUB_*` mirror the same API but
-are the raw layer. NetHub is a CLIENT-side surface (MCP/CLI → the master's hub API) — in-net agent
-transitions do not have HUB_* tools at all; inside a net the portable-package primitives are
-`PACKAGE_SEARCH` / `PACKAGE_PUBLISH` / `PACKAGE_INSTALL`.
-
-## Portability guarantee
-
-Everything is content-addressed: the same tool re-registered on a fresh install lands at the same
-URN the catalog already points at, so re-imported packages keep working. For a file-level export
-of just the drawing, EXPORT_PNML still exists — but NetHub is the path that preserves RUNTIME
-behavior, not just the picture.
+NetHub is a CLIENT-side surface (MCP and CLI to the master's hub API). In-net agent transitions
+use `PACKAGE_SEARCH` / `PACKAGE_PUBLISH` / `PACKAGE_INSTALL`. Everything is content-addressed:
+a tool re-registered on a fresh install lands at the URN the catalog already points at.
+`EXPORT_PNML` exports the drawing only; NetHub preserves runtime behavior.

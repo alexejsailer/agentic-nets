@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
 /**
  * pack.mjs — capability pack lifecycle tooling (CONTRACT.md Part C5, first implementation).
  *
@@ -31,7 +32,7 @@
  *   node pack.mjs uninstall --dir capabilities/place-inspector --model default --session agent-place-inspector
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, resolve } from 'node:path';
 
 // ---------------------------------------------------------------- MCP client
 const MCP_URL = process.env.AGENTICOS_MCP_URL;
@@ -602,13 +603,41 @@ async function cmdPackage(a) {
   return outPath;
 }
 
-// ---------------------------------------------------------------- publish (PUT to NetHub)
+// ---------------------------------------------------------------- publish (PUT to NetHub, or into a package repository)
+/**
+ * Put the artifact into a NetHub package REPOSITORY (a remote of kind repo): the layout mirrors the
+ * node's package tree, packages/<name>/versions/<version>.json plus packages/<name>/package.json and
+ * a generated index.json. Git is the transport: commit and push, and every runtime that registered
+ * the repository sees the version on its next sync. Private by default.
+ */
+function publishToRepo(pkg, repoDir, visibility) {
+  const name = pkg.manifest.name, version = pkg.manifest.version;
+  if (/[\/\\]|\.\./.test(name) || /[\/\\]|\.\./.test(version)) throw new Error('unsafe package name or version');
+  const dir = join(repoDir, 'packages', name, 'versions');
+  mkdirSync(dir, { recursive: true });
+  const stored = { ...pkg, visibility: visibility ?? pkg.visibility ?? 'private' };
+  writeFileSync(join(dir, `${version}.json`), JSON.stringify(stored, null, 2) + '\n');
+  const tool = join(repoDir, 'tools', 'nethub.mjs');
+  if (existsSync(tool)) {
+    const r = spawnSync(process.execPath, [tool, 'index'], { cwd: repoDir, encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`repo index failed: ${(r.stderr || r.stdout).slice(0, 300)}`);
+  } else {
+    const metaPath = join(repoDir, 'packages', name, 'package.json');
+    const meta = existsSync(metaPath) ? JSON.parse(readFileSync(metaPath, 'utf8')) : {};
+    const versions = readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort();
+    writeFileSync(metaPath, JSON.stringify({ ...meta, name, kind: pkg.kind ?? 'capability', visibility: stored.visibility, description: pkg.manifest.description ?? meta.description ?? '', tags: pkg.manifest.tags ?? meta.tags ?? [], latestVersion: version, versions, updatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') }, null, 2) + '\n');
+  }
+  log(`published ${name}@${version} into repository ${repoDir} (${stored.visibility}); commit and push it, the runtimes sync on their next read`);
+  return join(dir, `${version}.json`);
+}
+
 async function cmdPublish(a) {
   const dir = a.dir;
   const gateway = String(a.gateway ?? process.env.AGENTICOS_GATEWAY ?? 'http://localhost:8083').replace(/\/$/, '');
   const token = a.token ?? process.env.AGENTICOS_TOKEN;
   const file = a.file ?? (await cmdPackage(a));
   const pkg = JSON.parse(readFileSync(file, 'utf8'));
+  if (a.repo) return publishToRepo(pkg, resolve(String(a.repo)), a.visibility);
   const url = `${gateway}/api/hub/capabilities/${encodeURIComponent(pkg.manifest.name)}/versions/${encodeURIComponent(pkg.manifest.version)}`;
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -822,7 +851,7 @@ const cmd = a._[0];
 const needsSession = ['export', 'install', 'uninstall'].includes(cmd);
 const noModel = ['build', 'package', 'publish'].includes(cmd);
 if (!a.dir || (!noModel && !a.model) || (needsSession && !a.session)) {
-  console.error('usage: pack.mjs build|export|install|uninstall|verify|package|publish --dir <packDir> [--model <model>] [--session <id>] [--suffix <sfx>] [--name <pack-name>] [--node-host <host:port>] [--start]');
+  console.error('usage: pack.mjs build|export|install|uninstall|verify|package|publish --dir <packDir> [--repo <nethub repo dir> [--visibility private|public]] [--model <model>] [--session <id>] [--suffix <sfx>] [--name <pack-name>] [--node-host <host:port>] [--start]');
   console.error('       --start   install only: start the lanes immediately. Default is DEPLOYED-but-stopped, because a pack ships template config.');
   process.exit(2);
 }

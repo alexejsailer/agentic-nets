@@ -144,7 +144,7 @@ net_stats stays honest. Irreversible; re-assign to recreate.
 ## NetHub — share and install nets, sessions, whole models
 hub_publish {kind, name, version, tokens} versions a net/session/application/model; credentials are scrubbed and
 tokens = none | config | all. hub_search browses local/peer catalogs, hub_show inspects, hub_install
-installs (model artifacts create an allowed NEW model), and hub_add_remote federates public peers.
+installs (model artifacts create an allowed NEW model), and hub_add_remote registers a source: kind=peer (another instance's public catalog over its API) or kind=repo (a git repository or directory laid out like the package tree, private packages included; hub_remotes lists them, hub_sync_remote refreshes a repository).
 Agent packages install STOPPED in agent-<name>: fill required config places, then
 START_AGENT_SESSION; their manifest declares inbox, start plan and required contexts.
 Context packages install in context-<name>; hub_show exposes stores, scope, hierarchy, attachments

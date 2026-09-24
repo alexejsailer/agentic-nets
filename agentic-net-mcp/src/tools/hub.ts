@@ -126,12 +126,15 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       inputSchema: {
         name: z.string(),
         version: z.string().optional().describe('Version or "latest" (default latest)'),
+        remote: z.string().optional().describe('Inspect the artifact on a registered remote (peer or repo) instead of the local hub'),
       },
     },
     wrapTool(scope, config.mode, { name: 'hub_show', mutates: false }, async (_model, args) => {
-      const versionsResp = await ctx.master.hubVersions(args.name);
+      const versionsResp = args.remote ? await ctx.master.hubRemoteVersions(args.remote, args.name) : await ctx.master.hubVersions(args.name);
       const versions: string[] = Array.isArray(versionsResp?.versions) ? versionsResp.versions : [];
-      const pkg = await ctx.master.hubArtifact(args.name, args.version ?? 'latest');
+      const pkg = args.remote
+        ? await ctx.master.hubRemoteArtifact(args.remote, args.name, args.version ?? 'latest')
+        : await ctx.master.hubArtifact(args.name, args.version ?? 'latest');
 
       const m = pkg?.manifest ?? {};
       const kind = pkg?.kind ?? (Array.isArray(pkg?.nets) ? 'session' : pkg?.model ? 'model' : 'net');
@@ -158,6 +161,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       try { sizeBytes = Buffer.byteLength(JSON.stringify(pkg), 'utf8'); } catch { /* ignore */ }
 
       return {
+        source: args.remote ? `remote:${args.remote}` : 'local',
         name: args.name,
         version: m.version ?? args.version ?? versions[versions.length - 1],
         kind,
@@ -244,16 +248,49 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
   server.registerTool(
     'hub_add_remote',
     {
-      title: 'Add a NetHub remote',
+      title: 'Add a NetHub remote (a peer instance or a package repository)',
       description:
-        "Register a peer AgenticOS instance's base URL so you can hub_search and hub_install its PUBLIC artifacts. The peer must have its public catalog enabled (AGENTICOS_HUB_PUBLIC_CATALOG=true).",
+        'Register a remote so hub_search, hub_show and hub_install can use it as a source. Two kinds. kind=peer: another AgenticOS instance\'s base URL; you see and install its PUBLIC artifacts, and only if that instance enabled its public catalog (AGENTICOS_HUB_PUBLIC_CATALOG=true), otherwise it answers 404. '
+        + 'kind=repo: a git repository (https, ssh or git@ URL, branch default main) or an absolute directory path laid out like the node\'s package tree, packages/<name>/versions/<version>.json; the master keeps a checkout under ~/.agenticos/hub/remotes/<name>, refreshes it at most every five minutes (hub_sync_remote forces it) and installs straight from the files. A repo is the way to share PRIVATE packages: nothing in it is served publicly, and where a package lands is always the target model you name on install.',
       inputSchema: {
-        name: z.string().describe('Short remote name, e.g. "team-alpha"'),
-        url: z.string().describe('Absolute base URL, e.g. https://alpha.example.com:8083'),
+        name: z.string().describe('Short remote name, e.g. "team-alpha" or "nethub"'),
+        url: z.string().describe('peer: absolute base URL such as https://alpha.example.com:8083; repo: a git URL or an absolute directory path'),
+        kind: z.enum(['peer', 'repo']).optional().describe('peer (default) or repo'),
+        branch: z.string().optional().describe('repo only: the branch to read (default main)'),
       },
     },
     wrapTool(scope, config.mode, { name: 'hub_add_remote', mutates: true }, async (_model, args) => {
-      return ctx.master.hubAddRemote(args.name, args.url);
+      return ctx.master.hubAddRemote(args.name, args.url, args.kind, args.branch);
+    }),
+  );
+
+  server.registerTool(
+    'hub_remotes',
+    {
+      title: 'List the NetHub remotes',
+      description: 'Every registered remote with its kind (peer instance or package repository), URL and branch, so you know which sources hub_search and hub_install accept.',
+      inputSchema: {},
+    },
+    wrapTool(scope, config.mode, { name: 'hub_remotes', mutates: false }, async () => {
+      const raw = await ctx.master.hubListRemotes();
+      const remotes: any[] = Array.isArray(raw?.remotes) ? raw.remotes : [];
+      return {
+        count: remotes.length,
+        remotes: remotes.map((r) => ({ name: r.name, kind: r.kind ?? 'peer', url: r.url, branch: r.branch ?? undefined, path: r.path ?? undefined, addedAt: r.addedAt })),
+        hint: remotes.length ? 'Use the name as hub_search {remote} or hub_install {source}.' : 'No remotes. hub_add_remote registers a peer instance or a package repository.',
+      };
+    }),
+  );
+
+  server.registerTool(
+    'hub_sync_remote',
+    {
+      title: 'Refresh a package repository remote now',
+      description: 'Fetch the latest commit of a kind=repo remote into the master\'s checkout right away instead of waiting for the next automatic refresh; a peer remote is read live and answers with nothing to sync.',
+      inputSchema: { name: z.string().describe('The remote name') },
+    },
+    wrapTool(scope, config.mode, { name: 'hub_sync_remote', mutates: true }, async (_model, args) => {
+      return ctx.master.hubSyncRemote(args.name);
     }),
   );
 }

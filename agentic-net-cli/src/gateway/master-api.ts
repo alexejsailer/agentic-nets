@@ -323,8 +323,24 @@ export class MasterApi {
     return this.client.masterApi('GET', '/hub/remotes');
   }
 
-  async hubAddRemote(name: string, url: string): Promise<any> {
-    return this.client.masterApi('POST', '/hub/remotes', { name, url });
+  /** Register a remote: kind peer (another instance's public catalog) or repo (a git repository or directory laid out like the package tree). */
+  async hubAddRemote(name: string, url: string, kind?: 'peer' | 'repo', branch?: string): Promise<any> {
+    const body: Record<string, string> = { name, url };
+    if (kind) body.kind = kind;
+    if (branch) body.branch = branch;
+    return this.client.masterApi('POST', '/hub/remotes', body);
+  }
+
+  async hubSyncRemote(remoteName: string): Promise<any> {
+    return this.client.masterApi('POST', `/hub/remotes/${remoteName}/sync`);
+  }
+
+  async hubRemoteVersions(remoteName: string, name: string): Promise<any> {
+    return this.client.masterApi('GET', `/hub/remotes/${remoteName}/artifacts/${name}/versions`);
+  }
+
+  async hubRemoteArtifact(remoteName: string, name: string, version: string): Promise<any> {
+    return this.client.masterApi('GET', `/hub/remotes/${remoteName}/artifacts/${name}/versions/${version}`);
   }
 
   async hubRemoveRemote(name: string): Promise<any> {

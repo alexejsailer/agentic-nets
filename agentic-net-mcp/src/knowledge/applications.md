@@ -13,7 +13,7 @@ Consequence for you: never hardcode a `p-*` id for these. Ask the manifest.
 1. `application_list` — what is already installed in this model, with roles, actions, surface.
 2. `application_describe {name}` — role→placeId map and the action input schemas.
 3. `application_action {name, action, input}` — master resolves the role to the real place,
-   validates required input, and appends an event-sourced token.
+  validates required input, and appends an event-sourced token.
 
 Not installed yet? `hub_search {kind:"application"}` lists the packages and
 `hub_install {name, version:"latest"}` installs one (default session `application-<name>`). It
@@ -77,24 +77,24 @@ A transition fire must not wait for a person. Split it in two:
 
 ```jsonc
 // 1. the asking fire: append the prompt, append your own checkpoint, then finish
-//    checkpoint token: {promptId:"q-17", task:"…", resumeWith:"…"}
+//  checkpoint token: {promptId:"q-17", task:"…", resumeWith:"…"}
 
 // 2. the resuming lane: join the answer with the checkpoint
 "presets": {
-  "answer":  {"placeId":"p-interview-responses",
-              "arcql":"FROM $ WHERE $.intent!=\"revise\"", "consume": true},
-  "waiting": {"placeId":"p-<persona>-waiting", "arcql":"FROM $", "consume": true}
+ "answer": {"placeId":"p-interview-responses",
+       "arcql":"FROM $ WHERE $.intent!=\"revise\"", "consume": true},
+ "waiting": {"placeId":"p-<persona>-waiting", "arcql":"FROM $", "consume": true}
 }
 
 // 3. the revision lane: the human reshaped the question — ask again
 "presets": {"revision": {"placeId":"p-interview-responses",
-             "arcql":"FROM $ WHERE $.intent==\"revise\"", "consume": true}}
-//    → ask() again with supersedes:"<old promptId>" and the new wording
+       "arcql":"FROM $ WHERE $.intent==\"revise\"", "consume": true}}
+//  → ask() again with supersedes:"<old promptId>" and the new wording
 
 // 4. the inbound lane: questions the human raised on their own
 "presets": {"req": {"placeId":"p-interview-requests",
-             "arcql":"FROM $ WHERE $.kind==\"interview-request\"", "consume": true}}
-//    → answer with a prompt carrying the same requestId
+       "arcql":"FROM $ WHERE $.kind==\"interview-request\"", "consume": true}}
+//  → answer with a prompt carrying the same requestId
 ```
 
 Carry ONE `promptId` (or `requestId`) across prompt, checkpoint, response, and result. That single
@@ -106,21 +106,21 @@ daily standup that waits for a human without blocking on one.
 ## Gotchas
 
 - **Arrays are stringified.** Maps and lists become JSON strings in leaf properties on the action
-  path, so `options` and `selected` come back as strings. Studio parses both; ArcQL cannot treat
-  them as arrays. Keep anything you need to query as a scalar.
+ path, so `options` and `selected` come back as strings. Studio parses both; ArcQL cannot treat
+ them as arrays. Keep anything you need to query as a scalar.
 - **A prompt counts as answered** purely because some response carries its `promptId`. Reusing a
-  `promptId` marks the new prompt answered on arrival — always mint a fresh one. On masters ≥ 2.45
-  `respond` with intent answer/reject ALSO settles the prompt token's `status` (open →
-  answered/rejected) via a declared action effect, so settled-ness survives automation consuming
-  the response token. Older masters: `status` never leaves "open" — track via decision tokens.
+ `promptId` marks the new prompt answered on arrival — always mint a fresh one. On masters ≥ 2.45
+ `respond` with intent answer/reject ALSO settles the prompt token's `status` (open →
+ answered/rejected) via a declared action effect, so settled-ness survives automation consuming
+ the response token. Older masters: `status` never leaves "open" — track via decision tokens.
 - **Direct writes bypass action defaults.** A net lane emitting straight into an application place
-  gets no `kind` stamp, no schema check, and Studio may render it degraded or drop it silently.
-  `application_describe` returns each store's `writeContract` (expectedKind + correlation fields) —
-  carry those on every direct write.
+ gets no `kind` stamp, no schema check, and Studio may render it degraded or drop it silently.
+ `application_describe` returns each store's `writeContract` (expectedKind + correlation fields) —
+ carry those on every direct write.
 - **`createdAt` orders the view.** The action sets it; a net emitting straight to the place must
-  set `createdAt` or `ts` itself or the prompt sorts last.
+ set `createdAt` or `ts` itself or the prompt sorts last.
 - **An answer is information, not authorization.** "Yes, sounds good" is not approval for a
-  destructive or outbound side effect; keep that gate explicit and separate.
+ destructive or outbound side effect; keep that gate explicit and separate.
 - **Singleton per model.** One Interview net per model; install it into whichever session you like.
 - **Discovery errors are not empty registries.** Report/retry; never infer that no apps exist.
 
