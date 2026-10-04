@@ -186,6 +186,12 @@ copy `config/llm-providers.env.example` to the gitignored `config/llm-providers.
 instance types are `ollama`, `openai`, `openrouter`, `openai-compatible`, and `claude`. Compose loads
 the provider env file only into master; it remains separate from the lineup file.
 
+Two further types are **decision models**: `typesafe` (TypeSafe Jev; needs `API_KEY` and `MODEL`,
+`BASE_URL` defaults to the public endpoint) and `decision-api` (any service speaking the canonical
+decision API; `BASE_URL` is its full evaluation endpoint, `API_KEY` is optional). A decision model
+answers only the typed questions of a `kind:"llm"` transition (`action.questions` + `action.state`),
+so a lane reaches it through `action.group`, and it cannot be the `defaultGroup`.
+
 ```bash
 docker compose -f docker-compose.hub-only.yml up -d --force-recreate agentic-net-master
 ```

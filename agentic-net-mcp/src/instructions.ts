@@ -259,6 +259,9 @@ first and report what was stopped.
     emit branch. add_transition emits @response.json so a
     prompt-for-JSON lane's fields interpolate downstream (\${input.data.field}); @response.raw
     stores the reply as an escaped string under 'value' — only for freeform text (docs/llm).
+    For classification, scoring or yes/no checks give the llm lane typed \`questions\` (+ \`state\`)
+    instead of a prompt: every answer is validated before it is emitted, and a group on a decision
+    model (llm_groups decisionModel:true, e.g. TypeSafe Jev) answers only this mode (docs/llm).
 11. Templates have functions: \${urlencode(...)} for ANY url built from data (raw #/space/&
     silently corrupts it), plus sum/len/default/lower/upper/trim — docs/interpolation.
 

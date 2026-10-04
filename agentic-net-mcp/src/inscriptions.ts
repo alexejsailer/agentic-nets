@@ -92,6 +92,12 @@ export interface BuildOpts {
   /** llm */
   prompt?: string;
   llmModel?: string;
+  /** llm questions mode: typed questions instead of a prompt; answered as @response.json.answers.<id>.value. */
+  questions?: Record<string, any>;
+  /** llm questions mode: what the questions are about. Default '${input.data}'. */
+  state?: unknown;
+  /** llm questions mode: version label emitted with the answers. */
+  questionVersion?: string;
   /** Narrow an agent's tool set below its role ceiling, e.g. 'research-worker'. */
   capabilityProfile?: string;
   /** llm/agent: named server-side provider/model lineup from LLM_GROUPS_FILE. */
@@ -404,8 +410,12 @@ export function buildLlmInscription(opts: BuildOpts) {
   // down, unparseable response) lands somewhere visible instead of being silently dropped —
   // master 2.28+ builds errorPayloads from the when:"error" emit rules on every failure path,
   // mirroring the http lane.
+  // Questions mode errors carry errorClass/retryable at the top of @response.json, where a net
+  // can route on them.
+  const typed = opts.questions !== undefined;
+  const errorFrom = typed ? '@response.json' : '@response';
   const emit = opts.emit ?? (routed
-    ? [...routed.emit, ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : [])]
+    ? [...routed.emit, ...(opts.errorPlace ? [{ to: 'err', from: errorFrom, when: 'error' }] : [])]
     : [
         // @response.json, NOT @response.raw: raw stores the reply as a JSON-escaped string under
         // `value`, so a prompt-for-JSON lane (the common case) can never interpolate its fields
@@ -413,7 +423,7 @@ export function buildLlmInscription(opts: BuildOpts) {
         // board post interpolated empty). Parsed fields land as top-level data properties; on
         // masters ≥ 2.28 a parse failure routes to the err branch when errorPlace is set.
         { to: 'out', from: '@response.json', ...(opts.errorPlace ? { when: 'success' } : {}) },
-        ...(opts.errorPlace ? [{ to: 'err', from: '@response', when: 'error' }] : []),
+        ...(opts.errorPlace ? [{ to: 'err', from: errorFrom, when: 'error' }] : []),
       ]);
   return {
     id: opts.id,
@@ -427,7 +437,13 @@ export function buildLlmInscription(opts: BuildOpts) {
     postsets,
     action: {
       type: 'llm',
-      nl: opts.prompt ?? '${input.data.prompt}',
+      ...(typed
+        ? {
+            state: opts.state ?? '${input.data}',
+            questions: opts.questions,
+            ...(opts.questionVersion ? { questionVersion: opts.questionVersion } : {}),
+          }
+        : { nl: opts.prompt ?? '${input.data.prompt}' }),
       ...(opts.llmModel ? { model: opts.llmModel } : {}),
       ...(opts.group ? { group: opts.group } : {}),
       // Master ≥ 2.28 resolves action.tier via LlmTierResolver (explicit model

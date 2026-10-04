@@ -1091,7 +1091,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'LLM model groups and provider lineups',
       description:
-        "List the server-side model groups that llm/agent transitions may select with action.group (or add_transition group). Each group reports its provider, low/medium/high/thinking lineup, default tier, and provider health. configured:false means LLM_GROUPS_FILE is unset and group annotations are ignored for backward compatibility. GET-based and readonly-safe.",
+        "List the server-side model groups that llm/agent transitions may select with action.group (or add_transition group). Each group reports its provider, low/medium/high/thinking lineup, default tier, and provider health; decisionModel:true marks a decision model (e.g. TypeSafe Jev) that answers only llm typed questions. configured:false means LLM_GROUPS_FILE is unset and group annotations are ignored for backward compatibility. GET-based and readonly-safe.",
       inputSchema: {},
     },
     wrapTool(scope, config.mode, { name: 'llm_groups', mutates: false }, async () => {

@@ -406,6 +406,12 @@ either file. Invalid JSON, unknown provider names, or incomplete referenced prov
 stop master at boot rather than silently using a different model. Delete/rename the groups file to
 return to the original single-lineup behavior.
 
+A decision model such as TypeSafe Jev is configured the same way, with `llm.providers.jev.type=typesafe`,
+`llm.providers.jev.api-key` and `llm.providers.jev.model`, plus a group `{"jev": {"provider": "jev"}}`.
+It answers only the typed questions of an llm transition (`action.questions` + `action.state`, selected
+with `action.group: "jev"`) and cannot be the `defaultGroup`. Master runs it only while a server
+provider is configured, like every other provider-backed llm lane.
+
 Then choose **Restart Services** in the tray. A Claude selection with no key
 falls back to the disabled state. Docker-backed tool execution is also off by
 default and remains an advanced opt-in (`docker.enabled=true`).

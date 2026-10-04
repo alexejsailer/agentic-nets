@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
+import { llmQuestionsSchema, validateLlmModeArgs } from '../questions.js';
 import { wrapTool } from '../scope.js';
 import {
   agentFor,
@@ -46,7 +47,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
   // pass is routing and nothing else: no action to configure, so emit/routes ARE its whole surface.
   pass: new Set(['emit', 'routes']),
   map: new Set(['template', 'emit', 'routes']),
-  llm: new Set(['prompt', 'llmModel', 'group', 'tier', 'emit', 'routes', 'errorPlace']),
+  llm: new Set(['prompt', 'questions', 'state', 'questionVersion', 'llmModel', 'group', 'tier', 'emit', 'routes', 'errorPlace']),
   http: new Set(['url', 'method', 'headers', 'body', 'auth', 'retry', 'emit', 'routes', 'errorPlace']),
   command: new Set(['executorId']),
   agent: new Set(['prompt', 'role', 'group', 'tier', 'maxIterations', 'autoEmit', 'llmMode', 'binary', 'mcp', 'capabilityProfile', 'llmModel', 'oneShot', 'answerSchema', 'allowedTools']),
@@ -56,7 +57,7 @@ const KIND_TRANSITION_ARGS: Record<string, Set<string>> = {
 const LINK_ALLOWED = new Set(['netId', 'transitionId', 'kind', 'inputPlace', 'outputPlace', 'label', 'relation', 'x', 'y', 'start', 'model', 'sessionId']);
 const PARAM_HOMES: Record<string, string> = {
   template: 'map', url: 'http', method: 'http', headers: 'http', body: 'http', auth: 'http', retry: 'http',
-  prompt: 'llm/agent', llmModel: 'llm', group: 'llm/agent', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
+  prompt: 'llm/agent', questions: 'llm', state: 'llm', questionVersion: 'llm', llmModel: 'llm', group: 'llm/agent', tier: 'llm/agent', role: 'agent', maxIterations: 'agent', autoEmit: 'agent',
   llmMode: 'agent', binary: 'agent with llmMode:"bash"', mcp: 'agent (needs the m role flag, e.g. role:"rwxh------m")',
   executorId: 'command', errorPlace: 'llm/http', routes: 'pass/map/llm/http', emit: 'pass/map/llm/http',
   filter: 'pass/map/llm/http/command/agent (not link — links never bind tokens)',
@@ -674,6 +675,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     x: z.number().optional(),
     y: z.number().optional(),
     prompt: z.string().optional(),
+    questions: llmQuestionsSchema.optional(),
+    state: z.any().optional(),
+    questionVersion: z.string().optional(),
     llmModel: z.string().optional(),
     capabilityProfile: z.string().optional(),
     group: z.string().optional(),
@@ -730,6 +734,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         x: z.number().optional(),
         y: z.number().optional(),
         prompt: z.string().optional().describe('llm/agent: the instruction; ${input.data.field} interpolates token fields'),
+        questions: llmQuestionsSchema.optional().describe('llm: typed questions INSTEAD of prompt, for classification, scoring and yes/no checks. {<id>: {type:"choice", instructions, criteria:{option: description}} | {type:"score", instructions, criteria:[levels low to high]} | {type:"probability", instructions}}. Master validates every answer; @response.json = {answers:{<id>:{type, value, confidence?}}, provider, model?}; route with when:"answers.<id>.value == \'x\'". A group on a decision model (e.g. TypeSafe Jev, llm_groups shows decisionModel:true) answers ONLY this mode and adds confidence; chat models return value only. See docs/llm'),
+        state: z.any().optional().describe('llm questions mode: what the questions are about; default "${input.data}" (a whole ${...} keeps JSON types)'),
+        questionVersion: z.string().optional().describe('llm questions mode: version label emitted with the answers, e.g. "routing-v1"'),
         llmModel: z.string().optional().describe('llm/agent: per-transition model override (e.g. deepseek-v4-flash:cloud). An explicit model always beats tier'),
         capabilityProfile: z.string().optional().describe('agent: narrow the tool set below the role ceiling (e.g. "research-worker", "token-worker", "net-builder"). This is the biggest agent cost lever — a lane with no profile ships the full ~90-tool preamble on EVERY iteration; narrowing one measured lane went from 273k to 11k tokens per fire with the same output contract, and converged faster'),
         group: z.string().optional().describe('llm/agent: named server-side model group. The group chooses the provider and tier lineup; inspect valid names with llm_groups. An explicit llmModel still wins inside that group'),
@@ -776,6 +783,7 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
     (addTransitionHandler = wrapTool(scope, config.mode, { name: 'add_transition', mutates: true }, async (model, args) => {
       const sessionOf = String(args.sessionId ?? config.session);
       validateKindArgs(String(args.kind), args);
+      validateLlmModeArgs(String(args.kind), args);
       validateAgentBackendArgs(String(args.kind), args);
       validateScheduleArgs(args);
       const host = ctx.hostFor(model);
@@ -927,6 +935,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         configFilter: args.configFilter,
         filter: args.filter,
         prompt: args.prompt,
+        questions: args.questions,
+        state: args.state,
+        questionVersion: args.questionVersion,
         llmModel: args.llmModel,
         group: args.group,
         url: args.url,

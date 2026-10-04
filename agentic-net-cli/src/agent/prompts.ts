@@ -186,6 +186,7 @@ const CORE_KNOWLEDGE = `## Core Knowledge
 - Deterministic data reshape → **map** (if you can write it as a JSON template with \`\${input.data.*}\`, it's a map, NOT an agent)
 - External API → **http**, shell command → **command**, pure routing → **pass**
 - Need AI reasoning? Multi-step → **agent**, single inference → **llm**
+- Classification, scoring or a yes/no check → **llm** with typed \`questions\` + \`state\` instead of a prompt: answers are validated before they are emitted (\`@response.json.answers.<id>.value\`); a model group on a decision model such as TypeSafe Jev answers only this mode
 
 ### Where \`\${...}\` Interpolation Works
 - ✅ MAP \`action.template\`, HTTP \`url/headers/body\`, LLM \`prompt\`

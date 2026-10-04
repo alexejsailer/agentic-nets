@@ -43,6 +43,21 @@ properties a downstream `${input.data.field}` interpolates. `@response.raw` is f
 only: it stores the reply as a JSON-escaped string under `value`, so a JSON reply arrives
 double-encoded and its fields can never interpolate downstream (proven live).
 
+## kind:llm with typed questions
+
+For classification, scoring and yes/no checks, give add_transition `questions` (+ `state`, default
+`${input.data}`) INSTEAD of a prompt. Types: `choice` (criteria: option → description), `score`
+(criteria: levels, low to high), `probability` (no criteria). Master validates every answer; one
+that does not fit goes to the error branch. `@response.json` = `{answers: {<id>: {type, value,
+confidence?}}, provider, model?}`; route on `answers.route.value == 'research'`.
+
+- A group on a **decision model** (`llm_groups` shows `decisionModel: true`, e.g. TypeSafe Jev)
+  answers only this mode and adds `confidence`; other selections ask the chat model, which returns
+  `value` only. Same shape either way, so the model can be swapped; confidence routing needs a
+  `confidence == null` fallback.
+- `nl`/`prompt`/`system` are rejected next to `questions`. Errors carry `errorClass`
+  (`config-invalid`, `provider-failed`, `answers-invalid`) and `retryable`.
+
 ## kind:agent — two-tier config
 
 Agent transitions pick their LLM per fire: `toolsModel` (the cheap worker), `thinkingModel` (the
