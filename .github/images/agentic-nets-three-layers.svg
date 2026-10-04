@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="830" viewBox="0 0 1200 830" font-family="system-ui,-apple-system,Segoe UI,sans-serif" role="img" aria-labelledby="diagram-title diagram-description">
+<title id="diagram-title">Agentic-Nets in three layers</title>
+<desc id="diagram-description">Applications expose live state to people. Nets define process steps and decision gates. The platform provides event sourcing, retained history, observability, scheduling, executors, credentials, and NetHub packages.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#13223a"/>
+<stop offset="0.55" stop-color="#0a1526"/>
+<stop offset="1" stop-color="#070e1a"/>
+</linearGradient>
+<radialGradient id="sph" cx="0.34" cy="0.28" r="0.85">
+<stop offset="0" stop-color="#ffe1b0"/>
+<stop offset="0.35" stop-color="#f7b25c"/>
+<stop offset="0.75" stop-color="#d97f1e"/>
+<stop offset="1" stop-color="#a85d10"/>
+</radialGradient>
+<linearGradient id="gl" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#e3eefa" stop-opacity="0.95"/>
+<stop offset="1" stop-color="#94b0d2" stop-opacity="0.85"/>
+</linearGradient>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+<path d="M 0 0 L 10 5 L 0 10 z" fill="#8fb2dd"/>
+</marker>
+<marker id="arro" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+<path d="M 0 0 L 10 5 L 0 10 z" fill="#f0a04b"/>
+</marker>
+</defs>
+<rect width="1200" height="830" rx="14" fill="url(#bg)"/>
+<text x="600" y="50" font-size="24" font-weight="700" fill="#f3f6fb" text-anchor="middle">Agentic-Nets in three layers</text>
+<text x="600" y="78" font-size="14" font-weight="500" fill="#8194ab" text-anchor="middle">People work in applications. Processes live in nets. The platform retains state and history.</text>
+<rect x="535" y="92" width="130" height="3" rx="1.5" fill="#f0a04b"/>
+<rect x="60" y="118" width="1080" height="170" rx="14" fill="#17253c" fill-opacity="0.75" stroke="#7fa8d9" stroke-width="1.5"/>
+<text x="88" y="152" font-size="13" font-weight="800" fill="#f0a04b" text-anchor="start">APPLICATIONS</text>
+<text x="256" y="152" font-size="13.5" font-weight="500" fill="#aebccf" text-anchor="start">windows for people over live places</text>
+<rect x="88" y="166" width="156" height="60" rx="11" fill="#0a1526" stroke="#7fa8d9" stroke-width="1.4" />
+<text x="166" y="202" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="middle">Cockpit</text>
+<rect x="260" y="166" width="156" height="60" rx="11" fill="#0a1526" stroke="#7fa8d9" stroke-width="1.4" />
+<text x="338" y="202" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="middle">Article Pipeline</text>
+<rect x="432" y="166" width="156" height="60" rx="11" fill="#0a1526" stroke="#7fa8d9" stroke-width="1.4" />
+<text x="510" y="202" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="middle">Publishing Ops</text>
+<rect x="604" y="166" width="156" height="60" rx="11" fill="#0a1526" stroke="#7fa8d9" stroke-width="1.4" />
+<text x="682" y="202" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="middle">Operator Guide</text>
+<rect x="776" y="166" width="156" height="60" rx="11" fill="#0a1526" stroke="#7fa8d9" stroke-width="1.4" />
+<text x="854" y="202" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="middle">Studio</text>
+<rect x="948" y="166" width="156" height="60" rx="11" fill="#0a1526" stroke="#f0a04b" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="1026" y="202" font-size="14" font-weight="700" fill="#f0a04b" text-anchor="middle">your own app</text>
+<text x="600" y="262" font-size="13" font-weight="500" fill="#dfe7f1" text-anchor="middle">applications read live places; declared actions record intent and make guarded state changes</text>
+<line x1="560" y1="290" x2="560" y2="318" stroke="#f0a04b" stroke-width="2.4"  marker-end="url(#arro)"/>
+<line x1="640" y1="318" x2="640" y2="290" stroke="#8fb2dd" stroke-width="2.4"  marker-end="url(#arr)"/>
+<rect x="60" y="322" width="1080" height="216" rx="14" fill="#17253c" fill-opacity="0.6" stroke="#f0a04b" stroke-width="1.5"/>
+<text x="88" y="356" font-size="13" font-weight="800" fill="#f0a04b" text-anchor="start">NETS</text>
+<text x="196" y="356" font-size="13.5" font-weight="500" fill="#aebccf" text-anchor="start">your process as nets: places, lanes, gates</text>
+<circle cx="160" cy="432" r="17" fill="url(#sph)"/>
+<ellipse cx="154" cy="425" rx="5.1" ry="3.7" fill="#fff" opacity="0.65"/>
+<text x="160" y="404" font-size="12.5" font-weight="600" fill="#dfe7f1" text-anchor="middle">request</text>
+<line x1="179" y1="432" x2="231" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<rect x="233" y="417" width="74" height="30" rx="6" fill="url(#gl)" stroke="#c8def6" stroke-width="1.5"/>
+<text x="270" y="435" font-size="8" font-weight="800" letter-spacing="0.6" text-anchor="middle" fill="#3d5474">MAP</text>
+<line x1="309" y1="432" x2="361" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<circle cx="380" cy="432" r="17" fill="url(#sph)"/>
+<ellipse cx="374" cy="425" rx="5.1" ry="3.7" fill="#fff" opacity="0.65"/>
+<text x="380" y="404" font-size="12.5" font-weight="600" fill="#dfe7f1" text-anchor="middle">task</text>
+<line x1="399" y1="432" x2="451" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<rect x="453" y="417" width="74" height="30" rx="6" fill="url(#gl)" stroke="#f0a04b" stroke-width="2.4"/>
+<text x="490" y="435" font-size="8" font-weight="800" letter-spacing="0.6" text-anchor="middle" fill="#3d5474">AGENT</text>
+<line x1="529" y1="432" x2="581" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<circle cx="600" cy="432" r="17" fill="url(#sph)"/>
+<ellipse cx="594" cy="425" rx="5.1" ry="3.7" fill="#fff" opacity="0.65"/>
+<text x="600" y="404" font-size="12.5" font-weight="600" fill="#dfe7f1" text-anchor="middle">proposal</text>
+<line x1="619" y1="432" x2="671" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<rect x="673" y="417" width="74" height="30" rx="6" fill="url(#gl)" stroke="#c8def6" stroke-width="1.5"/>
+<text x="710" y="435" font-size="8" font-weight="800" letter-spacing="0.6" text-anchor="middle" fill="#3d5474">COMMAND</text>
+<line x1="749" y1="432" x2="801" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<circle cx="820" cy="432" r="17" fill="url(#sph)"/>
+<ellipse cx="814" cy="425" rx="5.1" ry="3.7" fill="#fff" opacity="0.65"/>
+<text x="820" y="404" font-size="12.5" font-weight="600" fill="#dfe7f1" text-anchor="middle">result</text>
+<line x1="839" y1="432" x2="891" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<rect x="893" y="417" width="74" height="30" rx="6" fill="url(#gl)" stroke="#c8def6" stroke-width="1.5"/>
+<text x="930" y="435" font-size="8" font-weight="800" letter-spacing="0.6" text-anchor="middle" fill="#3d5474">MAP</text>
+<line x1="969" y1="432" x2="1021" y2="432" stroke="#8fb2dd" stroke-width="1.8"  marker-end="url(#arr)"/>
+<circle cx="1040" cy="432" r="17" fill="url(#sph)"/>
+<ellipse cx="1034" cy="425" rx="5.1" ry="3.7" fill="#fff" opacity="0.65"/>
+<text x="1040" y="404" font-size="12.5" font-weight="700" fill="#f0a04b" text-anchor="middle">your decision</text>
+<rect x="1001" y="456" width="78" height="18" rx="9" fill="#0a1526" stroke="#f0a04b" stroke-width="1.5"/>
+<text x="1040" y="469" font-size="9" font-weight="800" fill="#f0a04b" text-anchor="middle">OPERATOR</text>
+<text x="600" y="500" font-size="13" font-weight="500" fill="#dfe7f1" text-anchor="middle">AI works in bounded steps; arcs define token flow; tools and policies define authority; people decide at gates</text>
+<line x1="560" y1="540" x2="560" y2="568" stroke="#f0a04b" stroke-width="2.4"  marker-end="url(#arro)"/>
+<line x1="640" y1="568" x2="640" y2="540" stroke="#8fb2dd" stroke-width="2.4"  marker-end="url(#arr)"/>
+<rect x="60" y="572" width="1080" height="214" rx="14" fill="#17253c" fill-opacity="0.75" stroke="#7fa8d9" stroke-width="1.5"/>
+<text x="88" y="606" font-size="13" font-weight="800" fill="#f0a04b" text-anchor="start">PLATFORM</text>
+<text x="196" y="606" font-size="13.5" font-weight="500" fill="#aebccf" text-anchor="start">the memory and the machinery underneath</text>
+<rect x="88" y="620" width="332" height="68" rx="11" fill="#0a1526" stroke="#56677f" stroke-width="1.1"/>
+<text x="104" y="644" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="start">Event sourcing</text>
+<text x="104" y="663" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">committed state changes are</text>
+<text x="104" y="678" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">append-only events; state can be replayed</text>
+<rect x="436" y="620" width="332" height="68" rx="11" fill="#0a1526" stroke="#56677f" stroke-width="1.1"/>
+<text x="452" y="644" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="start">History and lineage</text>
+<text x="452" y="663" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">model history, which fire</text>
+<text x="452" y="678" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">made which token, from what</text>
+<rect x="784" y="620" width="332" height="68" rx="11" fill="#0a1526" stroke="#56677f" stroke-width="1.1"/>
+<text x="800" y="644" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="start">Observability</text>
+<text x="800" y="663" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">event trail, console, agenda,</text>
+<text x="800" y="678" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">usage, errors with reasons</text>
+<rect x="88" y="700" width="332" height="68" rx="11" fill="#0a1526" stroke="#56677f" stroke-width="1.1"/>
+<text x="104" y="724" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="start">Scheduling and leases</text>
+<text x="104" y="743" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">token- or clock-driven work;</text>
+<text x="104" y="758" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">reservations coordinate token use</text>
+<rect x="436" y="700" width="332" height="68" rx="11" fill="#0a1526" stroke="#56677f" stroke-width="1.1"/>
+<text x="452" y="724" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="start">Executors and vault</text>
+<text x="452" y="743" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">commands run on selected executors;</text>
+<text x="452" y="758" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">credentials resolved at execution time</text>
+<rect x="784" y="700" width="332" height="68" rx="11" fill="#0a1526" stroke="#56677f" stroke-width="1.1"/>
+<text x="800" y="724" font-size="14" font-weight="700" fill="#f3f6fb" text-anchor="start">NetHub</text>
+<text x="800" y="743" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">nets and apps as versioned</text>
+<text x="800" y="758" font-size="11.5" font-weight="500" fill="#8194ab" text-anchor="start">packages you can install</text>
+<text x="600" y="808" font-size="12" font-weight="500" fill="#8194ab" text-anchor="middle">Claude Code or Codex can build, operate and inspect all three layers through MCP, within the access you grant.</text>
+</svg>

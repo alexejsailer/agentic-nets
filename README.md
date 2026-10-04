@@ -8,349 +8,292 @@
 [![Docs](https://img.shields.io/badge/docs-agentic--nets.com-0a7.svg)](https://agentic-nets.com)
 [![Forum](https://img.shields.io/badge/forum-agentic--nets-6f42c1.svg)](https://forum.agentic-nets.com)
 
-**A graph harness for AI agents: build processes that keep running, remain
-observable, and become more deterministic over time.**
+**Turn a process you describe into a system you can run, inspect, and improve.**
 
-Agentic-Nets is a governed, event-sourced runtime where AI agents,
-deterministic automation, and people work on the same visible state. The
-runtime owns the process, permissions, execution, and history; intelligence
-can come from a server model, a local model, or the MCP client you already use.
+Agentic-Nets is a runtime for persistent processes where **AI agents, automation,
+and people work together**. Build a software team, a research desk, or an
+operations process with visible work, durable context, and explicit decisions.
+The process lives in executable **nets**; people work through **applications**;
+the **runtime platform** manages execution, permissions, state, and history.
 
-> Graph harness for AI agents: a governed runtime on bipartite graphs (places
-> and transitions) that executes models with scoped permissions, durable state
-> and replayable history.
+You can describe the process to Claude Code or Codex through MCP, or build it
+visually in Studio. When an individual task ends, the team, its context, and its
+open work can stay in place for the next one.
 
-**[Try a live net—no install or login](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)** ·
+**[See a live example—no install or login](https://agentic-nets.com/#/shared-net/f2663810-bcce-4ed2-9507-40f77b3be04c)** ·
 **[Download Desktop Lite](https://github.com/alexejsailer/agentic-nets/releases/latest)** ·
-**[Watch the 8-minute guided tour](https://youtu.be/hgW11A_7vWY)** ·
+**[Watch the guided tour](https://youtu.be/hgW11A_7vWY)** ·
 **[Read the documentation](docs/README.md)**
 
-## A Product That Develops Itself
+## What can it solve?
 
-**An adaptive interface for coding agents and the graph harness around them.**
+Agentic-Nets fits work that has several steps, needs judgment in some of them,
+and must remain understandable when it stops for a decision or fails.
 
-[![The Service Team application presenting a verified and reviewed change for the human merge decision](.github/images/product-office-service-team-merge.jpg)](https://alexejsailer.com/2026/09/11/a-product-that-develops-itself-product-office-and-service-teams-on-agentic-nets/)
-
-*The Service Team application at an explicit control point. The virtual team has
-prepared, implemented, verified, and reviewed a real change to Agentic-Nets.
-The person decides whether to merge it, request changes, or drop the run.*
-
-Previously, [Hermann](https://alexejsailer.com/2026/09/07/hermann-twelve-factor-developer-that-lives-in-a-net/)
-was one virtual developer living in a net. Now Agentic-Nets runs the software
-organization around the coding agent. A Product Office maintains the product
-goal, roadmap, team registry, and shared decision inbox. For each service placed
-under management, a namespaced Service Team provides a virtual Product Owner,
-Architect, QA Engineer, Developer, Brain, and Setup function.
-
-The organization itself is a set of persistently deployed, event-driven
-bipartite nets. Places hold durable requirements, specs, decisions, context,
-evidence, and questions. Transitions perform the work when the required state
-arrives. A coding run can finish; the team, its memory, its schedules, and its
-open decisions remain alive.
-
-The roles form a governed delivery loop:
-
-1. The **Product Owner** measures the code before creating a requirement.
-2. The **Architect** owns the spec, decisions, linked catalog, and exact context
-   pack.
-3. **QA** defines executable acceptance criteria and independently verifies the
-   result.
-4. The **Developer** delegates bounded implementation to a replaceable coding
-   worker. The photographed run used Claude Code with Opus; other Claude Code or
-   Codex profiles can serve the same role.
-5. The **person** remains at explicit control points and decides what may enter
-   the product.
-
-<table>
-  <tr>
-    <td width="50%">
-      <a href=".github/images/product-office-teams.jpg"><img src=".github/images/product-office-teams.jpg" alt="The Product Office application showing the registered node Service Team and services still waiting for a team" /></a><br />
-      <strong>Product Office.</strong> One view over the product goal, roadmap,
-      registered teams, and everything waiting for a person.
-    </td>
-    <td width="50%">
-      <a href=".github/images/product-office-service-team-net.jpg"><img src=".github/images/product-office-service-team-net.jpg" alt="The complete node Service Team as a live Agentic-Nets graph" /></a><br />
-      <strong>Live Service Team.</strong> The same organization in Studio: 54
-      places and 31 lanes across setup, product ownership, architecture, QA,
-      development, and the brain.
-    </td>
-  </tr>
-</table>
-
-Users do not need to operate the Petri-net editor. A Net Application is a
-purpose-built projection and controller over the same live state. A form can
-create structured context, a board can expose work moving between places, and a
-review surface can write the person's decision back as a guarded token. The
-application is not a separate reporting database beside the agents; it is their
-human interface.
-
-The harness can evolve through explicit authority. An operator or appropriately
-scoped runtime agent can add a place, install a Tool-Net, or stop and replace one
-lane while unrelated lanes continue. The coding worker shown above deliberately
-has no such authority: it receives one approved context pack, works in a scoped
-repository clone, commits to a branch, and never pushes or merges. Adaptable does
-not mean self-authorizing.
-
-The nets, inscriptions, scripts, dependencies, manifest, and application can
-travel together as a versioned NetHub capability. That lets another product
-install the Product Office, add Service Teams, or extend a persona with a new
-Tool-Net. Bespoke interfaces evolve through intentional package updates, while
-the durable runtime state remains in place.
-
-The first live team used Agentic-Nets to prepare a tested and reviewed change to
-Agentic-Nets itself. The next loop is governed self-improvement: use retained
-event and outcome history to propose changes to the harness, then put those
-changes through the same spec, acceptance, verification, review, and human
-decision chain. The platform never needs to rewrite itself in secret.
-
-**The run ended. The organization did not.**
-
-Read the full case study:
-**[A Product That Develops Itself: Product Office and Service Teams on
-Agentic-Nets](https://alexejsailer.com/2026/09/11/a-product-that-develops-itself-product-office-and-service-teams-on-agentic-nets/)**.
-
-For the runtime fundamentals, watch
-**[Why AI agents need a process runtime: Agentic-Nets explained](https://www.youtube.com/watch?v=VWm4OCwWnZM)**.
-
-## Why Agentic-Nets
-
-Most agent systems disappear with the chat or finish as one workflow run.
-Agentic-Nets can keep the operating structure alive: work remains in named
-places, personas retain bounded context and responsibility, schedules continue
-to fire, and new work can enter without rebuilding the process from scratch.
-
-Three ideas define the platform:
-
-1. **The runtime owns the state.** Typed tokens live outside model context, so
-   people, agents, and deterministic transitions can inspect and continue the
-   same work.
-2. **Rules exist before actions.** Capabilities, tool allowlists, scopes, Vault
-   credentials, budgets, executor boundaries, and approvals constrain what may
-   happen before a transition fires.
-3. **History drives improvement.** Retained causal events make state and
-   decisions reconstructable. When evidence shows that AI behavior is
-   repeatable, it can be reviewed and crystallized into deterministic
-   transitions.
-
-In one sentence:
-
-> **Workflow engines execute runs. Agentic-Nets operates evolving systems.**
-
-Agentic-Nets can also model finite workflows. Its distinction is that it is not
-limited to disposable runs: a model may host cooperating process nets, persona
-nets, and tool nets over shared or explicitly linked state, with applications
-acting as human-facing projections of the same runtime.
-
-## See it before installing
-
-- **[Open the Hardened Lane](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68)** —
-  one governed delivery lane, running read-only in Studio.
-- **[Learn token flow in one minute](https://agentic-nets.com/#/shared-net/f2663810-bcce-4ed2-9507-40f77b3be04c)** —
-  places, typed tokens, arcs, and a transition.
-- **[See all seven transition types](https://agentic-nets.com/#/shared-net/c1b98b10-c521-4b33-9318-7e68114fa3ec)** —
-  pass, map, HTTP, LLM, agent, command, and link together.
-- **[See crystallization as a running net](https://agentic-nets.com/#/shared-net/c989eac2-b6ef-4b35-a107-6ac3ef26d469)** —
-  AI-assisted discovery becoming deterministic structure through an approved
-  change.
-- **[Watch a Safe Product Team ship a real change](https://www.youtube.com/watch?v=VBomzW-xqfc&list=PLQirdTX_nt94)** —
-  PM, architecture, development, QA, and release working through explicit
-  handoffs.
-- **[Inspect the other public systems](docs/README.md#live-systems)** — the Safe
-  Team monitor, product forum, and Git analytics service.
-
-## Install Desktop Lite—the recommended first run
-
-Desktop Lite is the fastest local creator and operator environment. It bundles
-the runtime, Studio, MCP server, Vault, executor, and local data services in one
-package.
-
-- No Docker daemon
-- No Java or Node installation
-- No server-side LLM or API key required for the default setup
-- macOS Apple Silicon, Windows x64, Debian/Ubuntu, and Fedora/RHEL packages
-- Loopback-only by default; local state survives upgrades
-
-### 1. Download and open it
-
-Download the package for your platform from the
-**[latest release](https://github.com/alexejsailer/agentic-nets/releases/latest)**:
-
-| Platform | Installer |
+| Process | What you can put in a net |
 |---|---|
-| macOS, Apple Silicon | `AgenticNetOS-<version>-macos-arm64.dmg` |
-| Windows, x64 | `AgenticNetOS-<version>-windows-x64.msi` |
-| Debian/Ubuntu | `AgenticNetOS-<version>-linux-<arch>.deb` |
-| Fedora/RHEL | `AgenticNetOS-<version>-linux-<arch>.rpm` |
+| **Software delivery** | Request → specification → coding agent → tests → review → human merge decision |
+| **Research and website operations** | Find demand → collect evidence → approve a brief → draft → independent review → release decision |
+| **Incident response** | Alert → collect diagnostics → investigate → propose a fix → approval → apply → verify |
+| **Support and review** | Intake → gather context → classify or assess → draft a response → approve or escalate |
 
-Current builds are unsigned, so macOS Gatekeeper or Windows SmartScreen may
-ask you to approve the first launch. Verification, platform-specific steps,
-updates, and troubleshooting are covered in the
-**[Desktop Lite guide](agentic-net-desktop/DESKTOP-LITE.md)**. Every release also
-includes checksums and an Ed25519 signature.
+Software delivery and website operations are demonstrated below. Incident
+response and support are patterns you can build with the same primitives.
+You supply the domain knowledge, integrations, and rules for success.
 
-### 2. Connect the model you already use
+The practical benefit is being able to answer: **Where is the work? What
+happened? Why did it stop? What needs me?** Work and decisions live in shared
+state that people, agents, and deterministic steps can inspect and continue.
 
-Start AgenticNetOS, then use the tray menu:
+## Three layers, one shared state
 
-- **Connect Codex (copy config)**
-- **Connect Claude Code (copy command)**
-- **Copy MCP URL + Token** for another Streamable HTTP MCP client
+**Applications show the work. Nets define the process. The platform runs it
+and keeps its state.**
 
-The connected client supplies interactive reasoning. Agentic-Nets continues to
-own token binding, scheduling, permissions, emissions, accounting, and history.
-Deterministic lanes and configured local CLI-backed agents can keep operating
-without the MCP client attached.
+[![Three layers of Agentic-Nets: applications for people, executable nets for the process, and a runtime platform for state, execution, governance, and observability](.github/images/agentic-nets-three-layers.svg)](.github/images/agentic-nets-three-layers.svg)
 
-### 3. Create the first process
+### 1. Applications: where people work
 
-Start a fresh client session and ask:
+A **Net Application** is a window onto a running process: a board, a review
+screen, a research desk, or a cockpit showing what needs your attention.
+It reads live places and offers declared actions such as **Approve brief**,
+**Request changes**, or **Retry**.
 
-> Read `agenticnets://docs/starter-patterns`, recommend the smallest example
-> for this installation, and build it after I confirm.
+An action records intent in the runtime and can make guarded state updates or
+queue work. The net performs the execution. Applications and agents use the
+same underlying state, so the decision you make on screen becomes part of the
+process and its history.
 
-For the complete software-delivery example, invoke the MCP prompt
-`start-safe-product-team` with a product goal and repository. For one specialist,
-use `spawn-worker`; for another domain, use `design-persona-team`.
+Kanban, Goals, Interview, Protocol, and Approval Room provide starting points.
+You can also build a purpose-specific application and package it with its nets.
+**Studio** is the visual editor and inspection surface for the graph itself.
 
-## Docker and server deployment
+### 2. Nets: how the process works
 
-Use Docker when you need a shared runtime, remote access, monitoring, multiple
-executors, or production-like lifecycle controls.
+A net is an executable graph based on **Petri nets**. You only need four ideas
+to read one:
+
+| Element | Meaning | Example |
+|---|---|---|
+| **Place** | A named, persistent container of state | Inbox, Evidence, Awaiting approval |
+| **Token** | A structured JSON record in a place | A request, a source, a draft, a decision |
+| **Transition**, also called a lane | One step that reads inputs and produces results | Fetch sources, run tests, ask an agent |
+| **Arc** | A declared connection between places and transitions | Which inputs a step needs and where its results go |
+
+Transitions react when their input conditions are met; schedules can trigger
+work on a clock. Independent lanes can work in parallel, while shared places
+connect specialists, tools, and larger processes.
+
+A human gate is represented in state: a step records a proposal and finishes;
+the next step requires the corresponding approval. The decision can wait in a
+place while other work continues.
+
+A **persona** adds a named responsibility, inbox, durable context, and scoped
+tools to this structure. Several personas can form a team. A runtime **model**
+groups related nets and their shared state; it is separate from the AI model
+used for reasoning.
+
+### 3. Runtime platform: what keeps it operating
+
+The platform supplies the machinery underneath your nets:
+
+- **Durable state and event sourcing.** Committed state changes are recorded
+  as append-only events. Snapshots and replay recover state; retained events
+  let you inspect how it changed.
+- **Observability and lineage.** Inspect fires, outcomes, errors, token origins,
+  schedules, and AI usage. Diagnose whether a lane lacks input, is blocked by
+  capacity, or has no executor available. The Docker stack also provides
+  OpenTelemetry, Prometheus, Tempo, and Grafana.
+- **Execution and coordination.** Scheduling, token reservations, timeouts, and
+  capacity limits coordinate work. Commands run on selected local or remote
+  executors, which poll outbound for jobs.
+- **Governance.** Capability profiles, tool allowlists, scopes, budgets, Vault
+  credentials, and approval gates define the authority you give each step.
+  You can pause a model and later resume it.
+- **Packaging.** NetHub distributes versioned nets, personas, teams, tools,
+  and applications so you can reuse a process on another installation.
+
+History has **configurable retention**. See the
+[observability guide](agentic-net-mcp/src/knowledge/observability.md) for the
+difference between live events, the on-disk execution journal, and retained
+state history.
+
+## See the layers working together
+
+### A research and article process
+
+In the website-operations example, several applications share one runtime:
+Site Ledger measures the site, Demand Radar finds opportunities, Evidence
+Library keeps sources, and Article Pipeline coordinates writing and review.
+Operator Cockpit gathers open decisions and failures across them.
+
+[![The Article Pipeline application showing briefs waiting for a person's approval](.github/images/agentic-nets-article-pipeline-app.png)](.github/images/agentic-nets-article-pipeline-app.png)
+
+*The person's view: review the outline and sources, then approve or request
+changes. Screenshot from the example installation, September 25, 2026.*
+
+Behind that screen, the brief stage is an ordinary net. Configuration and work
+arrive in places; a command lane produces sources, a brief, and a decision
+request; the brief waits for the operator.
+
+[![The brief-stage net from the article package: policy inputs, preparation, a command lane, sources, a brief, errors, and an operator gate](.github/images/agentic-nets-article-brief-net.png)](.github/images/agentic-nets-article-brief-net.png)
+
+*The process view: a diagram from the package's net definition, with running
+status captured from the example model. The application above works over this
+process's places.*
+
+The full pipeline combines research, AI drafting, independent review,
+deterministic checks, and human decisions. In the documented September runs,
+articles reached review gates; the complete article-release path was still
+unproven. The record shows both progress and what remains unfinished.
+
+Read the [guided runtime tour](https://alexejsailer.com/2026/09/25/built-by-ai-steered-by-the-net-agentic-nets-tour/)
+for the applications, nets, and execution evidence behind this example.
+
+### A software team that develops Agentic-Nets
+
+The [Product Office](capabilities/product-office/README.md) manages a product
+goal and roadmap. A [Service Team](capabilities/service-team/README.md) provides
+Product Owner, Architect, QA, and Developer personas for each service, with
+supporting setup and memory nets.
+
+They prepare a requirement, specification, acceptance checks, and a bounded
+context pack for a coding worker. Verification and review follow; the person's
+decision controls the merge. A real team used this process to prepare a tested
+and reviewed change to Agentic-Nets itself.
+
+**A task finishes; the organization remains.** Its context, responsibilities,
+and open decisions are ready for the next iteration.
+
+Read [A Product That Develops Itself](https://alexejsailer.com/2026/09/11/a-product-that-develops-itself-product-office-and-service-teams-on-agentic-nets/),
+or [inspect the live Safe Team and other public systems](docs/README.md#live-systems).
+
+## Use AI where judgment helps
+
+Every transition has one of seven types. You can mix them in the same net:
+
+| Type | Job |
+|---|---|
+| `pass` | Route, join, or gate tokens using conditions |
+| `map` | Transform structured data with templates |
+| `http` | Call an API |
+| `llm` | Make one bounded model inference |
+| `agent` | Reason with tools in a bounded loop |
+| `command` | Run a script or CLI on an executor, including a headless coding agent |
+| `link` | Express relationships between places for knowledge and navigation |
+
+AI can come from a configured server provider, a local model, a connected MCP
+client, or an installed Claude Code/Codex CLI on an executor. A process made of
+non-AI steps can operate without a language model. Scripts that call models
+still incur the provider's usage.
+
+There are two ways to use your coding agent: **build and inspect the system
+through MCP**, or **perform a bounded task inside a running net**. In both
+cases, process state stays in the runtime.
+
+As a pattern becomes reliable, you can review it and replace the reasoning
+step with a deterministic rule. This is **crystallization**: fewer model calls
+for repeatable work, with AI reserved for cases that still need judgment.
+
+Nets can evolve too. An authorized operator can stop and replace a lane, add a
+tool, or install another application while unrelated lanes continue. Changes
+to the process require the authority you explicitly grant.
+
+Explore [all seven transition types](https://agentic-nets.com/#/shared-net/c1b98b10-c521-4b33-9318-7e68114fa3ec),
+the [Hardened Lane](https://agentic-nets.com/#/shared-net/bd685551-ed9b-48ff-bf0c-6c32520d6f68),
+or [crystallization](https://agentic-nets.com/#/shared-net/c989eac2-b6ef-4b35-a107-6ac3ef26d469)
+as read-only nets in Studio.
+
+## Start locally with Desktop Lite
+
+Desktop Lite bundles the runtime, Studio, MCP server, Vault, executor, and
+local data services. It needs **no Docker, Java, Node installation, or
+server-side API key** for the default setup. Your connected coding client
+supplies interactive model access.
+
+1. **[Download the latest release](https://github.com/alexejsailer/agentic-nets/releases/latest)**
+   for macOS Apple Silicon, Windows x64, Debian/Ubuntu, or Fedora/RHEL.
+2. Start AgenticNetOS and open **Manual (Start Here)** from the tray.
+3. Choose **Connect Codex (copy config)** or **Connect Claude Code (copy
+   command)**, add the connection, and start a fresh client session.
+4. Ask for a small first process:
+
+   > Read `agenticnets://docs/starter-patterns`, recommend the smallest example
+   > for this installation, and build it after I confirm.
+
+Then describe your own process: its inputs, steps, evidence, and where you
+decide. Ask for **one net and one application over it**. Trigger the first
+action, inspect the state in Studio, and ask the client to diagnose anything
+that stops.
+
+For a complete delivery example, use the MCP prompt `start-safe-product-team`
+with a product goal and repository. Use `spawn-worker` for one specialist or
+`design-persona-team` for another domain.
+
+**What runs while you are away depends on the execution backend.** Deterministic
+steps and configured CLI or server-backed lanes can continue while the runtime
+is running. Lanes served by your interactive MCP client need that client to
+perform their reasoning.
+
+Desktop is local by default and preserves state across upgrades. Current
+installers are unsigned; platform-specific launch, verification, and connection
+steps are in the [Desktop Lite guide](agentic-net-desktop/DESKTOP-LITE.md).
+
+## Docker and shared deployments
+
+Use Docker for shared machines, remote executors, monitoring, and server
+lifecycle controls:
 
 ```bash
 git clone https://github.com/alexejsailer/agentic-nets.git
 cd agentic-nets/deployment
 cp .env.template .env
+# Review .env, then start the runtime without the monitoring stack:
 docker compose -f docker-compose.hub-only.no-monitoring.yml up -d
 cat data/gateway/jwt/admin-secret
 ```
 
-Open `http://localhost:4200` and use the generated admin secret. A server LLM
-is optional when selected AI lanes are served by a connected MCP client. For
-monitoring, provider configuration, Ollama, tool containers, clustering,
-verification, and troubleshooting, follow the
-**[Docker deployment guide](deployment/README.md)**.
+Open `http://localhost:4200` and use the generated admin secret. For the stack
+with Grafana, Prometheus, Tempo, and OTel, use `docker-compose.hub-only.yml`.
+Provider configuration, prerequisites, tool containers, and troubleshooting are
+in the [deployment guide](deployment/README.md); distributed setups are covered
+in the [server and cluster architecture](agentic-net-gateway/ARCHITECTURE-MULTI-MASTER.md).
 
-## The mental model
-
-The graph is simultaneously the description of the process, the executable
-control structure, and the running instance:
-
-- **Places** are named state boundaries.
-- **Tokens** are typed work, context, decisions, and evidence.
-- **Transitions** are capabilities: deterministic transformations, services,
-  commands, AI calls, or bounded agents.
-- **Arcs** declare the only allowed flows.
-- **Policies** wrap the graph with permissions, credentials, limits, and gates.
-
-```mermaid
-flowchart TB
-    interfaces["Studio · Net Applications · MCP · CLI"]
-
-    subgraph runtime["Governed, event-sourced model runtime"]
-        nets["Process nets · Persona nets · Tool nets"]
-        state["Places · typed tokens · durable context"]
-        policy["Capabilities · approvals · Vault · budgets"]
-        nets <--> state
-        policy --- nets
-    end
-
-    execution["Pass · Map · HTTP · LLM · Agent · Command · Link"]
-    systems["Models · APIs · Remote Executors · People"]
-    history["Causal history and measurements"]
-    improve["Observe → analyze → approve → version → crystallize"]
-
-    interfaces <--> runtime
-    runtime --> execution
-    execution <--> systems
-    runtime --> history
-    history --> improve
-    improve -. "approved changes" .-> runtime
-```
-
-The runtime does not require intelligence in every step. Use AI where
-uncertainty requires judgment; use deterministic execution everywhere else.
-The model is replaceable. The process and its evidence remain.
-
-Read **[Chapter 1: What Agentic-Nets Is](docs/book/chapter-01-what-agentic-nets-is.md)**,
-**[Chapter 2: Graph Engineering](docs/book/chapter-02-graph-engineering.md)**,
-or the concise **[technical architecture](ARCHITECTURE.md)** for the deeper model.
-
-## What you can build
-
-- **Persistent specialists and digital workers** with durable context, tools,
-  schedules, responsibilities, and explicit authority.
-- **Agent teams with real handoffs** between product, architecture,
-  development, QA, release, operations, research, or support roles.
-- **Adaptive engineering harnesses** that build, test, diagnose, release, and
-  learn from their retained execution history.
-- **Operational processes** for incidents, research, support, monitoring,
-  approvals, and other work that may remain active for months.
-- **Net Applications** such as Kanban, Goals, Interview, or Protocol views over
-  a live runtime instead of separate application silos.
-- **Reusable operating structures** published through NetHub as nets, personas,
-  teams, tools, contexts, or complete applications.
-
-Domain-general does not mean domain-omniscient. A useful autonomous process
-still needs trustworthy context, success criteria, bounded authority,
-validation matched to its risk, and human or policy approval where appropriate.
-
-## Deployment choices
-
-| Deployment | Best for | What it provides |
-|---|---|---|
-| **[Desktop Lite](agentic-net-desktop/DESKTOP-LITE.md)** | First use and daily local work | One installer, local Studio, MCP, Vault, executor, no server LLM required |
-| **[Docker stack](deployment/README.md)** | Shared machines and production-like evaluation | Configurable providers, monitoring, tools, remote executors |
-| **[Server and cluster](agentic-net-gateway/ARCHITECTURE-MULTI-MASTER.md)** | Teams and protected environments | Gateway-scoped access, model partitioning, egress-only executors, observability stack |
-
-Remote executors poll outbound for work, so protected build machines and cloud
-environments do not need an inbound shell connection. Command results return as
-typed tokens and remain attached to the process evidence.
-
-## Documentation
-
-The README is the product entrance. Deeper material is organized by purpose:
+## Go deeper
 
 | Goal | Start here |
 |---|---|
-| Understand the product and Graph Engineering | **[Book](docs/book/README.md)** |
-| Install locally | **[Desktop Lite guide](agentic-net-desktop/DESKTOP-LITE.md)** |
-| Deploy a shared stack | **[Docker deployment](deployment/README.md)** |
-| Understand the technical system | **[Architecture](ARCHITECTURE.md)** |
-| Connect or automate through MCP | **[MCP server](agentic-net-mcp/README.md)** |
-| Build a human-facing Net Application | **[Application developer guide](docs/applications/DEVELOPER_GUIDE.md)** |
-| Investigate history and causality | **[Observability guide](agentic-net-mcp/src/knowledge/observability.md)** |
-| Run commands on controlled executors | **[Command guide](agentic-net-mcp/src/knowledge/commands.md)** |
-| Package APIs, scripts, containers, and tool nets | **[Tool catalog](agentic-net-mcp/src/knowledge/tool-catalog.md)** |
-| Understand the research lineage | **[Foundations](FOUNDATIONS.md)** |
-| Find every guide and live system | **[Documentation hub](docs/README.md)** |
+| Understand persistent processes and Graph Engineering | [Book](docs/book/README.md) |
+| Understand the runtime architecture | [Architecture](ARCHITECTURE.md) |
+| Build or operate through MCP | [MCP server](agentic-net-mcp/README.md) |
+| Build a Net Application | [Application developer guide](docs/applications/DEVELOPER_GUIDE.md) |
+| Investigate execution and history | [Observability guide](agentic-net-mcp/src/knowledge/observability.md) |
+| Run scripts and commands on executors | [Command guide](agentic-net-mcp/src/knowledge/commands.md) |
+| Package APIs, scripts, containers, and tool nets | [Tool catalog](agentic-net-mcp/src/knowledge/tool-catalog.md) |
+| Find all guides, demos, and videos | [Documentation hub](docs/README.md) |
 
-## Project status, source, and licensing
+## Project status and licensing
 
-Agentic-Nets is beta software under active development. It is suitable for
-evaluation, local experiments, and early adopters prepared for a fast-moving
-stack; it is not certified for regulated environments out of the box.
+Agentic-Nets is **beta software under active development**, intended for
+evaluation, experiments, and early adopters.
 
-The project is a hybrid distribution:
+The distribution combines public source and proprietary runtime components:
 
-- Public source in this repository includes the Net Application SDK, Desktop
-  launcher and packaging, MCP server, gateway, executor, Vault service, CLI,
-  chat integration, blob store, tools, deployment, and monitoring.
-- The node, master, and Studio runtime binaries are distributed through Docker
-  Hub and Desktop releases under the [Proprietary EULA](PROPRIETARY-EULA.md).
-- Public components use [BSL 1.1](LICENSE.md), converting to Apache 2.0 on
-  2030-02-22. Commercial production use requires a commercial license.
+- This repository contains the Net Application SDK, Desktop launcher and
+  packaging, MCP server, gateway, executor, Vault service, CLI, chat integration,
+  blob store, tools, deployment, and monitoring.
+- Node, master, and Studio binaries are distributed through Desktop releases
+  and Docker Hub under the [Proprietary EULA](PROPRIETARY-EULA.md).
+- Public components use [BSL 1.1](LICENSE.md), with conversion to Apache 2.0 on
+  **2030-02-22**. Commercial production use requires a commercial license;
+  development, evaluation, and other non-production use are permitted.
 
-See the [latest release](https://github.com/alexejsailer/agentic-nets/releases/latest),
-[changelog](CHANGELOG.md), and [security policy](SECURITY.md) before deployment.
-Contributions are welcome through [CONTRIBUTING.md](CONTRIBUTING.md),
-[GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions),
-or the [Agentic-Nets forum](https://forum.agentic-nets.com).
+See the [changelog](CHANGELOG.md), [security policy](SECURITY.md), and
+[contribution guide](CONTRIBUTING.md). Join
+[GitHub Discussions](https://github.com/alexejsailer/agentic-nets/discussions)
+or the [Agentic-Nets forum](https://forum.agentic-nets.com) to ask questions and
+share what you build.
 
-## Roots
-
-Agentic-Nets is the modern descendant of a 2012 diploma thesis at the Karlsruhe
-Institute of Technology on **XML-Netze**, a higher-order Petri-net variant whose
-places hold structured documents and whose transitions are governed by
-inscriptions. The concept-by-concept lineage is documented in
-**[FOUNDATIONS.md](FOUNDATIONS.md)**.
+The project's roots are a 2012 diploma thesis at the Karlsruhe Institute of
+Technology on **XML-Netze**, a Petri-net variant with structured documents and
+inscriptions. The lineage is documented in [Foundations](FOUNDATIONS.md).
