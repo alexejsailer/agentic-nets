@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Typed questions for llm transitions over MCP** (`agentic-net-mcp` - `add_transition`, `add_transitions`, `questions.ts`). `questions`, `state` and `questionVersion` build an llm lane that asks bounded questions (choice, score, probability) instead of a prompt; they are validated before anything is written. `llm_groups` reports `decisionModel` for groups on a decision model such as TypeSafe Jev. Deployment and Desktop Lite docs describe the `typesafe` and `decision-api` provider instance types.
+
 ## [2.60.0] - 2026-09-24
 
 ### Added
