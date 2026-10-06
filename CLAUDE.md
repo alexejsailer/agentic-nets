@@ -254,8 +254,9 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   `AGENTICOS_ALLOW_MODEL_CREATE`, rw-only) — so the COMPLETE AgenticOS feature set (models/sessions/
   nets/tokens) is reachable via MCP; **`DELETE_TRANSITION`** deregisters an orphaned runtime transition
   (stop+remove inscription/status/assignment; DELETE_NET gained `deleteTransitions:true`) — needed a
-  new CLI `MasterApi.deleteTransition` (DELETE /runtime/transitions/{id}); **known gap**: node admin
-  model *removal* 500s/404s through the gateway proxy (create works, remove deferred);
+  new CLI `MasterApi.deleteTransition` (DELETE /runtime/transitions/{id}); model *removal* works through the gateway
+  (`DELETE /node-api/admin/models/{id}`, measured 2026-10-05; a pinned model is refused) but has no MCP tool;
+  `nethub/tools/stack.py remove` wraps it;
   NetHub **`hub_publish`** (net/session/**model** artifact, versioned, credential-scrubbed; `tokens`=
   none|config|all where config = *-config/*-charter place tokens + `config:"true"`-marked tokens) /
   **`hub_search`** (local or a peer via `remote`; compact + paginated limit/offset + true total) /
