@@ -13,8 +13,6 @@ public class GatewayProperties {
     private String masterUrl = "http://localhost:8082";
     private String nodeUrl = "http://localhost:8080";
     private String vaultUrl = "http://localhost:8085";
-    /** Optional local speech service (whisper.cpp + Piper bridge, deployment/speech); empty = no /speech-api. */
-    private String speechUrl = "";
     private int timeoutSeconds = 30;
     private int proxyTimeoutSeconds = 300;
     private String clientId = "agenticos-admin";
@@ -68,14 +66,6 @@ public class GatewayProperties {
 
     public void setVaultUrl(String vaultUrl) {
         this.vaultUrl = vaultUrl;
-    }
-
-    public String getSpeechUrl() {
-        return speechUrl;
-    }
-
-    public void setSpeechUrl(String speechUrl) {
-        this.speechUrl = speechUrl;
     }
 
     public int getTimeoutSeconds() {

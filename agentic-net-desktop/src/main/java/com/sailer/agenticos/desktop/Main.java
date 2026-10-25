@@ -195,6 +195,9 @@ public final class Main {
             "AGENTICOS_DESKTOP_PROFILE", DesktopConfig.PROFILE_NAME,
             "AGENTIC_NET_NODE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/api",
             "AGENTICOS_VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT,
+            // Studio's voice (/api/speech on the master): the local speech service of
+            // agentic-nets/deployment/speech. Empty keeps the master's Desktop default 127.0.0.1:8092.
+            "AGENTICOS_SPEECH_URL", config.setting("speech.url", ""),
             "BLOBSTORE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.BLOBSTORE_PORT,
             "AGENTICOS_REGISTRY_ENABLED", "false",
             "AGENTICOS_KNOWLEDGE_SEED_BLOBS_ENABLED", "false",
@@ -237,10 +240,7 @@ public final class Main {
                 // host when Studio is reached through a reverse proxy (Tailscale Serve) that
                 // forwards to the loopback :4200. Comma-separated patterns, e.g.
                 // cors.origins=http://my-mac.tail1234.ts.net,https://my-mac.tail1234.ts.net
-                "GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS", corsOriginPatterns(config.setting("cors.origins", "")),
-                // Optional on-device speech service for Studio (dictation + reading):
-                // speech.url=http://127.0.0.1:8092 (agentic-nets/deployment/speech/speech_service.py).
-                "SPEECH_URL", config.setting("speech.url", ""))),
+                "GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS", corsOriginPatterns(config.setting("cors.origins", "")))),
             config.runDir("gateway"),
             "http://127.0.0.1:" + DesktopConfig.GATEWAY_PORT + "/api/health/ping",
             60));

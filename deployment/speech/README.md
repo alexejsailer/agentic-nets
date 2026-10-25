@@ -1,10 +1,11 @@
 # Local speech service (dictation and reading for Studio)
 
 Open source, on this machine, nothing leaves it. Studio's Focus view reads cards aloud and takes
-dictation through the gateway route `/speech-api`, which proxies to this service.
+dictation through `/api/speech` on the master, which forwards to this service (the one prefix every
+proxy already forwards: the Desktop's Studio port, the gateway, compose).
 
 ```
-Studio ──/speech-api──▶ gateway ──SPEECH_URL──▶ speech_service.py ──▶ whisper-cli (STT), piper (TTS)
+Studio ──/api/speech──▶ (gateway) ──▶ master ──agenticos.speech.url──▶ speech_service.py ──▶ whisper-cli (STT), piper (TTS)
 ```
 
 ## Install (macOS, Apple silicon)
@@ -29,8 +30,18 @@ Without Piper the service reads with macOS `say` (local, not open source) so rea
 
 ```bash
 python3 deployment/speech/speech_service.py          # http://127.0.0.1:8092, GET /health shows what it found
-SPEECH_URL=http://127.0.0.1:8092 ...                  # on the gateway (gateway.speech-url); Desktop: desktop.properties
+AGENTICOS_SPEECH_URL=http://127.0.0.1:8092 ...        # on the master (agenticos.speech.url); the Desktop uses this address by default
 ```
+
+## Where the voice goes
+
+| Choice in Studio | Reading a card | Microphone (dictation) |
+|---|---|---|
+| browser voice | on this device with an OS voice; an "online" voice (Chrome's Google voices) sends the text to that vendor | **to the browser vendor's cloud**: Chrome sends the audio to Google, Edge to Microsoft, Safari to Apple; Firefox has no dictation |
+| local speech service | on this machine (Piper; macOS `say` until a Piper voice is installed) | on this machine (whisper.cpp); nothing goes to a cloud service |
+
+The Focus view states the current answer under its strip, and says so when the local service is not
+reachable (it then reads with the browser voice instead of staying silent).
 
 In Studio's Focus view pick "local speech service" in the voice box. `R` reads the card, `Esc` stops,
 the microphone next to every text box dictates (press, speak, press again; the clip is transcribed

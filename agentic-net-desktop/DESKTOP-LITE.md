@@ -439,13 +439,15 @@ dictates into every text box (the microphone). Out of the box it uses the browse
 for reading (download an enhanced or Siri voice in System Settings for a good one) and the
 browser's recognition for dictation, whose audio goes to the browser vendor. For an open-source,
 on-device pair run the local speech service from `deployment/speech` (whisper.cpp transcribes,
-Piper speaks, the README has the four install lines), point the gateway at it and Restart Services:
+Piper speaks, the README has the install lines and a table of where the voice goes). The master
+reaches it at `http://127.0.0.1:8092` by default; another address goes into `desktop.properties`:
 
 ```
 speech.url=http://127.0.0.1:8092
 ```
 
-Then pick "local speech service" in the Focus view's voice box. Nothing leaves the machine.
+Then pick "local speech service" in the Focus view's voice box. Nothing leaves the machine. The
+Focus view says under its strip where reading and microphone audio go for the current choice.
 
 ## Install and update
 

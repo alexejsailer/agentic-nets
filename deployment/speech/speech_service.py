@@ -4,6 +4,7 @@
 Two endpoints, both plain HTTP, no auth (the gateway in front has the JWT; bind to loopback):
 
   POST /transcribe   multipart form: file=<audio clip, any ffmpeg-readable format>, language=en|de|...
+                     (or the raw clip as the body and ?language=de, which is how the master forwards it)
                      -> {"text": "...", "language": "de", "seconds": 1.9}
   POST /speak        JSON {"text": "...", "voice": "<piper voice id>", "lang": "en-US", "rate": 1.0}
                      -> audio/wav
@@ -177,6 +178,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if path == "/transcribe":
                 clip, fields = parse_multipart(self.headers.get("Content-Type", ""), body)
+                # A proxy may send the clip raw with its fields as query parameters (the master does).
+                for k, v in urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query):
+                    fields.setdefault(k, v)
                 if not clip:
                     return self._json(400, {"error": "multipart field 'file' with the audio clip is required"})
                 t0 = time.time()
