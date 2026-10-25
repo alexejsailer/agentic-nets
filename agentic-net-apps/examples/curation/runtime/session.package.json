@@ -6,7 +6,7 @@
  "tokenPolicy": "none",
  "manifest": {
   "name": "curation-runtime",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Marks (confirmations and flags), their resolutions, refinement passes and notes (briefs and summaries) for the Curation application",
   "author": "AgenticNetOS",
   "tags": [
