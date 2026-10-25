@@ -190,19 +190,23 @@ public final class Main {
             "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/health",
             120));
 
-        Map<String, String> masterEnv = merge(baseEnv(bind, logs, config), Map.of(
-            "SERVER_PORT", String.valueOf(DesktopConfig.MASTER_PORT),
-            "AGENTICOS_DESKTOP_PROFILE", DesktopConfig.PROFILE_NAME,
-            "AGENTIC_NET_NODE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/api",
-            "AGENTICOS_VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT,
+        Map<String, String> masterEnv = merge(baseEnv(bind, logs, config), Map.ofEntries(
+            Map.entry("SERVER_PORT", String.valueOf(DesktopConfig.MASTER_PORT)),
+            Map.entry("AGENTICOS_DESKTOP_PROFILE", DesktopConfig.PROFILE_NAME),
+            Map.entry("AGENTIC_NET_NODE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.NODE_PORT + "/api"),
+            Map.entry("AGENTICOS_VAULT_URL", "http://127.0.0.1:" + DesktopConfig.VAULT_PORT),
             // Studio's voice (/api/speech on the master): the local speech service of
-            // agentic-nets/deployment/speech. Empty keeps the master's Desktop default 127.0.0.1:8092.
-            "AGENTICOS_SPEECH_URL", config.setting("speech.url", ""),
-            "BLOBSTORE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.BLOBSTORE_PORT,
-            "AGENTICOS_REGISTRY_ENABLED", "false",
-            "AGENTICOS_KNOWLEDGE_SEED_BLOBS_ENABLED", "false",
-            "AGENTICNET_USAGE_PERSIST_FILE",
-                config.runDir("master").resolve("usage-fires.jsonl").toAbsolutePath().toString()));
+            // agentic-nets/deployment/speech, on this machine unless the setting says otherwise.
+            Map.entry("AGENTICOS_SPEECH_URL", config.setting("speech.url", "http://127.0.0.1:" + DesktopConfig.SPEECH_PORT)),
+            // The Explorer's hand-over attaches this bundle's MCP server to the Refiner's lane and the
+            // read-only coder, under a tool allowlist; the master learns both only from here.
+            Map.entry("AGENTICOS_EXPLORER_MCP_URL", "http://127.0.0.1:" + DesktopConfig.MCP_PORT + "/mcp"),
+            Map.entry("AGENTICOS_EXPLORER_MCP_TOKEN_FILE", config.mcpTokenFile().toAbsolutePath().toString()),
+            Map.entry("BLOBSTORE_BASE_URL", "http://127.0.0.1:" + DesktopConfig.BLOBSTORE_PORT),
+            Map.entry("AGENTICOS_REGISTRY_ENABLED", "false"),
+            Map.entry("AGENTICOS_KNOWLEDGE_SEED_BLOBS_ENABLED", "false"),
+            Map.entry("AGENTICNET_USAGE_PERSIST_FILE",
+                config.runDir("master").resolve("usage-fires.jsonl").toAbsolutePath().toString())));
         // Same secret the gateway holds: master's /internal/** endpoints fail closed without it.
         masterEnv.put("GATEWAY_INTERNAL_SECRET", config.internalSecret());
         masterEnv.putAll(llmEnv(config));

@@ -672,6 +672,11 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         if (err?.status !== 409) throw err;
         result = conflictBody(err);
       }
+      if (result?.state === 'needs-setup' && Array.isArray(result?.applications) && result.applications.length) {
+        // The master installs nothing by itself; the person (or this client, on their behalf) installs on purpose.
+        const names = result.applications.map((a: any) => `hub_install {name:"${a.name}", version:"latest"}`).join(', ');
+        return { ...result, next: `Install what is missing from the local hub (seeded): ${names}; then hand over again.` };
+      }
       if (result?.state === 'needs-setup' && result?.runner === 'coder') {
         return { ...result, next: 'Tell the coder where the sources are: refiner_configure {root, coder, model}, then hand over again.' };
       }
@@ -729,7 +734,16 @@ function conflictBody(err: any): Record<string, any> {
   return { state: 'needs-setup', error: String(err?.message ?? '') };
 }
 
-/** What attach_mcp_server {self:true} does, for the hand-over lane: declaration, m flag, this server's token in the vault. */
+/**
+ * The tools the Refiner's lane may call on this server: reading the model and curating it, never
+ * building nets. The same list the master declares; a declaration without it would allow every tool.
+ */
+export const REVIEW_MCP_TOOLS = [
+  'explore_model', 'net_levels', 'get_net_definition', 'list_net_definitions', 'update_net_definition',
+  'focus_scope', 'focus_digest', 'refine_model', 'ground_model', 'subject_thread', 'review_model', 'curate_model',
+];
+
+/** What attach_mcp_server {self:true, allowTools} does, for the hand-over lane: declaration with the allowlist, m flag, this server's token in the vault. */
 async function attachSelfToLane(ctx: AppContext, model: string, transitionId: string): Promise<Record<string, unknown>> {
   const self = describeSelf(ctx);
   if (!self.attachable) return { attached: false, reason: self.reason };
@@ -738,7 +752,7 @@ async function attachSelfToLane(ctx: AppContext, model: string, transitionId: st
   if (!inscription || typeof inscription !== 'object') return { attached: false, reason: `transition '${transitionId}' has no inscription in model '${model}'` };
   const action = { ...(inscription.action ?? {}) };
   const existing: any[] = Array.isArray(action.mcp) ? action.mcp.filter((s: any) => s?.name !== SELF_SERVER_NAME) : [];
-  action.mcp = [...existing, { ...self.declaration }];
+  action.mcp = [...existing, { ...self.declaration, allowTools: [...REVIEW_MCP_TOOLS] }];
   action.role = withMcpFlag(action.role);
   const next = { ...inscription, action, ...(inscription.role !== undefined ? { role: action.role } : {}) };
   await ctx.master.stopTransition(transitionId, model).catch(() => undefined);

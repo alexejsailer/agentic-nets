@@ -31,6 +31,8 @@ public final class DesktopConfig {
     public static final int VAULT_PORT = 8085;
     public static final int BLOBSTORE_PORT = 8090;
     public static final int MCP_PORT = 8091;
+    /** The local speech service of agentic-nets/deployment/speech (Studio's voice), when it runs. */
+    public static final int SPEECH_PORT = 8092;
 
     private final Path appDir;
     private final Path dataDir;
@@ -231,6 +233,9 @@ public final class DesktopConfig {
         return Path.of(System.getProperty("java.home"), "bin",
             System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java");
     }
+
+    /** The file holding the MCP bearer token; the master's hand-over reads it from here. */
+    public Path mcpTokenFile() { return desktopDir.resolve("mcp-token"); }
 
     /** Bearer token for the MCP HTTP endpoint — generated once, stored 0600. */
     public String mcpToken() {

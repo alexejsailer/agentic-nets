@@ -504,6 +504,9 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     expect(credential?.body).toEqual({ AGENTICNETS_MCP_TOKEN: 'tok' });
     const assigned = posted.find(p => p.path.includes('/transitions/assign'));
     expect(assigned?.body?.inscription?.action?.mcp?.[0]).toMatchObject({ name: 'agenticnets', auth: { credentialKey: 'AGENTICNETS_MCP_TOKEN' } });
+    // the lane may call the review tools only; without allowTools it could build nets through this server
+    expect(assigned?.body?.inscription?.action?.mcp?.[0]?.allowTools).toContain('curate_model');
+    expect(assigned?.body?.inscription?.action?.mcp?.[0]?.allowTools).not.toContain('add_transition');
     expect(assigned?.body?.inscription?.action?.role).toBe('r---------m');
     const status: any = JSON.parse(((await client.callTool({ name: 'refiner_status', arguments: {} })) as any).content[0].text);
     expect(status.state).toBe('idle');
