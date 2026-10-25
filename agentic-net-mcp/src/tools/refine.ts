@@ -29,7 +29,7 @@ function curationPath(model: string): string {
   return `/explorer/${m}/curation?modelId=${m}`;
 }
 
-function worklistPath(model: string, args: { level?: string; net?: string; direction?: string; mode?: string; count?: number; for?: string }): string {
+function worklistPath(model: string, args: { level?: string; net?: string; direction?: string; mode?: string; count?: number; for?: string; scope?: string; ring?: string }): string {
   const m = encodeURIComponent(model);
   const q = new URLSearchParams({ modelId: model });
   if (args.level) q.set('level', args.level);
@@ -38,33 +38,48 @@ function worklistPath(model: string, args: { level?: string; net?: string; direc
   if (args.mode) q.set('mode', args.mode);
   if (args.count) q.set('count', String(args.count));
   if (args.for) q.set('for', args.for);
+  if (args.scope) q.set('scope', args.scope);
+  if (args.ring) q.set('ring', args.ring);
   return `/explorer/${m}/worklist?${q.toString()}`;
 }
 
-function groundPath(model: string, args: { level?: string; net?: string }): string {
+function groundPath(model: string, args: { level?: string; net?: string; scope?: string }): string {
   const m = encodeURIComponent(model);
   const q = new URLSearchParams({ modelId: model });
   if (args.level) q.set('level', args.level);
   if (args.net) q.set('net', args.net);
+  if (args.scope) q.set('scope', args.scope);
   return `/explorer/${m}/ground?${q.toString()}`;
 }
 
 const GROUND_NEXT = 'For each chain (prompt ground-model): read the bottom node\'s references from the sources, then check every node above against them, bottom-up. Agree: curate_model {action:"confirm", sourceHash}. A mechanical divergence (a name, a value, a count): update_net_definition or the specification, then confirm. A divergence that is a decision: curate_model {action:"flag", flag:"contradiction", evidence} on the node and {action:"ask"} with evidence, reasoning and options [keep the level as written | adopt what the sources do | both need a change]. Record the pass with scope "ground:<level>".';
 
-function digestPath(model: string, args: { since?: string; level?: string }): string {
+function digestPath(model: string, args: { since?: string; level?: string; scope?: string; ring?: string }): string {
   const m = encodeURIComponent(model);
   const q = new URLSearchParams({ modelId: model });
   if (args.since) q.set('since', args.since);
   if (args.level) q.set('level', args.level);
+  if (args.scope) q.set('scope', args.scope);
+  if (args.ring) q.set('ring', args.ring);
   return `/explorer/${m}/digest?${q.toString()}`;
 }
 
 const DIGEST_NEXT = 'Apply it top-down (prompt refinement-pass): revise the definitions the answers touch, create the child definitions the person asked for, resolve settled flags, rebuild from the specification when the model is spec-built, raise the next questions with curate_model {action:"ask"}, then record the pass with curate_model {action:"pass", consumedUntil: this digest\'s `until`}.';
 
+export function scopePath(model: string, scope: string): string {
+  const m = encodeURIComponent(model);
+  const q = new URLSearchParams({ modelId: model, scope });
+  return `/explorer/${m}/scope?${q.toString()}`;
+}
+
+const SCOPE_NEXT = 'Work inside the scope: refine_model {scope} for its cards (ring:"all" adds the open decisions of the nets around it), focus_digest {scope} for what the person answered about it, ground_model {scope} for its chains. Look around before asking: each open gap (a level the scope\'s chain passes without a net of its own) is settled by a definition on that level (create_net_definition), or by curate_model {action:"confirm", subjectKey: the gap\'s subjectKey, notes: "covered by <net>" or "not needed: <why>"}; compare with the examples on that level (what other features have there) and with the neighbours (relations, shared places) for what the scope may be missing, and ask the person only what the sources cannot settle. Record the pass with scope = passScope.';
+
 const WORKLIST_NEXT = 'curate_model {action:"ask", ...item.ask} sends a question to the person; {action:"answer"} records what they said and can confirm or flag the subject; {action:"confirm"|"flag"|"resolve"|"defer"} marks it directly.';
 
 /** Interview subject kind for a subject key: a net, one of its elements, or a level. */
 export function interviewSubjectKind(subjectKey: string): 'net-definition' | 'net-element' | 'level' {
+  // A focus scope's own subjects (scope:<expr>, scope:<expr>@<level>) are level-like, even when the expression names a net.
+  if (subjectKey.startsWith('scope:')) return 'level';
   if (subjectKey.includes('#')) return 'net-element';
   if (subjectKey.includes('::')) return 'net-definition';
   return 'level';
@@ -72,6 +87,7 @@ export function interviewSubjectKind(subjectKey: string): 'net-definition' | 'ne
 
 /** Curation subject kind for a subject key. */
 export function curationSubjectKind(subjectKey: string): 'net' | 'element' | 'level' | 'relation' {
+  if (subjectKey.startsWith('scope:')) return 'level';
   if (subjectKey.includes('>')) return 'relation';
   if (subjectKey.includes('#')) return 'element';
   if (subjectKey.includes('::')) return 'net';
@@ -245,7 +261,8 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         'What a level or a net still needs, as a prioritized worklist with ready-made questions: looking down, transitions nothing refines yet, refinements that do not verify (port mismatch, missing target), definitions still draft or ready; '
         + 'looking up, nets that neither hang below a parent nor explain another net; and the review: open flags, open questions, subjects nobody confirmed. '
         + 'Each item carries an `ask` input for curate_model {action:"ask"}, so a client can run a question round without a prompt or a server-side LLM. '
-        + 'Scope with level (a level id) or net (session::netId); direction down | up | both; count caps the list. Read-only.',
+        + 'Scope with level (a level id) or net (session::netId); direction down | up | both; count caps the list. '
+        + 'scope narrows it to one focus scope (a feature across its levels: domain:<d>, tag:<t>, net:<session::net>, comma-separated for a union; see focus_scope): its nets, plus a card per level its chain passes without a net of its own (kind scope-gap); ring:"all" adds the open questions and flags of the nets around it, ring:"near" only those. Read-only.',
       inputSchema: {
         level: z.string().optional().describe('Only nets on this level'),
         net: z.string().optional().describe('Only this net (session::netId)'),
@@ -253,6 +270,8 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         mode: z.enum(['all', 'review', 'plan']).optional().describe('review: flags, questions, never confirmed (bottom-up); plan: open definitions, unrefined transitions, nets below nothing (top-down); default all'),
         for: z.enum(['person', 'model', 'all']).optional().describe('person: decisions only the person can take (open questions, open flags); model: structural gaps the AI settles from the sources (unrefined, unverified, draft, unconfirmed); default all'),
         count: z.number().int().positive().max(200).optional().describe('At most this many items (default: all)'),
+        scope: z.string().optional().describe('A focus scope: domain:<d>, tag:<t>, net:<session::net> or a bare word, comma-separated for a union'),
+        ring: z.enum(['core', 'near', 'all']).optional().describe('With scope: core = the scope and its level gaps (default); near = only the open decisions around it; all = both'),
         ...modelParam,
       },
     },
@@ -266,6 +285,9 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         }
       } catch (err: any) {
         if (err?.status !== 404) throw err;
+      }
+      if (args.scope) {
+        return { available: false, model, hint: 'master without focus scopes: upgrade master (refine_model without scope still works)' };
       }
       let catalogue: any;
       let review: any;
@@ -291,6 +313,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       inputSchema: {
         level: z.string().optional().describe('The bottom level id (default: the lowest level of the model)'),
         net: z.string().optional().describe('One net (session::netId) instead of the whole level'),
+        scope: z.string().optional().describe('Only the chains of a focus scope\'s own bottom nets (domain:<d>, tag:<t>, net:<session::net>)'),
         ...modelParam,
       },
     },
@@ -317,6 +340,8 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       inputSchema: {
         since: z.string().optional().describe('ISO-8601 instant; default: the last pass\'s consumedUntil, or everything when no pass was recorded'),
         level: z.string().optional().describe('Only subjects on this level'),
+        scope: z.string().optional().describe('Only a focus scope\'s subjects (domain:<d>, tag:<t>, net:<session::net>); the digest then starts after the newest pass over the same scope or over the whole model'),
+        ring: z.enum(['core', 'near', 'all']).optional().describe('With scope: all adds the subjects of the nets around it'),
         ...modelParam,
       },
     },
@@ -327,6 +352,38 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       } catch (err: any) {
         if (err?.status === 404) {
           return { available: false, model, hint: 'master without /api/explorer/{model}/digest: upgrade master' };
+        }
+        throw err;
+      }
+    }),
+  );
+}
+
+export function registerFocusScope(server: McpServer, ctx: AppContext): void {
+  const { scope, config } = ctx;
+  const modelParam: Record<string, z.ZodTypeAny> = scope.multiModel
+    ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
+    : {};
+  server.registerTool(
+    'focus_scope',
+    {
+      title: 'One feature across its levels, and what surrounds it',
+      description:
+        'A focus scope: the part of a model to work on now, typically one feature across every level. scope is domain:<d>, tag:<t>, net:<session::net> (the net and everything below it) or a bare word, comma-separated for a union; nets below a matched net join when they carry no other domain. '
+        + 'Answers the scope\'s nets per level (core), the nets around it and how each connects (parent, child, depends-on, explains, references and their inverses, shares-place; siblings, the chain above and hub places as context), '
+        + 'the levels its chain passes without a net of its own (gaps, each with what covers the level in the chain and which other features sit there, each a subject to confirm, defer or ask about), the shared places on its boundary, and passScope for curate_model {action:"pass"}. Read-only.',
+      inputSchema: {
+        scope: z.string().min(1).describe('domain:<d>, tag:<t>, net:<session::net> or a bare word; comma-separated for a union'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'focus_scope', mutates: false }, async (model, args) => {
+      try {
+        const served = await ctx.master.get(scopePath(model, args.scope));
+        return { ...served, next: SCOPE_NEXT };
+      } catch (err: any) {
+        if (err?.status === 404) {
+          return { available: false, model, error: String(err?.message ?? ''), hint: 'an unknown model, or a master without /api/explorer/{model}/scope (upgrade master)' };
         }
         throw err;
       }

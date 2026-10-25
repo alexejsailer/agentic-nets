@@ -22,7 +22,7 @@ import { registerCapabilityTools } from './tools/capabilities.js';
 import { registerProtocolReaders, registerProtocolTools } from './tools/protocol.js';
 import { registerApplicationReaders, registerApplicationTools } from './tools/applications.js';
 import { registerExplorerReaders } from './tools/explorer.js';
-import { registerRefineReaders, registerRefineTools } from './tools/refine.js';
+import { registerFocusScope, registerRefineReaders, registerRefineTools } from './tools/refine.js';
 import { registerDefinitionReaders, registerDefinitionTools } from './tools/definitions.js';
 import { registerLevelTools } from './tools/levels.js';
 import { registerResources } from './resources.js';
@@ -89,6 +89,7 @@ export function createServer(ctx: AppContext): McpServer {
     registerExplorerReaders(server, ctx);
     // The refinement worklist is one pair of GETs; asking and marking are not for observers.
     registerRefineReaders(server, ctx);
+    registerFocusScope(server, ctx);
     // Definitions and their builds are readable by observers; claiming and building are not.
     registerDefinitionReaders(server, ctx);
     // External-fire discovery is GET-based — readonly observers can see the lane.
@@ -99,6 +100,7 @@ export function createServer(ctx: AppContext): McpServer {
     registerApplicationTools(server, ctx);
     registerExplorerReaders(server, ctx);
     registerRefineReaders(server, ctx);
+    registerFocusScope(server, ctx);
     registerRefineTools(server, ctx);
     registerDefinitionReaders(server, ctx);
     registerDefinitionTools(server, ctx);

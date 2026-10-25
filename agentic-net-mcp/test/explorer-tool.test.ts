@@ -9,7 +9,7 @@ import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
 import { hierarchyLines, summarize } from '../src/tools/explorer.js';
-import { refineWorklist } from '../src/tools/refine.js';
+import { curationSubjectKind, interviewSubjectKind, refineWorklist } from '../src/tools/refine.js';
 
 function config(overrides: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -398,3 +398,51 @@ describe('audience, own questions and the ground', () => {
   });
 });
 
+
+describe('focus scope: one feature across its levels', () => {
+  it('focus_scope reads the served scope; refine_model, focus_digest and ground_model pass scope and ring through', async () => {
+    const served = { modelId: 'm1', scope: 'domain:activity', passScope: 'focus:domain:activity', counts: { core: 4, gaps: 1 },
+      gaps: [{ level: 'concepts', subjectKey: 'scope:domain:activity@concepts', state: 'open' }] };
+    const { client, calls } = await connect((path) => (path.includes('/scope') ? served
+      : path.includes('/worklist') ? { items: [], total: 0 } : path.includes('/digest') ? { levels: [] } : path.includes('/ground') ? { chains: [] } : CATALOGUE));
+    const scope: any = JSON.parse(((await client.callTool({ name: 'focus_scope', arguments: { scope: 'domain:activity' } })) as any).content[0].text);
+    expect(scope.passScope).toBe('focus:domain:activity');
+    expect(scope.next).toMatch(/gap/);
+    await client.callTool({ name: 'refine_model', arguments: { scope: 'domain:activity', ring: 'all', for: 'model' } });
+    await client.callTool({ name: 'focus_digest', arguments: { scope: 'domain:activity', ring: 'all' } });
+    await client.callTool({ name: 'ground_model', arguments: { scope: 'domain:activity' } });
+    expect(calls).toEqual([
+      '/explorer/m1/scope?modelId=m1&scope=domain%3Aactivity',
+      '/explorer/m1/worklist?modelId=m1&direction=both&for=model&scope=domain%3Aactivity&ring=all',
+      '/explorer/m1/digest?modelId=m1&scope=domain%3Aactivity&ring=all',
+      '/explorer/m1/ground?modelId=m1&scope=domain%3Aactivity',
+    ]);
+  });
+
+  it('a scope subject is level-like even when the scope names a net, so confirm and ask accept it', () => {
+    expect(curationSubjectKind('scope:net:rules::activity-rules@concepts')).toBe('level');
+    expect(interviewSubjectKind('scope:domain:activity@concepts')).toBe('level');
+    expect(curationSubjectKind('rules::activity-rules')).toBe('net');
+  });
+
+  it('the refinement and structure passes look around a focus scope before asking', async () => {
+    const { client } = await connect(() => CATALOGUE);
+    const refinement: any = await client.getPrompt({ name: 'refinement-pass', arguments: { scope: 'domain:activity' } });
+    const text = refinement.messages[0].content.text as string;
+    expect(text).toContain('focus_digest {scope:"domain:activity"}');
+    expect(text).toContain('focus_scope {scope:"domain:activity"}');
+    expect(text).toMatch(/passScope/);
+    const structure: any = await client.getPrompt({ name: 'structure-pass', arguments: { scope: 'domain:activity' } });
+    const st = structure.messages[0].content.text as string;
+    expect(st).toContain('refine_model {scope:"domain:activity", for:"model"}');
+    expect(st).toContain('focus:<focus_scope');
+    const plain: any = await client.getPrompt({ name: 'refinement-pass', arguments: { scope: 'rules' } });
+    expect(plain.messages[0].content.text).not.toContain('focus_scope');
+  });
+
+  it('focus_scope on an older master says so instead of failing', async () => {
+    const { client } = await connect((path) => { if (path.includes('/scope')) { const e: any = new Error('nf'); e.status = 404; throw e; } return CATALOGUE; });
+    const result: any = await client.callTool({ name: 'focus_scope', arguments: { scope: 'tag:x' } });
+    expect(JSON.parse(result.content[0].text)).toMatchObject({ available: false, model: 'm1' });
+  });
+});
