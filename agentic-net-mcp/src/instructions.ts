@@ -86,6 +86,9 @@ list_external_fires {includeAll:true}). If > 0, say so in one line and OFFER to 
 (prepare_external_fire → answer → complete_external_fire, per lane); nothing else drains that
 backlog. Add: "these run only while I am connected — for unattended AI I can create a Claude
 Code/Codex persona lane, or you can configure a server provider."
+Net definitions are work too: list_net_definitions shows nets described in words before they
+exist; status ready, or a build queued or awaiting-answers, is claimable. Offer to build one with
+the realize-net-definition prompt (claim → ask → plan → apply stopped → verify → complete).
 
 ## When to use what
 - Create a named specialist first: spawn_persona builds the COMPLETE persona net (charter + task
@@ -271,7 +274,7 @@ first and report what was stopped.
 ## The knowledge base — search it, don't guess
 search_knowledge {query} greps the bundled operational docs (offline; works in readonly) and
 returns agenticnets://docs/{topic} URIs: index · personas · safe-product-team · model-steward ·
-starter-patterns · concepts · architecture · inscriptions · arcql · interpolation · emit ·
+starter-patterns · definitions · concepts · architecture · inscriptions · arcql · interpolation · emit ·
 commands · tool-catalog · llm · external-fire · mcp-servers · real-agents · scheduling · cost · tokens ·
 troubleshooting · recipes · nethub · security.
 Before hand-writing an inscription read docs/inscriptions; when something is broken read

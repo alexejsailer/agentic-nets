@@ -19,6 +19,7 @@ import commandsMd from './commands.md';
 import conceptsMd from './concepts.md';
 import costMd from './cost.md';
 import delegationMd from './delegation.md';
+import definitionsMd from './definitions.md';
 import crystallizationMd from './crystallization.md';
 import emitMd from './emit.md';
 import externalFireMd from './external-fire.md';
@@ -64,6 +65,7 @@ export const KNOWLEDGE: Record<string, KnowledgeDoc> = {
   'model-steward': { title: 'Model Steward: domain-neutral model and process review', text: modelStewardMd },
   personas: { title: 'Persona-first agents, teams, contexts, and learning', text: personasMd },
   delegation: { title: 'Capability packs: delegate, don\u2019t hand-roll', text: delegationMd },
+  definitions: { title: 'Net definitions, the hierarchy of nets, and building them', text: definitionsMd },
   applications: { title: 'Net applications: Protocol, Interview, Goals', text: applicationsMd },
   approvals: { title: 'Approval Room: independent decisions and safe retries', text: approvalsMd },
   'external-fire': { title: 'External fires: the host model is the LLM', text: externalFireMd },

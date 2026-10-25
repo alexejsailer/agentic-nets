@@ -124,7 +124,11 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // agent on work that costs 821k tokens per fire and produces nothing — measured, then replaced
   // with one batch call at 0 tokens. Carries the traps that cost real debugging in the rewrite
   // (lease contention between two readers, one payload per map, len(preset) wrong at 0 and 1).
-  const PACK_CAP = 153600; // +7KB 2026-08-26: delegation topic; +1KB 2026-08-31: view-net partitioning joined architecture
+  // 150K → 155K for docs/definitions (2026-10-10): the hierarchy of nets (subnet refinement with
+  // same-id ports) and the fenced definition build protocol are new platform contracts a client
+  // acts on wrongly if it guesses (building on a lost lease, reseeding a reused place, creating a
+  // second net after a lost response). The doc is 5.2K and its index line 0.2K; +5KB covers both.
+  const PACK_CAP = 158720; // +7KB 2026-08-26: delegation topic; +1KB 2026-08-31: view-net partitioning joined architecture; +5KB 2026-10-10: definitions topic
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.

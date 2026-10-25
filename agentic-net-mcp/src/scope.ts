@@ -59,6 +59,18 @@ export class ReadonlyError extends Error {
   }
 }
 
+/**
+ * A handler-level failure that already carries its structured answer (for example master's
+ * `{error, code}` from a 409 lifecycle conflict). wrapTool returns the payload as an error
+ * result unchanged, so the client sees the machine-readable code instead of a flattened string.
+ */
+export class StructuredToolError extends Error {
+  constructor(public readonly payload: Record<string, unknown>) {
+    super(String(payload?.error ?? payload?.code ?? 'tool error'));
+    this.name = 'StructuredToolError';
+  }
+}
+
 export function resolveModel(scope: ModelScope, requested?: string): string {
   if (requested === undefined || requested === null || requested === '') {
     return scope.defaultModel;
@@ -216,6 +228,9 @@ export function wrapTool(scope: ModelScope, mode: 'rw' | 'readonly', spec: ToolS
       }
       if (err instanceof ReadonlyError) {
         return textResult({ code: err.code, error: err.message }, true);
+      }
+      if (err instanceof StructuredToolError) {
+        return textResult(err.payload, true);
       }
       // GatewayError from @agenticos/cli carries status + body + the attempted
       // "METHOD /path" — surface all of it, name the failing layer, and give an

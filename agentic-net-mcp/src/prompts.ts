@@ -58,6 +58,40 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'realize-net-definition',
+    {
+      title: 'Realize a net definition',
+      description: 'Claim a natural-language net definition, clarify it, build it stopped, verify it, and record the evidence',
+      argsSchema: {
+        sessionId: z.string().describe('Session of the definition net'),
+        netId: z.string().describe('Net id of the definition'),
+        model: z.string().optional().describe('Target model when this connection allows several'),
+        owner: z.string().optional().describe('Stable builder id recorded on the lease (default: your client name)'),
+      },
+    },
+    ({ sessionId, netId, model, owner }) => {
+      const key = `${sessionId}::${netId}`;
+      const who = owner || 'a stable id for yourself (client or persona name), used on every call';
+      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
+      return userMessage(
+        `Realize the net definition ${key}${on} as ${who}. Follow the build protocol exactly; master fences every step.\n` +
+          `1. Discover: get_net_definition {sessionId:"${sessionId}", netId:"${netId}"}. Read the description, interactions, proposed ports, levels, parent, acceptance and nextActions. ` +
+          `If the status is draft, stop and tell me it must be marked ready. If no build is open, request one with update_net_definition {action:"request_build"} only if I asked you to build it.\n` +
+          `2. Claim: claim_net_definition {action:"claim", owner, sessionId, netId}. Keep the returned leaseGeneration; pass owner and leaseGeneration on every later call. Renew with action:"renew" during long work.\n` +
+          `3. Understand the surroundings: explore_model for the hierarchy, then net_overview on the parent and on the nets named in the interactions. Resolve every proposed connection to an EXACT existing place id, or decide to create a new place. Reused places keep their tokens; never reseed them.\n` +
+          `4. Ask only what materially changes behaviour or connections: application_action on "interview" action "ask" with a NEW promptId each time (never reuse one), question, options (strings or {value,label,description,recommended}), multiSelect, allowFreeText, and the subject subjectKind:"net-definition", subjectKey:"${key}", subjectRevision, buildId (get_net_definition returns askWith with these filled). ` +
+          `Then record_net_build {action:"checkpoint", state:"awaiting-answers", checkpoint:{...what you know so far}}; this releases the lease. Tell me which questions are open (I can answer here or in the Explorer) and stop. To resume, claim again and reread the definition and the answers. Record assumptions you made without asking in the plan.\n` +
+          `5. Plan: record_net_build {action:"checkpoint", state:"planning", plan:{revision, summary, assumptions[], reusedPlaces[], topology:{places, transitions}, acceptance[]}}. The server hashes the reused places' readers and writers; if they change before you apply, apply answers boundary-changed and you re-plan.\n` +
+          `6. Build: record_net_build {action:"apply", places, transitions (with full inscriptions), arcs?}. It is one atomic, validated, diff-based write into ${key}; it never starts anything. Fix validation findings and apply again; a retry after a lost response changes nothing. Checkpoint state:"building" or "verifying" as you go.\n` +
+          `7. Verify according to the role: for an executable net verify_inscription and dry_run_transition on each new lane and net_overview on the result; for an explanatory or context net check references, links and navigation only, without pretending it must execute. Existing work tokens are not test inputs.\n` +
+          `8. Finish: record_net_build {action:"complete", verification:{passed, evidence[]}, notes}, or {action:"fail", error, evidence} when it cannot be done. Complete starts the transitions only when the build policy says activate; otherwise the net stays stopped.\n` +
+          `Rules: a 409 with code lease-lost, superseded or cancel-requested means stop and report; never build on a lost lease. After an uncertain failure, reread get_net_definition and the build before retrying, and never create a second net for the same definition. ` +
+          `End with a short report: what you built, what you reused, open questions, evidence, and the build state.`,
+      );
+    },
+  );
+
+  server.registerPrompt(
     'capture-session',
     {
       title: 'Capture this session into memory',

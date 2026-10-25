@@ -75,6 +75,11 @@ const CURATED = [
   'application_describe',
   'application_action',
   'explore_model',
+  'list_net_definitions',
+  'get_net_definition',
+  'update_net_definition',
+  'claim_net_definition',
+  'record_net_build',
   'memory_link',
   'memory_graph',
   'domain_memory_write',
@@ -246,7 +251,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['application_describe', 'application_list', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'get_net_definition', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
     );
   });
 
@@ -320,6 +325,7 @@ describe('advertised tool surface', () => {
         'design-persona-team',
         'debug-net',
         'monitor-personas',
+        'realize-net-definition',
         'review-current-model',
         'setup-working-memory',
         'spawn-worker',

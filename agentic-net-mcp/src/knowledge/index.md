@@ -38,6 +38,8 @@ inscription by hand, read `inscriptions`.
   double-check that makes `approved` mean something, invoking scripts by toolId.
 - **llm** — llm_health pre-flight; tier & error-branch behavior (and old-master caveats); the
   @response.json parse fallback; agent two-tier config; cost discipline.
+- **definitions**: nets as a hierarchy (subnet refinement, same-id ports, levels); natural-
+  language definitions; the fenced build protocol (claim, ask, plan, apply, verify, complete).
 - **applications** — Protocol/Interview/Goals as ordinary nets with a manifest: discover roles
   instead of hardcoding places, the two-way Interview contract (ask / respond with intent /
   raise), and how to ask a human WITHOUT holding a transition lease.
