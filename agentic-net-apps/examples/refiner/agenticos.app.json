@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "refiner",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "displayName": "Refiner",
   "description": "The AI side of the focus loop as a lane in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent through the Agentic-Nets MCP server, with its run recorded.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "agent"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/refiner-1.1.1.application.json",
+  "output": "../../dist/packages/refiner-1.1.2.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
