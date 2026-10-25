@@ -22,8 +22,29 @@ function cataloguePath(model: string): string {
 
 function matches(net: any, query: string): boolean {
   const q = query.toLowerCase();
-  return [net?.key, net?.title, net?.description]
+  const tags: unknown[] = Array.isArray(net?.tags) ? net.tags : [];
+  return [net?.key, net?.title, net?.description, net?.domain, net?.responsible, ...tags]
     .some((v) => typeof v === 'string' && v.toLowerCase().includes(q));
+}
+
+/** Organization and execution fields, only when the master sends them (older masters do not). */
+function organizationOf(net: any): Record<string, any> {
+  const out: Record<string, any> = {};
+  if (typeof net?.domain === 'string' && net.domain) out.domain = net.domain;
+  if (typeof net?.responsible === 'string' && net.responsible) out.responsible = net.responsible;
+  if (Array.isArray(net?.tags) && net.tags.length) out.tags = net.tags;
+  if (typeof net?.execution?.state === 'string') out.execution = net.execution.state;
+  return out;
+}
+
+function organizationSuffix(net: any): string {
+  const o = organizationOf(net);
+  const parts: string[] = [];
+  if (o.domain) parts.push(`domain ${o.domain}`);
+  if (o.responsible) parts.push(`responsible ${o.responsible}`);
+  if (o.tags) parts.push(`tags ${o.tags.join('/')}`);
+  if (o.execution) parts.push(`execution ${o.execution}`);
+  return parts.length ? `, ${parts.join(', ')}` : '';
 }
 
 function degree(place: any): number {
@@ -61,7 +82,7 @@ export function hierarchyLines(catalogue: any): string[] {
     const verified = edge?.verified ? `, ${edge.verified}` : '';
     const status = net?.definitionStatus && net.definitionStatus !== 'realized'
       ? `, definition ${net.definitionStatus}` : '';
-    out.push(`${'  '.repeat(depth)}${key} (depth ${net?.depth ?? depth}${via}${verified}${status})`);
+    out.push(`${'  '.repeat(depth)}${key} (depth ${net?.depth ?? depth}${via}${verified}${status}${organizationSuffix(net)})`);
     for (const child of children.get(key) ?? []) visit(child, depth + 1, seen);
   };
   const seen = new Set<string>();
@@ -69,6 +90,15 @@ export function hierarchyLines(catalogue: any): string[] {
   // Nets whose parent is unknown to the catalogue still get listed, never silently dropped.
   for (const n of nets) visit(String(n?.key ?? ''), 0, seen);
   return out;
+}
+
+/** `fromKey relation toKey` per explicit relation, "(missing)" when the target net is gone. */
+export function relationLines(catalogue: any, keys?: Set<string>): string[] {
+  const all: any[] = Array.isArray(catalogue?.relations) ? catalogue.relations : [];
+  return all
+    .filter((r) => typeof r?.fromKey === 'string' && typeof r?.relation === 'string')
+    .filter((r) => !keys || keys.has(r.fromKey) || keys.has(String(r?.toKey ?? '')))
+    .map((r) => `${r.fromKey} ${r.relation} ${r?.toKey ?? '?'}${r?.resolved === false ? ' (missing)' : ''}`);
 }
 
 export function summarize(catalogue: any, query?: string): any {
@@ -91,6 +121,10 @@ export function summarize(catalogue: any, query?: string): any {
     stats: catalogue?.stats ?? {},
     levels: Array.isArray(catalogue?.levels) ? catalogue.levels : [],
     hierarchy: hierarchyLines(query ? { ...catalogue, nets } : catalogue),
+    // Explicit relations (explains, depends-on, references); older masters send none.
+    ...(Array.isArray(catalogue?.relations)
+      ? { relations: relationLines(catalogue, query ? new Set(nets.map((n) => String(n?.key ?? ''))) : undefined) }
+      : {}),
     nets: nets.map((n) => ({
       key: n?.key,
       title: n?.title,
@@ -99,6 +133,7 @@ export function summarize(catalogue: any, query?: string): any {
       transitionCount: n?.transitionCount,
       inscribedTransitionCount: n?.inscribedTransitionCount,
       definitionStatus: n?.definitionStatus,
+      ...organizationOf(n),
     })),
     ...(query ? { query, matched: nets.length, total: allNets.length } : {}),
     topSharedPlaces,
@@ -119,10 +154,12 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
       description:
         'Model-wide designtime catalogue: every net across every session with its qualified identity `session::netId` (two sessions may each own a net called main; the key tells them apart), its depth in the abstraction hierarchy, its interface (input/output/internal places), shared places with inscription-derived readers and writers, and natural-language definitions that have no topology yet. '
         + 'Depth comes from subnet refinement: a transition (or place) of a parent net is refined by a child net whose port places carry the SAME ids as the parent\'s preset/postset places, so the runtime stays flat and the abstract element never fires (it carries no inscription). '
-        + 'detail:"summary" (default) returns counts, levels, the hierarchy as indented lines, a compact net list and the most shared places; detail:"full" returns the whole document. query filters nets by key, title or description. Read-only; nothing here touches runtime state.',
+        + 'Nets carry organization (domain, responsible, tags; set with update_net_definition action:"organize") and an execution state read from the existing transition statuses (none, running, partial, stopped, error). '
+        + 'Explicit relations between nets (explains, depends-on, references; set with action:"relate") appear as lines "from relation to", marked (missing) when the target is gone. '
+        + 'detail:"summary" (default) returns counts, levels, the hierarchy as indented lines, a compact net list and the most shared places; detail:"full" returns the whole document. query filters nets by key, title, description, domain, responsible or tags. Read-only; nothing here touches runtime state.',
       inputSchema: {
         detail: z.enum(['summary', 'full']).default('summary'),
-        query: z.string().optional().describe('Substring filter on net key, title or description'),
+        query: z.string().optional().describe('Substring filter on net key, title, description, domain, responsible or tags'),
         ...modelParam,
       },
     },

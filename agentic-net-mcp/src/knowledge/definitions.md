@@ -1,79 +1,77 @@
 # Net definitions and the hierarchy of nets
 
-A model's nets form a **hierarchy of abstractions**: a net at one level stands for complexity that
-is drawn out at the level below. The runtime stays flat; the hierarchy is designtime data only.
+A model's nets form a **hierarchy of abstractions**: a net at one level stands for complexity drawn
+out at the level below. The runtime stays flat; the hierarchy is designtime data only.
 
 ## The hierarchy
 
-- **Refinement is the subnet relation.** An element of a parent net (a transition, or a place) is
-  refined by a child net. The child's **ports carry the SAME ids** as the parent element's preset
-  and postset places, so parent and child share those places at runtime. Two forms exist: an inline
-  page stored inside the parent element (`subnet: {net}`), or a reference to a separate persistent
-  net through the element attributes `subnetSession` + `subnetNet`.
-- **The abstract element never fires.** It carries no inscription; the work happens in the child's
-  ordinary transitions. A summary at a higher level is produced by a normal transition that reads
-  the lower level's output ports.
-- **Depth** is the distance from a root net. **Levels** are optional named bands
-  (e.g. product, service, implementation) a net can be pinned to; nets with neither parent nor
-  level sit in an "unassigned" band.
-- A refinement is checked: `ok` (ports match the parent element), `portMismatch`,
-  `targetMissing`, or `pending` (the child has nothing drawn yet).
-- Shared places remain the horizontal coupling between peers; refinement is the vertical relation.
-- `explore_model` shows all of it: qualified keys `session::netId`, depth, interface
-  (input/output/internal places), shared places with readers and writers.
+- **Refinement is the subnet relation.** A parent's transition (or place) is refined by a child
+  net whose **ports carry the SAME ids** as the element's preset and postset places, so both share
+  those places at runtime. Two forms: an inline page in the element (`subnet: {net}`), or a
+  reference to a persistent net via the element attributes `subnetSession` + `subnetNet`.
+- **The abstract element never fires.** It has no inscription; the child's ordinary transitions do
+  the work. A higher-level summary comes from a normal transition reading the lower output ports.
+- **Depth** is the distance from a root. **Levels** are optional named bands (product, service,
+  implementation) a net can be pinned to; nets with neither sit in "unassigned".
+- Refinements are checked: `ok` (ports match the element), `portMismatch`, `targetMissing`, or
+  `pending` (child empty).
+- Shared places are the horizontal coupling between peers; refinement is the vertical one.
+  Explicit relations (`explains`, `depends-on`, `references`) add meaning between any two nets.
+- `explore_model` shows it all: keys `session::netId`, depth, shared places with
+  readers and writers, interface (input/output/internal places), organization, execution state,
+  relations.
 
 ## Definitions
 
-A definition is a persistent net that exists **before** its places and transitions: name,
-description (what the net does, stored on the net itself), interactions with other nets in words,
-proposed ports, levels above and below, acceptance criteria, and a revision history. It may already
-sit under its parent element. Status: `draft` → `ready` (eligible for a build) → `realized`.
-Revising writes revision+1 and returns a ready or realized definition to draft; a realized net
-whose definition is newer shows **changes pending**.
+A definition is a persistent net that exists **before** its topology: name, description (what it
+does, stored on the net), interactions in words, proposed ports, levels above and below,
+acceptance, `references` (code, trace or doc links), and a revision history. It may already sit
+under its parent element. Status `draft` → `ready` (buildable) → `realized`; `archived` keeps it
+but hides it from active work. Revising writes revision+1 and keeps the status, so a realized net
+with a newer definition shows **changes pending** and can be rebuilt.
 
-Tools: `list_net_definitions`, `get_net_definition` (with `nextActions`), `update_net_definition`
-(`create`, `revise`, `ready`, `request_build`).
+`update_net_definition` actions: `create` (optionally from a `templateId`; explicit args win),
+`revise`, `ready`, `request_build`, `organize` (layer, domain, responsible, tags on any net),
+`relate` (mode add, remove or replace), `archive`, `unarchive`. Templates: `list_net_definition_templates`,
+`net_definition_templates`. Read with `list_net_definitions`, `get_net_definition` (`nextActions`).
 
 ## Building one
 
-The connected client's own model does the reasoning; no server-side LLM is needed. Use the
-`realize-net-definition` prompt. The protocol:
+The client's own model reasons; no server-side LLM is needed. Use the `realize-net-definition`
+prompt:
 
-1. **Request** (person or client): `update_net_definition {action:"request_build"}`. One open
-   build per definition. `policy.activate:true` starts the result on completion; default stopped.
-2. **Claim**: `claim_net_definition {action:"claim", owner}` returns `leaseGeneration`. Every
-   later call passes `owner` + `leaseGeneration`; master rejects stale writers. Renew during long
-   work. Leases expire; another client may then claim and resume from the last checkpoint.
+1. **Request**: `update_net_definition {action:"request_build"}`. One open build per definition.
+   `policy.activate:true` starts the result on completion; default stopped.
+2. **Claim**: `claim_net_definition {action:"claim", owner}` returns `leaseGeneration`; pass
+   `owner` + `leaseGeneration` on every later call (stale writers are rejected). Renew during long
+   work. An expired lease lets another client claim and resume from the last checkpoint.
 3. **Ask** what materially changes behaviour: `application_action` on `interview` action `ask`
    with a NEW `promptId` (never reused), `question`, `options`, `multiSelect`, `allowFreeText`, and
    `subjectKind:"net-definition"`, `subjectKey:"session::net"`, `subjectRevision`, `buildId`.
-   Then `record_net_build {action:"checkpoint", state:"awaiting-answers"}`: that releases the
-   lease. The person answers in the Explorer or in your chat; both land in the same tokens. A
-   question can be answered once; a second answer is refused.
+   Then checkpoint `state:"awaiting-answers"` (releases the lease). Answers from the Explorer or
+   your chat land in the same tokens; a question is answered once.
 4. **Plan**: checkpoint `state:"planning"` with `plan {revision, summary, assumptions,
-   reusedPlaces, topology, acceptance}`. The server hashes the reused places' readers and writers.
-5. **Apply**: `record_net_build {action:"apply", places, transitions, arcs?, remove?}`. One atomic
-   write into the definition net: designtime elements, missing runtime places (tokens are never
-   touched), inscriptions (validated; errors reject the whole write). Diff-based, so a retry after a
-   lost response changes nothing. Nothing is started. A changed boundary answers `boundary-changed`:
-   re-plan.
-6. **Verify** by role: an executable net gets `verify_inscription`, `dry_run_transition`,
-   `net_overview`; an explanatory or context net is checked for references and navigation only.
-   Existing work tokens are not test inputs.
-7. **Complete** with `verification {passed, evidence}` (the definition becomes realized at that
-   revision), or **fail** with the error (earlier realizations stay intact).
+   reusedPlaces, topology, acceptance}`; the server hashes the reused places' readers and writers.
+5. **Apply**: `record_net_build {action:"apply", places, transitions, arcs?, remove?}`, one atomic
+   write: designtime elements, missing runtime places (tokens never touched), validated
+   inscriptions (errors reject it all). Diff-based, so a retry changes nothing; nothing starts.
+   `boundary-changed` means re-plan.
+6. **Verify** by role: executable nets get `verify_inscription`, `dry_run_transition`,
+   `net_overview`; explanatory nets only references and navigation. Work tokens are not test input.
+7. **Complete** with `verification {passed, evidence}` (realized at that revision), or **fail**
+   (earlier realizations stay intact).
 
 ## Conflicts and recovery
 
 | Code | Meaning | Do |
 |---|---|---|
-| `lease-lost` / `lease-expired` | another client holds the build now | stop; reread |
-| `superseded` | the definition got a newer revision | stop; a new build is needed |
-| `cancel-requested` | someone cancelled | settle, then release with `cancelled` |
-| `boundary-changed` | a reused place changed underneath | re-plan, then apply |
+| `lease-lost` / `lease-expired` | another client holds the build | stop; reread |
+| `superseded` | the definition has a newer revision | stop; a new build is needed |
+| `cancel-requested` | someone cancelled | settle, release with `cancelled` |
+| `boundary-changed` | a reused place changed | re-plan, then apply |
 | `validation-failed` | an inscription is wrong | fix the findings, apply again |
 | `transition-running` | a removal hit a running lane | stop it first |
 | `build-open` | a build is already open | claim that one |
 
 After an uncertain failure, reread `get_net_definition` and the build before retrying. Never
-create a second net for the same definition, and never delete a reused shared place.
+create a second net for one definition, never delete a reused shared place.

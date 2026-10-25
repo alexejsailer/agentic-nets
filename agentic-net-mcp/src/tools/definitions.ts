@@ -61,6 +61,42 @@ async function masterCall(ctx: AppContext, method: string, path: string, body?: 
   }
 }
 
+/**
+ * Claimable definition work for readiness, from the catalogue's definitions: `ready` (status ready,
+ * no open build), `queued`, `awaitingAnswers`, `building` (claimed/planning/building/verifying).
+ */
+export function definitionReadiness(catalogue: any): any {
+  const defs: any[] = Array.isArray(catalogue?.definitions) ? catalogue.definitions : [];
+  let ready = 0;
+  let queued = 0;
+  let awaitingAnswers = 0;
+  let building = 0;
+  for (const d of defs) {
+    const latest = typeof d?.latestBuildState === 'string' ? d.latestBuildState : null;
+    const open = typeof d?.activeBuild === 'string' && d.activeBuild !== '';
+    if (open && latest === 'queued') queued++;
+    else if (open && latest === 'awaiting-answers') awaitingAnswers++;
+    else if (open && latest && ACTIVE_STATES.has(latest)) building++;
+    else if (!open && d?.status === 'ready') ready++;
+  }
+  const out: any = { available: true, definitions: defs.length, ready, queued, awaitingAnswers, building };
+  if (ready + queued + awaitingAnswers > 0) {
+    out.hint = `${ready + queued} definition build(s) can be claimed and ${awaitingAnswers} wait for answers: `
+      + 'use the realize-net-definition prompt (list_net_definitions, then get_net_definition for next actions)';
+  }
+  return out;
+}
+
+/** layer, domain, responsible, tags as given (undefined fields are left out). */
+export function organizationFields(args: any): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const k of ['layer', 'domain', 'responsible'] as const) {
+    if (typeof args?.[k] === 'string') out[k] = args[k];
+  }
+  if (Array.isArray(args?.tags)) out.tags = args.tags;
+  return out;
+}
+
 function buildIdOf(b: any): string | undefined {
   return b?.buildId ?? b?.request?.buildId ?? b?.id;
 }
@@ -193,9 +229,67 @@ export function definitionRows(catalogue: any): any[] {
   });
 }
 
+export const RELATIONS = ['explains', 'depends-on', 'references'] as const;
+type Relation = { relation: string; target: { sessionId: string; netId: string }; note?: string };
+
+function relationKey(r: Relation): string {
+  return `${r.relation}>${r.target.sessionId}::${r.target.netId}`;
+}
+
+/** The relations a net declares today, read from the catalogue's `relations` list. */
+export function currentRelations(catalogue: any, fromKey: string): Relation[] {
+  const all: any[] = Array.isArray(catalogue?.relations) ? catalogue.relations : [];
+  const out: Relation[] = [];
+  for (const r of all) {
+    if (r?.fromKey !== fromKey || typeof r?.relation !== 'string') continue;
+    let sessionId = r?.to?.sessionId;
+    let netId = r?.to?.netId;
+    if ((!sessionId || !netId) && typeof r?.toKey === 'string' && r.toKey.includes('::')) {
+      [sessionId, netId] = r.toKey.split('::');
+    }
+    if (!sessionId || !netId) continue;
+    out.push({ relation: r.relation, target: { sessionId, netId }, ...(r.note ? { note: String(r.note) } : {}) });
+  }
+  return out;
+}
+
+/**
+ * The list to send: master's relations route REPLACES a net's list, so add and remove merge with
+ * what the catalogue holds. add updates the note of an existing relation; remove ignores notes.
+ */
+export function mergeRelations(current: Relation[], given: Relation[], mode: 'add' | 'remove' | 'replace'): Relation[] {
+  if (mode === 'replace') return given;
+  const out = [...current];
+  for (const g of given) {
+    const i = out.findIndex((c) => relationKey(c) === relationKey(g));
+    if (mode === 'remove') {
+      if (i >= 0) out.splice(i, 1);
+    } else if (i >= 0) {
+      out[i] = g;
+    } else {
+      out.push(g);
+    }
+  }
+  return out;
+}
+
+const TEMPLATE_FIELDS = ['interactions', 'acceptance', 'proposedPorts', 'layerAbove', 'layerBelow',
+  'layer', 'domain', 'responsible', 'tags', 'description'] as const;
+
+/** Template skeleton under the explicit arguments: whatever the caller passes wins. */
+export function mergeTemplate(template: any, args: any): Record<string, any> {
+  const out: Record<string, any> = { ...args };
+  const skeleton = template?.template ?? {};
+  for (const k of TEMPLATE_FIELDS) {
+    if (out[k] === undefined && skeleton[k] !== undefined) out[k] = skeleton[k];
+  }
+  return out;
+}
+
 /** Strip catalogue-only identity fields so the remainder can be written back as the property. */
-function definitionBody(def: any): Record<string, any> {
-  const { ref: _ref, key: _key, ...rest } = def ?? {};
+/** The stored definition: the catalogue view minus identity and the build state it joins in. */
+export function definitionBody(def: any): Record<string, any> {
+  const { ref: _ref, key: _key, activeBuild: _a, latestBuildId: _b, latestBuildState: _c, ...rest } = def ?? {};
   return rest;
 }
 
@@ -225,9 +319,11 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
       description:
         'Natural-language net definitions of a model: persistent nets described in words before (or after) their topology exists, with status draft|ready|realized|archived, revision, depth and parent in the abstraction hierarchy. '
         + 'A definition with status ready, or one whose build is queued or awaiting answers, is claimable work: use get_net_definition for its next actions, or the realize-net-definition prompt to build it. '
+        + 'Archived definitions are hidden unless status:"archived" or includeArchived:true. '
         + 'detail:"full" adds the open-question count per definition (one extra read each, at most 25). Read-only.',
       inputSchema: {
         status: z.enum(['draft', 'ready', 'realized', 'archived']).optional(),
+        includeArchived: z.boolean().optional().describe('Archived definitions are hidden unless status:"archived" or this is true'),
         query: z.string().optional().describe('Substring filter on key, title, description or interactions'),
         detail: z.enum(['summary', 'full']).default('summary'),
         ...modelParam,
@@ -236,7 +332,9 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
     wrapTool(scope, config.mode, { name: 'list_net_definitions', mutates: false }, async (model, args) => {
       const catalogue = await masterCall(ctx, 'GET', explorerPath(model, '/catalogue'));
       const all = definitionRows(catalogue);
-      let rows = args.status ? all.filter((r) => r.status === args.status) : all;
+      const showArchived = args.status === 'archived' || args.includeArchived === true;
+      const visible = showArchived ? all : all.filter((r) => r.status !== 'archived');
+      let rows = args.status ? visible.filter((r) => r.status === args.status) : visible;
       if (args.query) rows = rows.filter((r) => matchesQuery(r, args.query));
       let truncated = false;
       if (args.detail === 'full') {
@@ -259,6 +357,7 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
         definitions: rows,
         total: all.length,
         matched: rows.length,
+        ...(all.length > visible.length ? { archivedHidden: all.length - visible.length } : {}),
         ...(truncated ? { complete: false, note: `detail read for the first ${FULL_DETAIL_CAP} only` } : {}),
       };
     }),
@@ -288,6 +387,8 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
         model,
         key: `${args.sessionId}::${args.netId}`,
         definition: detail?.definition ?? null,
+        references: Array.isArray(detail?.definition?.references) ? detail.definition.references : [],
+        templateId: detail?.definition?.templateId ?? null,
         net: detail?.net ?? null,
         builds,
         openBuild: openBuild ?? null,
@@ -310,6 +411,21 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
       };
     }),
   );
+
+  server.registerTool(
+    'list_net_definition_templates',
+    {
+      title: 'List net definition templates',
+      description:
+        'Reusable definition skeletons of a model (interactions, acceptance, proposed ports, levels, domain, responsible, tags, description). '
+        + 'Start a definition from one with update_net_definition {action:"create", templateId}; explicit arguments win over the template. Read-only.',
+      inputSchema: { ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'list_net_definition_templates', mutates: false }, async (model) => {
+      const listed = await masterCall(ctx, 'GET', explorerPath(model, '/templates'));
+      return { model, templates: Array.isArray(listed?.templates) ? listed.templates : [] };
+    }),
+  );
 }
 
 export function registerDefinitionTools(server: McpServer, ctx: AppContext): void {
@@ -322,13 +438,17 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
   server.registerTool(
     'update_net_definition',
     {
-      title: 'Create, revise, ready, or request a build of a net definition',
+      title: 'Create, revise, ready, organize, relate, archive, or request a build of a net definition',
       description:
         'action:"create" makes a persistent empty net with name, description (what the net does) and a definition (interactions, proposedPorts, layerAbove, layerBelow, acceptance); parent {sessionId, netId, elementId, elementType} makes it the subnet of that element at once. '
         + 'action:"revise" writes a new revision (revision+1, history entry kept; status is kept, so a realized definition shows changes pending and can be rebuilt; description/name also update the net itself). '
-        + 'action:"ready" marks the current revision ready to build. action:"request_build" opens a build for the current ready revision (policy.activate:true starts its transitions on completion; default stays stopped). Designtime only.',
+        + 'action:"ready" marks the current revision ready to build. action:"request_build" opens a build for the current ready revision (policy.activate:true starts its transitions on completion; default stays stopped). '
+        + 'action:"organize" sets organization on ANY net (definition or not): layer, domain (component), responsible (person), tags (replaces the list; [] clears), or clearLayer/clearDomain/clearResponsible; create also accepts layer, domain, responsible, tags. '
+        + 'action:"relate" declares explicit relations from this net (any net) to others: relation explains|depends-on|references with target {sessionId, netId} and an optional note, or a relations list; mode add (default: merge, a repeat updates the note), remove, or replace (send exactly this list). refines is the subnet hierarchy, not a relation here. '
+        + 'action:"archive" sets status archived (kept, hidden from active work and lists; refused while a build is open), action:"unarchive" returns it to draft; neither bumps the revision. '
+        + 'create also takes templateId (a template from net_definition_templates fills every field you do not pass; explicit args win) and references [{kind: code|trace|doc, uri, label}] stored in the definition (revise accepts references too). Designtime only.',
       inputSchema: {
-        action: z.enum(['create', 'revise', 'ready', 'request_build']),
+        action: z.enum(['create', 'revise', 'ready', 'request_build', 'organize', 'relate', 'archive', 'unarchive']),
         sessionId: z.string().describe('Session of the definition (for create: where the new net is made)'),
         netId: z.string().optional().describe('Net id; required except for create, where it is derived from name when omitted'),
         name: z.string().optional(),
@@ -348,15 +468,52 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
         requestedBy: z.string().optional().describe('Alias of by'),
         policy: z.object({ activate: z.boolean().default(false) }).optional(),
         idempotencyKey: z.string().optional().describe('request_build: repeat-safe key; the same key returns the same build'),
+        layer: z.string().optional().describe('create/organize: named level id (abstraction layer)'),
+        domain: z.string().optional().describe('create/organize: domain or component the net belongs to'),
+        responsible: z.string().optional().describe('create/organize: responsible person'),
+        tags: z.array(z.string()).optional().describe('create/organize: tags; organize replaces the whole list, [] clears'),
+        clearLayer: z.boolean().optional().describe('organize only'),
+        clearDomain: z.boolean().optional().describe('organize only'),
+        clearResponsible: z.boolean().optional().describe('organize only'),
+        relation: z.enum(RELATIONS).optional().describe('relate: one relation (with target)'),
+        target: z.object({ sessionId: z.string(), netId: z.string() }).optional().describe('relate: the related net'),
+        note: z.string().optional().describe('relate: why the relation holds'),
+        relations: z.array(z.object({
+          relation: z.enum(RELATIONS),
+          target: z.object({ sessionId: z.string(), netId: z.string() }),
+          note: z.string().optional(),
+        })).optional().describe('relate: several relations at once'),
+        mode: z.enum(['add', 'remove', 'replace']).optional().describe('relate: add (default), remove, or replace the whole list'),
+        templateId: z.string().optional().describe('create: start from this definition template'),
+        references: z.array(z.object({
+          kind: z.enum(['code', 'trace', 'doc']),
+          uri: z.string(),
+          label: z.string().optional(),
+        })).optional().describe('create/revise: links to code symbols, execution traces or documents'),
+        realizations: z.array(z.object({ sessionId: z.string(), netId: z.string(), role: z.string().optional() }))
+          .optional().describe('create/revise: further nets this definition realizes; record_net_build apply may target them with net'),
         ...modelParam,
       },
     },
-    wrapTool(scope, config.mode, { name: 'update_net_definition', mutates: true }, async (model, args) => {
+    wrapTool(scope, config.mode, { name: 'update_net_definition', mutates: true }, async (model, rawArgs) => {
+      let args: any = rawArgs;
+      if (args.action === 'create' && args.templateId) {
+        const listed = await masterCall(ctx, 'GET', explorerPath(model, '/templates'));
+        const templates: any[] = Array.isArray(listed?.templates) ? listed.templates : [];
+        const template = templates.find((t) => t?.id === args.templateId);
+        if (!template) {
+          throw new StructuredToolError({
+            code: 'not-found',
+            error: `no definition template ${args.templateId}; list them with list_net_definition_templates`,
+          });
+        }
+        args = mergeTemplate(template, args);
+      }
       if (args.action === 'create') {
         if (!args.name) throw new StructuredToolError({ code: 'missing-field', error: 'create needs name' });
         if (!args.description) throw new StructuredToolError({ code: 'missing-field', error: 'create needs description (what the net does)' });
         const definition: Record<string, any> = {};
-        for (const k of ['interactions', 'proposedPorts', 'layerAbove', 'layerBelow', 'acceptance'] as const) {
+        for (const k of ['interactions', 'proposedPorts', 'layerAbove', 'layerBelow', 'acceptance', 'references', 'templateId', 'realizations'] as const) {
           if (args[k] !== undefined) definition[k] = args[k];
         }
         const body: Record<string, any> = {
@@ -366,6 +523,7 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
           description: args.description,
           definition,
           ...(args.parent ? { parent: { elementType: 'transition', ...args.parent } } : {}),
+          ...organizationFields(args),
         };
         const created = await masterCall(ctx, 'POST', explorerPath(model, '/definitions'), body);
         return { action: 'create', model, ...created };
@@ -373,6 +531,39 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
 
       if (!args.netId) throw new StructuredToolError({ code: 'missing-field', error: `${args.action} needs netId` });
       const key = `${args.sessionId}::${args.netId}`;
+
+      if (args.action === 'organize') {
+        const body: Record<string, any> = organizationFields(args);
+        for (const k of ['clearLayer', 'clearDomain', 'clearResponsible'] as const) {
+          if (args[k] === true) body[k] = true;
+        }
+        if (Object.keys(body).length === 0) {
+          throw new StructuredToolError({
+            code: 'missing-field',
+            error: 'organize needs at least one of layer, domain, responsible, tags, clearLayer, clearDomain, clearResponsible',
+          });
+        }
+        const organizationPath = explorerPath(model, `/nets/${seg(args.sessionId)}/${seg(args.netId)}/organization`);
+        const result = await masterCall(ctx, 'PUT', organizationPath, body);
+        return { action: 'organize', model, key, set: body, result };
+      }
+
+      if (args.action === 'relate') {
+        const given: Relation[] = Array.isArray(args.relations) ? [...args.relations] : [];
+        if (args.relation && args.target) {
+          given.push({ relation: args.relation, target: args.target, ...(args.note ? { note: args.note } : {}) });
+        }
+        const mode: 'add' | 'remove' | 'replace' = args.mode ?? 'add';
+        if (given.length === 0 && mode !== 'replace') {
+          throw new StructuredToolError({ code: 'missing-field', error: 'relate needs relation + target, or relations' });
+        }
+        const catalogue = mode === 'replace' ? null : await masterCall(ctx, 'GET', explorerPath(model, '/catalogue'));
+        const current = catalogue ? currentRelations(catalogue, key) : [];
+        const relations = mergeRelations(current, given, mode);
+        const result = await masterCall(ctx, 'PUT',
+          explorerPath(model, `/nets/${seg(args.sessionId)}/${seg(args.netId)}/relations`), { relations });
+        return { action: 'relate', model, key, mode, relations, result };
+      }
 
       if (args.action === 'request_build') {
         const body = {
@@ -394,6 +585,24 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
       }
       const organizationPath = explorerPath(model, `/nets/${seg(args.sessionId)}/${seg(args.netId)}/organization`);
 
+      if (args.action === 'archive' || args.action === 'unarchive') {
+        if (args.action === 'archive') {
+          const open = (Array.isArray(detail?.builds) ? detail.builds : []).map(buildSummary)
+            .find((b: any) => b.state && !TERMINAL_STATES.has(b.state));
+          if (open) {
+            throw new StructuredToolError({
+              code: 'build-open',
+              error: `build ${open.buildId} is still open; cancel it before archiving ${key}`,
+              buildId: open.buildId,
+            });
+          }
+        }
+        const status = args.action === 'archive' ? 'archived' : 'draft';
+        const next: Record<string, any> = { ...definitionBody(current), status };
+        await masterCall(ctx, 'PUT', organizationPath, { definition: next });
+        return { action: args.action, model, key, revision: next.revision ?? 1, status };
+      }
+
       if (args.action === 'ready') {
         const next: Record<string, any> = { ...definitionBody(current), status: 'ready' };
         await masterCall(ctx, 'PUT', organizationPath, { definition: next });
@@ -404,7 +613,7 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
       const base = definitionBody(current);
       const revision = Number(base.revision ?? 1) + 1;
       const next: Record<string, any> = { ...base, revision };
-      for (const k of ['interactions', 'proposedPorts', 'layerAbove', 'layerBelow', 'acceptance'] as const) {
+      for (const k of ['interactions', 'proposedPorts', 'layerAbove', 'layerBelow', 'acceptance', 'references', 'realizations'] as const) {
         if (args[k] !== undefined) next[k] = args[k];
       }
       const description = args.description ?? detail?.net?.description ?? '';
@@ -430,6 +639,57 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
       }
       await masterCall(ctx, 'PUT', organizationPath, { definition: next });
       return { action: 'revise', model, key, revision, status: next.status };
+    }),
+  );
+
+  server.registerTool(
+    'net_definition_templates',
+    {
+      title: 'List, save or delete net definition templates',
+      description:
+        'action:"list" returns the model\'s templates; action:"save" creates or replaces one by templateId with name, description and template {interactions, acceptance, proposedPorts, layer, domain, responsible, tags, description}; action:"delete" removes it. '
+        + 'Templates are shared designtime documents; deleting one never touches a definition made from it.',
+      inputSchema: {
+        action: z.enum(['list', 'save', 'delete']),
+        templateId: z.string().optional().describe('save/delete: stable id (letters, digits, . _ -)'),
+        name: z.string().optional().describe('save: display name'),
+        description: z.string().optional().describe('save: what the template is for'),
+        template: z.object({
+          interactions: z.string().optional(),
+          acceptance: z.array(z.string()).optional(),
+          proposedPorts: z.array(z.object({ placeId: z.string(), role: z.enum(['input', 'output']) })).optional(),
+          layer: z.string().optional(),
+          domain: z.string().optional(),
+          responsible: z.string().optional(),
+          tags: z.array(z.string()).optional(),
+          description: z.string().optional(),
+        }).passthrough().optional().describe('save: the definition skeleton'),
+        by: z.string().optional().describe('save: who is saving'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'net_definition_templates', mutates: true }, async (model, args) => {
+      if (args.action === 'list') {
+        const listed = await masterCall(ctx, 'GET', explorerPath(model, '/templates'));
+        return { action: 'list', model, templates: Array.isArray(listed?.templates) ? listed.templates : [] };
+      }
+      if (!args.templateId) {
+        throw new StructuredToolError({ code: 'missing-field', error: `${args.action} needs templateId` });
+      }
+      const route = explorerPath(model, `/templates/${seg(args.templateId)}`);
+      if (args.action === 'delete') {
+        const result = await masterCall(ctx, 'DELETE', route);
+        return { action: 'delete', model, templateId: args.templateId, result };
+      }
+      if (!args.name) throw new StructuredToolError({ code: 'missing-field', error: 'save needs name' });
+      const body: Record<string, any> = {
+        name: args.name,
+        ...(args.description ? { description: args.description } : {}),
+        template: args.template ?? {},
+        ...(args.by ? { updatedBy: args.by } : {}),
+      };
+      const saved = await masterCall(ctx, 'PUT', route, body);
+      return { action: 'save', model, templateId: args.templateId, template: saved };
     }),
   );
 
@@ -506,6 +766,8 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
           transitions: z.array(z.string()).optional(),
           arcs: z.array(z.string()).optional(),
         }).optional(),
+        net: z.object({ sessionId: z.string(), netId: z.string() }).optional()
+          .describe('apply only: draw into this net instead of the definition net; it must be one of the definition\'s realizations'),
         verification: z.object({
           passed: z.boolean(),
           evidence: z.array(z.any()).default([]),
@@ -544,6 +806,7 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
             transitions: args.transitions ?? {},
             ...(args.arcs ? { arcs: args.arcs } : {}),
             ...(args.remove ? { remove: args.remove } : {}),
+            ...(args.net ? { net: args.net } : {}),
           };
           break;
         case 'complete':

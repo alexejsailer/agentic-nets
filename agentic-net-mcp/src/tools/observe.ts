@@ -10,6 +10,7 @@ import { fetchTokens } from './memory.js';
 import { annotateLeases, LEASED_NOTE } from './lease-util.js';
 import { abstractElementIds, classifyCanvas, runtimeHomeMap } from './canvas.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
+import { definitionReadiness } from './definitions.js';
 
 /**
  * Executor availability has two healthy phases. READY means an ONLINE executor is already polling
@@ -1106,7 +1107,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
     {
       title: 'Readiness — the whole dependency chain, one read-only call',
       description:
-        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway, node/model, credential vault, LLM provider, and command executors. Executor state is READY (polling), STANDBY (eligible; auto-activates after the first command assignment), or UNAVAILABLE. Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE building. `ready:true` means no blocking problem found. GET-based and readonly-safe.",
+        "Walks every layer an Agentic-Net depends on and reports each one separately: gateway, node/model, credential vault, LLM provider, and command executors, plus net definitions waiting for a builder (netDefinitions). Executor state is READY (polling), STANDBY (eligible; auto-activates after the first command assignment), or UNAVAILABLE. Transport-connected ≠ authenticated ≠ backend-ready ≠ capability-ready; this establishes all four BEFORE building. `ready:true` means no blocking problem found. GET-based and readonly-safe.",
       inputSchema: { ...modelParam },
     },
     wrapTool(scope, config.mode, { name: 'readiness', mutates: false }, async (model) => {
@@ -1369,6 +1370,20 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         };
       }
 
+      // Net definitions waiting for a builder (Model Explorer). Advisory and GET-only: an older
+      // master without /api/explorer, or any failure, reports unavailable and never fails readiness.
+      let netDefinitions: any;
+      if (entry) {
+        try {
+          const catalogue: any = await ctx.client.masterApi(
+            'GET', `/explorer/${encodeURIComponent(model)}/catalogue`, undefined, { modelId: model });
+          netDefinitions = definitionReadiness(catalogue);
+          if (netDefinitions.hint) warnings.push(netDefinitions.hint);
+        } catch {
+          netDefinitions = { available: false };
+        }
+      }
+
       // Executors — gate command lanes only.
       const executors = await fetchExecutors(ctx);
       const cov = coverageFromExecutors(executors, model);
@@ -1397,6 +1412,7 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
         vault,
         executors: covReport,
         ...(externalFires ? { externalFires } : {}),
+        ...(netDefinitions ? { netDefinitions } : {}),
         capabilities: {
           build:
             gateway.authenticated === true &&

@@ -24,9 +24,17 @@ function config(overrides: Partial<McpConfig> = {}): McpConfig {
 type Handler = (tool: string, params: any) => any;
 
 /** Connect a client whose executor is a scripted fake; `calls` records every tool invocation. */
-async function clientWith(handler: Handler, cfg: McpConfig = config()) {
+async function clientWith(
+  handler: Handler,
+  cfg: McpConfig = config(),
+  master?: (method: string, path: string, body?: any, query?: any) => any,
+) {
   const ctx = new AppContext(cfg);
   const calls: Array<{ tool: string; params: any }> = [];
+  if (master) {
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any, query?: any) =>
+      master(method, path, body, query);
+  }
   (ctx as any).executorFor = () => ({
     execute: async (tool: string, params: any) => {
       calls.push({ tool, params });
@@ -132,6 +140,87 @@ describe('install_net', () => {
     expect(insc.presets.input.placeId).toBe('p-in-c2');
     expect(insc.postsets.out.placeId).toBe('p-out-c2');
     expect(calls.find((c) => c.tool === 'CREATE_NET')!.params.netId).toBe('n1-c2');
+  });
+
+  const noTokens = (tool: string) =>
+    tool === 'QUERY_TOKENS' ? { success: true, data: { results: [] } } : { success: true, data: {} };
+  const notRunning = () => null;
+
+  it('start:false installs stopped and names the lanes it would have started', async () => {
+    const { client, calls } = await clientWith(noTokens, config(), notRunning);
+    const res: any = await client.callTool({ name: 'install_net', arguments: { source: MINIMAL_SOURCE, start: false } });
+    const data = dataOf(res);
+    expect(data.installed.started).toBe(0);
+    expect(data.installed.startable).toEqual(['t-1']);
+    expect(calls.some((c) => c.tool === 'START_TRANSITION')).toBe(false);
+  });
+
+  it('an external place is drawn and ensured but never renamed by suffix or seeded', async () => {
+    const source = {
+      ...MINIMAL_SOURCE,
+      places: { 'p-in': { label: 'Shared orders', external: true } },
+    };
+    const { client, calls } = await clientWith(noTokens, config(), notRunning);
+    const res: any = await client.callTool({
+      name: 'install_net',
+      arguments: { source, suffix: '-c2', seeds: { 'p-in': [{ a: 1 }], 'p-out': [{ b: 2 }] } },
+    });
+    const data = dataOf(res);
+    const insc = calls.find((c) => c.tool === 'SET_INSCRIPTION')!.params.inscription;
+    expect(insc.presets.input.placeId).toBe('p-in');          // the boundary keeps its id
+    expect(insc.postsets.out.placeId).toBe('p-out-c2');       // owned places are still suffixed
+    expect(calls.filter((c) => c.tool === 'CREATE_PLACE').map((c) => c.params.placeId)).toEqual(['p-in', 'p-out-c2']);
+    expect(calls.filter((c) => c.tool === 'CREATE_RUNTIME_PLACE').map((c) => c.params.placeId)).toContain('p-in');
+    const seededPlaces = calls.filter((c) => c.tool === 'CREATE_TOKEN').map((c) => c.params.placePath);
+    expect(seededPlaces).toEqual(['root/workspace/places/p-out-c2']);
+    expect(data.installed.externalPlaces).toEqual(['p-in']);
+    expect(data.installed.externalSeedsSkipped).toEqual(['p-in']);
+  });
+
+  it('externalPlaces at the top level works the same way', async () => {
+    const { client, calls } = await clientWith(noTokens, config(), notRunning);
+    await client.callTool({
+      name: 'install_net',
+      arguments: { source: { ...MINIMAL_SOURCE, externalPlaces: ['p-out'] }, suffix: '-x' },
+    });
+    const insc = calls.find((c) => c.tool === 'SET_INSCRIPTION')!.params.inscription;
+    expect(insc.presets.input.placeId).toBe('p-in-x');
+    expect(insc.postsets.out.placeId).toBe('p-out');
+  });
+
+  it('a failure mid-install reports what was created and where it stopped', async () => {
+    const { client } = await clientWith(
+      (tool) => (tool === 'CREATE_ARC' ? { success: false, error: 'arc refused' } : noTokens(tool)),
+      config(),
+      notRunning,
+    );
+    const res: any = await client.callTool({ name: 'install_net', arguments: { source: MINIMAL_SOURCE } });
+    expect(res.isError).toBe(true);
+    const data = dataOf(res);
+    expect(data.code).toBe('install-incomplete');
+    expect(data.progress.failedAt).toMatch(/^CREATE_ARC a-n1-01$/);
+    expect(data.progress.created.net).toBe(true);
+    expect(data.progress.created.places).toEqual(['p-in', 'p-out']);
+    expect(data.progress.created.transitions).toEqual(['t-1']);
+    expect(data.progress.created.arcs).toEqual([]);
+    expect(data.progress.created.inscriptions).toEqual([]);
+  });
+
+  it('a running lane is stopped before its inscription is replaced', async () => {
+    const order: string[] = [];
+    const { client, calls } = await clientWith(
+      (tool, params) => {
+        if (tool === 'STOP_TRANSITION' || tool === 'SET_INSCRIPTION') order.push(`${tool} ${params.transitionId}`);
+        return noTokens(tool);
+      },
+      config(),
+      (_m, path) => (path === '/transitions/t-1/status' ? { status: 'running' } : null),
+    );
+    const res: any = await client.callTool({ name: 'install_net', arguments: { source: MINIMAL_SOURCE, start: false } });
+    const data = dataOf(res);
+    expect(order).toEqual(['STOP_TRANSITION t-1', 'SET_INSCRIPTION t-1']);
+    expect(data.installed.stopped).toEqual(['t-1']);
+    expect(calls.some((c) => c.tool === 'START_TRANSITION')).toBe(false);
   });
 });
 

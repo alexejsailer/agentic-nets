@@ -9,7 +9,8 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
-import { nextActions } from '../src/tools/definitions.js';
+import { definitionReadiness, nextActions } from '../src/tools/definitions.js';
+import { relationLines, summarize } from '../src/tools/explorer.js';
 
 function config(overrides: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -285,5 +286,307 @@ describe('readonly mode', () => {
     for (const writer of ['update_net_definition', 'claim_net_definition', 'record_net_build']) {
       expect(names).not.toContain(writer);
     }
+  });
+});
+
+describe('organization', () => {
+  it('organize PUTs only the given fields to any net, including clears and a tag list', async () => {
+    const { client, calls } = await connect(() => ({ updated: true }));
+    const out = await call(client, 'update_net_definition', {
+      action: 'organize', sessionId: 'shop', netId: 'checkout',
+      domain: 'payments', tags: ['core', 'pci'], clearResponsible: true,
+    });
+    expect(out.isError).toBe(false);
+    expect(calls).toHaveLength(1); // no definition read: organize works on any net
+    expect(calls[0]).toMatchObject({ method: 'PUT', path: '/explorer/m1/nets/shop/checkout/organization?modelId=m1' });
+    expect(calls[0].body).toEqual({ domain: 'payments', tags: ['core', 'pci'], clearResponsible: true });
+    expect(out.data).toMatchObject({ action: 'organize', key: 'shop::checkout' });
+  });
+
+  it('organize without any field is refused before calling master', async () => {
+    const { client, calls } = await connect(() => ({}));
+    const out = await call(client, 'update_net_definition', { action: 'organize', sessionId: 'shop', netId: 'checkout' });
+    expect(out.isError).toBe(true);
+    expect(out.data.code).toBe('missing-field');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('create forwards layer, domain, responsible and tags', async () => {
+    const { client, calls } = await connect(() => ({ key: 'identity::risk' }));
+    await call(client, 'update_net_definition', {
+      action: 'create', sessionId: 'identity', name: 'Risk', description: 'Explain risks',
+      layer: 'service', domain: 'identity', responsible: 'alex', tags: ['auth'],
+    });
+    expect(calls[0].body).toMatchObject({ layer: 'service', domain: 'identity', responsible: 'alex', tags: ['auth'] });
+  });
+
+  it('explore_model summary carries organization and execution state, and query matches them', () => {
+    const catalogue = {
+      modelId: 'm1',
+      nets: [
+        { key: 'shop::checkout', title: 'Checkout', depth: 0, domain: 'payments', responsible: 'alex', tags: ['pci'],
+          execution: { state: 'partial', executable: 2, counts: { running: 1, stopped: 1 } } },
+        { key: 'shop::catalog', title: 'Catalog', depth: 0 },
+      ],
+    };
+    const all = summarize(catalogue);
+    expect(all.nets[0]).toMatchObject({ domain: 'payments', responsible: 'alex', tags: ['pci'], execution: 'partial' });
+    expect(all.nets[1]).not.toHaveProperty('domain'); // older masters: nothing invented
+    expect(all.hierarchy[0]).toMatch(/domain payments, responsible alex, tags pci, execution partial/);
+    expect(summarize(catalogue, 'pci').nets.map((n: any) => n.key)).toEqual(['shop::checkout']);
+    expect(summarize(catalogue, 'alex').nets.map((n: any) => n.key)).toEqual(['shop::checkout']);
+  });
+});
+
+describe('readiness: definitions waiting for a builder', () => {
+  it('counts ready, queued, awaiting answers and building, with a hint naming the prompt', () => {
+    const r = definitionReadiness({
+      definitions: [
+        { key: 'a', status: 'ready' },
+        { key: 'b', status: 'ready', activeBuild: 'b-1', latestBuildState: 'queued' },
+        { key: 'c', status: 'ready', activeBuild: 'b-2', latestBuildState: 'awaiting-answers' },
+        { key: 'd', status: 'ready', activeBuild: 'b-3', latestBuildState: 'building' },
+        { key: 'e', status: 'draft' },
+        { key: 'f', status: 'realized', latestBuildState: 'succeeded' },
+      ],
+    });
+    expect(r).toMatchObject({ available: true, definitions: 6, ready: 1, queued: 1, awaitingAnswers: 1, building: 1 });
+    expect(r.hint).toMatch(/realize-net-definition/);
+    expect(definitionReadiness({ definitions: [{ status: 'draft' }] }).hint).toBeUndefined();
+  });
+
+  function readinessClient(catalogue: () => any) {
+    const ctx = new AppContext(config());
+    (ctx.client as any).masterApi = async (_m: string, path: string) => {
+      if (path === '/explorer/m1/catalogue') return catalogue();
+      if (path === '/llm/health') return { status: 'READY' };
+      if (path === '/vault/health') return { status: 'DISABLED' };
+      if (path === '/executors') return { executors: [] };
+      if (path === '/models/m1/execution/status') return { transitions: [] };
+      if (path === '/transitions/external/ready') return { transitions: [] };
+      if (path === '/event-line/m1') return { events: [] };
+      throw new Error(`unexpected master path ${path}`);
+    };
+    (ctx.client as any).nodeApi = async (_m: string, path: string) => {
+      if (path === '/admin/models') return [{ modelId: 'm1', state: 'ACTIVE' }];
+      return [{ name: 'places' }];
+    };
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    return Promise.all([server.connect(st), client.connect(ct)]).then(() => client);
+  }
+
+  it('readiness reports the counts and the hint without becoming unready', async () => {
+    const client = await readinessClient(() => ({ definitions: [{ key: 'a', status: 'ready' }] }));
+    const out = await call(client, 'readiness');
+    expect(out.data.netDefinitions).toMatchObject({ available: true, ready: 1 });
+    expect((out.data.warnings ?? []).join(' ')).toMatch(/realize-net-definition/);
+    expect(out.data.ready).toBe(true);
+  });
+
+  it('an older master or a failing catalogue never fails readiness', async () => {
+    const client = await readinessClient(() => {
+      throw Object.assign(new Error('Gateway 404'), { name: 'GatewayError', status: 404, body: '' });
+    });
+    const out = await call(client, 'readiness');
+    expect(out.data.netDefinitions).toEqual({ available: false });
+    expect(out.data.ready).toBe(true);
+  });
+});
+
+describe('relations, archive, templates and references', () => {
+  const REL_CATALOGUE = {
+    modelId: 'm1',
+    nets: [{ key: 'product::overview' }, { key: 'identity::risk' }, { key: 'identity::login' }],
+    definitions: [],
+    relations: [
+      { fromKey: 'product::overview', relation: 'explains', to: { sessionId: 'identity', netId: 'risk' }, toKey: 'identity::risk', note: 'why', resolved: true },
+      { fromKey: 'product::overview', relation: 'depends-on', to: { sessionId: 'identity', netId: 'login' }, toKey: 'identity::login', resolved: true },
+      { fromKey: 'identity::risk', relation: 'references', toKey: 'identity::gone', resolved: false },
+    ],
+  };
+
+  function relateRoute(c: Call) {
+    return c.method === 'GET' ? REL_CATALOGUE : { updated: true };
+  }
+
+  it('relate add merges with the catalogue list (a repeat updates the note) and PUTs the whole list', async () => {
+    const { client, calls } = await connect(relateRoute);
+    const out = await call(client, 'update_net_definition', {
+      action: 'relate', sessionId: 'product', netId: 'overview',
+      relations: [
+        { relation: 'explains', target: { sessionId: 'identity', netId: 'risk' }, note: 'why it matters' },
+        { relation: 'references', target: { sessionId: 'identity', netId: 'login' } },
+      ],
+    });
+    expect(out.isError).toBe(false);
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/explorer/m1/catalogue?modelId=m1' });
+    const put = calls.find((c) => c.method === 'PUT')!;
+    expect(put.path).toBe('/explorer/m1/nets/product/overview/relations?modelId=m1');
+    expect(put.body.relations).toEqual([
+      { relation: 'explains', target: { sessionId: 'identity', netId: 'risk' }, note: 'why it matters' },
+      { relation: 'depends-on', target: { sessionId: 'identity', netId: 'login' } },
+      { relation: 'references', target: { sessionId: 'identity', netId: 'login' } },
+    ]);
+    expect(out.data).toMatchObject({ action: 'relate', key: 'product::overview', mode: 'add' });
+  });
+
+  it('relate remove drops a matching relation whatever its note; replace sends exactly the list without reading', async () => {
+    const removing = await connect(relateRoute);
+    await call(removing.client, 'update_net_definition', {
+      action: 'relate', mode: 'remove', sessionId: 'product', netId: 'overview',
+      relation: 'explains', target: { sessionId: 'identity', netId: 'risk' },
+    });
+    expect(removing.calls.find((c) => c.method === 'PUT')!.body.relations).toEqual([
+      { relation: 'depends-on', target: { sessionId: 'identity', netId: 'login' } },
+    ]);
+
+    const replacing = await connect(relateRoute);
+    await call(replacing.client, 'update_net_definition', {
+      action: 'relate', mode: 'replace', sessionId: 'product', netId: 'overview', relations: [],
+    });
+    expect(replacing.calls).toHaveLength(1);
+    expect(replacing.calls[0]).toMatchObject({ method: 'PUT', body: { relations: [] } });
+  });
+
+  it('relate without a relation is refused before calling master', async () => {
+    const { client, calls } = await connect(relateRoute);
+    const out = await call(client, 'update_net_definition', { action: 'relate', sessionId: 'product', netId: 'overview' });
+    expect(out.isError).toBe(true);
+    expect(out.data.code).toBe('missing-field');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('archive and unarchive keep the revision; archive is refused while a build is open', async () => {
+    const archiving = await connect((c) => (c.method === 'GET' ? detail({ definition: { status: 'realized', revision: 4 } }) : { updated: true }));
+    const archived = await call(archiving.client, 'update_net_definition', { action: 'archive', sessionId: 'identity', netId: 'risk' });
+    expect(archived.data).toMatchObject({ action: 'archive', status: 'archived', revision: 4 });
+    const put = archiving.calls.find((c) => c.method === 'PUT')!;
+    expect(put.path).toBe('/explorer/m1/nets/identity/risk/organization?modelId=m1');
+    expect(put.body.definition).toMatchObject({ status: 'archived', revision: 4 });
+    expect(put.body.definition).not.toHaveProperty('key');
+
+    const restoring = await connect((c) => (c.method === 'GET' ? detail({ definition: { status: 'archived', revision: 4 } }) : { updated: true }));
+    const restored = await call(restoring.client, 'update_net_definition', { action: 'unarchive', sessionId: 'identity', netId: 'risk' });
+    expect(restored.data).toMatchObject({ action: 'unarchive', status: 'draft', revision: 4 });
+    expect(restoring.calls.find((c) => c.method === 'PUT')!.body.definition).toMatchObject({ status: 'draft', revision: 4 });
+
+    const open = await connect(() => detail({ builds: [{ buildId: 'b-9', attempt: { state: 'building' } }] }));
+    const refused = await call(open.client, 'update_net_definition', { action: 'archive', sessionId: 'identity', netId: 'risk' });
+    expect(refused.isError).toBe(true);
+    expect(refused.data).toMatchObject({ code: 'build-open', buildId: 'b-9' });
+    expect(open.calls.every((c) => c.method === 'GET')).toBe(true);
+  });
+
+  it('create from a template fills what the caller leaves out, records templateId and references', async () => {
+    const TEMPLATES = {
+      templates: [{
+        id: 'intake-lane', name: 'Intake lane',
+        template: {
+          interactions: 'reads an inbox', acceptance: ['every item ends accepted or parked'],
+          domain: 'fulfilment', tags: ['intake'], description: 'Accepts items',
+        },
+      }],
+    };
+    const { client, calls } = await connect((c) => (c.path.includes('/templates') ? TEMPLATES : { key: 'ops::orders' }));
+    await call(client, 'update_net_definition', {
+      action: 'create', sessionId: 'ops', name: 'Order intake', templateId: 'intake-lane',
+      domain: 'orders', references: [{ kind: 'code', uri: 'src/orders/Intake.java', label: 'Intake' }],
+    });
+    expect(calls[0]).toMatchObject({ method: 'GET', path: '/explorer/m1/templates?modelId=m1' });
+    const post = calls.find((c) => c.method === 'POST')!;
+    expect(post.path).toBe('/explorer/m1/definitions?modelId=m1');
+    expect(post.body).toMatchObject({ name: 'Order intake', description: 'Accepts items', domain: 'orders', tags: ['intake'] });
+    expect(post.body.definition).toMatchObject({
+      interactions: 'reads an inbox', acceptance: ['every item ends accepted or parked'], templateId: 'intake-lane',
+      references: [{ kind: 'code', uri: 'src/orders/Intake.java', label: 'Intake' }],
+    });
+  });
+
+  it('create with an unknown template is refused', async () => {
+    const { client, calls } = await connect(() => ({ templates: [] }));
+    const out = await call(client, 'update_net_definition', {
+      action: 'create', sessionId: 'ops', name: 'X', description: 'y', templateId: 'nope',
+    });
+    expect(out.isError).toBe(true);
+    expect(out.data.code).toBe('not-found');
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  });
+
+  it('the templates tool lists, saves and deletes through the template routes; the reader lists', async () => {
+    const { client, calls } = await connect((c) => (c.method === 'GET' ? { templates: [{ id: 't1' }] } : { id: 't1', ok: true }));
+    const listed = await call(client, 'net_definition_templates', { action: 'list' });
+    expect(listed.data.templates).toEqual([{ id: 't1' }]);
+    await call(client, 'net_definition_templates', {
+      action: 'save', templateId: 't1', name: 'Lane', description: 'a lane', template: { interactions: 'x' }, by: 'alex',
+    });
+    await call(client, 'net_definition_templates', { action: 'delete', templateId: 't1' });
+    const reader = await call(client, 'list_net_definition_templates');
+    expect(reader.data.templates).toEqual([{ id: 't1' }]);
+    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+      'GET /explorer/m1/templates?modelId=m1',
+      'PUT /explorer/m1/templates/t1?modelId=m1',
+      'DELETE /explorer/m1/templates/t1?modelId=m1',
+      'GET /explorer/m1/templates?modelId=m1',
+    ]);
+    expect(calls[1].body).toEqual({ name: 'Lane', description: 'a lane', template: { interactions: 'x' }, updatedBy: 'alex' });
+    const missing = await call(client, 'net_definition_templates', { action: 'save', name: 'no id' });
+    expect(missing.data.code).toBe('missing-field');
+  });
+
+  it('readonly mode lists templates but cannot change them', async () => {
+    const { client } = await connect(() => ({}), { mode: 'readonly' });
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain('list_net_definition_templates');
+    expect(names).not.toContain('net_definition_templates');
+  });
+
+  it('list_net_definitions hides archived definitions unless asked', async () => {
+    const withArchived = {
+      ...CATALOGUE,
+      definitions: [
+        ...CATALOGUE.definitions,
+        { ref: { sessionId: 'identity', netId: 'old' }, key: 'identity::old', status: 'archived', revision: 3 },
+      ],
+    };
+    const { client } = await connect(() => withArchived);
+    const active = await call(client, 'list_net_definitions');
+    expect(active.data.definitions.map((d: any) => d.key)).not.toContain('identity::old');
+    expect(active.data).toMatchObject({ total: 3, archivedHidden: 1 });
+    const archived = await call(client, 'list_net_definitions', { status: 'archived' });
+    expect(archived.data.definitions.map((d: any) => d.key)).toEqual(['identity::old']);
+    const all = await call(client, 'list_net_definitions', { includeArchived: true });
+    expect(all.data.definitions).toHaveLength(3);
+  });
+
+  it('get_net_definition returns references and templateId', async () => {
+    const refs = [{ kind: 'trace', uri: 'transition_history:t-x', label: 'last run' }];
+    const { client } = await connect(() => detail({ definition: { references: refs, templateId: 'intake-lane' } }));
+    const out = await call(client, 'get_net_definition', { sessionId: 'identity', netId: 'risk' });
+    expect(out.data.references).toEqual(refs);
+    expect(out.data.templateId).toBe('intake-lane');
+  });
+
+  it('explore_model summary lists relations, marks missing targets, and narrows them with query', () => {
+    expect(relationLines(REL_CATALOGUE)).toEqual([
+      'product::overview explains identity::risk',
+      'product::overview depends-on identity::login',
+      'identity::risk references identity::gone (missing)',
+    ]);
+    const all = summarize(REL_CATALOGUE);
+    expect(all.relations).toHaveLength(3);
+    const narrowed = summarize({ ...REL_CATALOGUE, nets: [{ key: 'identity::login', title: 'Login' }, { key: 'product::overview' }] }, 'login');
+    expect(narrowed.relations).toEqual(['product::overview depends-on identity::login']);
+    expect(summarize({ modelId: 'old', nets: [] })).not.toHaveProperty('relations');
+  });
+});
+
+describe('definition body', () => {
+  it('drops identity and joined build state before a definition is written back', async () => {
+    const { definitionBody } = await import('../src/tools/definitions.js');
+    const body = definitionBody({ ref: {}, key: 's::n', status: 'realized', revision: 2, realizedRevision: 1,
+      activeBuild: 'b-1', latestBuildId: 'b-1', latestBuildState: 'building', realizations: [{ sessionId: 's', netId: 'v' }] });
+    expect(body).toEqual({ status: 'realized', revision: 2, realizedRevision: 1, realizations: [{ sessionId: 's', netId: 'v' }] });
   });
 });
