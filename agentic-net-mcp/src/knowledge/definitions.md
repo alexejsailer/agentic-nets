@@ -18,8 +18,8 @@ out at the level below. The runtime stays flat; the hierarchy is designtime data
   `pending` (child empty).
 - Shared places are the horizontal coupling between peers; refinement is the vertical one.
   Explicit relations (`explains`, `depends-on`, `references`) add meaning between any two nets.
-  They are a closed list between nets; a `kind:"link"` transition is the other relation system: it
-  joins two places with a free relation word (`contains`, `derives-from`, ...). Neither fires.
+  A closed list between nets; a `kind:"link"` transition is the other system: two places, any
+  relation word. Neither fires.
 - `explore_model` shows it all: keys `session::netId`, depth, shared places with
   readers and writers, interface (input/output/internal places), organization, execution state,
   relations.
