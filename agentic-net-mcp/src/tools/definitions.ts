@@ -370,7 +370,7 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
       description:
         'One definition with its builds, open and answered questions (own and about its elements, subjectElement set), its curation (confirmations and open flags of the net and its elements), Interview support, and nextActions derived from its state. '
         + 'To ask the person a question about it, call application_action on application "interview", action "ask", with a NEW unique promptId (never reuse one), question, optional options (strings or {value,label,description,recommended}), multiSelect, allowFreeText, '
-        + 'and the subject fields subjectKind:"net-definition", subjectKey:"<session>::<net>", subjectRevision:<revision>, buildId:<open build>. Then record_net_build checkpoint state:"awaiting-answers" (releases your lease) and come back later: claim again and reread this document; answers given in the Explorer or in your chat land in the same tokens. Read-only.',
+        + 'and the subject fields subjectKind:"net-definition", subjectKey:"<session>::<net>", subjectRevision:<revision>, refs:{"explorer.build":<open build>} (plus buildId:<open build> while Interview is older than 1.7.0). Then record_net_build checkpoint state:"awaiting-answers" (releases your lease) and come back later: claim again and reread this document; answers given in the Explorer or in your chat land in the same tokens. Read-only.',
       inputSchema: {
         sessionId: z.string().describe('Session of the definition net'),
         netId: z.string().describe('Net id of the definition'),
@@ -406,7 +406,8 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
             subjectKind: 'net-definition',
             subjectKey: `${args.sessionId}::${args.netId}`,
             subjectRevision: detail?.definition?.revision ?? 1,
-            ...(openBuild?.buildId ? { buildId: openBuild.buildId } : {}),
+            // Interview 1.7.0 keeps the asking build under a namespaced reference; buildId stays for older installs.
+            ...(openBuild?.buildId ? { refs: { 'explorer.build': openBuild.buildId }, buildId: openBuild.buildId } : {}),
           },
         },
         nextActions: nextActions(detail),

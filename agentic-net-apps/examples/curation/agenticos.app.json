@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "curation",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "displayName": "Curation",
   "description": "Confirmations and flags on the subjects of a model's abstraction hierarchy: nets, elements, levels and relations.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "curation"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/curation-1.4.1.application.json",
+  "output": "../../dist/packages/curation-1.4.2.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -101,7 +101,7 @@
             },
             "sourceHash": {
               "type": "string",
-              "description": "Content hash of the subject's referenced sources (documents, code, data, any file the definition names) at confirmation time, so a later change can be told from a mere re-read"
+              "description": "Content hash of the subject's referenced sources (documents, data, any file the definition names) at confirmation time, so a later change can be told from a mere re-read"
             }
           }
         }
@@ -338,7 +338,7 @@
       {
         "name": "note",
         "targetRole": "notes",
-        "description": "Record words about a subject: a brief (the person describes what the subject is and needs, in their own words; the next pass derives from it), a summary (the AI says what it understood, changed and left open), a decision, or a finding (what the code says now, written by a read-only coder). One record per noteId.",
+        "description": "Record words about a subject: a brief (the person describes what the subject is and needs, in their own words; the next pass derives from it), a summary (the AI says what it understood, changed and left open), a decision, or a finding (what the sources say now, written by an agent that only reads them). One record per noteId.",
         "guard": {
           "role": "notes",
           "matchKey": "noteId",
@@ -380,7 +380,7 @@
                 "decision",
                 "finding"
               ],
-              "description": "brief: the person's own words; summary: the AI's understanding after a pass; decision: something settled for good; finding: what the sources say now (written by a coder reading the code)"
+              "description": "brief: the person's own words; summary: the AI's understanding after a pass; decision: something settled for good; finding: what the sources say now (written by an agent reading them)"
             },
             "text": {
               "type": "string"

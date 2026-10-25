@@ -145,7 +145,7 @@ describe('definition readers', () => {
     expect(out.data.openBuild).toMatchObject({ buildId: 'b-7', state: 'awaiting-answers', leaseGeneration: 3 });
     expect(out.data.questions.open).toHaveLength(1);
     expect(out.data.askWith.subject).toEqual({
-      subjectKind: 'net-definition', subjectKey: 'identity::risk', subjectRevision: 2, buildId: 'b-7',
+      subjectKind: 'net-definition', subjectKey: 'identity::risk', subjectRevision: 2, refs: { 'explorer.build': 'b-7' }, buildId: 'b-7',
     });
     expect(out.data.nextActions[0]).toMatch(/answer 1 open question/);
   });
