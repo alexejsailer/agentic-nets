@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Typed questions for llm transitions over MCP** (`agentic-net-mcp` - `add_transition`, `add_transitions`, `questions.ts`). `questions`, `state` and `questionVersion` build an llm lane that asks bounded questions (choice, score, probability) instead of a prompt; they are validated before anything is written. `llm_groups` reports `decisionModel` for groups on a decision model such as TypeSafe Jev. Deployment and Desktop Lite docs describe the `typesafe` and `decision-api` provider instance types.
 
+### Fixed
+- **Executor polls piled up on a slow master** (`agentic-net-executor` - `MasterPollingService`). The 2 s poll loop started a new poll for every model whether or not the previous one had returned, and gave up after 5 s; against a master that needed 8.8 s per poll (Desktop, 2026-10-14) every poll was both abandoned and still running, and no command lane could receive work. A model is now polled again only after its previous poll has finished, and the timeout is `executor.poll.timeout-ms` (default 15 s).
+
 ## [2.60.0] - 2026-09-24
 
 ### Added

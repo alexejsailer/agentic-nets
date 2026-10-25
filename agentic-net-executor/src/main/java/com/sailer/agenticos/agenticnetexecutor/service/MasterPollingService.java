@@ -63,6 +63,17 @@ public class MasterPollingService {
     // Discovered model IDs from upstream
     final Set<String> discoveredModelIds = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Models with a poll in flight. The 2 s loop used to start a new poll for every model
+     * regardless of the previous one, so a slow master got more concurrent polls, got slower,
+     * and the executor timed out on all of them (Desktop, 2026-10-14: 8.8 s per poll against
+     * a 5 s timeout, no command lane could receive work).
+     */
+    final Set<String> pollsInFlight = ConcurrentHashMap.newKeySet();
+
+    @Value("${executor.poll.timeout-ms:15000}")
+    long pollTimeoutMs = 15000;
+
     public MasterPollingService(
             @Value("${executor.upstream.url:http://localhost:8082}") String upstreamUrl,
             @Value("${executor.id:agentic-net-executor-default}") String executorId,
@@ -279,9 +290,14 @@ public class MasterPollingService {
     }
 
     private void pollModelForWork(String modelId) {
+        if (!pollsInFlight.add(modelId)) {
+            logger.debug("Previous poll for model {} still in flight, skipping this cycle", modelId);
+            return;
+        }
         logger.debug("Polling upstream for work: executorId={}, modelId={}", executorId, modelId);
 
         pollMaster(modelId)
+                .doFinally(signal -> pollsInFlight.remove(modelId))
                 .flatMapMany(pollResponse -> {
                     logger.debug("Received {} transitions from upstream for model {}",
                             pollResponse.transitionCount(), modelId);
@@ -318,7 +334,7 @@ public class MasterPollingService {
                 })
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<PollResponse>() {})
-                .timeout(Duration.ofSeconds(5))
+                .timeout(Duration.ofMillis(pollTimeoutMs))
                 .onErrorResume(error -> {
                     // A buffer overflow is NOT transient unavailability: the payload will be
                     // just as large on every subsequent poll, so the model's command lanes
