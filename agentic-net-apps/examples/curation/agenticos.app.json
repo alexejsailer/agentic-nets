@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "curation",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "displayName": "Curation",
   "description": "Confirmations and flags on the subjects of a model's abstraction hierarchy: nets, elements, levels and relations.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "curation"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/curation-1.2.0.application.json",
+  "output": "../../dist/packages/curation-1.3.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -41,6 +41,11 @@
         "placeId": "p-curation-passes",
         "required": true,
         "description": "Refinement passes: each records which answers and marks a pass consumed (consumedUntil), what it changed and what it asked next, so the next pass and the next focus session start from it."
+      },
+      {
+        "role": "notes",
+        "placeId": "p-curation-notes",
+        "description": "What the person said about a subject in their own words (brief), what the AI understood and changed (summary), and decisions taken (decision); append-only, newest last"
       }
     ],
     "actions": [
@@ -329,25 +334,91 @@
             }
           }
         }
+      },
+      {
+        "name": "note",
+        "targetRole": "notes",
+        "description": "Record words about a subject: a brief (the person describes what the subject is and needs, in their own words; the next pass derives from it), a summary (the AI says what it understood, changed and left open), or a decision. One record per noteId.",
+        "guard": {
+          "role": "notes",
+          "matchKey": "noteId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "curation-note",
+          "noteKind": "brief"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "noteId",
+            "subjectKind",
+            "subjectKey",
+            "text",
+            "by"
+          ],
+          "properties": {
+            "noteId": {
+              "type": "string"
+            },
+            "subjectKind": {
+              "enum": [
+                "net",
+                "element",
+                "level",
+                "relation"
+              ]
+            },
+            "subjectKey": {
+              "type": "string",
+              "description": "session::net, session::net#elementId, a level id, a focus scope subject (scope:<expr>@<level>), or from::net>relation>to::net"
+            },
+            "noteKind": {
+              "enum": [
+                "brief",
+                "summary",
+                "decision"
+              ],
+              "description": "brief: the person's own words; summary: the AI's understanding after a pass; decision: something settled for good"
+            },
+            "text": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            },
+            "passId": {
+              "type": "string",
+              "description": "summary: the pass that wrote it"
+            },
+            "requestId": {
+              "type": "string",
+              "description": "the hand-over request the pass served, if any"
+            }
+          }
+        }
       }
     ],
     "permissions": {
       "readStores": [
         "marks",
         "resolutions",
-        "passes"
+        "passes",
+        "notes"
       ],
       "watchStores": [
         "marks",
         "resolutions",
-        "passes"
+        "passes",
+        "notes"
       ],
       "actions": [
         "confirm",
         "flag",
         "resolve",
         "defer",
-        "pass"
+        "pass",
+        "note"
       ]
     }
   }

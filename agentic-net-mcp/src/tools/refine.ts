@@ -16,6 +16,8 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
+import { assignInscription, withMcpFlag } from '../inscriptions.js';
+import { SELF_CREDENTIAL_KEY, SELF_SERVER_NAME, describeSelf } from './mcp-servers.js';
 
 const FLAGS = ['stale', 'unclear', 'wrong', 'contradiction', 'unmeasured', 'too-coarse', 'level-below-changed', 'level-above-changed'] as const;
 
@@ -65,6 +67,17 @@ function digestPath(model: string, args: { since?: string; level?: string; scope
 }
 
 const DIGEST_NEXT = 'Apply it top-down (prompt refinement-pass): revise the definitions the answers touch, create the child definitions the person asked for, resolve settled flags, rebuild from the specification when the model is spec-built, raise the next questions with curate_model {action:"ask"}, then record the pass with curate_model {action:"pass", consumedUntil: this digest\'s `until`}.';
+
+export function handoverPath(model: string): string {
+  const m = encodeURIComponent(model);
+  return `/explorer/${m}/handover?modelId=${m}`;
+}
+
+export function threadPath(model: string, subject: string): string {
+  const m = encodeURIComponent(model);
+  const q = new URLSearchParams({ modelId: model, subject });
+  return `/explorer/${m}/thread?${q.toString()}`;
+}
 
 export function scopePath(model: string, scope: string): string {
   const m = encodeURIComponent(model);
@@ -389,6 +402,39 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
       }
     }),
   );
+  server.registerTool(
+    'refiner_status',
+    {
+      title: 'The Refiner lane: installed, attached, running, pending requests and the last runs',
+      description: 'Read-only state of the hand-over lane on the model: whether the Refiner application is installed, whether the lane carries an MCP server, which LLM it thinks with, whether a pass is running now, the pending requests and the last runs with their reports.',
+      inputSchema: { ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'refiner_status', mutates: false }, async (model) => {
+      try {
+        return await ctx.master.get(handoverPath(model));
+      } catch (err: any) {
+        if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover: upgrade master' };
+        throw err;
+      }
+    }),
+  );
+
+  server.registerTool(
+    'subject_thread',
+    {
+      title: 'The planning thread of one subject',
+      description: 'Everything said and decided about a subject in time order: the person\'s briefs, the AI\'s summaries, questions with their answers, own questions, confirmations, flags, resolutions, deferrals and the passes that touched it. Read-only. subject is session::net, session::net#element, a level id or a scope subject.',
+      inputSchema: { subject: z.string().min(1), ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'subject_thread', mutates: false }, async (model, args) => {
+      try {
+        return await ctx.master.get(threadPath(model, args.subject));
+      } catch (err: any) {
+        if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/thread: upgrade master' };
+        throw err;
+      }
+    }),
+  );
 }
 
 export function registerRefineTools(server: McpServer, ctx: AppContext): void {
@@ -412,9 +458,13 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         + 'answer: record what the person said (selected and/or text) on a promptId; with then:"confirm" the subject is confirmed in the same call (by = the person), with then:"flag" it is flagged (flag + reason). '
         + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). '
         + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it. '
-        + 'raise: the person\'s own question about a subject (an Interview request; the digest lists it until a prompt carries its requestId). reshape: the person reshapes a question (respond with intent revise and the better wording; the next pass asks again). Nothing here starts anything.',
+        + 'raise: the person\'s own question about a subject (an Interview request; the digest lists it until a prompt carries its requestId). reshape: the person reshapes a question (respond with intent revise and the better wording; the next pass asks again). '
+        + 'note: words about a subject (Curation 1.3.0): noteKind brief = what the person said about it in their own words (the next pass derives the definition from it), summary = what the AI understood, changed and left open after a pass (the person reads it on the card), decision = settled for good. Nothing here starts anything.',
       inputSchema: {
-        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass', 'raise', 'reshape']),
+        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass', 'raise', 'reshape', 'note']),
+        noteKind: z.enum(['brief', 'summary', 'decision']).optional().describe('note: brief (the person\'s words), summary (the AI\'s, after a pass), decision'),
+        text: z.string().optional().describe('answer: free text; note: the words'),
+        noteId: z.string().optional().describe('note: id (default derived)'),
         subjectKey: z.string().optional().describe('ask, confirm, flag, and answer with then: the subject'),
         question: z.string().optional().describe('ask: the question, in the person\'s words'),
         header: z.string().optional().describe('ask: short chip label'),
@@ -427,7 +477,6 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         promptId: z.string().optional().describe('ask: id of the new prompt (default derived); answer: the prompt answered'),
         subjectRevision: z.number().int().optional().describe('ask/confirm: definition revision the question or confirmation is against'),
         selected: z.array(z.string()).optional().describe('answer: chosen option values'),
-        text: z.string().optional().describe('answer: free text'),
         notes: z.string().optional().describe('answer: a note beside the choice; confirm: why it is right'),
         respondedBy: z.string().optional().describe('answer: who answered (default "the person")'),
         then: z.enum(['confirm', 'flag']).optional().describe('answer: also confirm or flag subjectKey'),
@@ -438,7 +487,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         markId: z.string().optional().describe('confirm/flag: id of the new mark (default deterministic); resolve: the flag'),
         how: z.enum(['changed', 'confirmed', 'withdrawn']).optional().describe('resolve: how the flag was settled'),
         until: z.string().optional().describe('defer: ISO-8601 instant after which the subject is due again'),
-        requestId: z.string().optional().describe('raise: id of the request (default derived)'),
+        requestId: z.string().optional().describe('raise: id of the request (default derived); note: the hand-over request a summary serves'),
         revisedQuestion: z.string().optional().describe('reshape: the better wording of the question'),
         passId: z.string().optional().describe('pass: id of the pass record (default pass-<stamp>)'),
         consumedUntil: z.string().optional().describe('pass: the digest\'s `until`; every answer and mark up to it counts as read'),
@@ -569,9 +618,98 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
           const result = await act(model, 'curation', 'pass', input, `curate-pass-${passId}`);
           return { model, passId, consumedUntil: args.consumedUntil, result, next: 'The next focus_digest starts after this pass; the person continues in the Focus view.' };
         }
+        case 'note': {
+          need('subjectKey', args.subjectKey); need('text', args.text);
+          const subjectKey = String(args.subjectKey);
+          const noteKind = args.noteKind ?? (by === 'the person' ? 'brief' : 'summary');
+          const noteId = args.noteId ?? `note-${noteKind}-${slug(subjectKey)}-${stamp()}`;
+          const input: Record<string, unknown> = {
+            noteId, noteKind, subjectKind: curationSubjectKind(subjectKey), subjectKey, text: args.text, by,
+            ...(args.passId ? { passId: args.passId } : {}),
+            ...(args.requestId ? { requestId: args.requestId } : {}),
+          };
+          const result = await act(model, 'curation', 'note', input, `curate-note-${noteId}`);
+          return { model, noteId, noteKind, subjectKey, result,
+            next: noteKind === 'brief'
+              ? 'The next refinement pass derives the definition from it and answers with a summary note; hand_over runs that pass in the model.'
+              : 'The person reads it in the thread of the subject (Focus view) and on the card.' };
+        }
         default:
           throw new Error(`unknown action ${String(args.action)}`);
       }
     }),
   );
+
+  server.registerTool(
+    'hand_over',
+    {
+      title: 'Hand the focus work over to the AI lane in the model',
+      description:
+        'The person\'s "now it is your turn": a pass run by the Refiner application\'s agent lane (t-refiner-pass) inside the model, through this MCP server. kind refinement (apply what the person answered and described, write a summary per subject, prepare the next questions), structure (settle the AI\'s structural cards from the sources) or ground (check every level against the sources); optional scope (a focus scope: domain:<d>, tag:<t>, net:<session::net>), subject (one subject first) and note (what the person wants). '
+        + 'The master installs the Refiner on first use; when its MCP server is not attached to the lane yet, this tool attaches THIS server (as attach_mcp_server {self:true} would) and asks again. dryRun reports what would run without writing. '
+        + 'Use it when the person wants the pass to run in the background; run the refinement-pass prompt yourself when you ARE the AI they are talking to.',
+      inputSchema: {
+        kind: z.enum(['refinement', 'structure', 'ground']).default('refinement'),
+        scope: z.string().optional().describe('A focus scope: domain:<d>, tag:<t>, net:<session::net>'),
+        subject: z.string().optional().describe('One subject to concentrate on first (session::net, session::net#element, scope:<expr>@<level>)'),
+        note: z.string().optional().describe('What the person wants from this pass, in their words'),
+        by: z.string().optional().describe('Who hands over (default "the person")'),
+        dryRun: z.boolean().optional().describe('Report what would run; write nothing'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'hand_over', mutates: true }, async (model, args) => {
+      const body = { kind: args.kind ?? 'refinement', scope: args.scope, subject: args.subject, note: args.note, by: args.by ?? 'the person', dryRun: !!args.dryRun };
+      const post = () => ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover`, body, { modelId: model });
+      let result: any;
+      try {
+        result = await post();
+      } catch (err: any) {
+        if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover: upgrade master' };
+        if (err?.status !== 409) throw err;
+        result = conflictBody(err);
+      }
+      if (result?.state === 'needs-setup' && !args.dryRun) {
+        // The master could not attach its MCP server; this server attaches itself to the lane, then asks again.
+        const attach = await attachSelfToLane(ctx, model, String(result.lane ?? 't-refiner-pass'));
+        try {
+          result = await post();
+        } catch (err: any) {
+          if (err?.status !== 409) throw err;
+          result = conflictBody(err);
+        }
+        result = { ...result, attached: attach };
+      }
+      return { ...result, next: result?.state === 'running'
+        ? 'The lane runs the pass; refiner_status shows when its run is recorded, then the Focus view and focus_digest carry the summaries and the next questions.'
+        : result?.state === 'would-run' ? 'Call again without dryRun to run it.' : String(result?.hint ?? '') };
+    }),
+  );
+
+}
+
+/** A 409 from the master carries the hand-over state as JSON text in the GatewayError body. */
+function conflictBody(err: any): Record<string, any> {
+  const raw = err?.body;
+  if (raw && typeof raw === 'object') return raw;
+  if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { /* not JSON */ } }
+  return { state: 'needs-setup', error: String(err?.message ?? '') };
+}
+
+/** What attach_mcp_server {self:true} does, for the hand-over lane: declaration, m flag, this server's token in the vault. */
+async function attachSelfToLane(ctx: AppContext, model: string, transitionId: string): Promise<Record<string, unknown>> {
+  const self = describeSelf(ctx);
+  if (!self.attachable) return { attached: false, reason: self.reason };
+  const current: any = await ctx.executorFor(model).execute('GET_TRANSITION', { transitionId });
+  const inscription = current?.data?.inscription ?? current?.data;
+  if (!inscription || typeof inscription !== 'object') return { attached: false, reason: `transition '${transitionId}' has no inscription in model '${model}'` };
+  const action = { ...(inscription.action ?? {}) };
+  const existing: any[] = Array.isArray(action.mcp) ? action.mcp.filter((s: any) => s?.name !== SELF_SERVER_NAME) : [];
+  action.mcp = [...existing, { ...self.declaration }];
+  action.role = withMcpFlag(action.role);
+  const next = { ...inscription, action, ...(inscription.role !== undefined ? { role: action.role } : {}) };
+  await ctx.master.stopTransition(transitionId, model).catch(() => undefined);
+  await assignInscription(ctx, model, next, 'agentic-net-master');
+  await ctx.client.masterApi('POST', `/transitions/${transitionId}/credentials`, { [SELF_CREDENTIAL_KEY]: ctx.config.httpToken }, { modelId: model });
+  return { attached: true, server: SELF_SERVER_NAME, url: self.url };
 }

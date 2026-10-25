@@ -446,3 +446,69 @@ describe('focus scope: one feature across its levels', () => {
     expect(JSON.parse(result.content[0].text)).toMatchObject({ available: false, model: 'm1' });
   });
 });
+
+describe('planning in a layer: notes, the thread and the hand-over', () => {
+  it('curate_model note writes a brief for the person and a summary for the AI, with derived ids', async () => {
+    const posted: Array<{ path: string; body: any }> = [];
+    const ctx = new AppContext(config());
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
+      if (method === 'POST') { posted.push({ path, body }); return { ok: true }; }
+      return CATALOGUE;
+    };
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const brief: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
+      action: 'note', subjectKey: 'product::overview', text: 'The overview opens on the day, newest first.' } })) as any).content[0].text);
+    expect(brief.noteKind).toBe('brief');
+    expect(posted[0].path).toBe('/applications/m1/curation/actions/note');
+    expect(posted[0].body).toMatchObject({ noteKind: 'brief', subjectKind: 'net', subjectKey: 'product::overview', by: 'the person' });
+    expect(posted[0].body.noteId).toMatch(/^note-brief-product-overview-/);
+    const summary: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
+      action: 'note', subjectKey: 'scope:domain:x@rules', text: 'Understood; revised to r2.', by: 'refiner', requestId: 'hand-1' } })) as any).content[0].text);
+    expect(summary.noteKind).toBe('summary');
+    expect(posted[1].body).toMatchObject({ noteKind: 'summary', subjectKind: 'level', requestId: 'hand-1', by: 'refiner' });
+    const missing: any = await client.callTool({ name: 'curate_model', arguments: { action: 'note', subjectKey: 'product::overview' } });
+    expect(missing.isError).toBe(true);
+  });
+
+  it('hand_over posts the request, attaches this server when the master says needs-setup, and reads status and thread', async () => {
+    const posted: Array<{ path: string; body: any }> = [];
+    const calls: string[] = [];
+    let handovers = 0;
+    const ctx = new AppContext({ ...config(), transport: 'http', httpToken: 'tok', httpPort: 8091 } as any);
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
+      calls.push(`${method} ${path}`);
+      if (method === 'POST' && path.endsWith('/handover')) {
+        handovers++;
+        if (handovers === 1) { const e: any = new Error('needs setup'); e.status = 409; e.body = JSON.stringify({ state: 'needs-setup', lane: 't-refiner-pass' }); throw e; }
+        return { state: 'running', requestId: 'hand-1', fired: true };
+      }
+      if (method === 'POST') { posted.push({ path, body }); return { ok: true }; }
+      if (path.includes('/handover')) return { installed: true, state: 'idle', runs: [] };
+      if (path.includes('/thread')) return { subjectKey: 'product::overview', entries: [{ kind: 'brief' }] };
+      return CATALOGUE;
+    };
+    (ctx as any).executorFor = () => ({ execute: async () => ({ data: { inscription: { id: 't-refiner-pass', kind: 'agent', action: { type: 'agent', role: 'r' } } } }) });
+    (ctx.master as any).stopTransition = async () => ({});
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const out: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'refinement', scope: 'domain:x', note: 'finish it' } })) as any).content[0].text);
+    expect(out.state).toBe('running');
+    expect(out.attached).toMatchObject({ attached: true, server: 'agenticnets' });
+    expect(handovers).toBe(2);
+    const credential = posted.find(p => p.path.includes('/credentials'));
+    expect(credential?.body).toEqual({ AGENTICNETS_MCP_TOKEN: 'tok' });
+    const assigned = posted.find(p => p.path.includes('/transitions/assign'));
+    expect(assigned?.body?.inscription?.action?.mcp?.[0]).toMatchObject({ name: 'agenticnets', auth: { credentialKey: 'AGENTICNETS_MCP_TOKEN' } });
+    expect(assigned?.body?.inscription?.action?.role).toBe('r---------m');
+    const status: any = JSON.parse(((await client.callTool({ name: 'refiner_status', arguments: {} })) as any).content[0].text);
+    expect(status.state).toBe('idle');
+    const thread: any = JSON.parse(((await client.callTool({ name: 'subject_thread', arguments: { subject: 'product::overview' } })) as any).content[0].text);
+    expect(thread.entries[0].kind).toBe('brief');
+    expect(calls.filter(c => c.includes('/thread'))[0]).toContain('subject=product%3A%3Aoverview');
+  });
+});

@@ -1,0 +1,108 @@
+{
+  "$schema": "../../schemas/application-package.schema.json",
+  "name": "refiner",
+  "version": "1.0.0",
+  "displayName": "Refiner",
+  "description": "The AI side of the focus loop as a lane in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent through the Agentic-Nets MCP server, with its run recorded.",
+  "author": "AgenticNetOS",
+  "visibility": "public",
+  "tags": [
+    "refinement",
+    "model-explorer",
+    "human-in-the-loop",
+    "agent"
+  ],
+  "runtimePackage": "runtime/session.package.json",
+  "output": "../../dist/packages/refiner-1.0.0.application.json",
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": {
+      "route": "refiner",
+      "icon": "bot",
+      "defaultView": "runs",
+      "renderer": "generic-stores-v1"
+    },
+    "stores": [
+      {
+        "role": "requests",
+        "placeId": "p-refiner-requests",
+        "description": "Hand-over requests: a pass the person asked the AI to run; consumed by the lane when it runs"
+      },
+      {
+        "role": "runs",
+        "placeId": "p-refiner-runs",
+        "description": "What each run did: the agent's report (summary, changes, questions, passId)"
+      }
+    ],
+    "actions": [
+      {
+        "name": "request",
+        "targetRole": "requests",
+        "description": "Hand the focus work over to the AI: a refinement pass (apply answers and briefs, prepare the next questions), a structure pass (settle the AI's cards from the sources) or a ground pass (check the levels against the sources), optionally limited to a focus scope and a subject. One record per requestId; the lane t-refiner-pass consumes it.",
+        "guard": {
+          "role": "requests",
+          "matchKey": "requestId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "refiner-request",
+          "status": "requested",
+          "passKind": "refinement"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "requestId",
+            "modelId",
+            "by"
+          ],
+          "properties": {
+            "requestId": {
+              "type": "string"
+            },
+            "modelId": {
+              "type": "string",
+              "description": "The model the pass runs on; the lane passes it to every MCP call"
+            },
+            "passKind": {
+              "enum": [
+                "refinement",
+                "structure",
+                "ground"
+              ]
+            },
+            "scope": {
+              "type": "string",
+              "description": "A focus scope (domain:<d>, tag:<t>, net:<session::net>); empty for the whole model"
+            },
+            "subject": {
+              "type": "string",
+              "description": "One subject to concentrate on first"
+            },
+            "note": {
+              "type": "string",
+              "description": "What the person wants from this pass, in their words"
+            },
+            "by": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "permissions": {
+      "readStores": [
+        "requests",
+        "runs"
+      ],
+      "watchStores": [
+        "requests",
+        "runs"
+      ],
+      "actions": [
+        "request"
+      ]
+    }
+  }
+}
