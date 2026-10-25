@@ -85,7 +85,10 @@ public class MasterProxyController {
             Pattern.compile("^/api/applications/([^/]+)(?:/|$)"),
             Pattern.compile("^/api/event-line/([^/]+)(?:/|$)"),
             Pattern.compile("^/api/proxy/events/([^/]+)(?:/|$)"),
-            Pattern.compile("^/api/assistant/universal/([^/]+)(?:/|$)")
+            Pattern.compile("^/api/assistant/universal/([^/]+)(?:/|$)"),
+            // Model Explorer read model and designtime organization (catalogue, levels,
+            // definitions): GET-heavy routes whose only model carrier is the path segment.
+            Pattern.compile("^/api/explorer/([^/]+)(?:/|$)")
     );
 
     private final MasterRegistryService registryService;

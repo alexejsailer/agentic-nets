@@ -90,6 +90,41 @@ class ReadonlyEnforcementFilterTest {
     }
 
     @Test
+    void explorerCatalogueGet_readonlyScope_isAllowed() throws Exception {
+        // The Model Explorer read model is a plain GET outside the privileged set, so a
+        // readonly MCP connection may browse the hierarchy.
+        authenticate("agenticos readonly");
+        MockHttpServletRequest req = request("GET", "/api/explorer/m1/catalogue");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(req, res, chain);
+
+        verify(chain, times(1)).doFilter(req, res);
+        assertThat(res.getStatus()).isEqualTo(HttpStatus.OK.value());
+    }
+
+    @Test
+    void explorerWrites_readonlyScope_areBlocked() throws Exception {
+        // Levels, organization and definitions are designtime writes: readonly never reaches them.
+        for (String[] call : new String[][]{
+                {"PUT", "/api/explorer/m1/levels"},
+                {"PUT", "/api/explorer/m1/nets/s1/n1/organization"},
+                {"POST", "/api/explorer/m1/definitions"}}) {
+            authenticate("agenticos readonly");
+            MockHttpServletRequest req = request(call[0], call[1]);
+            MockHttpServletResponse res = new MockHttpServletResponse();
+            FilterChain chain = mock(FilterChain.class);
+
+            filter.doFilter(req, res, chain);
+
+            verify(chain, never()).doFilter(req, res);
+            assertThat(res.getStatus()).as("%s %s", call[0], call[1]).isEqualTo(HttpStatus.FORBIDDEN.value());
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     void postRequest_readonlyScope_isBlockedWith403() throws Exception {
         authenticate("agenticos readonly");
         MockHttpServletRequest req = request("POST", "/api/models");

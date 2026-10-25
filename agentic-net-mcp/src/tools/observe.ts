@@ -8,7 +8,7 @@ import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
 import { fetchTokens } from './memory.js';
 import { annotateLeases, LEASED_NOTE } from './lease-util.js';
-import { classifyCanvas, runtimeHomeMap } from './canvas.js';
+import { abstractElementIds, classifyCanvas, runtimeHomeMap } from './canvas.js';
 import { createAllowlistStoreAt } from '../allowlist-store.js';
 
 /**
@@ -395,8 +395,10 @@ export function registerObserveTools(server: McpServer, ctx: AppContext): void {
                 netId: args.netId, sessionId: sessionForNet, model,
               });
               const pnml: any = pnmlRes.success ? pnmlRes.data : null;
-              const shapeIds = Object.keys((pnml?.net ?? pnml)?.transitions ?? {});
-              const { staleShapes, viewOf, netRole } = classifyCanvas(shapeIds, runtimeHome, args.netId);
+              const shapeMap = (pnml?.net ?? pnml)?.transitions ?? {};
+              const shapeIds = Object.keys(shapeMap);
+              const { staleShapes, viewOf, netRole } =
+                classifyCanvas(shapeIds, runtimeHome, args.netId, abstractElementIds(shapeMap));
               if (staleShapes.length > 0) {
                 return {
                   ...ov,

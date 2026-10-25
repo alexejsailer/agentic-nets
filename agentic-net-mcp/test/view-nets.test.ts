@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyCanvas, runtimeHomeMap } from '../src/tools/canvas.js';
+import { abstractElementIds, classifyCanvas, isAbstractElement, runtimeHomeMap } from '../src/tools/canvas.js';
 
 const rows = (specs: Array<[string, string | null]>) =>
   specs.map(([id, home]) => ({
@@ -74,5 +74,42 @@ describe('classifyCanvas — shared-place partitioning', () => {
 
   it('empty canvas classifies as empty', () => {
     expect(classifyCanvas([], home, 'scout').netRole).toBe('empty');
+  });
+});
+
+describe('classifyCanvas — abstract elements (subnet refinement)', () => {
+  const home = runtimeHomeMap(rows([['t-fetch', 'scout']]));
+
+  it('an inline subnet page or a subnetSession/subnetNet reference marks the element abstract', () => {
+    expect(isAbstractElement({ label: 'x', subnet: { net: { places: {}, transitions: {}, arcs: {} } } })).toBe(true);
+    expect(isAbstractElement({ label: 'x', subnetSession: 'product', subnetNet: 'account-access' })).toBe(true);
+    expect(isAbstractElement({ label: 'x', subnetSession: '', subnetNet: 'account-access' })).toBe(false);
+    expect(isAbstractElement({ label: 'x' })).toBe(false);
+    expect(isAbstractElement(null)).toBe(false);
+    expect(abstractElementIds({
+      't-fetch': { label: 'fetch' },
+      't-auth': { label: 'auth', subnetSession: 'product', subnetNet: 'account-access' },
+      't-legacy': { label: 'legacy', subnet: { net: {} } },
+    })).toEqual(['t-auth', 't-legacy']);
+  });
+
+  it('an abstract transition with no inscription is abstractShapes, never stale, and keeps the net canonical', () => {
+    const c = classifyCanvas(['t-fetch', 't-auth'], home, 'scout', ['t-auth']);
+    expect(c.staleShapes).toEqual([]);
+    expect(c.abstractShapes).toEqual(['t-auth']);
+    expect(c.netRole).toBe('canonical');
+  });
+
+  it('without the abstract hint the same shape is stale (what sync_net apply would have deleted)', () => {
+    const c = classifyCanvas(['t-fetch', 't-auth'], home, 'scout');
+    expect(c.staleShapes).toEqual(['t-auth']);
+    expect(c.abstractShapes).toEqual([]);
+  });
+
+  it('abstract shapes count as owned on a view canvas, so the role becomes hybrid', () => {
+    const c = classifyCanvas(['t-fetch', 't-auth'], home, 'scout-overview', ['t-auth']);
+    expect(c.viewShapes).toEqual({ 't-fetch': 'scout' });
+    expect(c.netRole).toBe('hybrid');
+    expect(c.staleShapes).toEqual([]);
   });
 });

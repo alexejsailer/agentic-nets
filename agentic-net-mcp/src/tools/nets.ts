@@ -24,7 +24,7 @@ import { TEMPLATES } from '../templates/index.js';
 import { grantModel } from '../scope.js';
 import { ensurePlacesContainer } from '../tree.js';
 import { fetchTokens, linkPlaces } from './memory.js';
-import { classifyCanvas, runtimeHomeMap } from './canvas.js';
+import { abstractElementIds, classifyCanvas, runtimeHomeMap } from './canvas.js';
 
 /**
  * Which add_transition params each kind actually consumes. Anything outside
@@ -257,7 +257,8 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
         'Compare a net\'s designtime canvas against its runtime transitions and report the drift: shapes with no runtime behind them ANYWHERE in the model (the canvas showing something that cannot fire), and arcs whose endpoints no longer exist. ' +
         'Runtime transitions homed in this net (inscription metadata.netId) with no shape are reported too, but never auto-drawn — placing an element means choosing coordinates, which is a layout decision, not a cleanup. ' +
         'Shapes backed by a transition homed in a DIFFERENT net are viewShapes, not drift: several small nets drawing shared elements of one big runtime is the supported way to structure it, and netRole reports canonical/view/hybrid accordingly. ' +
-        'Read-only by default; pass apply:true to remove the stale shapes and dangling arcs (view shapes are never removed). Run it when a net is finished, or when the editor and net_stats disagree.',
+        'Abstract elements (a transition or place refined by a subnet: inline `subnet` page or `subnetSession`/`subnetNet` reference) carry no inscription by design and are reported as abstractShapes, never as drift. ' +
+        'Read-only by default; pass apply:true to remove the stale shapes and dangling arcs (view and abstract shapes are never removed). Run it when a net is finished, or when the editor and net_stats disagree.',
       inputSchema: {
         netId: z.string(),
         sessionId: z.string().optional().describe('Defaults to this connection\'s session'),
@@ -285,8 +286,11 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
       // runtime drawn on a second, smaller canvas — and must not be mistaken for drift.
       const listed = await run('LIST_ALL_INSCRIPTIONS', { limit: 500, includeContent: true, model });
       const runtimeHome = runtimeHomeMap(listed?.transitions ?? []);
-      const { staleShapes, viewShapes, viewOf, netRole, undrawn } =
-        classifyCanvas(Object.keys(shapes), runtimeHome, args.netId);
+      // Abstract elements (subnet refinement: inline page or subnetSession/subnetNet reference)
+      // have no inscription on purpose. They are structure, not drift, and are never removed.
+      const abstractIds = abstractElementIds(shapes);
+      const { staleShapes, abstractShapes, viewShapes, viewOf, netRole, undrawn } =
+        classifyCanvas(Object.keys(shapes), runtimeHome, args.netId, abstractIds);
 
       const elementIds = new Set([...Object.keys(places), ...Object.keys(shapes)]);
       const danglingArcs = Object.entries(arcs)
@@ -301,6 +305,7 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
         return {
           netId: args.netId, applied: false, inSync: drift === 0 && undrawn.length === 0,
           netRole, ...(viewOf.length ? { viewOf, viewShapes } : {}),
+          ...(abstractShapes.length ? { abstractShapes } : {}),
           staleShapes, danglingArcs, runtimeWithoutShape: undrawn,
           summary: drift === 0
             ? (undrawn.length ? `${undrawn.length} runtime transition(s) have no shape — draw them with add_transition or accept the split` : `canvas and runtime agree${roleNote}`)
@@ -330,6 +335,7 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
       }
       return {
         netId: args.netId, applied: true, netRole, removedShapes, removedArcs,
+        ...(abstractShapes.length ? { abstractShapes } : {}),
         runtimeWithoutShape: undrawn,
         summary: `removed ${removedShapes.length} stale shape(s) and ${removedArcs.length} dangling arc(s)${roleNote}`,
       };

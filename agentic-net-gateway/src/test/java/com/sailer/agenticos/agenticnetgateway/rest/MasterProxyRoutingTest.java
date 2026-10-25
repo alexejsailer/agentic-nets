@@ -171,6 +171,45 @@ class MasterProxyRoutingTest {
 
     @Test
     @WithMockUser
+    void explorerCataloguePath_routesByItsModelSegment() throws Exception {
+        // The Explorer read model is a GET with no body and no query param: the path segment is
+        // the only model carrier, so a multi-master gateway must read it from there.
+        for (String path : new String[]{"/api/explorer/model-a/catalogue", "/api/explorer/model-a"}) {
+            master1.resetAll();
+            master2.resetAll();
+            master1.stubFor(WireMock.get(urlPathEqualTo(path))
+                    .willReturn(okJson("{\"source\":\"master-1\"}")));
+
+            MvcResult result = mockMvc.perform(get(path))
+                    .andExpect(request().asyncStarted())
+                    .andReturn();
+            mockMvc.perform(asyncDispatch(result))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.source").value("master-1"));
+            master1.verify(getRequestedFor(urlPathEqualTo(path)));
+            master2.verify(0, getRequestedFor(urlPathEqualTo(path)));
+        }
+    }
+
+    @Test
+    @WithMockUser
+    void explorerCataloguePath_queryParamStillWins() throws Exception {
+        // A client that appends ?modelId= (older gateways need it) must not be re-routed by the path.
+        String path = "/api/explorer/model-a/catalogue";
+        master2.stubFor(WireMock.get(urlPathEqualTo(path))
+                .willReturn(okJson("{\"source\":\"master-2\"}")));
+
+        MvcResult result = mockMvc.perform(get(path).param("modelId", "model-unknown"))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.source").value("master-2"));
+        master1.verify(0, getRequestedFor(urlPathEqualTo(path)));
+    }
+
+    @Test
+    @WithMockUser
     void encodedApplicationIdempotencyKeyIsNotDoubleEncoded() throws Exception {
         String path = "/api/applications/model-a/application-approval-room/actions/approve";
         master1.stubFor(WireMock.post(urlPathEqualTo(path))

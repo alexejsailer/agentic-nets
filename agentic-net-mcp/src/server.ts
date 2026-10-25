@@ -21,6 +21,7 @@ import { registerObserveTools } from './tools/observe.js';
 import { registerCapabilityTools } from './tools/capabilities.js';
 import { registerProtocolReaders, registerProtocolTools } from './tools/protocol.js';
 import { registerApplicationReaders, registerApplicationTools } from './tools/applications.js';
+import { registerExplorerReaders } from './tools/explorer.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
 
@@ -81,12 +82,15 @@ export function createServer(ctx: AppContext): McpServer {
     registerMemoryReaders(server, ctx);
     registerProtocolReaders(server, ctx);
     registerApplicationReaders(server, ctx);
+    // Model Explorer catalogue is one GET: the hierarchy is readable by observers too.
+    registerExplorerReaders(server, ctx);
     // External-fire discovery is GET-based — readonly observers can see the lane.
     registerExternalReaders(server, ctx);
   } else {
     registerMemoryTools(server, ctx);
     registerProtocolTools(server, ctx);
     registerApplicationTools(server, ctx);
+    registerExplorerReaders(server, ctx);
     registerNetTools(server, ctx);
     registerPackTools(server, ctx);
     // Invoke the platform agents (builder/operator/persona/...) — same agent loop as the GUI.
