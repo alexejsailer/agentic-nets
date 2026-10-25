@@ -68,7 +68,7 @@ describe('explore_model', () => {
   it('summary: counts, levels, indented hierarchy, compact nets and the most shared places', async () => {
     const { client, calls } = await connect(() => CATALOGUE);
     const out = await call(client);
-    expect(calls).toEqual(['/explorer/m1/catalogue?modelId=m1']);
+    expect(calls).toEqual(['/models/m1/structure?modelId=m1']);
     expect(out.modelId).toBe('m1');
     expect(out.stats.netCount).toBe(3);
     expect(out.levels.map((l: any) => l.id)).toEqual(['product', 'service']);
@@ -105,9 +105,9 @@ describe('explore_model', () => {
       { kind: 'below-nothing', subjectKey: 'identity::lost', netKey: 'identity::lost' },
     ] };
     const { client, calls } = await connect((path) => {
-      if (path.startsWith('/explorer/m1/facts')) return FACTS;
-      if (path.startsWith('/explorer/m1/chain')) return { modelId: 'm1', net: 'identity::account-access', chain: [{ key: 'identity::account-access' }, { key: 'product::overview' }] };
-      if (path.startsWith('/explorer/m1/scope')) return { modelId: 'm1', scope: 'domain:identity', core: [] };
+      if (path.startsWith('/models/m1/structure/facts')) return FACTS;
+      if (path.startsWith('/models/m1/structure/chain')) return { modelId: 'm1', net: 'identity::account-access', chain: [{ key: 'identity::account-access' }, { key: 'product::overview' }] };
+      if (path.startsWith('/models/m1/structure/scope')) return { modelId: 'm1', scope: 'domain:identity', core: [] };
       return CATALOGUE;
     }, { reviewTools: false });
     const names = (await client.listTools()).tools.map((t) => t.name);
@@ -122,7 +122,22 @@ describe('explore_model', () => {
     expect(chain.chain.map((n: any) => n.key)).toEqual(['identity::account-access', 'product::overview']);
     const slice = await call(client, { slice: 'domain:identity' });
     expect(slice.scope).toBe('domain:identity');
-    expect(calls).toContain('/explorer/m1/chain?modelId=m1&net=identity%3A%3Aaccount-access');
+    expect(calls).toContain('/models/m1/structure/chain?modelId=m1&net=identity%3A%3Aaccount-access');
+  });
+
+  it('falls back to the Explorer routes on a master without the neutral structure routes', async () => {
+    const { client, calls } = await connect((path) => {
+      if (path.startsWith('/models/')) {
+        const err: any = new Error('Gateway 404 (GET /api/models/m1/structure): not found');
+        err.status = 404;
+        err.body = JSON.stringify({ timestamp: '2026-10-15T20:00:00Z', path: '/api/models/m1/structure', status: 404, error: 'Not Found' });
+        throw err;
+      }
+      return CATALOGUE;
+    });
+    const out = await call(client);
+    expect(out.stats.netCount).toBe(3);
+    expect(calls).toEqual(['/models/m1/structure?modelId=m1', '/explorer/m1/catalogue?modelId=m1']);
   });
 
   it('full returns the whole document untouched', async () => {
@@ -195,7 +210,7 @@ describe('review_model', () => {
 
   it('lists every net with its state, rolls element marks up, and counts per level', async () => {
     const { out, calls } = await review();
-    expect(calls.sort()).toEqual(['/explorer/m1/catalogue?modelId=m1', '/explorer/m1/curation?modelId=m1']);
+    expect(calls.sort()).toEqual(['/explorer/m1/curation?modelId=m1', '/models/m1/structure?modelId=m1']);
     expect(out.total).toBe(3);
     const overview = out.nets.find((n: any) => n.key === 'product::overview');
     expect(overview.state).toBe('confirmed');

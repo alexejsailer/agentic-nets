@@ -10,25 +10,31 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
-import { notInstalled, scopePath } from './refine.js';
+import { notInstalled } from './refine.js';
 
 const TOP_SHARED = 10;
 
-function cataloguePath(model: string): string {
-  const m = encodeURIComponent(model);
-  // The model is carried twice on purpose: in the path (what the endpoint reads) and as a query
-  // param (what a gateway without the /api/explorer model-path pattern needs for routing).
-  return `/explorer/${m}/catalogue?modelId=${m}`;
+/** A 404 from a master that lacks the route itself (Spring's default body), not from the read. */
+function routeMissing(err: any): boolean {
+  if (err?.status !== 404) return false;
+  const body = typeof err?.body === 'string' ? err.body : JSON.stringify(err?.body ?? '');
+  return /"error"\s*:\s*"Not Found"/.test(body) && /"path"\s*:/.test(body);
 }
 
-function factsPath(model: string): string {
+/**
+ * The model's structure under its neutral names (GET /api/models/{m}/structure[/facts|/chain|/scope]),
+ * falling back to the Explorer page's routes on a master that predates them.
+ */
+async function structureGet(ctx: any, model: string, sub: '' | '/facts' | '/chain' | '/scope',
+                            query: Record<string, string> = {}): Promise<any> {
   const m = encodeURIComponent(model);
-  return `/explorer/${m}/facts?modelId=${m}`;
-}
-
-function chainPath(model: string, net: string): string {
-  const m = encodeURIComponent(model);
-  return `/explorer/${m}/chain?modelId=${m}&net=${encodeURIComponent(net)}`;
+  const q = new URLSearchParams({ modelId: model, ...query }).toString();
+  try {
+    return await ctx.master.get(`/models/${m}/structure${sub}?${q}`);
+  } catch (err: any) {
+    if (!routeMissing(err)) throw err;
+    return await ctx.master.get(`/explorer/${m}${sub === '' ? '/catalogue' : sub}?${q}`);
+  }
 }
 
 /** At most this many facts in the summary; detail:"full" returns all of them. */
@@ -311,27 +317,27 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
     wrapTool(scope, config.mode, { name: 'explore_model', mutates: false }, async (model, args) => {
       if (args.chain) {
         try {
-          return await ctx.master.get(chainPath(model, args.chain));
+          return await structureGet(ctx, model, '/chain', { net: args.chain });
         } catch (err: any) {
           if (err?.status === 404 || err?.status === 400) {
-            return { available: false, model, net: args.chain, error: String(err?.message ?? ''), hint: 'an unknown net key (see explore_model), or a master without /api/explorer/{model}/chain (upgrade master)' };
+            return { available: false, model, net: args.chain, error: String(err?.message ?? ''), hint: 'an unknown net key (see explore_model), or a master without the chain read (upgrade master)' };
           }
           throw err;
         }
       }
       if (args.slice) {
         try {
-          return await ctx.master.get(scopePath(model, args.slice));
+          return await structureGet(ctx, model, '/scope', { scope: args.slice });
         } catch (err: any) {
           if (err?.status === 404) {
-            return { available: false, model, error: String(err?.message ?? ''), hint: 'an unknown model, or a master without /api/explorer/{model}/scope (upgrade master)' };
+            return { available: false, model, error: String(err?.message ?? ''), hint: 'an unknown model, or a master without the slice read (upgrade master)' };
           }
           throw err;
         }
       }
       let catalogue: any;
       try {
-        catalogue = await ctx.master.get(cataloguePath(model));
+        catalogue = await structureGet(ctx, model, '');
       } catch (err: any) {
         if (err?.status === 404) {
           return {
@@ -348,7 +354,7 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
           ? new Set<string>((Array.isArray(catalogue?.nets) ? catalogue.nets : []).filter((n: any) => matches(n, args.query!)).map((n: any) => String(n.key)))
           : null;
         try {
-          facts = factsOf(await ctx.master.get(factsPath(model)), args.detail, keys);
+          facts = factsOf(await structureGet(ctx, model, '/facts'), args.detail, keys);
         } catch (err: any) {
           if (err?.status !== 404) throw err;
           facts = { available: false, hint: 'master without /api/explorer/{model}/facts: upgrade master' };
@@ -387,7 +393,7 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
       let catalogue: any;
       let review: any;
       try {
-        [catalogue, review] = await Promise.all([ctx.master.get(cataloguePath(model)), ctx.master.get(curationPath(model))]);
+        [catalogue, review] = await Promise.all([structureGet(ctx, model, ''), ctx.master.get(curationPath(model))]);
       } catch (err: any) {
         { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) {
