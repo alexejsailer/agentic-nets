@@ -29,7 +29,7 @@ function curationPath(model: string): string {
   return `/explorer/${m}/curation?modelId=${m}`;
 }
 
-function worklistPath(model: string, args: { level?: string; net?: string; direction?: string; mode?: string; count?: number }): string {
+function worklistPath(model: string, args: { level?: string; net?: string; direction?: string; mode?: string; count?: number; for?: string }): string {
   const m = encodeURIComponent(model);
   const q = new URLSearchParams({ modelId: model });
   if (args.level) q.set('level', args.level);
@@ -37,8 +37,19 @@ function worklistPath(model: string, args: { level?: string; net?: string; direc
   if (args.direction) q.set('direction', args.direction);
   if (args.mode) q.set('mode', args.mode);
   if (args.count) q.set('count', String(args.count));
+  if (args.for) q.set('for', args.for);
   return `/explorer/${m}/worklist?${q.toString()}`;
 }
+
+function groundPath(model: string, args: { level?: string; net?: string }): string {
+  const m = encodeURIComponent(model);
+  const q = new URLSearchParams({ modelId: model });
+  if (args.level) q.set('level', args.level);
+  if (args.net) q.set('net', args.net);
+  return `/explorer/${m}/ground?${q.toString()}`;
+}
+
+const GROUND_NEXT = 'For each chain (prompt ground-model): read the bottom node\'s references from the sources, then check every node above against them, bottom-up. Agree: curate_model {action:"confirm", sourceHash}. A mechanical divergence (a name, a value, a count): update_net_definition or the specification, then confirm. A divergence that is a decision: curate_model {action:"flag", flag:"contradiction", evidence} on the node and {action:"ask"} with evidence, reasoning and options [keep the level as written | adopt what the sources do | both need a change]. Record the pass with scope "ground:<level>".';
 
 function digestPath(model: string, args: { since?: string; level?: string }): string {
   const m = encodeURIComponent(model);
@@ -240,6 +251,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         net: z.string().optional().describe('Only this net (session::netId)'),
         direction: z.enum(['down', 'up', 'both']).default('both'),
         mode: z.enum(['all', 'review', 'plan']).optional().describe('review: flags, questions, never confirmed (bottom-up); plan: open definitions, unrefined transitions, nets below nothing (top-down); default all'),
+        for: z.enum(['person', 'model', 'all']).optional().describe('person: decisions only the person can take (open questions, open flags); model: structural gaps the AI settles from the sources (unrefined, unverified, draft, unconfirmed); default all'),
         count: z.number().int().positive().max(200).optional().describe('At most this many items (default: all)'),
         ...modelParam,
       },
@@ -266,6 +278,32 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         throw err;
       }
       return refineWorklist(catalogue, review, { level: args.level, net: args.net, direction: args.direction, mode: args.mode, count: args.count });
+    }),
+  );
+
+  server.registerTool(
+    'ground_model',
+    {
+      title: 'The chains from the bottom level up, with claims and confirmations',
+      description:
+        'The ground of a model: for every net on the bottom level (the one that touches the domain\'s own material: code, documents, data) or for one net, the chain of nets above it, each with its claims (description, interactions, acceptance), its references, its definition state and whether and at which source hash it was confirmed. '
+        + 'A client reads the referenced sources and checks every level against them (prompt ground-model); where a level and the sources diverge it corrects the level or asks the person which is right. Read-only.',
+      inputSchema: {
+        level: z.string().optional().describe('The bottom level id (default: the lowest level of the model)'),
+        net: z.string().optional().describe('One net (session::netId) instead of the whole level'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'ground_model', mutates: false }, async (model, args) => {
+      try {
+        const served = await ctx.master.get(groundPath(model, args));
+        return { ...served, next: GROUND_NEXT };
+      } catch (err: any) {
+        if (err?.status === 404) {
+          return { available: false, model, hint: 'master without /api/explorer/{model}/ground: upgrade master' };
+        }
+        throw err;
+      }
     }),
   );
 
@@ -316,9 +354,10 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         + 'ask: a question to the person about a subject (session::net, session::net#elementId, or a level id); the subject fields are derived from the key. A card needs substance: evidence (what was read or measured), reasoning (the argument and the recommendation) and options with a description each, one recommended. '
         + 'answer: record what the person said (selected and/or text) on a promptId; with then:"confirm" the subject is confirmed in the same call (by = the person), with then:"flag" it is flagged (flag + reason). '
         + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). '
-        + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it. Nothing here starts anything.',
+        + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it. '
+        + 'raise: the person\'s own question about a subject (an Interview request; the digest lists it until a prompt carries its requestId). reshape: the person reshapes a question (respond with intent revise and the better wording; the next pass asks again). Nothing here starts anything.',
       inputSchema: {
-        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass']),
+        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass', 'raise', 'reshape']),
         subjectKey: z.string().optional().describe('ask, confirm, flag, and answer with then: the subject'),
         question: z.string().optional().describe('ask: the question, in the person\'s words'),
         header: z.string().optional().describe('ask: short chip label'),
@@ -342,6 +381,8 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         markId: z.string().optional().describe('confirm/flag: id of the new mark (default deterministic); resolve: the flag'),
         how: z.enum(['changed', 'confirmed', 'withdrawn']).optional().describe('resolve: how the flag was settled'),
         until: z.string().optional().describe('defer: ISO-8601 instant after which the subject is due again'),
+        requestId: z.string().optional().describe('raise: id of the request (default derived)'),
+        revisedQuestion: z.string().optional().describe('reshape: the better wording of the question'),
         passId: z.string().optional().describe('pass: id of the pass record (default pass-<stamp>)'),
         consumedUntil: z.string().optional().describe('pass: the digest\'s `until`; every answer and mark up to it counts as read'),
         scope: z.string().optional().describe('pass: level, persona or net the pass was limited to'),
@@ -438,6 +479,24 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
           };
           const result = await act(model, 'curation', 'defer', input, `curate-defer-${input['markId']}`);
           return { model, subjectKey, until: args.until, markId: input['markId'], result };
+        }
+        case 'raise': {
+          need('question', args.question);
+          const subjectKey = args.subjectKey;
+          const requestId = args.requestId ?? `r-${subjectKey ? slug(subjectKey) + '-' : ''}${stamp()}`;
+          const input: Record<string, unknown> = {
+            requestId, question: args.question, raisedBy: by,
+            ...(args.context ? { context: args.context } : {}),
+            ...(subjectKey ? { subjectKind: interviewSubjectKind(subjectKey), subjectKey } : {}),
+          };
+          const result = await act(model, 'interview', 'raise', input, `curate-raise-${requestId}`);
+          return { model, requestId, subjectKey, result, next: 'The next refinement pass answers it (focus_digest lists it under ownQuestions) by asking back with a prompt that carries this requestId, or by changing the model.' };
+        }
+        case 'reshape': {
+          need('promptId', args.promptId); need('revisedQuestion', args.revisedQuestion);
+          const input: Record<string, unknown> = { promptId: args.promptId, intent: 'revise', revisedQuestion: args.revisedQuestion, respondedBy: by };
+          const result = await act(model, 'interview', 'respond', input, `curate-reshape-${args.promptId}`);
+          return { model, promptId: args.promptId, revisedQuestion: args.revisedQuestion, result, next: 'The next pass asks the reshaped question (ask with supersedes = this promptId).' };
         }
         case 'pass': {
           need('consumedUntil', args.consumedUntil);

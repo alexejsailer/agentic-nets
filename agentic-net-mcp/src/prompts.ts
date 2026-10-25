@@ -82,6 +82,53 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'structure-pass',
+    {
+      title: 'Settle the model\'s structural cards from the sources, without the person',
+      description: 'Take the cards meant for the AI (nothing refines this, draft definitions, failed refinements, nets below nothing, never confirmed) and settle each by reading the sources; ask the person only what the sources cannot tell',
+      argsSchema: {
+        scope: z.string().optional().describe('A level id or a net key (session::net); default: the whole model'),
+        count: z.string().optional().describe('How many cards to settle this pass (default 20)'),
+        model: z.string().optional().describe('Target model when this connection allows several'),
+      },
+    },
+    ({ scope, count, model }) => {
+      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
+      return userMessage(
+        `Run a structure pass${on} on ${scope || 'the whole model'}, ${count || '20'} cards at most. These cards are the model's own housekeeping; the person decides only what the sources cannot settle.\n\n` +
+          `1. Read: refine_model {${scope ? (scope.includes('::') ? `net:"${scope}"` : `level:"${scope}"`) + ', ' : ''}for:"model"} for the structural cards; explore_model for the hierarchy; for each card get_net_definition and read the sources the definition references (files, documents, data) yourself.\n` +
+          `2. Settle each card from what you read: "nothing refines this" becomes a child definition when the sources show a step with its own inner structure (create_net_definition under the parent element, status draft, interactions from the sources, references to them), a confirmation with note "known gap" when something is there you cannot describe yet, or a confirmation with note "as simple as it looks" when the step is one thing. A draft definition is filled from the sources (update_net_definition, then status ready) or deleted when nothing realizes it. A failed refinement is repaired (ports, missing target) or flagged wrong with the evidence. A net below nothing gets its parent (organize) or an explains relation, or is flagged. A never-confirmed net is confirmed at the sourceHash when its claims hold in the sources, flagged (wrong, unclear, unmeasured) with evidence when they do not.\n` +
+          `3. Ask only what the sources cannot tell: a reason, an intent, a choice between two readings. Then curate_model {action:"ask", evidence, reasoning, options} as in a question round.\n` +
+          `4. Record the pass: curate_model {action:"pass", consumedUntil: focus_digest's until, scope:"structure:${scope || 'model'}", summary, changes, questions}. Report what was settled per kind and what went to the person. Never push, never start anything on a schedule.`,
+      );
+    },
+  );
+
+  server.registerPrompt(
+    'ground-model',
+    {
+      title: 'Extract the truth from the bottom level and check every level above',
+      description: 'Walk the bottom level (code, documents, data), read its sources, and check each level above against them: confirm what holds, correct what is mechanical, ask the person where the levels and the sources disagree',
+      argsSchema: {
+        level: z.string().optional().describe('The bottom level id (default: the lowest level)'),
+        net: z.string().optional().describe('One bottom net (session::net) instead of the whole level'),
+        policy: z.string().optional().describe('sources-win: correct the levels silently where the sources clearly decide; ask: every divergence becomes a card (default ask)'),
+        model: z.string().optional().describe('Target model when this connection allows several'),
+      },
+    },
+    ({ level, net, policy, model }) => {
+      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
+      return userMessage(
+        `Ground the model${on}: the bottom level is where the model touches the domain's own material (for software the code, for a process its documents, for a product its measurements). Extract what is true there and carry it up through every level, so the abstractions say what the material does.\n\n` +
+          `1. Read: ground_model {${level ? `level:"${level}"` : ''}${net ? `${level ? ', ' : ''}net:"${net}"` : ''}} for the chains: every bottom net with the nets above it, each node with its claims (description, interactions, acceptance), its references, its definition revision and its confirmation (revision, sourceHash, when). If the model is built from a specification, run its checker and its grounding tool first (they settle the mechanical part: references exist and contain what they claim, parameters hold their values) and take their cards and flags as given.\n` +
+          `2. For each chain, bottom-up: read the bottom node's referenced sources yourself. Then for every node above it compare each claim with what you read. Three outcomes. Agree: curate_model {action:"confirm", subjectKey, subjectRevision, sourceHash, notes: what was checked}. Mechanical divergence (a renamed symbol, a changed value or count, a moved file): ${policy === 'sources-win' ? 'correct the level (update_net_definition or the specification plus a rebuild), then confirm it' : 'correct the level when the sources clearly decide it (update_net_definition or the specification plus a rebuild), then confirm it; when the change could be a regression rather than the truth, treat it as a decision'}. Decision divergence (the level says the product should do X, the sources do Y, and either could be the intended one): curate_model {action:"flag", flag:"contradiction", reason, evidence} on the node, and {action:"ask", subjectKey, header:"Sources differ", evidence: [what the level claims, what the sources do, file and line], reasoning: which one you believe is intended and why, options: [{keep-level: keep the level as written, the sources must change}, {adopt-sources: the sources are right, the level changes}, {both: both need a change}], allowFreeText:true}. A chain whose upper nodes were confirmed before the bottom node (aboveConfirmedBeforeBottom) is checked first.\n` +
+          `3. Never invent: a claim you cannot check against a source is flagged unmeasured, not confirmed. Carry a change down as well as up: when a level changes, the nets it refines are re-checked.\n` +
+          `4. Record the pass: curate_model {action:"pass", consumedUntil: focus_digest's until, scope:"ground:${level || 'bottom'}", summary, changes: [nodes confirmed, nodes corrected], questions: [cards raised]}. Report per chain: agreed, corrected, asked. Never push.`,
+      );
+    },
+  );
+
+  server.registerPrompt(
     'refinement-pass',
     {
       title: 'Apply what the person answered, top-down, and prepare the next focus session',
@@ -97,7 +144,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       const limit = scope ? ` limited to ${scope}` : '';
       return userMessage(
         `Run a refinement pass${on}${limit}. Focus sessions (the person answers cards in the Explorer's Focus view or here) and refinement passes (this) alternate as often as needed; implementation is a separate step later (prompt implement-from-model). The goal of a pass is the layers above the realization (the code, the process, the document, whatever the lowest level is): after it, every definition the answers touched says what the person meant, and the next focus session asks only what nobody can derive.\n\n` +
-          `1. Read: focus_digest {${since ? `since:"${since}", ` : ''}${scope && !scope.includes('::') ? `level:"${scope}"` : ''}} for what was answered, confirmed, flagged, resolved and deferred since the last pass, grouped by level and subject, plus the questions still open; note its \`until\`. explore_model for the hierarchy and the levels in order. get_net_definition for every subject in the digest (description, interactions, acceptance, references, questions, curation).\n` +
+          `1. Read: focus_digest {${since ? `since:"${since}", ` : ''}${scope && !scope.includes('::') ? `level:"${scope}"` : ''}} for what was answered, confirmed, flagged, resolved and deferred since the last pass, grouped by level and subject, plus the questions still open and the person's own questions (ownQuestions: answer each by changing the model or by asking back with curate_model {action:"ask", requestId}); an answer with intent "revise" carries the person's better wording in revisedQuestion: ask it again with supersedes; note the digest's \`until\`. explore_model for the hierarchy and the levels in order. get_net_definition for every subject in the digest (description, interactions, acceptance, references, questions, curation).\n` +
           `2. Apply top-down, level by level from the highest: for each subject, read its answers and marks together. A "right" confirms the definition as it is (nothing to change; keep the confirmation). A "partly" or "wrong" with the person's words changes the definition: revise description, interactions and acceptance with update_net_definition (or the specification file plus a rebuild when the model is spec-built; then confirm the rebuilt revision at the current sourceHash), and carry the change DOWN: every child net whose definition contradicts the new wording is revised or flagged level-above-changed, and the parent element is checked (level-below-changed when a child's answer changes what the parent claims). A request to refine here becomes a child definition (create_net_definition with the parent element, status draft) with the ports the parent's element implies. Free text that is a reason nobody could derive goes into the definition's interactions or the model's context net, never lost. Resolve every flag the change settles (curate_model {action:"resolve", how:"changed"}); leave open what still needs the person.\n` +
           `3. Check: verify_net_definition / the specification checker on what you changed; the catalogue must verify every refinement you touched (ports, targets). No level lock is bypassed; nothing is started that spends quota on a schedule.\n` +
           `4. Raise the next questions about the thing itself (what it should do, which rule, which value, which trade-off), not about the nets: for every change, ask what it opens (the next lower level first), with curate_model {action:"ask", subjectKey, question, header, evidence, reasoning, options, subjectRevision}. Every card carries substance the person can argue with: evidence = what you read or measured, one item each with its finding (file and line, document, number, the person's earlier words); reasoning = why the question matters, the trade-off between the options, which one you recommend and why; options = two to four, each with a description of its consequence, exactly one recommended; allowFreeText true. A question without evidence and reasoning is not asked. Prefer decide / choose / explain kinds; at most ${scope ? '5' : '10'} new questions, the rest waits for the next pass. Deferred subjects stay untouched until their date.\n` +

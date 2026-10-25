@@ -78,6 +78,7 @@ const CURATED = [
   'review_model',
   'refine_model',
   'focus_digest',
+  'ground_model',
   'curate_model',
   'list_net_definitions',
   'get_net_definition',
@@ -258,7 +259,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      ['application_describe', 'application_list', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'focus_digest', 'get_net_definition', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'refine_model', 'review_model', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
+      ['application_describe', 'application_list', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'focus_digest', 'get_net_definition', 'ground_model', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'refine_model', 'review_model', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'].sort(),
     );
   });
 
@@ -336,6 +337,8 @@ describe('advertised tool surface', () => {
         'question-round',
         'refinement-pass',
         'implement-from-model',
+        'structure-pass',
+        'ground-model',
         'realize-net-definition',
         'review-current-model',
         'setup-working-memory',

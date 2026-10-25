@@ -358,3 +358,43 @@ describe('focus_digest and the pass record', () => {
   });
 });
 
+describe('audience, own questions and the ground', () => {
+  it('refine_model passes the audience through and ground_model returns the served chains with the next step', async () => {
+    const served = { modelId: 'm1', direction: 'both', mode: 'all', for: 'person', counts: {}, audiences: { person: 1, model: 5 }, levels: {}, total: 1, returned: 1, deferred: 0, items: [] };
+    const ground = { modelId: 'm1', level: 'service', counts: { chains: 1, nodes: 2 }, chains: [{ bottom: 'identity::account-access', nodes: [{ key: 'identity::account-access' }, { key: 'product::overview' }] }] };
+    const master: any = (path: string) => (path.includes('/worklist') ? served : path.includes('/ground') ? ground : CATALOGUE);
+    master.servesWorklist = true;
+    const { client, calls } = await connect(master);
+    const wl: any = JSON.parse(((await client.callTool({ name: 'refine_model', arguments: { for: 'person' } })) as any).content[0].text);
+    expect(calls[0]).toBe('/explorer/m1/worklist?modelId=m1&direction=both&for=person');
+    expect(wl.audiences).toEqual({ person: 1, model: 5 });
+    const g: any = JSON.parse(((await client.callTool({ name: 'ground_model', arguments: { level: 'service' } })) as any).content[0].text);
+    expect(calls[1]).toBe('/explorer/m1/ground?modelId=m1&level=service');
+    expect(g.chains[0].nodes.map((n: any) => n.key)).toEqual(['identity::account-access', 'product::overview']);
+    expect(g.next).toMatch(/ground-model/);
+  });
+
+  it('curate_model raise posts an Interview request with its subject; reshape posts a revise response', async () => {
+    const posted: Array<{ path: string; body: any }> = [];
+    const ctx = new AppContext(config());
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
+      if (method === 'POST') { posted.push({ path, body }); return { ok: true }; }
+      return CATALOGUE;
+    };
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const raised: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: { action: 'raise', subjectKey: 'product::overview', question: 'Why no refunds?', by: 'the person' } })) as any).content[0].text);
+    expect(posted[0].path).toBe('/applications/m1/interview/actions/raise');
+    expect(posted[0].body).toMatchObject({ question: 'Why no refunds?', raisedBy: 'the person', subjectKind: 'net-definition', subjectKey: 'product::overview' });
+    expect(String(raised.requestId)).toMatch(/^r-product-overview-/);
+    const reshaped: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: { action: 'reshape', promptId: 'q-1', revisedQuestion: 'Which refunds are allowed?' } })) as any).content[0].text);
+    expect(posted[1].path).toBe('/applications/m1/interview/actions/respond');
+    expect(posted[1].body).toMatchObject({ promptId: 'q-1', intent: 'revise', revisedQuestion: 'Which refunds are allowed?' });
+    expect(reshaped.next).toMatch(/supersedes/);
+    const missing: any = await client.callTool({ name: 'curate_model', arguments: { action: 'reshape', promptId: 'q-1' } });
+    expect(missing.isError).toBe(true);
+  });
+});
+
