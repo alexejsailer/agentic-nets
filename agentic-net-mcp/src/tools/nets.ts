@@ -419,9 +419,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
             .optional()
             .describe('Deploy a starter template into the new model right away (e.g. working-memory)'),
           profile: z
-            .enum(['standard', 'research', 'knowledge', 'development'])
+            .enum(['standard', 'research', 'knowledge', 'development', 'modeling'])
             .optional()
-            .describe('Model composition profile — provisions resident net-agents on top of the domain context (research: research-analyst; knowledge: context-curator + crystallizer; development: dev-crew + crystallizer). Routed through master; a partial provisioning returns an error with per-artifact detail (re-run with the same profile to complete — installs are idempotent).'),
+            .describe('Model composition profile — provisions resident net-agents on top of the domain context (research: research-analyst; knowledge: context-curator + crystallizer; development: dev-crew + crystallizer; modeling: the Interview, Curation and Focus applications for the Model Explorer). Routed through master; a partial provisioning returns an error with per-artifact detail (re-run with the same profile to complete — installs are idempotent).'),
         },
       },
       wrapTool(scope, config.mode, { name: 'create_model', mutates: true }, async (_model, args) => {
