@@ -174,7 +174,7 @@ class MasterProxyRoutingTest {
     void explorerCataloguePath_routesByItsModelSegment() throws Exception {
         // The Explorer read model is a GET with no body and no query param: the path segment is
         // the only model carrier, so a multi-master gateway must read it from there.
-        for (String path : new String[]{"/api/explorer/model-a/catalogue", "/api/explorer/model-a"}) {
+        for (String path : new String[]{"/api/explorer/model-a/catalogue", "/api/explorer/model-a", "/api/explorer/model-a/rounds", "/api/explorer/model-a/rounds/r"}) {
             master1.resetAll();
             master2.resetAll();
             master1.stubFor(WireMock.get(urlPathEqualTo(path))

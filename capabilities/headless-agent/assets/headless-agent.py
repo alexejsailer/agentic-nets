@@ -191,6 +191,15 @@ def profile_text(env):
 
 
 def run(env):
+    # Model-only rounds need no repository; their local evidence is a disposable snapshot.
+    if not (env.get("HA_ROOT") or "").strip() and (env.get("HA_CONTEXT_JSON") or "").strip():
+        context = json.loads(env["HA_CONTEXT_JSON"])
+        with tempfile.TemporaryDirectory(prefix="headless-model-") as workspace:
+            with open(os.path.join(workspace, "model-round.json"), "w") as out:
+                json.dump(context, out)
+            local = dict(env)
+            local["HA_ROOT"] = workspace
+            return run(local)
     started = time.time()
     profile = load_profile(profile_text(env))
     root = (env.get("HA_ROOT") or "").strip()

@@ -23,6 +23,7 @@ import { registerProtocolReaders, registerProtocolTools } from './tools/protocol
 import { registerApplicationReaders, registerApplicationTools } from './tools/applications.js';
 import { registerExplorerReaders } from './tools/explorer.js';
 import { registerFocusScope, registerRefineReaders, registerRefineTools } from './tools/refine.js';
+import { registerFocusRoundReaders, registerFocusRoundTools } from './tools/focus-rounds.js';
 import { registerDefinitionReaders, registerDefinitionTools } from './tools/definitions.js';
 import { registerLevelTools } from './tools/levels.js';
 import { registerResources } from './resources.js';
@@ -92,6 +93,7 @@ export function createServer(ctx: AppContext): McpServer {
     // asking and marking are not for observers.
     if (ctx.config.reviewTools === true) {
       registerRefineReaders(server, ctx);
+      registerFocusRoundReaders(server, ctx);
       registerFocusScope(server, ctx);
     }
     // Definitions and their builds are readable by observers; claiming and building are not.
@@ -106,8 +108,10 @@ export function createServer(ctx: AppContext): McpServer {
     // The review method (Focus, Curation, Interview applications) is opt-in: AGENTICOS_REVIEW_TOOLS=true.
     if (ctx.config.reviewTools === true) {
       registerRefineReaders(server, ctx);
+      registerFocusRoundReaders(server, ctx);
       registerFocusScope(server, ctx);
       registerRefineTools(server, ctx);
+      registerFocusRoundTools(server, ctx);
     }
     registerDefinitionReaders(server, ctx);
     registerDefinitionTools(server, ctx);

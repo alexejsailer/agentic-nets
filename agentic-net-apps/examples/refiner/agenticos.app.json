@@ -1,9 +1,9 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "refiner",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "displayName": "Focus",
-  "description": "Focus: work one feature of a model across its levels, card by card, and hand the work to an AI between rounds. The AI side runs as lanes in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent, or a read-only coder run through the headless-agent runner, both through the Agentic-Nets MCP server, with every run recorded. Its prompts and coder profiles are tokens you can edit; an upgrade keeps an edited one.",
+  "description": "Focus: work one feature of a model across its levels, card by card, and hand the work to an AI between rounds. The AI side runs as lanes in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent, or a read-only coder run through the headless-agent runner, both through the Agentic-Nets MCP server, with every run recorded. Its prompts and coder profiles are tokens you can edit; an upgrade keeps an edited one. Guided rounds ask up to ten adaptive questions about one topic across layers, then refine definitions and topology from sealed answers with resumable operation receipts.",
   "author": "AgenticNetOS",
   "visibility": "public",
   "tags": [
@@ -13,7 +13,7 @@
     "agent"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/refiner-1.5.2.application.json",
+  "output": "../../dist/packages/refiner-1.6.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -58,6 +58,31 @@
         "role": "coder-results",
         "placeId": "p-refiner-coder-results",
         "description": "What each coder run reported: requestId, ok, exit code and the runner's JSON (profile, mode, the CODER_RESULT report, the answer's tail, stderr)"
+      },
+      {
+        "role": "rounds",
+        "placeId": "p-refiner-rounds",
+        "description": "Persistent guided interviews, exact questions and answers, sealed inputs, operation receipts and resumable progress."
+      },
+      {
+        "role": "round-jobs",
+        "placeId": "p-refiner-round-jobs",
+        "description": "Validated round tasks for a read-only headless CLI; no MCP credentials."
+      },
+      {
+        "role": "round-commands",
+        "placeId": "p-refiner-round-cmd",
+        "description": "Commands invoking the shared headless-agent runner."
+      },
+      {
+        "role": "round-raw",
+        "placeId": "p-refiner-round-raw",
+        "description": "Executor results awaiting shaping."
+      },
+      {
+        "role": "round-results",
+        "placeId": "p-refiner-round-results",
+        "description": "Provider-independent structured round results, correlated by requestId."
       }
     ],
     "actions": [
@@ -235,6 +260,88 @@
             }
           }
         }
+      },
+      {
+        "name": "createRound",
+        "targetRole": "rounds",
+        "description": "Create the canonical guided-round token. Lifecycle changes use the version-checked Focus round service.",
+        "guard": {
+          "role": "rounds",
+          "matchKey": "roundId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "focus-round"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "roundId",
+            "round",
+            "state"
+          ],
+          "properties": {
+            "roundId": {
+              "type": "string"
+            },
+            "round": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      {
+        "name": "dispatchRound",
+        "targetRole": "round-jobs",
+        "description": "Queue a validated guided-round command. Called by the round service with a frozen read-only profile and no MCP connection.",
+        "guard": {
+          "role": "round-jobs",
+          "matchKey": "requestId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "focus-round-job"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "requestId",
+            "roundId",
+            "prompt",
+            "profileB64",
+            "contextJson",
+            "resultKey"
+          ],
+          "properties": {
+            "requestId": {
+              "type": "string"
+            },
+            "roundId": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "profileB64": {
+              "type": "string"
+            },
+            "root": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "contextJson": {
+              "type": "string"
+            },
+            "resultKey": {
+              "type": "string"
+            }
+          }
+        }
       }
     ],
     "permissions": {
@@ -244,7 +351,9 @@
         "config",
         "coders",
         "prompts",
-        "coder-results"
+        "coder-results",
+        "rounds",
+        "round-results"
       ],
       "watchStores": [
         "requests",
@@ -252,12 +361,16 @@
         "config",
         "coders",
         "prompts",
-        "coder-results"
+        "coder-results",
+        "rounds",
+        "round-results"
       ],
       "actions": [
         "request",
         "configure",
-        "delegate"
+        "delegate",
+        "createRound",
+        "dispatchRound"
       ]
     },
     "agentProtocol": {
@@ -387,7 +500,22 @@
           ],
           "text": "Run a question round{{#model}} in model \"{{model}}\" (pass model:\"{{model}}\" on every call){{/model}} {{#persona}}as the {{persona}}{{/persona}}{{^persona}}as the keeper of that level{{/persona}}, on {{#scope}}{{scope}}{{/scope}}{{^scope}}what needs me most{{/scope}}, {{#count}}{{count}}{{/count}}{{^count}}5{{/count}} questions at most. One question at a time; I answer here or in the Explorer.\n\n1. Read: refine_model { {{#scope=~^(domain|tag|net|any):}}scope:\"{{scope}}\", {{/scope}}{{#scope=~^[^:]+::}}net:\"{{scope}}\", {{/scope}}{{#scope=~^[^:]+$}}level:\"{{scope}}\", {{/scope}}direction:\"both\"} for the worklist (looking down: transitions nothing refines, refinements that do not verify, definitions still open; looking up: nets below nothing; and the review: open flags, open questions, never confirmed), each item with a ready-made question; explore_model for the hierarchy; get_net_definition for the nets you will ask about (description, interactions, acceptance, references, questions already answered, curation). Never ask what an answered question already settled.\n2. Check before asking (no LLM needed for most of it): every reference the definition names still exists and still contains what it claims; every parameter named still has that value; every transition at this level is refined below or named as a known gap; a confirmed net whose referenced sources changed since (sourceHash) is stale. If the model is built from a specification file, run its checker. Record each mechanical finding as a flag with a deterministic markId (application_action on \"curation\", action \"flag\", subjectKind net|element, subjectKey \"<session>::<net>\" or \"<session>::<net>#<elementId>\", flag, reason with the measured evidence, by = you). Resolve flags the check no longer finds (action \"resolve\", how \"changed\").\n3. Ask only what you cannot find out: the reasons behind a rule, whether a description still describes what the person means (the code, the process, the rule, the document), a better name, whether a net is too coarse. Prefer these kinds: confirm (\"the net says X, the sources do Y: right / partly / wrong / don't know\"), choose (options), explain (free text, the most valuable kind), name, split-or-merge. Each question goes through curate_model {action:\"ask\", subjectKey, question, header, evidence, reasoning, options, subjectRevision} (the worklist's item.ask is a starting point; the subject kind and a promptId are derived) and carries substance: evidence = what you read or measured with its finding, reasoning = why it matters, the trade-off and your recommendation with the reason, options with a description each and one recommended. Show me the question here as well and wait for my answer before the next one.\n4. Record each answer with curate_model {action:\"answer\", promptId, selected or text, respondedBy = the person}; add then:\"confirm\" (+ subjectKey, notes = their words) when the answer confirms the subject, or then:\"flag\" (+ flag, reason) when it refutes it. When it changes the model, change the specification and rebuild (or update_net_definition when the model is edited directly), then curate_model {action:\"resolve\"} the related flags. When the answer is a reason nobody could have derived, put it where the next reader finds it: the definition's interactions, a note on the confirmation, or the model's context net.\n5. Report: what was confirmed, what was flagged, what changed, what stays open. Never push, never start anything that spends quota on a schedule. (Every step here is a tool call: an MCP client can run the whole round without this prompt and without a server-side LLM.)"
         }
-      ]
+      ],
+      "guidedRounds": {
+        "version": "1",
+        "read": "focus_rounds",
+        "write": "focus_round",
+        "maxQuestions": 10,
+        "resultKey": "FOCUS_ROUND_RESULT",
+        "workflow": [
+          "start",
+          "answer or investigate",
+          "refine",
+          "inspect receipts",
+          "retry unfinished",
+          "suggest next round; wait for the person"
+        ]
+      }
     },
     "mcp": {
       "credentialKey": "AGENTICNETS_MCP_TOKEN",

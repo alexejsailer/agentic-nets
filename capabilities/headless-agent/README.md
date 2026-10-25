@@ -54,3 +54,11 @@ are accepted too, so profiles written for the Steward's `p-steward-coders` read 
 python3 verify/test_headless_agent.py      # the rules, with fake claude/codex binaries
 node ../tools/pack.mjs package --dir .     # the NetHub artifact in dist/
 ```
+
+## Model-only jobs (1.0.1)
+
+A caller can omit `HA_ROOT` and supply `HA_CONTEXT_JSON`. The runner creates a temporary workspace,
+writes that JSON as `model-round.json`, runs the same profile there and removes the workspace on
+completion or failure. A source-backed call keeps its configured folder and writes no context file
+there. Use `HA_RESULT_KEY` to select an application result marker (Focus uses `FOCUS_ROUND_RESULT`).
+The normal read-only and credential isolation rules still apply.

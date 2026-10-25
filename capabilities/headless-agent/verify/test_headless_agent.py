@@ -22,7 +22,10 @@ if "--mcp-config" in sys.argv:
     cfg = json.load(open(sys.argv[sys.argv.index("--mcp-config") + 1]))
 seen = {"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt, "cfg": cfg,
         "env": sorted(k for k in os.environ if k.startswith(("HA_", "AGENTICNETS", "CLAUDE")) or k.endswith("_MCP_TOKEN"))}
-result = "did it\nCODER_RESULT: " + json.dumps({"summary": "ok", "seen": seen})
+if os.path.isfile("model-round.json"):
+    seen["modelContext"] = json.load(open("model-round.json"))
+key = "FOCUS_ROUND_RESULT" if prompt.startswith("Focus round") else "CODER_RESULT"
+result = "did it\n" + key + ": " + json.dumps({"summary": "ok", "seen": seen})
 if os.path.basename(sys.argv[0]) == "claude":
     print(json.dumps({"result": result, "total_cost_usd": 0.01, "num_turns": 3, "is_error": False}))
 else:
@@ -190,6 +193,24 @@ def t_dollar_placeholders_and_model_override():
     r, _ = run_with(p, HA_MODEL="opus")
     argv = r["report"]["seen"]["argv"]
     assert argv[argv.index("--model") + 1] == "opus", argv
+
+
+def t_model_only_rounds_with_both_providers_use_temporary_context_and_custom_result_key():
+    for profile in (READ_ONLY_CLAUDE, CODEX):
+        r, _ = run_with(dict(profile, mcp=False), HA_ROOT="", HA_CONTEXT_JSON=json.dumps({"roundId": "r", "nets": {"s::n": {"description": "Approval"}}}),
+                        HA_PROMPT="Focus round: inspect the supplied model", HA_RESULT_KEY="FOCUS_ROUND_RESULT")
+        assert r["ok"], r
+        seen = r["report"]["seen"]
+        assert seen["modelContext"]["roundId"] == "r", seen
+        assert not os.path.exists(seen["cwd"]), "temporary context was not removed"
+        assert seen["env"] == [] and seen["cfg"] is None, seen
+
+
+def t_source_backed_rounds_keep_the_configured_folder():
+    r, root = run_with(dict(READ_ONLY_CLAUDE, mcp=False), HA_CONTEXT_JSON='{"roundId":"r"}',
+                       HA_PROMPT="Focus round: inspect sources", HA_RESULT_KEY="FOCUS_ROUND_RESULT")
+    assert r["ok"] and os.path.realpath(r["report"]["seen"]["cwd"]) == os.path.realpath(root), r
+    assert not os.path.exists(os.path.join(root, "model-round.json")), "source folder was modified"
 
 
 for name, fn in list(globals().items()):

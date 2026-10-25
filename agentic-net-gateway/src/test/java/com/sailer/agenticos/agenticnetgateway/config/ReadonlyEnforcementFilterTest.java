@@ -110,7 +110,11 @@ class ReadonlyEnforcementFilterTest {
         for (String[] call : new String[][]{
                 {"PUT", "/api/explorer/m1/levels"},
                 {"PUT", "/api/explorer/m1/nets/s1/n1/organization"},
-                {"POST", "/api/explorer/m1/definitions"}}) {
+                {"POST", "/api/explorer/m1/definitions"},
+                {"POST", "/api/explorer/m1/rounds"},
+                {"POST", "/api/explorer/m1/rounds/r/answer"},
+                {"POST", "/api/explorer/m1/rounds/r/refine"},
+                {"POST", "/api/explorer/m1/rounds/r/retry"}}) {
             authenticate("agenticos readonly");
             MockHttpServletRequest req = request(call[0], call[1]);
             MockHttpServletResponse res = new MockHttpServletResponse();

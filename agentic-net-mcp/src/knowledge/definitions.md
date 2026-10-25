@@ -50,7 +50,7 @@ nets below nothing, flags, questions, never confirmed), each item with a ready-m
 prompt `question-round` is one way to drive them; tools alone suffice.
 Method tools need `AGENTICOS_REVIEW_TOOLS=true`.
 
-Focus and refinement alternate: `focus_digest` returns what the person answered, confirmed, flagged, deferred or resolved since the last `pass` record (grouped by level and subject, plus the open questions); the `refinement-pass` prompt applies it top-down (revise definitions, carry changes down, resolve settled flags, raise the next questions) and records the pass with `curate_model {action:"pass", consumedUntil}`. A card raised for the person carries `evidence` (what was read or measured), `reasoning` (the argument and the recommendation) and options with a description each; a question without them is not asked. Cards have an audience: open questions and open flags are for the person (`refine_model {for:"person"}`); unrefined, unverified, draft and unconfirmed cards are for the AI (`for:"model"`, prompt `structure-pass`). The person can raise an own question (`curate_model raise`) or reshape one (`reshape`). `ground_model` lists, for every bottom-level net, the chain above it with claims and confirmations; the `ground-model` prompt reads the sources and confirms, corrects or asks per node. Implementation is a separate step, `implement-from-model`, an interview on one confirmed lowest-layer net; it never starts anything by itself.
+Focus alternates with refinement: `focus_digest` groups the person's decisions since the last pass by level and subject. The `refinement-pass` prompt revises definitions top-down, resolves settled flags, asks follow-up questions and records `curate_model {action:"pass", consumedUntil}`. Questions need evidence, reasoning and two to four options with consequences. `refine_model {for:"person"}` serves human decisions; `for:"model"` serves structural gaps (`structure-pass`). The person can raise or reshape questions. `ground_model` lists bottom-up chains with claims and confirmations; `ground-model` checks them against sources. `implement-from-model` separately interviews one confirmed lowest-layer net and never starts itself.
 
 
 ## Building one
@@ -93,3 +93,10 @@ prompt:
 
 After an uncertain failure, reread `get_net_definition` and the build before retrying. Never
 create a second net for one definition, never delete a reused shared place.
+
+
+Focus 1.6.0 guided rounds (review tools enabled): `focus_round {action:"start", roundId, topic, scope}`
+starts up to ten adaptive questions; `focus_rounds {roundId?}` reads progress. `answer` accepts choices,
+words or unknown:true for investigation. `refine` seals answers and directly applies scoped definitions
+and explanatory topology; `retry` resumes unfinished edits. The next round waits for the person.
+Claude Code and Codex use headless-agent 1.0.1 without MCP, with an optional source folder.
