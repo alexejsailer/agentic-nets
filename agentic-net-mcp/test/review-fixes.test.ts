@@ -94,3 +94,20 @@ describe('review fixes 2026-10-17', () => {
     expect(calls[0].path).toContain('includeDeferred=true');
   });
 });
+
+describe('ground_model output', () => {
+  it('lists a net\'s claims once and points back from later chains; full:true repeats them', async () => {
+    const top = { key: 'product::app', title: 'App', level: 'product', claims: { description: 'x'.repeat(500) }, confirmed: { by: 'p' } };
+    const served = { modelId: 'm1', counts: { chains: 2 }, chains: [
+      { bottom: 'modules::a', nodes: [{ key: 'modules::a', claims: { description: 'a' } }, top] },
+      { bottom: 'modules::b', nodes: [{ key: 'modules::b', claims: { description: 'b' } }, top] },
+    ] };
+    const { client } = await connect(() => served);
+    const compact = await text(client, 'ground_model', {});
+    expect(compact.compact).toBe(true);
+    expect(compact.chains[0].nodes[1].claims.description).toHaveLength(500);
+    expect(compact.chains[1].nodes[1]).toEqual({ key: 'product::app', title: 'App', level: 'product', confirmed: { by: 'p' }, sameAs: 'chains[0]' });
+    const full = await text(client, 'ground_model', { full: true });
+    expect(full.chains[1].nodes[1].claims.description).toHaveLength(500);
+  });
+});

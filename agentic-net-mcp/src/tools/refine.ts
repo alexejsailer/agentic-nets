@@ -378,13 +378,14 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         level: z.string().optional().describe('The bottom level id (default: the lowest level of the model)'),
         net: z.string().optional().describe('One net (session::netId) instead of the whole level'),
         scope: z.string().optional().describe('Only the chains of a focus scope\'s own bottom nets (domain:<d>, tag:<t>, net:<session::net>)'),
+        full: z.boolean().optional().describe('Repeat every node in full in every chain (default: a net already listed in an earlier chain repeats only its key, title, level, confirmation and sameAs)'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'ground_model', mutates: false }, async (model, args) => {
       try {
         const served = await ctx.master.get(groundPath(model, args));
-        return { ...served, next: GROUND_NEXT };
+        return { ...(args.full ? served : compactChains(served)), next: GROUND_NEXT };
       } catch (err: any) {
         { const missing = missingAnswer(err, model, '/api/explorer/{model}/ground'); if (missing) return missing; }
         throw err;
@@ -810,6 +811,26 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
     }),
   );
 
+}
+
+/**
+ * The ground's chains share their upper nets (every bottom net climbs to the same product net): on a live model
+ * 101 nodes were 56 nets and the read was 229 KB. A net listed in an earlier chain repeats only what tells the
+ * chains apart (key, title, level, confirmed) and where its claims are (sameAs: "chains[i]").
+ */
+export function compactChains(served: any): any {
+  if (!served || !Array.isArray(served.chains)) return served;
+  const first = new Map<string, number>();
+  const chains = served.chains.map((chain: any, i: number) => ({
+    ...chain,
+    nodes: (Array.isArray(chain?.nodes) ? chain.nodes : []).map((node: any) => {
+      const key = String(node?.key ?? '');
+      if (!key) return node;
+      if (!first.has(key)) { first.set(key, i); return node; }
+      return { key, title: node.title, level: node.level, confirmed: node.confirmed ?? null, sameAs: `chains[${first.get(key)}]` };
+    }),
+  }));
+  return { ...served, chains, compact: true };
 }
 
 /** A 409 from the master carries the hand-over state as JSON text in the GatewayError body. */
