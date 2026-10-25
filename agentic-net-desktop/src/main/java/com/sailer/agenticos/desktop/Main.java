@@ -270,6 +270,8 @@ public final class Main {
         mcpEnv.put("AGENTICOS_GATEWAY_SECRET_FILE", config.adminSecretFile().toAbsolutePath().toString());
         mcpEnv.put("AGENTICOS_MODELS", config.setting("mcp.models", "default"));
         mcpEnv.put("AGENTICOS_SESSION", config.setting("mcp.session", "desktop"));
+        // The review method's MCP tools and prompts (Focus, Curation, Interview): off unless mcp.reviewTools=true.
+        mcpEnv.put("AGENTICOS_REVIEW_TOOLS", config.setting("mcp.reviewTools", "false"));
         mcpEnv.put("AGENTICOS_NODE_HOST", "127.0.0.1:" + DesktopConfig.NODE_PORT);
         specs.add(new ServiceSpec(
             "mcp", "MCP endpoint",

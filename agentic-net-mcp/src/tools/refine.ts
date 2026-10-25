@@ -79,6 +79,24 @@ export function threadPath(model: string, subject: string): string {
   return `/explorer/${m}/thread?${q.toString()}`;
 }
 
+/**
+ * A master 404 that says an application is not installed in the model (code "not-installed"),
+ * as opposed to a route this master does not have. The answer names the application to install.
+ */
+export function notInstalled(err: any, model: string): Record<string, unknown> | null {
+  if (err?.status !== 404) return null;
+  let body: any = null;
+  try { body = typeof err.body === 'string' ? JSON.parse(err.body) : err.body; } catch { body = null; }
+  if (body?.code !== 'not-installed') return null;
+  return {
+    available: false,
+    model,
+    reason: 'not-installed',
+    ...(body.application ? { application: body.application } : {}),
+    hint: String(body.error ?? `not installed in ${model}`),
+  };
+}
+
 export function scopePath(model: string, scope: string): string {
   const m = encodeURIComponent(model);
   const q = new URLSearchParams({ modelId: model, scope });
@@ -297,6 +315,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
           return { ...served, next: WORKLIST_NEXT };
         }
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status !== 404) throw err;
       }
       if (args.scope) {
@@ -307,6 +326,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       try {
         [catalogue, review] = await Promise.all([ctx.master.get(cataloguePath(model)), ctx.master.get(curationPath(model))]);
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) {
           return { available: false, model, hint: 'master without /api/explorer: upgrade master' };
         }
@@ -335,6 +355,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         const served = await ctx.master.get(groundPath(model, args));
         return { ...served, next: GROUND_NEXT };
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) {
           return { available: false, model, hint: 'master without /api/explorer/{model}/ground: upgrade master' };
         }
@@ -363,6 +384,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         const served = await ctx.master.get(digestPath(model, args));
         return { ...served, next: DIGEST_NEXT };
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) {
           return { available: false, model, hint: 'master without /api/explorer/{model}/digest: upgrade master' };
         }
@@ -395,6 +417,7 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
         const served = await ctx.master.get(scopePath(model, args.scope));
         return { ...served, next: SCOPE_NEXT };
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) {
           return { available: false, model, error: String(err?.message ?? ''), hint: 'an unknown model, or a master without /api/explorer/{model}/scope (upgrade master)' };
         }
@@ -413,6 +436,7 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
       try {
         return await ctx.master.get(handoverPath(model));
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover: upgrade master' };
         throw err;
       }
@@ -430,6 +454,7 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
       try {
         return await ctx.master.get(threadPath(model, args.subject));
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/thread: upgrade master' };
         throw err;
       }
@@ -668,6 +693,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
       try {
         result = await post();
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover: upgrade master' };
         if (err?.status !== 409) throw err;
         result = conflictBody(err);
@@ -718,6 +744,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         const saved = await ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover/config`, body, { modelId: model });
         return { model, config: saved, next: 'hand_over with a coder kind (explain, look, check, draft, diff, ground, structure) now runs in this root.' };
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover/config: upgrade master' };
         throw err;
       }

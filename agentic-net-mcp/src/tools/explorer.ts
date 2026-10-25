@@ -10,6 +10,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
+import { notInstalled, scopePath } from './refine.js';
 
 const TOP_SHARED = 10;
 
@@ -18,6 +19,39 @@ function cataloguePath(model: string): string {
   // The model is carried twice on purpose: in the path (what the endpoint reads) and as a query
   // param (what a gateway without the /api/explorer model-path pattern needs for routing).
   return `/explorer/${m}/catalogue?modelId=${m}`;
+}
+
+function factsPath(model: string): string {
+  const m = encodeURIComponent(model);
+  return `/explorer/${m}/facts?modelId=${m}`;
+}
+
+function chainPath(model: string, net: string): string {
+  const m = encodeURIComponent(model);
+  return `/explorer/${m}/chain?modelId=${m}&net=${encodeURIComponent(net)}`;
+}
+
+/** At most this many facts in the summary; detail:"full" returns all of them. */
+const SUMMARY_FACTS = 60;
+
+/** The structural facts as short lines (summary) or as served (full), narrowed to the matched nets. */
+function factsOf(doc: any, detail: string, keys: Set<string> | null): Record<string, unknown> {
+  const all: any[] = Array.isArray(doc?.facts) ? doc.facts : [];
+  const facts = keys ? all.filter((f) => keys.has(String(f?.netKey))) : all;
+  const counts: Record<string, number> = {};
+  for (const f of facts) counts[String(f.kind)] = (counts[String(f.kind)] ?? 0) + 1;
+  if (detail === 'full') return { total: facts.length, counts, facts };
+  const line = (f: any) => {
+    const extra = [f.element && `element ${f.element}`, f.child && `child ${f.child}`, f.status, f.parent && `parent ${f.parent}`,
+      Array.isArray(f.skipped) && f.skipped.length ? `skips ${f.skipped.join(', ')}` : null].filter(Boolean).join(', ');
+    return `${f.kind} ${f.subjectKey}${extra ? ` (${extra})` : ''}`;
+  };
+  return {
+    total: facts.length,
+    counts,
+    lines: facts.slice(0, SUMMARY_FACTS).map(line),
+    ...(facts.length > SUMMARY_FACTS ? { truncated: true, complete: false, more: facts.length - SUMMARY_FACTS, hint: 'detail:"full" returns every fact' } : { complete: true }),
+  };
 }
 
 function curationPath(model: string): string {
@@ -261,14 +295,40 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
         + 'Depth comes from subnet refinement: a transition (or place) of a parent net is refined by a child net whose port places carry the SAME ids as the parent\'s preset/postset places, so the runtime stays flat and the abstract element never fires (it carries no inscription). '
         + 'Nets carry organization (domain, responsible, tags; set with update_net_definition action:"organize") and an execution state read from the existing transition statuses (none, running, partial, stopped, error). '
         + 'Explicit relations between nets (explains, depends-on, references; set with action:"relate") appear as lines "from relation to", marked (missing) when the target is gone. '
-        + 'detail:"summary" (default) returns counts, levels, the hierarchy as indented lines, a compact net list and the most shared places; detail:"full" returns the whole document. query filters nets by key, title, description, domain, responsible or tags. Read-only; nothing here touches runtime state.',
+        + 'detail:"summary" (default) returns counts, levels, the hierarchy as indented lines, a compact net list and the most shared places; detail:"full" returns the whole document. query filters nets by key, title, description, domain, responsible or tags. '
+        + 'facts:true adds the structural facts (what holds about the layering, without wording: unrefined-step = an abstract step without inscription that nothing refines, refined-inscribed = a refined step that still has an inscription and would run, refinement-unverified, below-nothing, level-order = a child not below its parent, level-gap = a child skipping levels). '
+        + 'slice answers one feature across its levels instead of the catalogue (domain:<d>, tag:<t>, net:<session::net> for the net and everything below it, or a bare word; comma-separated for a union): its nets per level, the nets around it and how they connect, the levels it has no net of its own on, the shared places. '
+        + 'chain (a net key) answers the net and the nets above it up to the top, each with the element it refines. Read-only; nothing here touches runtime state.',
       inputSchema: {
         detail: z.enum(['summary', 'full']).default('summary'),
         query: z.string().optional().describe('Substring filter on net key, title, description, domain, responsible or tags'),
+        facts: z.boolean().optional().describe('Add the structural facts of the (matched) nets'),
+        slice: z.string().optional().describe('One feature across its levels: domain:<d>, tag:<t>, net:<session::net> or a bare word; comma-separated for a union'),
+        chain: z.string().optional().describe('A net key (session::netId): its chain up to the top'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'explore_model', mutates: false }, async (model, args) => {
+      if (args.chain) {
+        try {
+          return await ctx.master.get(chainPath(model, args.chain));
+        } catch (err: any) {
+          if (err?.status === 404 || err?.status === 400) {
+            return { available: false, model, net: args.chain, error: String(err?.message ?? ''), hint: 'an unknown net key (see explore_model), or a master without /api/explorer/{model}/chain (upgrade master)' };
+          }
+          throw err;
+        }
+      }
+      if (args.slice) {
+        try {
+          return await ctx.master.get(scopePath(model, args.slice));
+        } catch (err: any) {
+          if (err?.status === 404) {
+            return { available: false, model, error: String(err?.message ?? ''), hint: 'an unknown model, or a master without /api/explorer/{model}/scope (upgrade master)' };
+          }
+          throw err;
+        }
+      }
       let catalogue: any;
       try {
         catalogue = await ctx.master.get(cataloguePath(model));
@@ -282,14 +342,30 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
         }
         throw err;
       }
-      if (args.detail === 'full') {
-        if (!args.query) return catalogue;
-        const nets = (Array.isArray(catalogue?.nets) ? catalogue.nets : []).filter((n: any) => matches(n, args.query!));
-        return { ...catalogue, nets, query: args.query, matched: nets.length };
+      let facts: Record<string, unknown> | undefined;
+      if (args.facts) {
+        const keys = args.query
+          ? new Set<string>((Array.isArray(catalogue?.nets) ? catalogue.nets : []).filter((n: any) => matches(n, args.query!)).map((n: any) => String(n.key)))
+          : null;
+        try {
+          facts = factsOf(await ctx.master.get(factsPath(model)), args.detail, keys);
+        } catch (err: any) {
+          if (err?.status !== 404) throw err;
+          facts = { available: false, hint: 'master without /api/explorer/{model}/facts: upgrade master' };
+        }
       }
-      return summarize(catalogue, args.query);
+      if (args.detail === 'full') {
+        if (!args.query) return facts ? { ...catalogue, facts } : catalogue;
+        const nets = (Array.isArray(catalogue?.nets) ? catalogue.nets : []).filter((n: any) => matches(n, args.query!));
+        return { ...catalogue, nets, query: args.query, matched: nets.length, ...(facts ? { facts } : {}) };
+      }
+      const summary = summarize(catalogue, args.query);
+      return facts ? { ...summary, facts } : summary;
     }),
   );
+
+  // The review state belongs to the review method (Curation, Interview): only with AGENTICOS_REVIEW_TOOLS.
+  if (config.reviewTools !== true) return;
 
   server.registerTool(
     'review_model',
@@ -313,6 +389,7 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
       try {
         [catalogue, review] = await Promise.all([ctx.master.get(cataloguePath(model)), ctx.master.get(curationPath(model))]);
       } catch (err: any) {
+        { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404) {
           return { available: false, model, hint: 'master without /api/explorer/{model}/curation: upgrade master; confirmations and flags need the Curation application' };
         }

@@ -87,9 +87,12 @@ export function createServer(ctx: AppContext): McpServer {
     registerApplicationReaders(server, ctx);
     // Model Explorer catalogue is one GET: the hierarchy is readable by observers too.
     registerExplorerReaders(server, ctx);
-    // The refinement worklist is one pair of GETs; asking and marking are not for observers.
-    registerRefineReaders(server, ctx);
-    registerFocusScope(server, ctx);
+    // The review method's readers (worklist, digest, scope, thread) only with AGENTICOS_REVIEW_TOOLS;
+    // asking and marking are not for observers.
+    if (ctx.config.reviewTools === true) {
+      registerRefineReaders(server, ctx);
+      registerFocusScope(server, ctx);
+    }
     // Definitions and their builds are readable by observers; claiming and building are not.
     registerDefinitionReaders(server, ctx);
     // External-fire discovery is GET-based — readonly observers can see the lane.
@@ -99,9 +102,12 @@ export function createServer(ctx: AppContext): McpServer {
     registerProtocolTools(server, ctx);
     registerApplicationTools(server, ctx);
     registerExplorerReaders(server, ctx);
-    registerRefineReaders(server, ctx);
-    registerFocusScope(server, ctx);
-    registerRefineTools(server, ctx);
+    // The review method (Focus, Curation, Interview applications) is opt-in: AGENTICOS_REVIEW_TOOLS=true.
+    if (ctx.config.reviewTools === true) {
+      registerRefineReaders(server, ctx);
+      registerFocusScope(server, ctx);
+      registerRefineTools(server, ctx);
+    }
     registerDefinitionReaders(server, ctx);
     registerDefinitionTools(server, ctx);
     registerLevelTools(server, ctx);

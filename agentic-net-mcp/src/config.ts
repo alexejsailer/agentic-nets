@@ -64,6 +64,12 @@ export interface McpConfig {
   persistAllowlist: boolean;
   /** Whether to register the large UPPERCASE native catalog in addition to curated tools. */
   nativeTools?: NativeToolMode;
+  /**
+   * Whether to register the review method's tools and prompts (the Focus, Curation and Interview
+   * applications: refine_model, curate_model, hand_over, ...). Off by default; the core Explorer
+   * reads (explore_model with facts, slice and chain) are always there.
+   */
+  reviewTools?: boolean;
 }
 
 export class ConfigError extends Error {}
@@ -121,6 +127,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     throw new ConfigError(`AGENTICOS_NATIVE_TOOLS must be all|curated, got '${nativeTools}'`);
   }
 
+  const reviewToolsRaw = (env.AGENTICOS_REVIEW_TOOLS ?? 'false').trim().toLowerCase();
+  if (!['true', 'false', 'on', 'off', '1', '0', ''].includes(reviewToolsRaw)) {
+    throw new ConfigError(`AGENTICOS_REVIEW_TOOLS must be true|false, got '${env.AGENTICOS_REVIEW_TOOLS}'`);
+  }
+  const reviewTools = ['true', 'on', '1'].includes(reviewToolsRaw);
+
   return {
     gatewayUrl: env.AGENTICOS_GATEWAY_URL ?? 'http://localhost:8083',
     models,
@@ -140,5 +152,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     allowlistPath: store.path,
     persistAllowlist: store.enabled,
     nativeTools,
+    reviewTools,
   };
 }

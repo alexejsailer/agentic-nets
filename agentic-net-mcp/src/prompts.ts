@@ -22,8 +22,19 @@ function userMessage(text: string) {
   return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text } }] };
 }
 
+/** Prompts that drive the review method's tools; registered only with AGENTICOS_REVIEW_TOOLS. */
+export const REVIEW_PROMPTS = new Set(['structure-pass', 'ground-model', 'refinement-pass', 'question-round', 'implement-from-model']);
+
 export function registerPrompts(server: McpServer, ctx: AppContext): void {
-  server.registerPrompt(
+  // The review method's prompts (passes, question rounds) name its tools: only with AGENTICOS_REVIEW_TOOLS.
+  const prompts: McpServer = ctx.config.reviewTools === true ? server : new Proxy(server, {
+    get(target, prop, receiver) {
+      if (prop !== 'registerPrompt') return Reflect.get(target, prop, receiver);
+      return (name: string, ...rest: unknown[]) =>
+        REVIEW_PROMPTS.has(name) ? undefined : (target.registerPrompt as (...a: unknown[]) => unknown).call(target, name, ...rest);
+    },
+  });
+  prompts.registerPrompt(
     'setup-working-memory',
     { title: 'Set up my working memory', description: 'Deploy the working-memory template and demonstrate the write/recall loop', argsSchema: {} },
     () =>
@@ -34,7 +45,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'work-dev-team-backlog',
     { title: 'Work the dev-team backlog', description: 'Pull the next ready task from the dev-team pipeline and work it', argsSchema: {} },
     () =>
@@ -45,7 +56,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'work-persona-kanban',
     {
       title: 'Work the Persona Kanban queue',
@@ -70,7 +81,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'organize-model',
     {
       title: 'Organize a model into an abstraction hierarchy',
@@ -94,7 +105,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'structure-pass',
     {
       title: 'Settle the model\'s structural cards from the sources, without the person',
@@ -118,7 +129,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'ground-model',
     {
       title: 'Extract the truth from the bottom level and check every level above',
@@ -142,7 +153,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'refinement-pass',
     {
       title: 'Apply what the person answered, top-down, and prepare the next focus session',
@@ -169,7 +180,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'implement-from-model',
     {
       title: 'Realize a net of the lowest layer from its definition',
@@ -192,7 +203,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'question-round',
     {
       title: 'Run a question round on a level or a net',
@@ -218,7 +229,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'realize-net-definition',
     {
       title: 'Realize a net definition',
@@ -252,7 +263,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
     },
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'capture-session',
     {
       title: 'Capture this session into memory',
@@ -267,7 +278,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'debug-net',
     {
       title: 'Debug a net',
@@ -284,7 +295,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'design-persona-team',
     {
       title: 'Design a persona or specialist team',
@@ -306,7 +317,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'start-safe-product-team',
     {
       title: 'Start a Safe Product Team',
@@ -356,7 +367,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'review-current-model',
     {
       title: 'Review the current model',
@@ -387,7 +398,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'spawn-worker',
     {
       title: 'Spawn an autonomous worker persona',
@@ -408,7 +419,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'work-external-fires',
     {
       title: 'Run the AI lanes waiting for me',
@@ -428,7 +439,7 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       ),
   );
 
-  server.registerPrompt(
+  prompts.registerPrompt(
     'monitor-personas',
     {
       title: 'Monitor running personas & nets',

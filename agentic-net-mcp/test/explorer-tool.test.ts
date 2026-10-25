@@ -17,7 +17,7 @@ function config(overrides: Partial<McpConfig> = {}): McpConfig {
     nodeHost: 'localhost:8080', transport: 'stdio', httpPort: 0,
     llmProvider: 'claude-code', llmTier: 'medium', allowModelCreate: false,
     persistedModels: [], allowlistPath: '/tmp/agenticnets-explorer-test.json',
-    persistAllowlist: false, nativeTools: 'curated',
+    persistAllowlist: false, nativeTools: 'curated', reviewTools: true,
     ...overrides,
   } as McpConfig;
 }
@@ -45,8 +45,8 @@ const CATALOGUE = {
   warnings: [{ code: 'subnet-target-missing', message: 'x', subject: 't-risk' }],
 };
 
-async function connect(master: (path: string) => any) {
-  const ctx = new AppContext(config());
+async function connect(master: (path: string) => any, overrides: Partial<McpConfig> = {}) {
+  const ctx = new AppContext(config(overrides));
   const calls: string[] = [];
   (ctx.client as any).masterApi = async (_m: string, path: string) => {
     calls.push(path);
@@ -97,6 +97,32 @@ describe('explore_model', () => {
     const full = await call(client, { detail: 'full', query: 'identity::' });
     expect(full.nets).toHaveLength(2);
     expect(full.places).toHaveLength(2);
+  });
+
+  it('facts, slice and chain are options of explore_model, without the review tools', async () => {
+    const FACTS = { modelId: 'm1', total: 2, counts: {}, facts: [
+      { kind: 'refinement-unverified', subjectKey: 'product::overview#t-risk', netKey: 'product::overview', element: 't-risk', child: 'identity::risk-analysis', status: 'targetMissing' },
+      { kind: 'below-nothing', subjectKey: 'identity::lost', netKey: 'identity::lost' },
+    ] };
+    const { client, calls } = await connect((path) => {
+      if (path.startsWith('/explorer/m1/facts')) return FACTS;
+      if (path.startsWith('/explorer/m1/chain')) return { modelId: 'm1', net: 'identity::account-access', chain: [{ key: 'identity::account-access' }, { key: 'product::overview' }] };
+      if (path.startsWith('/explorer/m1/scope')) return { modelId: 'm1', scope: 'domain:identity', core: [] };
+      return CATALOGUE;
+    }, { reviewTools: false });
+    const names = (await client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain('explore_model');
+    expect(names).not.toContain('refine_model');
+    expect(names).not.toContain('review_model');
+    const withFacts = await call(client, { facts: true, query: 'overview' });
+    expect(withFacts.facts.total).toBe(1);
+    expect(withFacts.facts.lines).toEqual(['refinement-unverified product::overview#t-risk (element t-risk, child identity::risk-analysis, targetMissing)']);
+    expect(withFacts.facts.complete).toBe(true);
+    const chain = await call(client, { chain: 'identity::account-access' });
+    expect(chain.chain.map((n: any) => n.key)).toEqual(['identity::account-access', 'product::overview']);
+    const slice = await call(client, { slice: 'domain:identity' });
+    expect(slice.scope).toBe('domain:identity');
+    expect(calls).toContain('/explorer/m1/chain?modelId=m1&net=identity%3A%3Aaccount-access');
   });
 
   it('full returns the whole document untouched', async () => {
@@ -349,6 +375,23 @@ describe('focus_digest and the pass record', () => {
 
     const missing: any = await client.callTool({ name: 'curate_model', arguments: { action: 'pass' } });
     expect(missing.isError).toBe(true);
+  });
+
+  it('a model without the application answers not-installed, naming what to install', async () => {
+    const { client } = await connect((path) => {
+      if (path.includes('/digest')) {
+        const e: any = new Error('Gateway 404');
+        e.status = 404;
+        e.body = JSON.stringify({ code: 'not-installed', application: 'refiner', error: 'Focus is not installed in m1; install the application refiner from the hub' });
+        throw e;
+      }
+      return CATALOGUE;
+    });
+    const result: any = await client.callTool({ name: 'focus_digest', arguments: {} });
+    expect(JSON.parse(result.content[0].text)).toEqual({
+      available: false, model: 'm1', reason: 'not-installed', application: 'refiner',
+      hint: 'Focus is not installed in m1; install the application refiner from the hub',
+    });
   });
 
   it('focus_digest on an older master says so instead of failing', async () => {
