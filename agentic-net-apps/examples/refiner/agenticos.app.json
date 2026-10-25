@@ -37,7 +37,7 @@
       {
         "role": "config",
         "placeId": "p-refiner-config",
-        "description": "Where the coder works: the repository root on the executor, the coder (claude or codex) and its model; append-only, the newest record wins"
+        "description": "Where the coder works: the root folder of the model's sources on the executor, the coder (claude or codex) and its model; append-only, the newest record wins"
       }
     ],
     "actions": [
@@ -121,7 +121,7 @@
       {
         "name": "configure",
         "targetRole": "config",
-        "description": "Set where and with what the coder works: the repository root on the executor (a path, ~ allowed), the coder (claude or codex) and an optional model. Append-only; the newest record wins.",
+        "description": "Set where and with what the coder works: the root folder of the model's sources on the executor (a path, ~ allowed), the coder (claude or codex) and an optional model. Append-only; the newest record wins.",
         "guard": {
           "role": "config",
           "matchKey": "configId",

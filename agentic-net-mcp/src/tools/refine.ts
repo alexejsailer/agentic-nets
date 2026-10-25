@@ -646,7 +646,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
       title: 'Hand the focus work over to the AI: the agent lane or the read-only coder',
       description:
         'The person\'s "now it is your turn". kind refinement runs the Refiner application\'s agent lane (t-refiner-pass) inside the model, through this MCP server: apply what the person answered and described, write a summary per subject, prepare the next questions. '
-        + 'The other kinds need the sources and run a headless coder (Claude Code by default, Codex selectable) READ-ONLY in the repository on the executor, through the reusable headless-coder tool net, with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the code), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does in the code), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the code). '
+        + 'The other kinds need the sources and run a headless coder (Claude Code by default, Codex selectable) READ-ONLY in the folder of the model\'s sources on the executor (code, documents, data), through the reusable headless-coder tool net, with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the code), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does in the code), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the code). '
         + 'Coder kinds need a sources root first (refiner_configure); without it the answer is state needs-setup. Optional scope (domain:<d>, tag:<t>, net:<session::net>), subject (session::net, session::net#element, scope:<expr>@<level>), note, card (the card the person is on). dryRun reports what would run, for a coder kind with the full prompt, and writes nothing. '
         + 'Use it when the person wants the work done in the background; run the pass yourself when you ARE the AI they are talking to.',
       inputSchema: {
@@ -697,9 +697,9 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
     'refiner_configure',
     {
       title: 'Set up the coder of the hand-over: where the sources are and which coder reads them',
-      description: 'Where the read-only coder of hand_over works on this model: root = the repository on the executor (~ allowed), coder = claude (Claude Code, default) or codex, model = the coder\'s model (optional). Appends a Refiner config token (the newest wins). Read the current setting with refiner_status (config).',
+      description: 'Where the read-only coder of hand_over works on this model: root = the folder of the model\'s sources on the executor (~ allowed), coder = claude (Claude Code, default) or codex, model = the coder\'s model (optional). Appends a Refiner config token (the newest wins). Read the current setting with refiner_status (config).',
       inputSchema: {
-        root: z.string().min(1).describe('The repository on the executor, e.g. ~/Developer/my-app'),
+        root: z.string().min(1).describe('The folder of the sources on the executor, e.g. ~/Documents/handbook or ~/Developer/my-app'),
         coder: z.enum(['claude', 'codex']).optional().describe('claude (default) or codex'),
         coderModel: z.string().optional().describe('The coder\'s model id (optional)'),
         by: z.string().optional(),

@@ -217,7 +217,7 @@
                 "confirmed",
                 "withdrawn"
               ],
-              "description": "changed: the model or the code was corrected; confirmed: the person says the subject is right as it is; withdrawn: the flag was mistaken"
+              "description": "changed: the model or its sources were corrected; confirmed: the person says the subject is right as it is; withdrawn: the flag was mistaken"
             },
             "by": {
               "type": "string"
