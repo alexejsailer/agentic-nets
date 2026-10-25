@@ -3,10 +3,11 @@ import { TEMPLATES } from '../src/templates/index.js';
 import { validateBlueprint, BlueprintError } from '../src/templates/types.js';
 
 describe('blueprint registry', () => {
-  it('ships exactly the six templates', () => {
+  it('ships exactly the seven templates', () => {
     expect(Object.keys(TEMPLATES).sort()).toEqual([
       'blank',
       'brain',
+      'definition-builder',
       'dev-team',
       'headless-cli-reviewer',
       'watcher',
@@ -99,5 +100,27 @@ describe('validateBlueprint regressions', () => {
     const bp = minimal();
     bp.transitions[0].inscription.schedule = { type: 'cron', cron: '0 0 3 * *' }; // 5 fields
     expect(() => validateBlueprint(bp)).toThrow(/cron/);
+  });
+});
+
+describe('definition-builder template', () => {
+  it('ships off, ticks on a schedule, and gates the LLM behind a deterministic catalogue check', async () => {
+    const { TEMPLATES } = await import('../src/templates/index.js');
+    const { validateBlueprint } = await import('../src/templates/types.js');
+    const bp = TEMPLATES['definition-builder'];
+    validateBlueprint(bp);
+    expect(bp.params?.enabled?.default).toBe('false');
+    const tick = bp.transitions.find((t) => t.transitionId === 't-defb-tick')!;
+    expect(tick.start).toBe(true);
+    expect(tick.inscription.schedule?.cron).toBe('${cron}');
+    const command: string = (bp.seedTokens![0].data as any).args.command;
+    const offAt = command.indexOf('DB_ENABLED:-false');
+    const catalogueAt = command.indexOf('/catalogue?modelId=');
+    const claudeAt = command.indexOf('claude -p');
+    expect(offAt).toBeGreaterThan(-1);
+    expect(catalogueAt).toBeGreaterThan(offAt);
+    expect(claudeAt).toBeGreaterThan(catalogueAt);
+    expect(command).toContain('no queued build');
+    expect(command).toContain('--no-session-persistence');
   });
 });

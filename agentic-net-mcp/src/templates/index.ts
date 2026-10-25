@@ -9,6 +9,7 @@ import brain from './brain.json' with { type: 'json' };
 import blank from './blank.json' with { type: 'json' };
 import watcher from './watcher.json' with { type: 'json' };
 import headlessCliReviewer from './headless-cli-reviewer.json' with { type: 'json' };
+import definitionBuilder from './definition-builder.json' with { type: 'json' };
 
 export const TEMPLATES: Record<string, TemplateBlueprint> = {
   'working-memory': workingMemory as unknown as TemplateBlueprint,
@@ -17,4 +18,5 @@ export const TEMPLATES: Record<string, TemplateBlueprint> = {
   blank: blank as unknown as TemplateBlueprint,
   watcher: watcher as unknown as TemplateBlueprint,
   'headless-cli-reviewer': headlessCliReviewer as unknown as TemplateBlueprint,
+  'definition-builder': definitionBuilder as unknown as TemplateBlueprint,
 };

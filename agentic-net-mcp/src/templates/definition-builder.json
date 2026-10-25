@@ -1,0 +1,159 @@
+{
+ "id": "definition-builder",
+ "name": "Resident definition builder",
+ "description": "Processes requested builds of natural-language net definitions unattended (design doc: resident builders). Every tick a deterministic check reads the model's catalogue; only when a build is queued, or waits for answers that are now all given, headless Claude Code runs the realize-net-definition protocol through this MCP server. Ships OFF: nothing spends quota until enabled. Requires an executor that can reach the gateway, the claude CLI, and a Claude Code MCP config naming this server.",
+ "version": "0.1.0",
+ "params": {
+  "model": {
+   "description": "Model whose definitions this builder works on"
+  },
+  "owner": {
+   "description": "Builder id recorded on leases and logs",
+   "default": "resident-builder"
+  },
+  "gatewayUrl": {
+   "description": "Gateway base URL reachable from the executor",
+   "default": "http://localhost:8083"
+  },
+  "secretFile": {
+   "description": "Executor-visible file holding the gateway admin client secret",
+   "default": "~/.agenticos/desktop/gateway/jwt/admin-secret"
+  },
+  "mcpConfig": {
+   "description": "Claude Code MCP config (JSON) that declares this Agentic-Nets MCP server",
+   "default": ""
+  },
+  "mcpServer": {
+   "description": "Server name inside that MCP config",
+   "default": "agenticnets"
+  },
+  "enabled": {
+   "description": "true to let the builder act; false keeps every tick a no-op",
+   "default": "false"
+  },
+  "cron": {
+   "description": "6-field cron for the check",
+   "default": "0 */10 * * * *"
+  }
+ },
+ "net": {
+  "netId": "definition-builder",
+  "name": "Resident definition builder"
+ },
+ "places": [
+  {
+   "placeId": "p-defb-cmd",
+   "label": "builder command (config)",
+   "x": 100,
+   "y": 100
+  },
+  {
+   "placeId": "p-defb-runs",
+   "label": "builder runs",
+   "x": 500,
+   "y": 100
+  }
+ ],
+ "transitions": [
+  {
+   "transitionId": "t-defb-tick",
+   "label": "check and build (${owner})",
+   "x": 300,
+   "y": 100,
+   "agentId": "agentic-net-executor-default",
+   "start": true,
+   "inscription": {
+    "id": "t-defb-tick",
+    "kind": "command",
+    "label": "check and build (${owner})",
+    "schedule": {
+     "type": "cron",
+     "cron": "${cron}"
+    },
+    "presets": {
+     "input": {
+      "placeId": "p-defb-cmd",
+      "arcql": "FROM $ LIMIT 1",
+      "take": "FIRST",
+      "consume": false,
+      "optional": true
+     }
+    },
+    "postsets": {
+     "log": {
+      "placeId": "p-defb-runs",
+      "capacity": 200
+     }
+    },
+    "action": {
+     "type": "command",
+     "inputPlace": "input",
+     "groupBy": "executor",
+     "dispatch": [
+      {
+       "executor": "bash",
+       "channel": "default"
+      }
+     ],
+     "await": "ALL",
+     "timeoutMs": 1860000
+    },
+    "emit": [
+     {
+      "to": "log",
+      "from": "@result"
+     }
+    ],
+    "mode": "SINGLE"
+   }
+  }
+ ],
+ "arcs": [
+  {
+   "arcId": "a-defb-in",
+   "sourceId": "p-defb-cmd",
+   "targetId": "t-defb-tick"
+  },
+  {
+   "arcId": "a-defb-out",
+   "sourceId": "t-defb-tick",
+   "targetId": "p-defb-runs"
+  }
+ ],
+ "seedTokens": [
+  {
+   "placeId": "p-defb-cmd",
+   "name": "definition-builder-command",
+   "data": {
+    "config": "true",
+    "kind": "command",
+    "id": "definition-builder-${owner}",
+    "executor": "bash",
+    "command": "exec",
+    "args": {
+     "command": "set -u\nif [ \"${DB_ENABLED:-false}\" != \"true\" ]; then echo \"resident builder for $DB_MODEL is off: set args.env.DB_ENABLED to true in its command token\"; exit 0; fi\nfor v in DB_MODEL DB_GATEWAY DB_SECRET_FILE DB_MCP_CONFIG DB_OWNER; do eval \"x=\\${$v:-}\"; [ -n \"$x\" ] || { echo \"missing $v\" >&2; exit 64; }; done\ncommand -v claude >/dev/null 2>&1 || { echo \"claude CLI is unavailable on this executor\" >&2; exit 127; }\nSECRET_FILE=\"${DB_SECRET_FILE/#\\~/$HOME}\"\nSECRET=$(tr -d '\\n' < \"$SECRET_FILE\") || { echo \"cannot read $SECRET_FILE\" >&2; exit 66; }\nTOKEN=$(curl -sf -m 15 -X POST \"$DB_GATEWAY/oauth2/token\" --data-urlencode client_id=agenticos-admin --data-urlencode \"client_secret=$SECRET\" --data-urlencode grant_type=client_credentials | python3 -I -c 'import sys,json; print(json.load(sys.stdin)[\"access_token\"])') || { echo \"token mint failed\" >&2; exit 69; }\nPICK=$(curl -sf -m 30 -H \"Authorization: Bearer $TOKEN\" \"$DB_GATEWAY/api/explorer/$DB_MODEL/catalogue?modelId=$DB_MODEL\" | python3 -I -c '\nimport sys, json\ncat = json.load(sys.stdin)\nfor d in cat.get(\"definitions\", []):\n    if d.get(\"status\") == \"archived\":\n        continue\n    if d.get(\"latestBuildState\") in (\"queued\", \"awaiting-answers\"):\n        print(d[\"key\"], d.get(\"latestBuildId\") or \"-\", d[\"latestBuildState\"])\n        break\n') || { echo \"catalogue read failed\" >&2; exit 69; }\nif [ -z \"$PICK\" ]; then echo \"no queued build in $DB_MODEL\"; exit 0; fi\nset -- $PICK; KEY=$1; BUILD=$2; STATE=$3\nif [ \"$STATE\" = \"awaiting-answers\" ]; then\n  OPEN=$(curl -sf -m 30 -H \"Authorization: Bearer $TOKEN\" \"$DB_GATEWAY/api/explorer/$DB_MODEL/definitions/${KEY%%::*}/${KEY#*::}?modelId=$DB_MODEL\" | python3 -I -c 'import sys,json; print(len(json.load(sys.stdin)[\"questions\"][\"open\"]))') || OPEN=1\n  if [ \"$OPEN\" != \"0\" ]; then echo \"$KEY waits for $OPEN answer(s)\"; exit 0; fi\nfi\nPROMPT=\"You are the resident builder $DB_OWNER for model $DB_MODEL. Realize the net definition $KEY (build $BUILD) with the $DB_MCP_SERVER MCP tools, following the definitions knowledge topic (search_knowledge definitions). claim_net_definition claim as owner $DB_OWNER; read get_net_definition and explore_model; when a material question is open or needed, ask it through application_action on interview ask with subjectKind net-definition, subjectKey $KEY and buildId, checkpoint awaiting-answers and stop. Otherwise checkpoint a plan with reusedPlaces and assumptions, apply with nothing started, verify with verify_inscription, and complete with evidence, or fail with the reason. On lease-lost, superseded or cancel-requested stop at once. Never create a second net. Reply with one line: the outcome.\"\necho \"[$DB_OWNER] building $KEY ($BUILD, $STATE)\"\nprintf '%s\\n' \"$PROMPT\" | claude -p --mcp-config \"$DB_MCP_CONFIG\" --allowedTools \"mcp__$DB_MCP_SERVER\" --no-session-persistence",
+     "timeoutMs": 1800000,
+     "captureStderr": true,
+     "env": {
+      "DB_MODEL": "${model}",
+      "DB_OWNER": "${owner}",
+      "DB_GATEWAY": "${gatewayUrl}",
+      "DB_SECRET_FILE": "${secretFile}",
+      "DB_MCP_CONFIG": "${mcpConfig}",
+      "DB_MCP_SERVER": "${mcpServer}",
+      "DB_ENABLED": "${enabled}"
+     }
+    },
+    "expect": "text",
+    "meta": {
+     "source": "definition-builder"
+    }
+   }
+  }
+ ],
+ "tags": [
+  "definitions",
+  "builder",
+  "explorer"
+ ]
+}
