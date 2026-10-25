@@ -22,6 +22,8 @@ test('a round consumes only its frozen task and never passes MCP access to the C
   const env = build.action.template.args.env;
   assert.ok(env.HA_CONTEXT_JSON && env.HA_PROFILE_B64 && env.HA_RESULT_KEY);
   assert.equal(Object.keys(env).some(k => /MCP|TOKEN/.test(k)), false);
+  // A stored JSON string binds as an object, and the executor leaves object env values out: keep it text.
+  assert.equal(env.HA_CONTEXT_JSON, '${json(input.data.contextJson)}');
   assert.ok(net.inscriptions['t-refiner-round-run']); assert.ok(net.inscriptions['t-refiner-round-shape'].action.template.requestId);
 });
 test('both providers and the round policy are editable upgrade-safe seeds', () => {

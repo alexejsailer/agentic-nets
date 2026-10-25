@@ -29,5 +29,8 @@ deleted. New root abstractions must connect back to the topic through relations 
 Pending work resumes when a saved round is read after restart. This workflow does not advance the
 legacy model-wide digest watermark; its membership is the round's exact sealed answers.
 
+1.6.1 hands the round context to the runner as JSON text (`json()`): a stored JSON string binds as an object,
+and the executor leaves an object out of a command's environment.
+
 Checks: `node --test examples/refiner/round-package.test.mjs`, `npm run pack:refiner`, and
-`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.6.0.application.json`.
+`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.6.1.application.json`.
