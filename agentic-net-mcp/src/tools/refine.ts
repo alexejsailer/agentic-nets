@@ -671,7 +671,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
       title: 'Hand the focus work over to the AI: the agent lane or the read-only coder',
       description:
         'The person\'s "now it is your turn". kind refinement applies what the person answered and described, writes a summary per subject and prepares the next questions; it runs on the coder below once a sources folder is configured, otherwise on the Refiner application\'s agent lane (t-refiner-pass) inside the model through this MCP server (runner forces one). '
-        + 'The other kinds need the sources and run a headless coder (Claude Code by default, Codex selectable) READ-ONLY in the folder of the model\'s sources on the executor (code, documents, data), through the reusable headless-coder tool net, with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the code), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does in the code), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the code). '
+        + 'The other kinds need the sources and run a headless coder READ-ONLY in the folder of the model\'s sources on the executor (code, documents, data), on Focus\'s own coder lanes through the headless-agent runner (a read-only profile of Focus\'s coders store, Claude Code by default), with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the code), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does in the code), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the code). '
         + 'Coder kinds need a sources root first (refiner_configure); without it the answer is state needs-setup. Optional scope (domain:<d>, tag:<t>, net:<session::net>), subject (session::net, session::net#element, scope:<expr>@<level>), note, card (the card the person is on). dryRun reports what would run, for a coder kind with the full prompt, and writes nothing. '
         + 'Use it when the person wants the work done in the background; run the pass yourself when you ARE the AI they are talking to.',
       inputSchema: {
@@ -703,8 +703,11 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         const names = result.applications.map((a: any) => `hub_install {name:"${a.name}", version:"latest"}`).join(', ');
         return { ...result, next: `Install what is missing from the local hub (seeded): ${names}; then hand over again.` };
       }
+      if (result?.state === 'needs-setup' && result?.runner === 'coder' && Array.isArray(result?.missing) && result.missing.includes('headless-agent')) {
+        return { ...result, next: 'Install the runner the coder lanes use: hub_install {name:"headless-agent", version:"latest"} into this model (seeded); then hand over again.' };
+      }
       if (result?.state === 'needs-setup' && result?.runner === 'coder') {
-        return { ...result, next: 'Tell the coder where the sources are: refiner_configure {root, coder, model}, then hand over again.' };
+        return { ...result, next: 'Tell the coder where the sources are: refiner_configure {root, profile, model}, then hand over again.' };
       }
       if (result?.state === 'needs-setup' && !args.dryRun) {
         // The master could not attach its MCP server; this server attaches itself to the lane, then asks again.
@@ -728,18 +731,20 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
   server.registerTool(
     'refiner_configure',
     {
-      title: 'Set up the coder of the hand-over: where the sources are and which coder reads them',
-      description: 'Where the read-only coder of hand_over works on this model: root = the folder of the model\'s sources on the executor (~ allowed), coder = claude (Claude Code, default) or codex, model = the coder\'s model (optional). Appends a Refiner config token (the newest wins). Read the current setting with refiner_status (config).',
+      title: 'Set up the coder of the hand-over: where the sources are and which profile reads them',
+      description: 'Where the read-only coder of hand_over works on this model: root = the folder of the model\'s sources on the executor (~ allowed), profile = a read-only profile of Focus\'s coders store (default claude-code-read-only; refiner_status lists them as coders; a write profile is refused), model = the coder\'s model (optional). Appends a Focus config token (the newest wins) with a snapshot of the profile. Read the current setting with refiner_status (config).',
       inputSchema: {
         root: z.string().min(1).describe('The folder of the sources on the executor, e.g. ~/Documents/handbook or ~/Developer/my-app'),
-        coder: z.enum(['claude', 'codex']).optional().describe('claude (default) or codex'),
+        profile: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional().describe('A read-only profile of Focus\'s coders store (default claude-code-read-only)'),
+        coder: z.enum(['claude', 'codex']).optional().describe('Before Focus 1.4.0: claude or codex (mapped to the read-only profiles); use profile'),
         coderModel: z.string().optional().describe('The coder\'s model id (optional)'),
         by: z.string().optional(),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'refiner_configure', mutates: true }, async (model, args) => {
-      const body = { root: args.root, coder: args.coder ?? 'claude', model: args.coderModel, by: args.by ?? 'the person' };
+      const profileId = args.profile ?? (args.coder === 'codex' ? 'codex-read-only' : args.coder ? 'claude-code-read-only' : undefined);
+      const body = { root: args.root, profileId, model: args.coderModel, by: args.by ?? 'the person' };
       try {
         const saved = await ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover/config`, body, { modelId: model });
         return { model, config: saved, next: 'hand_over with a coder kind (explain, look, check, draft, diff, ground, structure) now runs in this root.' };

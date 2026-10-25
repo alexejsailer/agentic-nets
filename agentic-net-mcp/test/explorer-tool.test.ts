@@ -564,7 +564,7 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     const ctx = new AppContext({ ...config(), transport: 'http', httpToken: 'tok', httpPort: 8091 } as any);
     (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
       posted.push({ path, body });
-      if (path.endsWith('/handover/config')) { configured = true; return { root: body.root, coder: body.coder }; }
+      if (path.endsWith('/handover/config')) { configured = true; return { root: body.root, profileId: body.profileId }; }
       if (path.endsWith('/handover')) {
         if (!configured) { const e: any = new Error('needs setup'); e.status = 409; e.body = JSON.stringify({ state: 'needs-setup', runner: 'coder', missing: ['root'] }); throw e; }
         return { state: 'running', runner: 'coder', requestId: 'hand-2' };
@@ -582,7 +582,10 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     expect(posted.filter(p => p.path.includes('/credentials') || p.path.includes('/transitions/assign'))).toHaveLength(0);
     expect(posted[0].body).toMatchObject({ kind: 'explain', subject: 'modules::activities', card });
     const saved: any = JSON.parse(((await client.callTool({ name: 'refiner_configure', arguments: { root: '~/src/app', coder: 'codex' } })) as any).content[0].text);
-    expect(saved.config).toEqual({ root: '~/src/app', coder: 'codex' });
+    // the coder name of before Focus 1.4.0 maps onto the read-only profile
+    expect(saved.config).toEqual({ root: '~/src/app', profileId: 'codex-read-only' });
+    const chosen: any = JSON.parse(((await client.callTool({ name: 'refiner_configure', arguments: { root: '~/src/app', profile: 'claude-code-read-only' } })) as any).content[0].text);
+    expect(chosen.config).toEqual({ root: '~/src/app', profileId: 'claude-code-read-only' });
     const second: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'explain', subject: 'modules::activities' } })) as any).content[0].text);
     expect(second.state).toBe('running');
     expect(second.next).toContain('coder reads the sources');
