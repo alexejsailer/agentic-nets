@@ -232,7 +232,12 @@ public final class Main {
                 "GATEWAY_INTERNAL_SECRET", config.internalSecret(),
                 // Read-only net share links. OFF unless the user turns it on: a shared link is
                 // reachable by anyone who receives it, which is not a default worth assuming.
-                "AGENTICOS_SHARE_ENABLED", String.valueOf(config.settingFlag("share.enabled")))),
+                "AGENTICOS_SHARE_ENABLED", String.valueOf(config.settingFlag("share.enabled")),
+                // Browser origins the gateway answers besides loopback: a tailnet name or a LAN
+                // host when Studio is reached through a reverse proxy (Tailscale Serve) that
+                // forwards to the loopback :4200. Comma-separated patterns, e.g.
+                // cors.origins=http://my-mac.tail1234.ts.net,https://my-mac.tail1234.ts.net
+                "GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS", corsOriginPatterns(config.setting("cors.origins", "")))),
             config.runDir("gateway"),
             "http://127.0.0.1:" + DesktopConfig.GATEWAY_PORT + "/api/health/ping",
             60));
@@ -344,6 +349,16 @@ public final class Main {
         if (!value.isEmpty()) {
             env.put(envKey, value);
         }
+    }
+
+    /** Loopback origins always, plus the configured extra origins (trimmed, blanks dropped). */
+    static String corsOriginPatterns(String extra) {
+        StringBuilder out = new StringBuilder("http://localhost:*,http://127.0.0.1:*");
+        for (String origin : extra.split(",")) {
+            String o = origin.trim();
+            if (!o.isEmpty()) out.append(',').append(o);
+        }
+        return out.toString();
     }
 
     private static Map<String, String> baseEnv(String bind, String logs, DesktopConfig config) {

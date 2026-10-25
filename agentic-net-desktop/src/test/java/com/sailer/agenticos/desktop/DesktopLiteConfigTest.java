@@ -106,4 +106,11 @@ class DesktopLiteConfigTest {
         assertEquals("*", env.get("EXECUTOR_MODELS"));
         assertEquals("5000", env.get("EXECUTOR_DISCOVERY_INTERVAL_MS"));
     }
+
+    @org.junit.jupiter.api.Test
+    void corsOriginsExtendLoopbackAndIgnoreBlanks() {
+        org.junit.jupiter.api.Assertions.assertEquals("http://localhost:*,http://127.0.0.1:*", Main.corsOriginPatterns(""));
+        org.junit.jupiter.api.Assertions.assertEquals("http://localhost:*,http://127.0.0.1:*,http://mac.tail1.ts.net,https://mac.tail1.ts.net",
+                Main.corsOriginPatterns(" http://mac.tail1.ts.net , ,https://mac.tail1.ts.net"));
+    }
 }

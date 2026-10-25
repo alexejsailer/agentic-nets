@@ -416,6 +416,22 @@ Then choose **Restart Services** in the tray. A Claude selection with no key
 falls back to the disabled state. Docker-backed tool execution is also off by
 default and remains an advanced opt-in (`docker.enabled=true`).
 
+### Studio from another device (Tailscale)
+
+Desktop Lite listens on loopback only. To reach Studio from a phone on the same
+tailnet, publish the loopback port with Tailscale Serve rather than opening the
+ports: `tailscale serve --bg --http=80 4200` (or `serve --bg 4200` for HTTPS once
+the tailnet has HTTPS enabled). Studio proxies `/api` and `/oauth2` itself, so
+one port is enough. The gateway answers browsers from loopback origins only, so
+add the served name to `desktop.properties` and Restart Services:
+
+```
+cors.origins=http://my-mac.tail1234.ts.net,https://my-mac.tail1234.ts.net
+```
+
+Without it the login works for reads and fails on the first POST with
+"Invalid CORS request". Switch it off with `tailscale serve --http=80 off`.
+
 ## Install and update
 
 Download the package for the operating system from the GitHub release and
