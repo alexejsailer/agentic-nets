@@ -1,0 +1,237 @@
+{
+  "$schema": "../../schemas/application-package.schema.json",
+  "name": "curation",
+  "version": "1.0.2",
+  "displayName": "Curation",
+  "description": "Confirmations and flags on the subjects of a model's abstraction hierarchy: nets, elements, levels and relations.",
+  "author": "AgenticNetOS",
+  "visibility": "public",
+  "tags": [
+    "application",
+    "human-in-the-loop",
+    "model-explorer",
+    "curation"
+  ],
+  "runtimePackage": "runtime/session.package.json",
+  "output": "../../dist/packages/curation-1.0.2.application.json",
+  "application": {
+    "scope": "model",
+    "instancePolicy": "singleton",
+    "surface": {
+      "route": "curation",
+      "icon": "check-check",
+      "defaultView": "marks",
+      "renderer": "generic-stores-v1"
+    },
+    "stores": [
+      {
+        "role": "marks",
+        "placeId": "p-curation-marks",
+        "required": true,
+        "description": "Confirmations and flags, one token each, correlated by markId; a flag's status is open until it is resolved."
+      },
+      {
+        "role": "resolutions",
+        "placeId": "p-curation-resolutions",
+        "required": true,
+        "description": "How an open flag was settled, correlated by markId."
+      }
+    ],
+    "actions": [
+      {
+        "name": "confirm",
+        "targetRole": "marks",
+        "description": "Record that the subject describes what it claims to describe, at the given revision. A markId is written once; confirm again under a new markId after a change.",
+        "guard": {
+          "role": "marks",
+          "matchKey": "markId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "curation-mark",
+          "mark": "confirm",
+          "status": "standing"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "markId",
+            "subjectKind",
+            "subjectKey",
+            "by"
+          ],
+          "properties": {
+            "markId": {
+              "type": "string"
+            },
+            "subjectKind": {
+              "enum": [
+                "net",
+                "element",
+                "level",
+                "relation"
+              ]
+            },
+            "subjectKey": {
+              "type": "string",
+              "description": "session::net, session::net#elementId, a level id, or from::net>relation>to::net"
+            },
+            "revision": {
+              "type": "integer",
+              "description": "Definition revision the confirmation was given against"
+            },
+            "by": {
+              "type": "string",
+              "description": "Who confirmed: the person, or a persona on the person's behalf"
+            },
+            "note": {
+              "type": "string",
+              "description": "Why it is right, in the person's words when they said so"
+            },
+            "sourceHash": {
+              "type": "string",
+              "description": "Content hash of the subject's referenced sources (documents, code, data, any file the definition names) at confirmation time, so a later change can be told from a mere re-read"
+            }
+          }
+        }
+      },
+      {
+        "name": "flag",
+        "targetRole": "marks",
+        "description": "Raise a flag on the subject. It stays open until resolved. A markId is written once, so a deterministic markId makes a repeated check idempotent.",
+        "guard": {
+          "role": "marks",
+          "matchKey": "markId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "curation-mark",
+          "mark": "flag",
+          "status": "open"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "markId",
+            "subjectKind",
+            "subjectKey",
+            "flag",
+            "reason",
+            "by"
+          ],
+          "properties": {
+            "markId": {
+              "type": "string"
+            },
+            "subjectKind": {
+              "enum": [
+                "net",
+                "element",
+                "level",
+                "relation"
+              ]
+            },
+            "subjectKey": {
+              "type": "string"
+            },
+            "flag": {
+              "enum": [
+                "stale",
+                "unclear",
+                "wrong",
+                "contradiction",
+                "unmeasured",
+                "too-coarse",
+                "level-below-changed",
+                "level-above-changed"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "description": "What was measured or read that justifies the flag"
+            },
+            "by": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "integer"
+            },
+            "evidence": {
+              "type": "array",
+              "description": "Files, lines, numbers, or the person's words"
+            }
+          }
+        }
+      },
+      {
+        "name": "resolve",
+        "targetRole": "resolutions",
+        "description": "Settle an open flag: say how (changed, confirmed, withdrawn). The flag's status becomes resolved; a resolved flag cannot be resolved twice.",
+        "guard": {
+          "role": "marks",
+          "matchKey": "markId",
+          "where": {
+            "status": [
+              "open"
+            ]
+          }
+        },
+        "defaults": {
+          "kind": "curation-resolution"
+        },
+        "effects": [
+          {
+            "updateRole": "marks",
+            "matchKey": "markId",
+            "set": {
+              "status": "resolved"
+            }
+          }
+        ],
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "markId",
+            "how",
+            "by"
+          ],
+          "properties": {
+            "markId": {
+              "type": "string",
+              "description": "The flag being resolved"
+            },
+            "how": {
+              "enum": [
+                "changed",
+                "confirmed",
+                "withdrawn"
+              ],
+              "description": "changed: the model or the code was corrected; confirmed: the person says the subject is right as it is; withdrawn: the flag was mistaken"
+            },
+            "by": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    ],
+    "permissions": {
+      "readStores": [
+        "marks",
+        "resolutions"
+      ],
+      "watchStores": [
+        "marks",
+        "resolutions"
+      ],
+      "actions": [
+        "confirm",
+        "flag",
+        "resolve"
+      ]
+    }
+  }
+}

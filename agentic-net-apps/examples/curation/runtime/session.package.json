@@ -1,0 +1,82 @@
+{
+  "format": "agentic-net-package",
+  "formatVersion": "1.5.0",
+  "scope": "runtime",
+  "kind": "session",
+  "tokenPolicy": "none",
+  "manifest": {
+    "name": "curation-runtime",
+    "version": "1.0.2",
+    "description": "Marks (confirmations and flags) and their resolutions for the Curation application",
+    "author": "AgenticNetOS",
+    "tags": [
+      "curation",
+      "model-explorer",
+      "human-in-the-loop"
+    ],
+    "createdAt": "2026-10-12T00:00:00Z",
+    "agenticosVersion": "1.0.0"
+  },
+  "readme": "# Curation\n\nA model that explains something (a product, a process, an organisation, a body of rules, a code base) is only as good as the person's agreement with it. Curation records that agreement, and its absence, on any subject of the Model Explorer:\n\n- `confirm`: the person (or a persona on their behalf) agrees that the subject describes what it claims to describe, at a revision; an optional `sourceHash` records the state of the referenced code at that moment.\n- `flag`: the subject is `stale`, `unclear`, `wrong`, a `contradiction`, `unmeasured`, `too-coarse`, or the level below or above changed (`level-below-changed`, `level-above-changed`). A flag stays open until it is resolved.\n- `resolve`: how an open flag was settled (the model changed, the person confirmed, the flag was wrong).\n\nSubjects are addressed by `subjectKind` and `subjectKey`: a net `session::net`, an element `session::net#elementId`, a level by its id, a relation `from::net>relation>to::net`. Every write appends one token; the Explorer folds them on read: a subject is `flagged` while any flag is open, `confirmed` when its newest confirmation stands, `unconfirmed` otherwise.\n\nThe Explorer shows the state on every band, card and element and offers a filter for what needs the person. The MCP server reads the same fold through `review_model` and writes through `application_action`.",
+  "nets": [
+    {
+      "netId": "net-application-curation",
+      "net": {
+        "net": {
+          "places": {
+            "p-curation-marks": {
+              "label": "Marks",
+              "x": 80,
+              "y": 180
+            },
+            "p-curation-resolutions": {
+              "label": "Resolutions",
+              "x": 360,
+              "y": 180
+            }
+          },
+          "transitions": {
+            "t-curation-resolution-link": {
+              "label": "resolves",
+              "x": 220,
+              "y": 180
+            }
+          },
+          "arcs": {
+            "a-curation-1": {
+              "source": "p-curation-marks",
+              "target": "t-curation-resolution-link"
+            },
+            "a-curation-2": {
+              "source": "t-curation-resolution-link",
+              "target": "p-curation-resolutions"
+            }
+          }
+        }
+      },
+      "inscriptions": {
+        "t-curation-resolution-link": {
+          "id": "t-curation-resolution-link",
+          "kind": "link",
+          "label": "resolves",
+          "relation": "resolves",
+          "presets": {
+            "mark": {
+              "placeId": "p-curation-marks",
+              "host": "application-template@localhost:8080",
+              "consume": false,
+              "optional": true
+            }
+          },
+          "postsets": {
+            "resolution": {
+              "placeId": "p-curation-resolutions",
+              "host": "application-template@localhost:8080"
+            }
+          }
+        }
+      },
+      "tokens": {}
+    }
+  ]
+}

@@ -7,7 +7,6 @@
     "name",
     "version",
     "displayName",
-    "ui",
     "application"
   ],
   "properties": {
@@ -69,7 +68,8 @@
           "const": "trusted-element"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "The web component of the application. Omit it for a manifest-only application (stores, actions, nets; Studio renders its stores generically or another surface such as the Model Explorer is its UI)."
     },
     "application": {
       "type": "object",

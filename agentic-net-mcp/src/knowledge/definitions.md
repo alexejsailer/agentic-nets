@@ -11,7 +11,7 @@ out at the level below. The runtime stays flat; the hierarchy is designtime data
   reference to a persistent net via the element attributes `subnetSession` + `subnetNet`.
 - **The abstract element never fires.** It has no inscription; the child's ordinary transitions do
   the work. A higher-level summary comes from a normal transition reading the lower output ports.
-- **Design-only elements** (`designOnly: "true"`) never run (e.g. code-level nets); `sync_net` keeps them.
+- **Design-only elements** (`designOnly: "true"`) never run (e.g. the lowest level of a model that documents something); `sync_net` keeps them.
 - **Depth** is the distance from a root. **Levels** are optional named bands (product, service,
   implementation) a net can be pinned to; nets with neither sit in "unassigned".
 - Refinements are checked: `ok` (ports match the element), `portMismatch`, `targetMissing`, or
@@ -26,7 +26,7 @@ out at the level below. The runtime stays flat; the hierarchy is designtime data
 
 A definition is a persistent net that exists **before** its topology: name, description (what it
 does, stored on the net), interactions in words, proposed ports, levels above and below,
-acceptance, `references` (code, trace or doc links), and a revision history. It may already sit
+acceptance, `references` (doc, code, trace, data, record, web or a domain word, with a uri), and a revision history. It may already sit
 under its parent element. Status `draft` → `ready` (buildable) → `realized`; `archived` keeps it
 but hides it from active work. Revising writes revision+1 and keeps the status, so a realized net
 with a newer definition shows **changes pending** and can be rebuilt.
@@ -39,10 +39,13 @@ with a newer definition shows **changes pending** and can be rebuilt.
 ## Review
 
 The Curation application records agreement on any subject (`session::net`, `session::net#elementId`,
-a level id): `confirm` (revision, optional `codeHash`), `flag` (stale, unclear, wrong, contradiction,
+a level id): `confirm` (revision, optional `sourceHash`), `flag` (stale, unclear, wrong, contradiction,
 unmeasured, too-coarse, level-below-changed, level-above-changed; open until `resolve`). Interview
-questions take the same `subjectKey`. `review_model` folds both per net and element; the prompt
-`question-round` runs the loop: check, flag, ask only what the person knows, record, confirm.
+questions take the same `subjectKey`. `review_model` folds both per net and element. `refine_model`
+is the worklist top-down and bottom-up (unrefined transitions, failed refinements, open definitions,
+nets below nothing, flags, questions, never confirmed), each item with a ready-made question;
+`curate_model` asks, answers (and confirms or flags in the same call), confirms, flags, resolves. The
+prompt `question-round` is one way to drive them; any MCP client can run the loop by tools alone.
 
 ## Building one
 

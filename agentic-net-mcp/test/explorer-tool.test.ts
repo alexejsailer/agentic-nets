@@ -9,6 +9,7 @@ import { AppContext } from '../src/context.js';
 import { createServer } from '../src/server.js';
 import type { McpConfig } from '../src/config.js';
 import { hierarchyLines, summarize } from '../src/tools/explorer.js';
+import { refineWorklist } from '../src/tools/refine.js';
 
 function config(overrides: Partial<McpConfig> = {}): McpConfig {
   return {
@@ -152,7 +153,7 @@ describe('review_model', () => {
     curation: { installed: true, version: '1.0.0' },
     interview: { installed: true, version: '1.4.0', supportsSubjects: true },
     subjects: [
-      { subjectKind: 'net', subjectKey: 'product::overview', state: 'confirmed', confirmed: { markId: 'c-1', by: 'the person', at: '2026-10-12T10:00:00Z', revision: 2, codeHash: 'abcd' }, flags: [], resolvedFlags: 0, openQuestions: [] },
+      { subjectKind: 'net', subjectKey: 'product::overview', state: 'confirmed', confirmed: { markId: 'c-1', by: 'the person', at: '2026-10-12T10:00:00Z', revision: 2, sourceHash: 'abcd' }, flags: [], resolvedFlags: 0, openQuestions: [] },
       { subjectKind: 'element', subjectKey: 'product::overview#t-auth', state: 'flagged', confirmed: null, flags: [{ markId: 'f-1', flag: 'level-below-changed', reason: 'identity::account-access changed', by: 'curate.py', status: 'open' }], resolvedFlags: 0, openQuestions: [] },
       { subjectKind: 'net', subjectKey: 'identity::risk-analysis', state: 'unconfirmed', confirmed: null, flags: [], resolvedFlags: 0, openQuestions: [{ promptId: 'q-1', question: 'Which risks count?' }] },
     ],
@@ -172,7 +173,7 @@ describe('review_model', () => {
     expect(out.total).toBe(3);
     const overview = out.nets.find((n: any) => n.key === 'product::overview');
     expect(overview.state).toBe('confirmed');
-    expect(overview.confirmed.codeHash).toBe('abcd');
+    expect(overview.confirmed.sourceHash).toBe('abcd');
     expect(overview.elements).toEqual([{ elementId: 't-auth', state: 'flagged', flags: [{ markId: 'f-1', flag: 'level-below-changed', reason: 'identity::account-access changed', by: 'curate.py' }], openQuestions: [] }]);
     expect(overview.openFlags).toBe(1);
     const risk = out.nets.find((n: any) => n.key === 'identity::risk-analysis');
@@ -204,5 +205,91 @@ describe('review_model', () => {
     const result: any = await client.callTool({ name: 'review_model', arguments: {} });
     const out = JSON.parse(result.content[0].text);
     expect(out.available).toBe(false);
+  });
+});
+
+describe('refine_model and curate_model', () => {
+  const LEVELLED = {
+    ...CATALOGUE,
+    nets: [
+      { ...CATALOGUE.nets[0], layer: 'product', transitionIds: ['t-auth', 't-risk', 't-pay'], parent: null, tags: [] },
+      { ...CATALOGUE.nets[1], layer: 'service', transitionIds: ['t-login'], parent: { ref: { sessionId: 'product', netId: 'overview' }, elementId: 't-auth', elementType: 'transition' }, tags: [] },
+      { ...CATALOGUE.nets[2], layer: 'service', transitionIds: [], parent: null, tags: [] },
+      { key: 'application-interview::net', title: 'Interview', layer: 'work', transitionIds: ['t-x'], parent: null, tags: ['app'] },
+    ],
+    relations: [],
+  };
+  const REVIEW = {
+    modelId: 'm1', curation: { installed: true }, interview: { installed: true, supportsSubjects: true },
+    subjects: [
+      { subjectKey: 'product::overview', state: 'confirmed', confirmed: { by: 'the person' }, flags: [], openQuestions: [] },
+      { subjectKey: 'identity::account-access#t-login', state: 'flagged', confirmed: null, flags: [{ markId: 'f-1', flag: 'stale', reason: 'sources changed', by: 'curate.py' }], openQuestions: [] },
+      { subjectKey: 'identity::risk-analysis', state: 'unconfirmed', confirmed: null, flags: [], openQuestions: [{ promptId: 'q-1', question: 'Which risks?' }] },
+    ],
+    counts: {},
+  };
+
+  it('lists the gaps top-down and bottom-up with ready-made questions, most pressing first', () => {
+    const out = refineWorklist(LEVELLED, REVIEW);
+    expect(out.nets).toBe(3); // the application net is not the model
+    const kinds = out.items.map((i: any) => `${i.kind} ${i.subjectKey}`);
+    expect(kinds).toEqual([
+      'open-flag identity::account-access#t-login',
+      'refinement-not-ok product::overview#t-risk',
+      'open-question identity::risk-analysis',
+      'definition-open identity::risk-analysis',
+      'unrefined-transition identity::account-access#t-login',
+      'unrefined-transition product::overview#t-pay',
+      'no-parent identity::risk-analysis',
+      'unconfirmed identity::account-access',
+      'unconfirmed identity::risk-analysis',
+    ]);
+    const pay = out.items.find((i: any) => i.subjectKey === 'product::overview#t-pay');
+    expect(pay.ask.subjectKey).toBe('product::overview#t-pay');
+    expect(pay.ask.options).toHaveLength(3);
+    expect(out.counts['unrefined-transition']).toBe(2);
+    // The top level never gets a no-parent item; a net with a parent neither.
+    expect(kinds.filter((k: string) => k.startsWith('no-parent'))).toEqual(['no-parent identity::risk-analysis']);
+  });
+
+  it('narrows by direction, level, net and count', () => {
+    expect(refineWorklist(LEVELLED, REVIEW, { direction: 'up' }).items.map((i: any) => i.kind))
+      .toEqual(['open-flag', 'open-question', 'no-parent', 'unconfirmed', 'unconfirmed']);
+    expect(refineWorklist(LEVELLED, REVIEW, { level: 'product' }).items.map((i: any) => i.kind))
+      .toEqual(['refinement-not-ok', 'unrefined-transition']);
+    expect(refineWorklist(LEVELLED, REVIEW, { net: 'identity::risk-analysis', count: 2 }).returned).toBe(2);
+  });
+
+  it('curate_model ask derives the subject kind and answer can confirm in the same call', async () => {
+    const posted: Array<{ path: string; body: any }> = [];
+    const ctx = new AppContext(config());
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
+      if (method === 'POST') { posted.push({ path, body }); return { success: true }; }
+      return path.includes('/curation') ? REVIEW : LEVELLED;
+    };
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const asked: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
+      action: 'ask', subjectKey: 'product::overview#t-pay', question: 'What happens in t-pay?', options: ['a', 'b'], subjectRevision: 2,
+    } })) as any).content[0].text);
+    expect(asked.promptId).toMatch(/^q-product-overview-t-pay-\d{14}$/);
+    expect(posted[0].path).toBe('/applications/m1/interview/actions/ask');
+    expect(posted[0].body).toMatchObject({ subjectKind: 'net-element', subjectKey: 'product::overview#t-pay', subjectRevision: 2, options: ['a', 'b'], source: 'question-round' });
+    const answered: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
+      action: 'answer', promptId: asked.promptId, selected: ['a'], then: 'confirm', subjectKey: 'product::overview#t-pay', notes: 'because', respondedBy: 'the person',
+    } })) as any).content[0].text);
+    expect(posted[1].path).toBe('/applications/m1/interview/actions/respond');
+    expect(posted[1].body).toMatchObject({ promptId: asked.promptId, intent: 'answer', selected: ['a'], respondedBy: 'the person' });
+    expect(posted[2].path).toBe('/applications/m1/curation/actions/confirm');
+    expect(posted[2].body).toMatchObject({ subjectKind: 'element', subjectKey: 'product::overview#t-pay', by: 'the person', note: 'because' });
+    expect(answered.confirmed.markId).toMatch(/^confirm-product-overview-t-pay-/);
+    const flagged: any = await client.callTool({ name: 'curate_model', arguments: { action: 'flag', subjectKey: 'rules', flag: 'too-coarse', reason: 'one net for twelve rules', by: 'me' } });
+    expect(JSON.parse(flagged.content[0].text).markId).toMatch(/^flag-too-coarse-rules-/);
+    expect(posted[3].body).toMatchObject({ subjectKind: 'level', subjectKey: 'rules', flag: 'too-coarse' });
+    const missing: any = await client.callTool({ name: 'curate_model', arguments: { action: 'resolve', markId: 'f-1' } });
+    expect(missing.isError).toBe(true);
+    expect(missing.content[0].text).toMatch(/needs how/);
   });
 });

@@ -14,10 +14,13 @@ if (!args.config) throw new Error('Usage: pack-application.mjs --config path/to/
 const configPath = resolve(process.cwd(), args.config);
 const configDir = dirname(configPath);
 const config = JSON.parse(await readFile(configPath, 'utf8'));
-for (const field of ['name', 'version', 'displayName', 'ui', 'application']) {
+for (const field of ['name', 'version', 'displayName', 'application']) {
   if (!config[field]) throw new Error(`agenticos.app.json requires ${field}`);
 }
-if (!/^[a-z][a-z0-9._-]*-[a-z0-9._-]+$/.test(config.ui.element || '')) {
+// A manifest-only application (stores, actions, nets, no web component) omits `ui`: Studio renders
+// its stores generically, or another surface (the Model Explorer) is its UI.
+const hasUi = !!config.ui;
+if (hasUi && !/^[a-z][a-z0-9._-]*-[a-z0-9._-]+$/.test(config.ui.element || '')) {
   throw new Error('ui.element must be a valid lowercase custom-element name containing a dash');
 }
 if (!/^[a-z][a-z0-9-]*$/.test(config.name)) throw new Error('name must be lowercase kebab-case');
@@ -35,25 +38,30 @@ if (!Array.isArray(config.application.actions)) throw new Error('application.act
 // permissions are optional: an omitted list defaults to every declared store / action on the
 // server (explicit lists narrow). When present they must only name declared roles and actions.
 const permissions = config.application.permissions || null;
-if (config.ui.isolation && config.ui.isolation !== 'trusted-element') {
+if (hasUi && config.ui.isolation && config.ui.isolation !== 'trusted-element') {
   throw new Error('ui.isolation currently supports only trusted-element');
 }
 
-let entryPath = resolve(configDir, config.ui.entryFile);
-try { await readFile(entryPath); } catch {
-  const buildDir = dirname(entryPath);
-  const candidate = (await readdir(buildDir)).find(name => /^main(?:-[A-Z0-9]+)?\.js$/i.test(name));
-  if (!candidate) throw new Error(`UI entry not found: ${entryPath}. Run the Angular build first.`);
-  entryPath = resolve(buildDir, candidate);
+let source = null;
+let sha256 = null;
+let urn = null;
+if (hasUi) {
+  let entryPath = resolve(configDir, config.ui.entryFile);
+  try { await readFile(entryPath); } catch {
+    const buildDir = dirname(entryPath);
+    const candidate = (await readdir(buildDir)).find(name => /^main(?:-[A-Z0-9]+)?\.js$/i.test(name));
+    if (!candidate) throw new Error(`UI entry not found: ${entryPath}. Run the Angular build first.`);
+    entryPath = resolve(buildDir, candidate);
+  }
+  source = await readFile(entryPath, 'utf8');
+  if (/\bimport\s*(?:\(|[{'"*])/.test(source.replace(/import\.meta/g, ''))) {
+    throw new Error('UI entry must be a self-contained ESM module; external/chunk imports are not allowed');
+  }
+  sha256 = createHash('sha256').update(source, 'utf8').digest('hex');
+  const safe = value => String(value).replace(/[^A-Za-z0-9._-]/g, '-');
+  const blobId = `applications/${safe(config.name)}/${safe(config.version)}/${sha256}/main.mjs`;
+  urn = `urn:agenticos:blob:${blobId}`;
 }
-const source = await readFile(entryPath, 'utf8');
-if (/\bimport\s*(?:\(|[{'"*])/.test(source.replace(/import\.meta/g, ''))) {
-  throw new Error('UI entry must be a self-contained ESM module; external/chunk imports are not allowed');
-}
-const sha256 = createHash('sha256').update(source, 'utf8').digest('hex');
-const safe = value => String(value).replace(/[^A-Za-z0-9._-]/g, '-');
-const blobId = `applications/${safe(config.name)}/${safe(config.version)}/${sha256}/main.mjs`;
-const urn = `urn:agenticos:blob:${blobId}`;
 // The runtime package (the app's own canvas) is optional: a view over a pack's places may
 // ship no net at all and bind its stores to the target model at install.
 const runtime = config.runtimePackage
@@ -163,15 +171,18 @@ const applicationManifest = {
   description: config.description,
   tags: config.tags || [],
   ...config.application,
-  surface: {
-    ...config.application.surface,
-    type: 'web-component',
-    element: config.ui.element,
-    entry: urn,
-    integrity: `sha256-${sha256}`,
-    isolation: config.ui.isolation || 'trusted-element',
-    sdkVersion: config.ui.sdkVersion || '^0.1.0',
-  },
+  surface: hasUi
+    ? {
+      ...config.application.surface,
+      type: 'web-component',
+      element: config.ui.element,
+      entry: urn,
+      integrity: `sha256-${sha256}`,
+      isolation: config.ui.isolation || 'trusted-element',
+      sdkVersion: config.ui.sdkVersion || '^0.1.0',
+    }
+    // No web component: Studio's generic store renderer, unless the surface names another local one.
+    : { renderer: 'generic-stores-v1', ...config.application.surface, type: 'local' },
 };
 
 const pkg = {
@@ -194,7 +205,7 @@ const pkg = {
   applicationManifest,
   blobs: [
     ...((runtime.blobs || []).filter(blob => blob.urn !== urn)),
-    { urn, sha256, contentType: 'text/javascript; charset=utf-8', contentBase64: Buffer.from(source, 'utf8').toString('base64') },
+    ...(hasUi ? [{ urn, sha256, contentType: 'text/javascript; charset=utf-8', contentBase64: Buffer.from(source, 'utf8').toString('base64') }] : []),
   ],
   contentHash: null,
 };
@@ -202,4 +213,4 @@ const pkg = {
 const output = resolve(configDir, config.output || `../../dist/packages/${config.name}-${config.version}.application.json`);
 await mkdir(dirname(output), { recursive: true });
 await writeFile(output, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8');
-process.stdout.write(`${output}\n${Buffer.byteLength(JSON.stringify(pkg))} bytes\nsha256-${sha256}\n`);
+process.stdout.write(`${output}\n${Buffer.byteLength(JSON.stringify(pkg))} bytes\n${hasUi ? `sha256-${sha256}` : 'manifest-only (no web component)'}\n`);

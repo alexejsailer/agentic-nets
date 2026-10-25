@@ -448,7 +448,7 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
         + 'action:"organize" sets organization on ANY net (definition or not): layer, domain (component), responsible (person), tags (replaces the list; [] clears), or clearLayer/clearDomain/clearResponsible; create also accepts layer, domain, responsible, tags. '
         + 'action:"relate" declares explicit relations from this net (any net) to others: relation explains|depends-on|references with target {sessionId, netId} and an optional note, or a relations list; mode add (default: merge, a repeat updates the note), remove, or replace (send exactly this list). refines is the subnet hierarchy, not a relation here. '
         + 'action:"archive" sets status archived (kept, hidden from active work and lists; refused while a build is open), action:"unarchive" restores the status it had (or realized when its revision was realized, else draft); neither bumps the revision. '
-        + 'create also takes templateId (a template from net_definition_templates fills every field you do not pass; explicit args win) and references [{kind: code|trace|doc, uri, label}] stored in the definition (revise accepts references too). Designtime only.',
+        + 'create also takes templateId (a template from net_definition_templates fills every field you do not pass; explicit args win) and references [{kind: doc|code|trace|data|record|web|<domain word>, uri, label}] stored in the definition (revise accepts references too). Designtime only.',
       inputSchema: {
         action: z.enum(['create', 'revise', 'ready', 'request_build', 'organize', 'relate', 'archive', 'unarchive']),
         sessionId: z.string().describe('Session of the definition (for create: where the new net is made)'),
@@ -488,10 +488,10 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
         mode: z.enum(['add', 'remove', 'replace']).optional().describe('relate: add (default), remove, or replace the whole list'),
         templateId: z.string().optional().describe('create: start from this definition template'),
         references: z.array(z.object({
-          kind: z.enum(['code', 'trace', 'doc']),
+          kind: z.string().describe('doc | code | trace | data | record | web, or a word of the domain'),
           uri: z.string(),
           label: z.string().optional(),
-        })).optional().describe('create/revise: links to code symbols, execution traces or documents'),
+        })).optional().describe('create/revise: where the knowledge lives: documents, code symbols, execution traces, datasets, records, web pages'),
         realizations: z.array(z.object({ sessionId: z.string(), netId: z.string(), role: z.string().optional() }))
           .optional().describe('create/revise: further nets this definition realizes; record_net_build apply may target them with net'),
         ...modelParam,

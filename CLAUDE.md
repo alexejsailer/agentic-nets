@@ -299,6 +299,13 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   adds the server to `action.mcp`, widens `action.role` with `m`, stores the credential; `self:true`
   attaches this Agentic-Nets server and writes its own bearer token straight to the vault so the
   secret never enters the client's context) — see `agenticnets://docs/mcp-servers`;
+  **Model Explorer**: `explore_model` (the hierarchy), `list_net_definitions` / `get_net_definition` /
+  `update_net_definition` / `claim_net_definition` / `record_net_build` (natural-language definitions
+  and the build protocol), `net_levels`, **`review_model`** (confirmations, flags and open questions
+  per net and element, folded from the Curation and Interview applications), **`refine_model`** (the
+  top-down and bottom-up worklist with ready-made questions) and **`curate_model`** (ask, answer,
+  confirm, flag, resolve) — a client runs a whole question round by tools; prompts `organize-model`,
+  `realize-net-definition`, `question-round`;
   **knowledge pack**: 17 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
   loader) served as `agenticnets://docs/{topic}` + searched by **`search_knowledge`** (offline grep,
   registered in readonly too) — includes `tool-catalog` (rwxhludcts flags, global/local-first

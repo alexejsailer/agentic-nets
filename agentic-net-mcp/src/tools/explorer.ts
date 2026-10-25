@@ -74,7 +74,7 @@ export function reviewSummary(catalogue: any, review: any, opts: { level?: strin
       responsible: n?.responsible ?? null,
       state: own?.state ?? 'unconfirmed',
       confirmed: own?.confirmed
-        ? { by: own.confirmed.by, at: own.confirmed.at, revision: own.confirmed.revision ?? null, codeHash: own.confirmed.codeHash ?? null }
+        ? { by: own.confirmed.by, at: own.confirmed.at, revision: own.confirmed.revision ?? null, sourceHash: own.confirmed.sourceHash ?? null }
         : null,
       flags: flags.map((f: any) => ({ markId: f?.markId, flag: f?.flag, reason: f?.reason, by: f?.by })),
       openQuestions: questions.map((q: any) => ({ promptId: q?.promptId, question: q?.question })),
@@ -117,7 +117,7 @@ export function reviewSummary(catalogue: any, review: any, opts: { level?: strin
     total: rows.length,
     markWith: {
       application: 'curation',
-      confirm: { action: 'confirm', input: { markId: '<unique>', subjectKind: 'net|element|level|relation', subjectKey: '<key>', by: '<who>', revision: '<definition revision>', note: '<optional>', codeHash: '<optional>' } },
+      confirm: { action: 'confirm', input: { markId: '<unique>', subjectKind: 'net|element|level|relation', subjectKey: '<key>', by: '<who>', revision: '<definition revision>', note: '<optional>', sourceHash: '<optional>' } },
       flag: { action: 'flag', input: { markId: '<unique or deterministic>', subjectKind: '...', subjectKey: '<key>', flag: 'stale|unclear|wrong|contradiction|unmeasured|too-coarse|level-below-changed|level-above-changed', reason: '<what was measured or read>', by: '<who>' } },
       resolve: { action: 'resolve', input: { markId: '<the flag>', how: 'changed|confirmed|withdrawn', by: '<who>' } },
       ask: { application: 'interview', action: 'ask', subjectKind: 'net-definition|net-element|level', subjectKey: '<session>::<net> or <session>::<net>#<elementId> or <level id>' },
@@ -299,7 +299,7 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
         'The review state of a model\'s abstraction hierarchy (Curation and Interview applications): per net, whether the person confirmed it, which flags are open (stale, unclear, wrong, contradiction, unmeasured, too-coarse, level-below-changed, level-above-changed), '
         + 'which questions are still open, and the same for its elements (subject key `session::net#elementId`). Nets nobody marked are listed as unconfirmed. '
         + 'Narrow with level (a level id), net (a key) or needs (any | flagged | questions | unconfirmed). The answer carries markWith: how to confirm, flag, resolve and ask through application_action. '
-        + 'Use it to start a question round (prompt question-round) or to see what a code change invalidated. Read-only.',
+        + 'Use it to start a question round (prompt question-round) or to see what a change in the referenced sources invalidated. Read-only.',
       inputSchema: {
         level: z.string().optional().describe('Only nets on this level (level id)'),
         net: z.string().optional().describe('Only this net (session::netId)'),

@@ -20,8 +20,11 @@ assert.equal(pkg.kind, 'application');
 assert.equal(pkg.manifest.name, config.name);
 assert.equal(pkg.manifest.version, config.version);
 assert.equal(pkg.applicationManifest.manifestVersion, '2.0');
-assert.equal(pkg.applicationManifest.surface.type, 'web-component');
-assert.equal(pkg.applicationManifest.surface.element, config.ui.element);
+// A manifest-only application (no `ui`) has a local surface and ships no module.
+const hasUi = !!config.ui;
+assert.equal(pkg.applicationManifest.surface.type, hasUi ? 'web-component' : 'local');
+if (hasUi) assert.equal(pkg.applicationManifest.surface.element, config.ui.element);
+else assert.ok(pkg.applicationManifest.surface.renderer, 'a local surface names its renderer');
 assert.deepEqual(pkg.applicationManifest.permissions, config.application.permissions);
 assert.deepEqual(pkg.applicationManifest.agentProtocol, config.application.agentProtocol);
 assert.ok(Array.isArray(pkg.nets) && pkg.nets.length > 0, 'package carries a runtime net');
@@ -39,20 +42,26 @@ for (const step of pkg.applicationManifest.agentProtocol?.workflow || []) {
   assert.ok(actionNames.has(step.action), `agent workflow action ${step.action} is declared`);
 }
 
-const entryUrn = pkg.applicationManifest.surface.entry;
-const blob = pkg.blobs.find(candidate => candidate.urn === entryUrn);
-assert.ok(blob, 'surface entry blob is embedded');
-const source = Buffer.from(blob.contentBase64, 'base64');
-const sha256 = createHash('sha256').update(source).digest('hex');
-assert.equal(blob.sha256, sha256);
-assert.equal(pkg.applicationManifest.surface.integrity, `sha256-${sha256}`);
-assert.ok(source.length > 0 && source.length < 1024 * 1024, 'UI module is non-empty and below 1 MiB');
-assert.doesNotMatch(source.toString('utf8').replace(/import\.meta/g, ''), /\bimport\s*(?:\(|[{\'"*])/,
-  'UI entry is a self-contained ESM module');
+let source = Buffer.alloc(0);
+let sha256 = '';
+if (hasUi) {
+  const entryUrn = pkg.applicationManifest.surface.entry;
+  const blob = pkg.blobs.find(candidate => candidate.urn === entryUrn);
+  assert.ok(blob, 'surface entry blob is embedded');
+  source = Buffer.from(blob.contentBase64, 'base64');
+  sha256 = createHash('sha256').update(source).digest('hex');
+  assert.equal(blob.sha256, sha256);
+  assert.equal(pkg.applicationManifest.surface.integrity, `sha256-${sha256}`);
+  assert.ok(source.length > 0 && source.length < 1024 * 1024, 'UI module is non-empty and below 1 MiB');
+  assert.doesNotMatch(source.toString('utf8').replace(/import\.meta/g, ''), /\bimport\s*(?:\(|[{\'"*])/,
+    'UI entry is a self-contained ESM module');
+} else {
+  assert.equal((pkg.blobs || []).length, 0, 'a manifest-only application embeds no module');
+}
 
 const runtimePath = resolve(dirname(configPath), config.runtimePackage);
 const runtime = JSON.parse(await readFile(runtimePath, 'utf8'));
 assert.equal(runtime.kind, 'session');
 assert.equal(runtime.tokenPolicy || 'none', pkg.tokenPolicy);
 
-process.stdout.write(`ok ${config.name}@${config.version}: ${actionNames.size} actions, ${places.size} places, ${source.length} UI bytes, sha256-${sha256}\n`);
+process.stdout.write(`ok ${config.name}@${config.version}: ${actionNames.size} actions, ${places.size} places, ${hasUi ? `${source.length} UI bytes, sha256-${sha256}` : 'manifest-only'}\n`);

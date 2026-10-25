@@ -81,6 +81,7 @@ Open `#/applications/application-hello-net` in Studio.
 | `examples/hello-net` | Complete Angular + session runtime example |
 | `examples/kanban` | Full Persona-facing Kanban board, guarded lifecycle, tests, and agent protocol |
 | `examples/approval-room` | Independent decisions, input-relative guards, retry safety, and upgrade/rollback fixture |
+| `examples/curation` | Manifest-only application (no web component): confirmations and flags on a model's abstraction hierarchy, surfaced by the Model Explorer; seeded by the master |
 | `schemas` | JSON Schema for `agenticos.app.json` |
 | `tools/pull-runtime.mjs` | Downloads an MCP/CLI-authored session package from NetHub |
 | `tools/pack-application.mjs` | Creates a self-contained NetHub application artifact |
