@@ -305,7 +305,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       },
     },
     wrapTool(scope, config.mode, { name: 'refine_model', mutates: false }, async (model, args) => {
-      // The master computes the one worklist the Explorer's Focus view and the scripts read too
+      // The master computes the one worklist the Focus application and the scripts read too
       // (it also honours deferred subjects); an older master without the route gets the local fold.
       try {
         const served = await ctx.master.get(worklistPath(model, args));
@@ -367,7 +367,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
     {
       title: 'What the person answered since the last refinement pass',
       description:
-        'The digest of a model: every answer, confirmation, flag, resolution and deferral the person recorded (in the Explorer\'s Focus view, the Interview inbox or by curate_model) since the last refinement pass, grouped by level and subject, plus the questions still open. '
+        'The digest of a model: every answer, confirmation, flag, resolution and deferral the person recorded (in the Focus application, the Interview inbox or by curate_model) since the last refinement pass, grouped by level and subject, plus the questions still open. '
         + 'Focus sessions and refinement passes alternate as often as needed: the digest starts after the newest `pass` record (curate_model {action:"pass"}) unless `since` is given. Read-only; `until` is the instant to hand back as consumedUntil when the pass is recorded.',
       inputSchema: {
         since: z.string().optional().describe('ISO-8601 instant; default: the last pass\'s consumedUntil, or everything when no pass was recorded'),
@@ -639,7 +639,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
             ...(args.questions ? { questions: args.questions } : {}),
           };
           const result = await act(model, 'curation', 'pass', input, `curate-pass-${passId}`);
-          return { model, passId, consumedUntil: args.consumedUntil, result, next: 'The next focus_digest starts after this pass; the person continues in the Focus view.' };
+          return { model, passId, consumedUntil: args.consumedUntil, result, next: 'The next focus_digest starts after this pass; the person continues in the Focus application.' };
         }
         case 'note': {
           need('subjectKey', args.subjectKey); need('text', args.text);
@@ -655,7 +655,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
           return { model, noteId, noteKind, subjectKey, result,
             next: noteKind === 'brief'
               ? 'The next refinement pass derives the definition from it and answers with a summary note; hand_over runs that pass in the model.'
-              : 'The person reads it in the thread of the subject (Focus view) and on the card.' };
+              : 'The person reads it in the thread of the subject (the Focus application) and on the card.' };
         }
         default:
           throw new Error(`unknown action ${String(args.action)}`);
@@ -716,7 +716,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
       return { ...result, next: result?.state === 'running'
         ? (result?.runner === 'coder'
           ? 'The coder reads the sources (minutes); refiner_status lists the run with its report when it is done, and subject_thread shows its notes and questions.'
-          : 'The lane runs the pass; refiner_status shows when its run is recorded, then the Focus view and focus_digest carry the summaries and the next questions.')
+          : 'The lane runs the pass; refiner_status shows when its run is recorded, then the Focus application and focus_digest carry the summaries and the next questions.')
         : result?.state === 'would-run' ? 'Call again without dryRun to run it.' : String(result?.hint ?? '') };
     }),
   );
