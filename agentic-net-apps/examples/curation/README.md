@@ -33,3 +33,7 @@ The AgenticNetOS master seeds the same artifact into every fresh installation (i
 ## 1.3.0: notes
 
 A `note` records words about a subject: a `brief` is what the person said about it in their own words (the Focus view's "Describe it"), the next refinement pass derives the definition from it and answers with a `summary` (what it understood, changed and left open); a `decision` is something settled for good. Notes are append-only; the Explorer's thread of a subject shows them in time order between the questions and the marks.
+
+## 1.4.0: findings
+
+`noteKind: finding` is what a read-only coder found in the sources (the Explorer's card actions explain, look and diff); the thread shows it apart from the person's briefs and the AI's summaries.

@@ -459,10 +459,10 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). '
         + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it. '
         + 'raise: the person\'s own question about a subject (an Interview request; the digest lists it until a prompt carries its requestId). reshape: the person reshapes a question (respond with intent revise and the better wording; the next pass asks again). '
-        + 'note: words about a subject (Curation 1.3.0): noteKind brief = what the person said about it in their own words (the next pass derives the definition from it), summary = what the AI understood, changed and left open after a pass (the person reads it on the card), decision = settled for good. Nothing here starts anything.',
+        + 'note: words about a subject (Curation 1.3.0): noteKind brief = what the person said about it in their own words (the next pass derives the definition from it), summary = what the AI understood, changed and left open after a pass (the person reads it on the card), decision = settled for good, finding = what the sources say now, written by a coder that read them (Curation 1.4.0; explain, look and diff write one). Nothing here starts anything.',
       inputSchema: {
         action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass', 'raise', 'reshape', 'note']),
-        noteKind: z.enum(['brief', 'summary', 'decision']).optional().describe('note: brief (the person\'s words), summary (the AI\'s, after a pass), decision'),
+        noteKind: z.enum(['brief', 'summary', 'decision', 'finding']).optional().describe('note: brief (the person\'s words), summary (the AI\'s, after a pass), decision, finding (what the sources say, with file:line)'),
         text: z.string().optional().describe('answer: free text; note: the words'),
         noteId: z.string().optional().describe('note: id (default derived)'),
         subjectKey: z.string().optional().describe('ask, confirm, flag, and answer with then: the subject'),
@@ -643,23 +643,25 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
   server.registerTool(
     'hand_over',
     {
-      title: 'Hand the focus work over to the AI lane in the model',
+      title: 'Hand the focus work over to the AI: the agent lane or the read-only coder',
       description:
-        'The person\'s "now it is your turn": a pass run by the Refiner application\'s agent lane (t-refiner-pass) inside the model, through this MCP server. kind refinement (apply what the person answered and described, write a summary per subject, prepare the next questions), structure (settle the AI\'s structural cards from the sources) or ground (check every level against the sources); optional scope (a focus scope: domain:<d>, tag:<t>, net:<session::net>), subject (one subject first) and note (what the person wants). '
-        + 'The master installs the Refiner on first use; when its MCP server is not attached to the lane yet, this tool attaches THIS server (as attach_mcp_server {self:true} would) and asks again. dryRun reports what would run without writing. '
-        + 'Use it when the person wants the pass to run in the background; run the refinement-pass prompt yourself when you ARE the AI they are talking to.',
+        'The person\'s "now it is your turn". kind refinement runs the Refiner application\'s agent lane (t-refiner-pass) inside the model, through this MCP server: apply what the person answered and described, write a summary per subject, prepare the next questions. '
+        + 'The other kinds need the sources and run a headless coder (Claude Code by default, Codex selectable) READ-ONLY in the repository on the executor, through the reusable headless-coder tool net, with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the code), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does in the code), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the code). '
+        + 'Coder kinds need a sources root first (refiner_configure); without it the answer is state needs-setup. Optional scope (domain:<d>, tag:<t>, net:<session::net>), subject (session::net, session::net#element, scope:<expr>@<level>), note, card (the card the person is on). dryRun reports what would run, for a coder kind with the full prompt, and writes nothing. '
+        + 'Use it when the person wants the work done in the background; run the pass yourself when you ARE the AI they are talking to.',
       inputSchema: {
-        kind: z.enum(['refinement', 'structure', 'ground']).default('refinement'),
+        kind: z.enum(['refinement', 'structure', 'ground', 'look', 'explain', 'check', 'draft', 'diff']).default('refinement'),
         scope: z.string().optional().describe('A focus scope: domain:<d>, tag:<t>, net:<session::net>'),
-        subject: z.string().optional().describe('One subject to concentrate on first (session::net, session::net#element, scope:<expr>@<level>)'),
-        note: z.string().optional().describe('What the person wants from this pass, in their words'),
+        subject: z.string().optional().describe('The subject: required for look, explain, check, draft, diff (session::net, session::net#element, scope:<expr>@<level>)'),
+        note: z.string().optional().describe('What the person wants, in their words (required for look)'),
+        card: z.record(z.unknown()).optional().describe('The card the person is on: {kind, detail, question}; it goes into the coder\'s prompt'),
         by: z.string().optional().describe('Who hands over (default "the person")'),
         dryRun: z.boolean().optional().describe('Report what would run; write nothing'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'hand_over', mutates: true }, async (model, args) => {
-      const body = { kind: args.kind ?? 'refinement', scope: args.scope, subject: args.subject, note: args.note, by: args.by ?? 'the person', dryRun: !!args.dryRun };
+      const body = { kind: args.kind ?? 'refinement', scope: args.scope, subject: args.subject, note: args.note, card: args.card, by: args.by ?? 'the person', dryRun: !!args.dryRun };
       const post = () => ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover`, body, { modelId: model });
       let result: any;
       try {
@@ -668,6 +670,9 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover: upgrade master' };
         if (err?.status !== 409) throw err;
         result = conflictBody(err);
+      }
+      if (result?.state === 'needs-setup' && result?.runner === 'coder') {
+        return { ...result, next: 'Tell the coder where the sources are: refiner_configure {root, coder, model}, then hand over again.' };
       }
       if (result?.state === 'needs-setup' && !args.dryRun) {
         // The master could not attach its MCP server; this server attaches itself to the lane, then asks again.
@@ -681,8 +686,35 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         result = { ...result, attached: attach };
       }
       return { ...result, next: result?.state === 'running'
-        ? 'The lane runs the pass; refiner_status shows when its run is recorded, then the Focus view and focus_digest carry the summaries and the next questions.'
+        ? (result?.runner === 'coder'
+          ? 'The coder reads the sources (minutes); refiner_status lists the run with its report when it is done, and subject_thread shows its notes and questions.'
+          : 'The lane runs the pass; refiner_status shows when its run is recorded, then the Focus view and focus_digest carry the summaries and the next questions.')
         : result?.state === 'would-run' ? 'Call again without dryRun to run it.' : String(result?.hint ?? '') };
+    }),
+  );
+
+  server.registerTool(
+    'refiner_configure',
+    {
+      title: 'Set up the coder of the hand-over: where the sources are and which coder reads them',
+      description: 'Where the read-only coder of hand_over works on this model: root = the repository on the executor (~ allowed), coder = claude (Claude Code, default) or codex, model = the coder\'s model (optional). Appends a Refiner config token (the newest wins). Read the current setting with refiner_status (config).',
+      inputSchema: {
+        root: z.string().min(1).describe('The repository on the executor, e.g. ~/Developer/my-app'),
+        coder: z.enum(['claude', 'codex']).optional().describe('claude (default) or codex'),
+        coderModel: z.string().optional().describe('The coder\'s model id (optional)'),
+        by: z.string().optional(),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'refiner_configure', mutates: true }, async (model, args) => {
+      const body = { root: args.root, coder: args.coder ?? 'claude', model: args.coderModel, by: args.by ?? 'the person' };
+      try {
+        const saved = await ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover/config`, body, { modelId: model });
+        return { model, config: saved, next: 'hand_over with a coder kind (explain, look, check, draft, diff, ground, structure) now runs in this root.' };
+      } catch (err: any) {
+        if (err?.status === 404) return { available: false, model, hint: 'master without /api/explorer/{model}/handover/config: upgrade master' };
+        throw err;
+      }
     }),
   );
 

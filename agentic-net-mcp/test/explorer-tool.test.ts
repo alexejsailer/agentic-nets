@@ -511,4 +511,37 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     expect(thread.entries[0].kind).toBe('brief');
     expect(calls.filter(c => c.includes('/thread'))[0]).toContain('subject=product%3A%3Aoverview');
   });
+
+  it('hand_over sends a coder kind with its card, never attaches itself for a coder, and refiner_configure saves the root', async () => {
+    const posted: Array<{ path: string; body: any }> = [];
+    let configured = false;
+    const ctx = new AppContext({ ...config(), transport: 'http', httpToken: 'tok', httpPort: 8091 } as any);
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
+      posted.push({ path, body });
+      if (path.endsWith('/handover/config')) { configured = true; return { root: body.root, coder: body.coder }; }
+      if (path.endsWith('/handover')) {
+        if (!configured) { const e: any = new Error('needs setup'); e.status = 409; e.body = JSON.stringify({ state: 'needs-setup', runner: 'coder', missing: ['root'] }); throw e; }
+        return { state: 'running', runner: 'coder', requestId: 'hand-2' };
+      }
+      return CATALOGUE;
+    };
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+    const card = { kind: 'unconfirmed', question: 'Does this match the code?' };
+    const first: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'explain', subject: 'modules::activities', card } })) as any).content[0].text);
+    expect(first.state).toBe('needs-setup');
+    expect(first.next).toContain('refiner_configure');
+    expect(posted.filter(p => p.path.includes('/credentials') || p.path.includes('/transitions/assign'))).toHaveLength(0);
+    expect(posted[0].body).toMatchObject({ kind: 'explain', subject: 'modules::activities', card });
+    const saved: any = JSON.parse(((await client.callTool({ name: 'refiner_configure', arguments: { root: '~/src/app', coder: 'codex' } })) as any).content[0].text);
+    expect(saved.config).toEqual({ root: '~/src/app', coder: 'codex' });
+    const second: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'explain', subject: 'modules::activities' } })) as any).content[0].text);
+    expect(second.state).toBe('running');
+    expect(second.next).toContain('coder reads the sources');
+    const note: any = await client.callTool({ name: 'curate_model', arguments: { action: 'note', noteKind: 'finding', subjectKey: 'product::overview', text: 'x at A.swift:3', by: 'coder' } });
+    expect(note.isError).toBeFalsy();
+    expect(posted.at(-1)?.body).toMatchObject({ noteKind: 'finding', by: 'coder' });
+  });
 });

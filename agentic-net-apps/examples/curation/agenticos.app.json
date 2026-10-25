@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "curation",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "displayName": "Curation",
   "description": "Confirmations and flags on the subjects of a model's abstraction hierarchy: nets, elements, levels and relations.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "curation"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/curation-1.3.0.application.json",
+  "output": "../../dist/packages/curation-1.4.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -338,7 +338,7 @@
       {
         "name": "note",
         "targetRole": "notes",
-        "description": "Record words about a subject: a brief (the person describes what the subject is and needs, in their own words; the next pass derives from it), a summary (the AI says what it understood, changed and left open), or a decision. One record per noteId.",
+        "description": "Record words about a subject: a brief (the person describes what the subject is and needs, in their own words; the next pass derives from it), a summary (the AI says what it understood, changed and left open), a decision, or a finding (what the code says now, written by a read-only coder). One record per noteId.",
         "guard": {
           "role": "notes",
           "matchKey": "noteId",
@@ -377,9 +377,10 @@
               "enum": [
                 "brief",
                 "summary",
-                "decision"
+                "decision",
+                "finding"
               ],
-              "description": "brief: the person's own words; summary: the AI's understanding after a pass; decision: something settled for good"
+              "description": "brief: the person's own words; summary: the AI's understanding after a pass; decision: something settled for good; finding: what the sources say now (written by a coder reading the code)"
             },
             "text": {
               "type": "string"

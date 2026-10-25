@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "refiner",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "displayName": "Refiner",
   "description": "The AI side of the focus loop as a lane in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent through the Agentic-Nets MCP server, with its run recorded.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "agent"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/refiner-1.0.0.application.json",
+  "output": "../../dist/packages/refiner-1.1.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -33,13 +33,18 @@
         "role": "runs",
         "placeId": "p-refiner-runs",
         "description": "What each run did: the agent's report (summary, changes, questions, passId)"
+      },
+      {
+        "role": "config",
+        "placeId": "p-refiner-config",
+        "description": "Where the coder works: the repository root on the executor, the coder (claude or codex) and its model; append-only, the newest record wins"
       }
     ],
     "actions": [
       {
         "name": "request",
         "targetRole": "requests",
-        "description": "Hand the focus work over to the AI: a refinement pass (apply answers and briefs, prepare the next questions), a structure pass (settle the AI's cards from the sources) or a ground pass (check the levels against the sources), optionally limited to a focus scope and a subject. One record per requestId; the lane t-refiner-pass consumes it.",
+        "description": "Hand the focus work over to the AI: a refinement pass (apply answers and briefs, prepare the next questions), a structure pass (settle the AI's cards from the sources) or a ground pass (check the levels against the sources), optionally limited to a focus scope and a subject. One record per requestId; the lane t-refiner-pass consumes it. Kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the headless-coder tool net.",
         "guard": {
           "role": "requests",
           "matchKey": "requestId",
@@ -69,7 +74,12 @@
               "enum": [
                 "refinement",
                 "structure",
-                "ground"
+                "ground",
+                "look",
+                "explain",
+                "check",
+                "draft",
+                "diff"
               ]
             },
             "scope": {
@@ -86,6 +96,65 @@
             },
             "by": {
               "type": "string"
+            },
+            "runner": {
+              "enum": [
+                "agent",
+                "coder"
+              ],
+              "description": "agent: the lane t-refiner-pass (no sources needed); coder: the headless-coder tool net (reads the sources)"
+            },
+            "status": {
+              "enum": [
+                "requested",
+                "delegated"
+              ],
+              "description": "requested: waiting for t-refiner-pass; delegated: handed to the headless coder"
+            },
+            "card": {
+              "type": "object",
+              "description": "The Focus card the request came from (kind, title, detail, question)"
+            }
+          }
+        }
+      },
+      {
+        "name": "configure",
+        "targetRole": "config",
+        "description": "Set where and with what the coder works: the repository root on the executor (a path, ~ allowed), the coder (claude or codex) and an optional model. Append-only; the newest record wins.",
+        "guard": {
+          "role": "config",
+          "matchKey": "configId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "refiner-config"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "configId",
+            "root",
+            "by"
+          ],
+          "properties": {
+            "configId": {
+              "type": "string"
+            },
+            "root": {
+              "type": "string"
+            },
+            "coder": {
+              "enum": [
+                "claude",
+                "codex"
+              ]
+            },
+            "model": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
             }
           }
         }
@@ -94,14 +163,17 @@
     "permissions": {
       "readStores": [
         "requests",
-        "runs"
+        "runs",
+        "config"
       ],
       "watchStores": [
         "requests",
-        "runs"
+        "runs",
+        "config"
       ],
       "actions": [
-        "request"
+        "request",
+        "configure"
       ]
     }
   }

@@ -81,6 +81,7 @@ const CURATED = [
   'focus_scope',
   'hand_over',
   'refiner_status',
+  'refiner_configure',
   'subject_thread',
   'ground_model',
   'curate_model',
