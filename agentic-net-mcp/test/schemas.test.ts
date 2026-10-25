@@ -34,7 +34,7 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
 const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refiner_status', 'refiner_configure', 'subject_thread', 'ground_model', 'curate_model'];
 
 /** The readonly surface without the review method. */
-const READONLY = ['application_describe', 'application_list', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'get_net_definition', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'];
+const READONLY = ['application_describe', 'application_list', 'application_view', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'get_net_definition', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'];
 
 async function connectedClient(config: McpConfig) {
   const server = createServer(new AppContext(config));
@@ -79,6 +79,7 @@ const CURATED = [
   'protocol_tail',
   'application_list',
   'application_describe',
+  'application_view',
   'application_action',
   'explore_model',
   'list_net_definitions',

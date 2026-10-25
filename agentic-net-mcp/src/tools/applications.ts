@@ -107,6 +107,37 @@ export function registerApplicationReaders(server: McpServer, ctx: AppContext): 
       withStoreContracts(await describe(ctx, model, args.name)),
     ),
   );
+
+  server.registerTool(
+    'application_view',
+    {
+      title: 'Read a declared view of a net application',
+      description:
+        'One read of an application\'s declared view (application_describe lists its views): the newest token per key of a store, '
+        + 'joined with related stores and filtered, folded on the server so Studio, lanes and you see the same result. '
+        + 'Interview declares prompts and open-prompts, Goals declares goals. Items: {id, properties, joins, marks}, newest first.',
+      inputSchema: {
+        name: z.string().describe('Application name, e.g. interview'),
+        view: z.string().describe('View name, e.g. open-prompts'),
+        limit: z.number().int().positive().optional().describe('At most this many items'),
+        since: z.string().optional().describe('ISO-8601: only items whose newest token is at or after it'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'application_view', mutates: false }, async (model, args) => {
+      const m = encodeURIComponent(model);
+      const q = new URLSearchParams({ ...(args.limit ? { limit: String(args.limit) } : {}), ...(args.since ? { since: args.since } : {}) }).toString();
+      try {
+        return await ctx.master.get(`/applications/${m}/${encodeURIComponent(args.name)}/views/${encodeURIComponent(args.view)}${q ? `?${q}` : ''}`);
+      } catch (err: any) {
+        if (err?.status === 404) {
+          return { available: false, model, application: args.name, view: args.view,
+            hint: 'the application is not installed, declares no such view (application_describe lists its views), or the master predates views' };
+        }
+        throw err;
+      }
+    }),
+  );
 }
 
 export function registerApplicationTools(server: McpServer, ctx: AppContext): void {
