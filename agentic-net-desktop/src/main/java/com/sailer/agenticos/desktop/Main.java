@@ -237,7 +237,10 @@ public final class Main {
                 // host when Studio is reached through a reverse proxy (Tailscale Serve) that
                 // forwards to the loopback :4200. Comma-separated patterns, e.g.
                 // cors.origins=http://my-mac.tail1234.ts.net,https://my-mac.tail1234.ts.net
-                "GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS", corsOriginPatterns(config.setting("cors.origins", "")))),
+                "GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS", corsOriginPatterns(config.setting("cors.origins", "")),
+                // Optional on-device speech service for Studio (dictation + reading):
+                // speech.url=http://127.0.0.1:8092 (agentic-nets/deployment/speech/speech_service.py).
+                "SPEECH_URL", config.setting("speech.url", ""))),
             config.runDir("gateway"),
             "http://127.0.0.1:" + DesktopConfig.GATEWAY_PORT + "/api/health/ping",
             60));

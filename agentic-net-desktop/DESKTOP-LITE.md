@@ -432,6 +432,21 @@ cors.origins=http://my-mac.tail1234.ts.net,https://my-mac.tail1234.ts.net
 Without it the login works for reads and fails on the first POST with
 "Invalid CORS request". Switch it off with `tailscale serve --http=80 off`.
 
+### Voice: reading cards and dictating (optional)
+
+Studio's Focus view reads a card aloud (`R`, `Esc` stops, "read cards" follows every card) and
+dictates into every text box (the microphone). Out of the box it uses the browser: the OS voices
+for reading (download an enhanced or Siri voice in System Settings for a good one) and the
+browser's recognition for dictation, whose audio goes to the browser vendor. For an open-source,
+on-device pair run the local speech service from `deployment/speech` (whisper.cpp transcribes,
+Piper speaks, the README has the four install lines), point the gateway at it and Restart Services:
+
+```
+speech.url=http://127.0.0.1:8092
+```
+
+Then pick "local speech service" in the Focus view's voice box. Nothing leaves the machine.
+
 ## Install and update
 
 Download the package for the operating system from the GitHub release and

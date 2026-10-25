@@ -110,6 +110,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/node-api/**").authenticated()
                         .requestMatchers("/vault-api/**").authenticated()
+                        .requestMatchers("/speech-api/**").authenticated()
                         .requestMatchers("/internal/masters/**").permitAll()
                         .anyRequest().denyAll();
                 })
