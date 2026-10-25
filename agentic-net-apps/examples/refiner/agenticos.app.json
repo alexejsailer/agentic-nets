@@ -1,9 +1,9 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "refiner",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "displayName": "Focus",
-  "description": "Focus: work one feature of a model across its levels, card by card, and hand the work to an AI between rounds. The AI side runs as a lane in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent or a read-only coder through the Agentic-Nets MCP server, with its run recorded.",
+  "description": "Focus: work one feature of a model across its levels, card by card, and hand the work to an AI between rounds. The AI side runs as lanes in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent, or a read-only coder run through the headless-agent runner, both through the Agentic-Nets MCP server, with every run recorded. Its prompts and coder profiles are tokens you can edit; an upgrade keeps an edited one.",
   "author": "AgenticNetOS",
   "visibility": "public",
   "tags": [
@@ -13,7 +13,7 @@
     "agent"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/refiner-1.3.1.application.json",
+  "output": "../../dist/packages/refiner-1.4.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -37,14 +37,34 @@
       {
         "role": "config",
         "placeId": "p-refiner-config",
-        "description": "Where the coder works: the root folder of the model's sources on the executor, the coder (claude or codex) and its model; append-only, the newest record wins"
+        "description": "Where the coder works: the root folder of the model's sources on the executor, the coder profile (profileId and a base64 snapshot of it, profileB64), an optional model and the MCP server the coder reports to; append-only, the newest record wins and the coder lanes read it"
+      },
+      {
+        "role": "coders",
+        "placeId": "p-refiner-coders",
+        "description": "Coder profiles (headless-agent format: profileId, family, mode, command, allowed tools); seeded with Claude Code read-only. Focus reads sources only: a profile whose mode is not read-only is refused. Edit a profile or add one; an upgrade replaces only a profile you never edited"
+      },
+      {
+        "role": "prompts",
+        "placeId": "p-refiner-prompts",
+        "description": "The method's prompts, one token per promptId: rules (shared by every coder task), the coder kinds (refinement, structure, ground, look, explain, check, draft, diff) and refinement-pass (the agent lane's prompt). {{name}} placeholders are filled by the hand-over. Edit a prompt; an upgrade keeps it"
+      },
+      {
+        "role": "coder-requests",
+        "placeId": "p-refiner-coder-in",
+        "description": "Coder tasks waiting: the composed prompt per requestId; the coder lanes consume them"
+      },
+      {
+        "role": "coder-results",
+        "placeId": "p-refiner-coder-results",
+        "description": "What each coder run reported: requestId, ok, exit code and the runner's JSON (profile, mode, the CODER_RESULT report, the answer's tail, stderr)"
       }
     ],
     "actions": [
       {
         "name": "request",
         "targetRole": "requests",
-        "description": "Hand the focus work over to the AI: a refinement pass (apply answers and briefs, prepare the next questions), a structure pass (settle the AI's cards from the sources) or a ground pass (check the levels against the sources), optionally limited to a focus scope and a subject. One record per requestId; the lane t-refiner-pass consumes it. Kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the headless-coder tool net.",
+        "description": "Hand the focus work over to the AI: a refinement pass (apply answers and briefs, prepare the next questions), a structure pass (settle the AI's cards from the sources) or a ground pass (check the levels against the sources), optionally limited to a focus scope and a subject. One record per requestId; the lane t-refiner-pass consumes it. Kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the coder lanes (action delegate).",
         "guard": {
           "role": "requests",
           "matchKey": "requestId",
@@ -102,14 +122,14 @@
                 "agent",
                 "coder"
               ],
-              "description": "agent: the lane t-refiner-pass (no sources needed); coder: the headless-coder tool net (reads the sources)"
+              "description": "agent: the lane t-refiner-pass (no sources needed); coder: the coder lanes (read the sources)"
             },
             "status": {
               "enum": [
                 "requested",
                 "delegated"
               ],
-              "description": "requested: waiting for t-refiner-pass; delegated: handed to the headless coder"
+              "description": "requested: waiting for t-refiner-pass; delegated: handed to the coder lanes"
             },
             "card": {
               "type": "object",
@@ -121,7 +141,7 @@
       {
         "name": "configure",
         "targetRole": "config",
-        "description": "Set where and with what the coder works: the root folder of the model's sources on the executor (a path, ~ allowed), the coder (claude or codex) and an optional model. Append-only; the newest record wins.",
+        "description": "Set where and with what the coder works: the root folder of the model's sources on the executor (a path, ~ allowed), the coder profile (profileId from the coders store; the hand-over records a snapshot in profileB64), an optional model and the MCP server's URL (mcpUrl, set by the hand-over). Append-only; the newest record wins.",
         "guard": {
           "role": "config",
           "matchKey": "configId",
@@ -148,9 +168,62 @@
               "enum": [
                 "claude",
                 "codex"
-              ]
+              ],
+              "description": "Deprecated since 1.4.0 (profileId replaces it): claude or codex"
             },
             "model": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string"
+            },
+            "profileId": {
+              "type": "string",
+              "description": "A profile of the coders store (default claude-code-read-only)"
+            },
+            "profileB64": {
+              "type": "string",
+              "description": "The profile's data as base64-encoded JSON, recorded by the hand-over (what the coder lanes run)"
+            },
+            "mcpUrl": {
+              "type": "string",
+              "description": "The MCP server the coder reports to, recorded by the hand-over"
+            }
+          }
+        }
+      },
+      {
+        "name": "delegate",
+        "targetRole": "coder-requests",
+        "description": "Hand one task to the coder: the prompt the hand-over composed from the prompt tokens. The coder lanes take it with the newest config (folder, profile, MCP server); a request cannot choose either. One record per requestId; the run's report lands in coder-results under the same requestId.",
+        "guard": {
+          "role": "coder-requests",
+          "matchKey": "requestId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "refiner-coder-request"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "requestId",
+            "prompt",
+            "by"
+          ],
+          "properties": {
+            "requestId": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "The task; it ends by asking for one line CODER_RESULT: {json}"
+            },
+            "purpose": {
+              "type": "string",
+              "description": "The kind (structure, ground, look, explain, check, draft, diff, refinement)"
+            },
+            "subject": {
               "type": "string"
             },
             "by": {
@@ -164,16 +237,23 @@
       "readStores": [
         "requests",
         "runs",
-        "config"
+        "config",
+        "coders",
+        "prompts",
+        "coder-results"
       ],
       "watchStores": [
         "requests",
         "runs",
-        "config"
+        "config",
+        "coders",
+        "prompts",
+        "coder-results"
       ],
       "actions": [
         "request",
-        "configure"
+        "configure",
+        "delegate"
       ]
     },
     "agentProtocol": {

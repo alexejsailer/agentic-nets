@@ -6,8 +6,8 @@
  "tokenPolicy": "none",
  "manifest": {
   "name": "refiner-runtime",
-  "version": "1.1.2",
-  "description": "Hand-over requests and runs of the Refiner, with the agent lane that runs a pass",
+  "version": "1.4.0",
+  "description": "Hand-over requests and runs of Focus, the agent lane that runs a pass, the coder lanes (through the headless-agent runner), and the prompts and coder profiles as tokens",
   "author": "AgenticNetOS",
   "tags": [
    "refinement",
@@ -17,7 +17,7 @@
   "createdAt": "2026-10-14T00:00:00Z",
   "agenticosVersion": "1.0.0"
  },
- "readme": "# Refiner\n\nThe AI side of the focus loop, inside the model. A person works the Focus view (answers cards, describes subjects in their own words) and then hands over: a `request` token asks for a refinement, structure or ground pass, limited to a focus scope and a subject when wanted. The lane `t-refiner-pass` consumes it and runs the pass as an agent through the Agentic-Nets MCP server (attach it once with attach_mcp_server {transitionId:\"t-refiner-pass\", self:true}, or let the master attach it when it knows its MCP server): it reads the digest, applies briefs and answers to the definitions, writes a summary note per subject, asks the next questions with evidence, reasoning and options, and records the pass. Its report lands in `runs`. The lane ships stopped and is fired once per request (nothing spends quota on a schedule); by default it thinks with the claude CLI on the master's host (action.llmMode bash), change action.llmMode/model to use the server's provider.\n\n1.1.0: kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the `headless-coder` tool net, a read-only Claude Code or Codex session in the folder of the model's sources named by `configure` (store `config`).\n\n1.1.1: the lane takes the newest open request first, so a request it once left behind never stands in front of a new one.\n\n1.1.2: the lane reads the request's passKind (it read the action's default kind before) and makes child definitions with update_net_definition {action:\"create\"}.\n",
+ "readme": "# Refiner\n\nThe AI side of the focus loop, inside the model. A person works the Focus view (answers cards, describes subjects in their own words) and then hands over: a `request` token asks for a refinement, structure or ground pass, limited to a focus scope and a subject when wanted. The lane `t-refiner-pass` consumes it and runs the pass as an agent through the Agentic-Nets MCP server (attach it once with attach_mcp_server {transitionId:\"t-refiner-pass\", self:true}, or let the master attach it when it knows its MCP server): it reads the digest, applies briefs and answers to the definitions, writes a summary note per subject, asks the next questions with evidence, reasoning and options, and records the pass. Its report lands in `runs`. The lane ships stopped and is fired once per request (nothing spends quota on a schedule); by default it thinks with the claude CLI on the master's host (action.llmMode bash), change action.llmMode/model to use the server's provider.\n\n1.1.0: kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the `headless-coder` tool net, a read-only Claude Code or Codex session in the folder of the model's sources named by `configure` (store `config`).\n\n1.1.1: the lane takes the newest open request first, so a request it once left behind never stands in front of a new one.\n\n1.1.2: the lane reads the request's passKind (it read the action's default kind before) and makes child definitions with update_net_definition {action:\"create\"}.\n\n1.4.0: the prompts are tokens (store `prompts`, promptId rules, refinement, structure, ground, look, explain, check, draft, diff, refinement-pass) and the coder profiles too (store `coders`, seeded with Claude Code read-only); both are seeds, so an upgrade replaces a token you never edited and keeps an edited one. The coder runs in this package's own lanes (t-refiner-coder-build, -run, -shape) through the headless-agent runner script (install the headless-agent capability into the model); the newest config record says where and with which profile, a task carries its prompt only. t-refiner-pass reads its prompt from the token refinement-pass and adds the request's fields itself.",
  "nets": [
   {
    "netId": "net-application-refiner",
@@ -38,6 +38,36 @@
        "label": "Coder settings",
        "x": 80,
        "y": 60
+      },
+      "p-refiner-coders": {
+       "label": "Coder profiles",
+       "x": 80,
+       "y": 320
+      },
+      "p-refiner-prompts": {
+       "label": "Prompts",
+       "x": 320,
+       "y": 60
+      },
+      "p-refiner-coder-in": {
+       "label": "Coder tasks",
+       "x": 80,
+       "y": 460
+      },
+      "p-refiner-coder-cmd": {
+       "label": "Coder command",
+       "x": 560,
+       "y": 460
+      },
+      "p-refiner-coder-raw": {
+       "label": "Coder raw result",
+       "x": 1040,
+       "y": 460
+      },
+      "p-refiner-coder-results": {
+       "label": "Coder reports",
+       "x": 1280,
+       "y": 460
       }
      },
      "transitions": {
@@ -45,6 +75,21 @@
        "label": "run the requested pass",
        "x": 320,
        "y": 180
+      },
+      "t-refiner-coder-build": {
+       "label": "build the coder's command",
+       "x": 320,
+       "y": 460
+      },
+      "t-refiner-coder-run": {
+       "label": "run the coder",
+       "x": 800,
+       "y": 460
+      },
+      "t-refiner-coder-shape": {
+       "label": "shape the report",
+       "x": 1160,
+       "y": 340
       }
      },
      "arcs": {
@@ -55,6 +100,38 @@
       "a-refiner-2": {
        "source": "t-refiner-pass",
        "target": "p-refiner-runs"
+      },
+      "a-refiner-3": {
+       "source": "p-refiner-prompts",
+       "target": "t-refiner-pass"
+      },
+      "a-refiner-4": {
+       "source": "p-refiner-coder-in",
+       "target": "t-refiner-coder-build"
+      },
+      "a-refiner-5": {
+       "source": "p-refiner-config",
+       "target": "t-refiner-coder-build"
+      },
+      "a-refiner-6": {
+       "source": "t-refiner-coder-build",
+       "target": "p-refiner-coder-cmd"
+      },
+      "a-refiner-7": {
+       "source": "p-refiner-coder-cmd",
+       "target": "t-refiner-coder-run"
+      },
+      "a-refiner-8": {
+       "source": "t-refiner-coder-run",
+       "target": "p-refiner-coder-raw"
+      },
+      "a-refiner-9": {
+       "source": "p-refiner-coder-raw",
+       "target": "t-refiner-coder-shape"
+      },
+      "a-refiner-10": {
+       "source": "t-refiner-coder-shape",
+       "target": "p-refiner-coder-results"
       }
      }
     }
@@ -71,6 +148,13 @@
        "arcql": "FROM $ WHERE $.status==\"requested\" ORDER BY $.createdAt DESC LIMIT 1",
        "take": "FIRST",
        "consume": true
+      },
+      "prompt": {
+       "placeId": "p-refiner-prompts",
+       "host": "application-template@localhost:8080",
+       "arcql": "FROM $ WHERE $.promptId==\"refinement-pass\" LIMIT 1",
+       "take": "FIRST",
+       "consume": false
       }
      },
      "postsets": {
@@ -87,7 +171,7 @@
       "binary": "claude",
       "model": "sonnet",
       "maxIterations": 40,
-      "nl": "You are the Refiner: the AI side of the focus loop on model \"${request.data.modelId}\". A person hands their focus work over to you with request ${request.data.requestId}: kind \"${request.data.passKind}\" (refinement = apply what the person answered and described, then prepare the next questions; structure = settle the structural cards the AI owns from the sources; ground = check every level against the sources at the bottom), scope \"${request.data.scope}\" (a focus scope such as domain:<name>, tag:<tag> or net:<key>, or empty for the whole model), subject \"${request.data.subject}\" (one subject to concentrate on, or empty), asked by ${request.data.by}. The person's note to you: \"${request.data.note}\".\n\nWork only through the MCP server agenticnets (MCP_CALL {server:\"agenticnets\", tool:<name>, args:{...}}) and pass model:\"${request.data.modelId}\" in every call. Never start, stop or delete anything, never push, never spend quota on a schedule.\n\n1. READ. focus_digest {scope} (empty scope: no scope arg): everything the person answered, confirmed, flagged, deferred, their own questions (ownQuestions) and their BRIEFS (notes of noteKind brief: what they said about a subject in their own words) since the last pass; note its `until`. When a scope is set: focus_scope {scope} for its nets per level, the gaps (levels its chain passes without a net of its own) and the nets around it with how they connect. kind structure: refine_model {scope, for:\"model\"} for the AI's cards. kind ground: ground_model {scope}. get_net_definition for every subject you touch; explore_model for the hierarchy.\n2. APPLY, top-down. A brief is the person's intent: derive the subject's definition from it with update_net_definition (description, interactions, acceptance, in their sense, nothing invented), and carry what changed down to the child nets and up to the parent element (flag level-above-changed / level-below-changed where the neighbour contradicts it). An answer \"right\" keeps the definition; \"partly\" or \"wrong\" with the person's words revises it; \"refine it below\" becomes a child definition (update_net_definition {action:\"create\", status:\"draft\", parent: the element}, status draft); a settled flag is resolved (curate_model resolve, how changed). An own question is answered by a change or asked back (curate_model ask with requestId). kind structure: settle each AI card from the sources (confirm \"as simple as it looks\" / \"known gap\", child definition, repair). kind ground: agree confirms at the sourceHash, a decision divergence is a contradiction flag plus a question. An open gap of the scope is settled by a definition on that level, or curate_model confirm on the gap's subjectKey with notes \"covered by <net>: why\" or \"not needed: why\"; only when neither the sources nor the other features on that level decide it, ask.\n3. LOOK AROUND before asking. For every subject with a brief or an answer, read the analogous subjects: the other nets on the same level (the gap's examples, the scope's neighbours, nets with the same tags), their definitions and their confirmed answers. What they have that this subject lacks (an error state, an acceptance criterion, a rule, a place they share, a child net) is a candidate; what they decided is an analogy to offer as an option.\n4. SUMMARIZE. For every subject with a brief or an answer write curate_model {action:\"note\", noteKind:\"summary\", subjectKey, text, by:\"refiner\", requestId:\"${request.data.requestId}\"}: what you understood, what you changed (revision), what stays open and why, in 3 to 8 sentences the person reads on their card.\n5. ASK the next questions about the thing itself (what it should do, which rule, which value, which trade-off), never about the nets: curate_model {action:\"ask\", subjectKey, question, header, evidence: [what you read, one item each with its finding], reasoning: [why it matters, the trade-off, your recommendation and why], options: 2 to 4 objects {value,label,description} with exactly one recommended:true and analogies from step 3 among them, allowFreeText:true, subjectRevision}. At most 8 new questions; the subject \"${request.data.subject}\" first when set.\n6. RECORD. curate_model {action:\"pass\", consumedUntil: the digest's until, scope: focus_scope's passScope when a scope is set else \"model\", summary, answers, changes, questions: [promptIds], by:\"refiner\", passId:\"pass-${request.data.requestId}\"}.\n\nFinish with DONE whose message is one JSON object: {\"requestId\":\"${request.data.requestId}\",\"kind\":\"${request.data.passKind}\",\"scope\":\"${request.data.scope}\",\"passId\":\"pass-${request.data.requestId}\",\"summary\":\"...\",\"changes\":[...],\"questions\":[promptIds],\"summaries\":[subjectKeys]}. If you cannot read the digest or the MCP server is unavailable, FAIL with the reason."
+      "nl": "${prompt.data.text}\n\nTHE REQUEST\n- model: \"${request.data.modelId}\" (pass model:\"${request.data.modelId}\" in every MCP call)\n- requestId: ${request.data.requestId}\n- kind: \"${request.data.passKind}\"\n- scope: \"${request.data.scope}\"\n- subject: \"${request.data.subject}\"\n- asked by: ${request.data.by}\n- the person's note: \"${request.data.note}\""
      },
      "emit": [
       {
@@ -96,9 +180,277 @@
       }
      ],
      "mode": "SINGLE"
+    },
+    "t-refiner-coder-build": {
+     "id": "t-refiner-coder-build",
+     "kind": "map",
+     "label": "build the coder's command",
+     "description": "A coder task plus the newest config (folder, profile snapshot, model, MCP server) become one invocation of the headless-agent runner; the task carries only its prompt.",
+     "presets": {
+      "input": {
+       "placeId": "p-refiner-coder-in",
+       "host": "application-template@localhost:8080",
+       "arcql": "FROM $ LIMIT 1",
+       "take": "FIRST",
+       "consume": true
+      },
+      "config": {
+       "placeId": "p-refiner-config",
+       "host": "application-template@localhost:8080",
+       "arcql": "FROM $ ORDER BY $.createdAt DESC LIMIT 1",
+       "take": "FIRST",
+       "consume": false
+      }
+     },
+     "postsets": {
+      "cmd": {
+       "placeId": "p-refiner-coder-cmd",
+       "host": "application-template@localhost:8080"
+      }
+     },
+     "action": {
+      "type": "map",
+      "template": {
+       "kind": "command",
+       "id": "${input.data.requestId}",
+       "executor": "script",
+       "command": "invoke",
+       "expect": "json",
+       "args": {
+        "toolId": "headless-agent",
+        "argv": [
+         "run"
+        ],
+        "timeoutMs": 1800000,
+        "env": {
+         "HA_PROFILE_B64": "${config.data.profileB64}",
+         "HA_ROOT": "${config.data.root}",
+         "HA_MODEL": "${config.data.model}",
+         "HA_PROMPT": "${input.data.prompt}",
+         "HA_RESULT_KEY": "CODER_RESULT",
+         "HA_MCP_URL": "${config.data.mcpUrl}",
+         "HA_MCP_SERVER": "agenticnets",
+         "HA_MCP_TOOLS": "explore_model,net_levels,get_net_definition,list_net_definitions,update_net_definition,focus_scope,focus_digest,refine_model,ground_model,subject_thread,review_model,curate_model"
+        }
+       },
+       "meta": {
+        "_correlationId": "${input.data.requestId}"
+       }
+      }
+     },
+     "emit": [
+      {
+       "to": "cmd",
+       "from": "@response"
+      }
+     ],
+     "mode": "SINGLE"
+    },
+    "t-refiner-coder-run": {
+     "id": "t-refiner-coder-run",
+     "kind": "command",
+     "label": "run the coder",
+     "description": "The executor runs the headless-agent script: the coder reads the sources read-only and writes what it finds into the model through MCP (credential AGENTICNETS_MCP_TOKEN on this lane, stored by the hand-over).",
+     "presets": {
+      "input": {
+       "placeId": "p-refiner-coder-cmd",
+       "host": "application-template@localhost:8080",
+       "arcql": "FROM $ LIMIT 1",
+       "take": "FIRST",
+       "consume": true
+      }
+     },
+     "postsets": {
+      "raw": {
+       "placeId": "p-refiner-coder-raw",
+       "host": "application-template@localhost:8080"
+      }
+     },
+     "action": {
+      "type": "command",
+      "inputPlace": "input",
+      "executorId": "agentic-net-executor-default",
+      "groupBy": "executor",
+      "dispatch": [
+       {
+        "executor": "bash",
+        "channel": "default"
+       }
+      ],
+      "await": "ALL",
+      "timeoutMs": 1860000
+     },
+     "emit": [
+      {
+       "to": "raw",
+       "from": "@result"
+      }
+     ],
+     "mode": "SINGLE"
+    },
+    "t-refiner-coder-shape": {
+     "id": "t-refiner-coder-shape",
+     "kind": "map",
+     "label": "shape the report",
+     "presets": {
+      "input": {
+       "placeId": "p-refiner-coder-raw",
+       "host": "application-template@localhost:8080",
+       "arcql": "FROM $ LIMIT 1",
+       "take": "FIRST",
+       "consume": true
+      }
+     },
+     "postsets": {
+      "out": {
+       "placeId": "p-refiner-coder-results",
+       "host": "application-template@localhost:8080",
+       "capacity": 200
+      }
+     },
+     "action": {
+      "type": "map",
+      "template": {
+       "kind": "refiner-coder-result",
+       "_correlationId": "${input.data.batchResults[0].results[0].id}",
+       "requestId": "${input.data.batchResults[0].results[0].id}",
+       "ok": "${input.data.success}",
+       "exitCode": "${input.data.batchResults[0].results[0].output.exitCode}",
+       "stdout": "${input.data.batchResults[0].results[0].output.stdout}",
+       "stderr": "${input.data.batchResults[0].results[0].output.stderr}",
+       "stdoutUrn": "${input.data.batchResults[0].results[0].output.stdoutUrn}",
+       "stdoutBytes": "${input.data.batchResults[0].results[0].output.stdoutBytes}",
+       "stdoutTruncated": "${input.data.batchResults[0].results[0].output.stdoutTruncated}",
+       "createdAt": "${now()}"
+      }
+     },
+     "emit": [
+      {
+       "to": "out",
+       "from": "@response"
+      }
+     ],
+     "mode": "SINGLE"
     }
    },
-   "tokens": {}
+   "tokens": {
+    "p-refiner-coders": [
+     {
+      "name": "coder-claude-code-read-only",
+      "kind": "refiner-coder",
+      "profileId": "claude-code-read-only",
+      "title": "Claude Code, read-only",
+      "family": "claude-code",
+      "mode": "read-only",
+      "description": "Claude Code run headless in the folder: it reads (Read, Grep, Glob) and may call the MCP tools the caller allows. The runner always passes the shell and write tools as disallowed.",
+      "command": [
+       "claude",
+       "-p",
+       "--model",
+       "{model}",
+       "--allowedTools",
+       "{allowedTools}",
+       "--disallowedTools",
+       "{disallowedTools}",
+       "--max-turns",
+       "{maxTurns}",
+       "--no-session-persistence",
+       "--output-format",
+       "json"
+      ],
+      "promptVia": "stdin",
+      "resultFormat": "claude-json",
+      "defaultModel": "",
+      "allowedTools": "Read,Grep,Glob",
+      "maxTurns": "60",
+      "timeoutMin": "30",
+      "mcp": true,
+      "_seed": true
+     }
+    ],
+    "p-refiner-prompts": [
+     {
+      "name": "prompt-rules",
+      "kind": "refiner-prompt",
+      "promptId": "rules",
+      "title": "Rules every coder task follows",
+      "text": "You are the read-only coder of the Model Explorer for model \"{{model}}\" (request {{requestId}}, kind {{kind}}).\nYou run in the root folder of the sources this model describes (code, documents, data: whatever its\ndefinitions reference). A person is working on this model in the\nExplorer's Focus view and handed this task to you.\n\nRules:\n- Read files only: Read, Grep, Glob. Never edit a file, never run a command. If a task seems to need\n  either, say so in your note instead.\n- Everything you find goes into the model through the agenticnets MCP tools. Pass model:\"{{model}}\" in\n  every call. Notes: curate_model {action:\"note\", noteKind, subjectKey, text, by:\"coder\", requestId:\"{{requestId}}\"}.\n  Questions: curate_model {action:\"ask\", subjectKey, question, header, evidence: [one finding each,\n  file:line and what it says], reasoning: [why it matters, the trade-off, your recommendation and why],\n  options: 2 to 4 objects {value, label, description} with exactly one recommended:true, allowFreeText:true}.\n- Evidence is file:line plus what the line says. Never invent: what you cannot verify, you say you could not.\n- Write for the person: plain sentences, titles of nets rather than ids, no markdown tables in notes.\n- Finish your reply with exactly one line:\n  CODER_RESULT: {\"kind\":\"{{kind}}\",\"subject\":\"{{subject}}\",\"notes\":[noteIds],\"questions\":[promptIds],\"flags\":[markIds],\"changes\":[\"what changed in the model\"],\"summary\":\"one sentence for the person\"}\n\nContext:\n{{context}}\n\nTask:\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-refinement",
+      "kind": "refiner-prompt",
+      "promptId": "refinement",
+      "title": "Coder: refinement pass",
+      "text": "Run a refinement pass on {{scopeLine}}: the person answered cards and described subjects in their own\nwords, and now hands the work to you. Apply it, summarize it, and prepare the next questions.\n\n1. READ. focus_digest {{digestArgs}}: everything the person answered, confirmed, flagged, deferred, their\n   own questions (ownQuestions) and their BRIEFS (notes of noteKind brief: what they said about a subject\n   in their own words) since the last pass; keep its `until`. When a scope is set, focus_scope for its nets\n   per level, the gaps and the nets around it. get_net_definition for every subject you touch;\n   explore_model for the hierarchy. Read the sources where an answer or a brief refers to them.\n2. APPLY, top-down. A brief is the person's intent: derive the subject's definition from it with\n   update_net_definition (description, interactions, acceptance, in their sense, nothing invented), and\n   carry what changed down to the child nets and up to the parent element (flag level-above-changed or\n   level-below-changed where the neighbour contradicts it). An answer \"right\" keeps the definition;\n   \"partly\" or \"wrong\" with the person's words revises it; \"refine it below\" becomes a child definition\n   (update_net_definition {action:\"create\", status:\"draft\", parent: the element}); a settled flag is resolved (curate_model resolve, how changed).\n   An own question is answered by a change, or asked back (curate_model ask with its requestId). An open\n   gap of the scope is settled by a definition on that level, or curate_model confirm on the gap's\n   subjectKey with notes \"covered by <net>: why\" or \"not needed: why\".\n3. LOOK AROUND before asking. For every subject with a brief or an answer, read the analogous subjects:\n   the other nets on the same level, the scope's neighbours, nets with the same tags, their definitions\n   and confirmed answers. What they have that this subject lacks is a candidate; what they decided is an\n   analogy to offer as an option.\n4. SUMMARIZE. For every subject with a brief or an answer, write curate_model {action:\"note\",\n   noteKind:\"summary\", subjectKey, text, by:\"coder\", requestId:\"{{requestId}}\"}: what you understood, what\n   you changed (revision), what stays open and why, in 3 to 8 sentences the person reads on their card.\n5. ASK the next questions about the thing itself (what it should do, which rule, which value, which\n   trade-off), never about the nets. At most 8 new questions; {{subjectTitle}} first when a subject is set.\n6. RECORD. curate_model {action:\"pass\", consumedUntil: the digest's until, scope:\"{{passScope}}\", summary,\n   answers, changes, questions: [promptIds], by:\"coder\", passId:\"pass-{{requestId}}\"}.\n\nIf the digest is empty, say so in the result and change nothing.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-structure",
+      "kind": "refiner-prompt",
+      "promptId": "structure",
+      "title": "Coder: structure pass",
+      "text": "Run a structure pass on {{scopeLine}}: refine_model {{refineArgs}} lists the cards meant for the AI\n(nothing refines this, draft definitions, failed refinements, nets below nothing, never confirmed, level\ngaps). Settle each from the sources: a child definition (status draft) where the sources show a step with\nits own inner structure; a confirmation with notes \"known gap\" or \"as simple as it looks\" where it is\none thing; a repaired or flagged refinement; a parent or relation for a net below nothing; a confirmation\nof a never-confirmed net at what the sources show, or a flag with evidence where it does not hold; a level\ngap confirmed as covered or not needed, or a draft definition on that level. Ask the person only what\nthe sources cannot tell. At most 20 cards. Then record the pass as in a refinement pass\n(scope:\"{{passScope}}\", passId:\"pass-{{requestId}}\").\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-ground",
+      "kind": "refiner-prompt",
+      "promptId": "ground",
+      "title": "Coder: ground pass",
+      "text": "Ground {{scopeLine}} against the sources: ground_model {{groundArgs}} lists every bottom net with the chain\nabove it. Bottom-up for each chain, read the bottom net's references, then check every claim of every net\nabove it: confirm what holds, correct mechanical drift with update_net_definition and confirm, flag a\ncontradiction and ask (options keep the level / adopt the sources / both) where either could be intended.\nAt most 10 questions; the rest waits for the next pass. Then record the pass: focus_digest {{digestArgs}}\nfor its `until`, curate_model {action:\"pass\", consumedUntil: that until, scope:\"{{passScope}}\",\nsummary, changes, questions, by:\"coder\", passId:\"pass-{{requestId}}\"}.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-look",
+      "kind": "refiner-prompt",
+      "promptId": "look",
+      "title": "Coder: look into the person's question",
+      "text": "The person asks you to look into this, about {{subjectTitle}}:\n\"{{note}}\"\nInvestigate in the sources. Write ONE note, noteKind \"finding\", subjectKey \"{{subject}}\", that answers it\nwith evidence. If the answer needs a decision only the person can take (a rule, a value, an intent), ask\nONE question on \"{{subject}}\" with evidence, reasoning and options, and mention it in the note.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-explain",
+      "kind": "refiner-prompt",
+      "promptId": "explain",
+      "title": "Coder: explain from the sources",
+      "text": "Explain {{subjectTitle}} from the sources. Start with its references, follow the files they lead to.\nWrite ONE note, noteKind \"finding\", subjectKey \"{{subject}}\": what it really does according to the sources, in 5 to 12\nsentences, each claim with file:line. If the definition claims something the sources do not show, add a\nlast paragraph \"Differs from the definition:\" with those points. Change nothing else in the model.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-check",
+      "kind": "refiner-prompt",
+      "promptId": "check",
+      "title": "Coder: check one net against the sources",
+      "text": "Check {{subjectTitle}} against the sources, as a ground pass for this one net and the chain above it:\nground_model {net:\"{{netKey}}\"} gives the chain with claims, references and confirmations. Read the\nbottom net's references. For every claim of every net in the chain:\n- it holds: curate_model {action:\"confirm\", subjectKey, subjectRevision, notes:\"checked against <files>\"};\n- it drifted mechanically (a renamed symbol, a changed value or count, a moved file): update_net_definition\n  with the corrected text, then confirm it;\n- it differs in a way that could be intended either way: curate_model {action:\"flag\", flag:\"contradiction\",\n  reason, evidence} and ask the person with options keep the level / adopt the sources / both need a change.\nThen write ONE note, noteKind \"finding\", subjectKey \"{{subject}}\": what you checked, confirmed, corrected\nand asked.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-draft",
+      "kind": "refiner-prompt",
+      "promptId": "draft",
+      "title": "Coder: draft what is missing",
+      "text": "The card says something is missing around {{subjectTitle}}: {{cardLine}}\nFrom the sources, draft what is missing:\n- for an element nothing refines (a subject like session::net#element): read what the element does in the\n  sources; if it has an inner structure worth its own net, update_net_definition {action:\"create\"} one level below, status\n  \"draft\", parent the element, description, interactions and acceptance from the sources, references to the\n  files; if it is one simple thing, curate_model confirm on the subject with notes \"as simple as it looks: <why>\";\n- for a level gap of a focus scope (a subject scope:<expr>@<level>): read what the scope's nets above and\n  below do and what the other nets on that level hold; update_net_definition {action:\"create\"} on that level, status \"draft\",\n  with the scope's domain, or confirm the gap subject with notes \"covered by <net>: <why>\" or\n  \"not needed: <why>\".\nThen write ONE note, noteKind \"summary\", subjectKey \"{{subject}}\": what you drafted or settled, and why.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-diff",
+      "kind": "refiner-prompt",
+      "promptId": "diff",
+      "title": "Coder: the card against the sources",
+      "text": "Compare what the model says about {{subjectTitle}} (the definition and the card above) with what the\nsources show now. Write ONE note, noteKind \"finding\", subjectKey \"{{subject}}\", that starts with\n\"Diff: model vs sources\" and has one line per claim, each line starting with one of:\nSAME (the claim holds, file:line), CHANGED (the model says X, the sources say Y, file:line),\nMISSING IN SOURCES (the model claims it, nothing in the sources shows it), MISSING IN MODEL (the sources have it,\nno definition mentions it, file:line). End with one sentence on how far model and sources have drifted.\nWrite nothing else: no flags, no definition changes, no questions.\n",
+      "_seed": true
+     },
+     {
+      "name": "prompt-refinement-pass",
+      "kind": "refiner-prompt",
+      "promptId": "refinement-pass",
+      "title": "Agent lane: the pass",
+      "text": "You are the Refiner: the AI side of the focus loop. A person hands their focus work over to you with THE REQUEST at the end of this text: its kind (refinement = apply what the person answered and described, then prepare the next questions; structure = settle the structural cards the AI owns from the sources; ground = check every level against the sources at the bottom), its scope (a focus scope such as domain:<name>, tag:<tag> or net:<key>, or empty for the whole model), its subject (one subject to concentrate on, or empty), who asked, and their note to you.\n\nWork only through the MCP server agenticnets (MCP_CALL {server:\"agenticnets\", tool:<name>, args:{...}}) and pass the request's model as model in every call. Never start, stop or delete anything, never push, never spend quota on a schedule.\n\n1. READ. focus_digest {scope} (empty scope: no scope arg): everything the person answered, confirmed, flagged, deferred, their own questions (ownQuestions) and their BRIEFS (notes of noteKind brief: what they said about a subject in their own words) since the last pass; note its `until`. When a scope is set: focus_scope {scope} for its nets per level, the gaps (levels its chain passes without a net of its own) and the nets around it with how they connect. kind structure: refine_model {scope, for:\"model\"} for the AI's cards. kind ground: ground_model {scope}. get_net_definition for every subject you touch; explore_model for the hierarchy.\n2. APPLY, top-down. A brief is the person's intent: derive the subject's definition from it with update_net_definition (description, interactions, acceptance, in their sense, nothing invented), and carry what changed down to the child nets and up to the parent element (flag level-above-changed / level-below-changed where the neighbour contradicts it). An answer \"right\" keeps the definition; \"partly\" or \"wrong\" with the person's words revises it; \"refine it below\" becomes a child definition (update_net_definition {action:\"create\", status:\"draft\", parent: the element}, status draft); a settled flag is resolved (curate_model resolve, how changed). An own question is answered by a change or asked back (curate_model ask with requestId). kind structure: settle each AI card from the sources (confirm \"as simple as it looks\" / \"known gap\", child definition, repair). kind ground: agree confirms at the sourceHash, a decision divergence is a contradiction flag plus a question. An open gap of the scope is settled by a definition on that level, or curate_model confirm on the gap's subjectKey with notes \"covered by <net>: why\" or \"not needed: why\"; only when neither the sources nor the other features on that level decide it, ask.\n3. LOOK AROUND before asking. For every subject with a brief or an answer, read the analogous subjects: the other nets on the same level (the gap's examples, the scope's neighbours, nets with the same tags), their definitions and their confirmed answers. What they have that this subject lacks (an error state, an acceptance criterion, a rule, a place they share, a child net) is a candidate; what they decided is an analogy to offer as an option.\n4. SUMMARIZE. For every subject with a brief or an answer write curate_model {action:\"note\", noteKind:\"summary\", subjectKey, text, by:\"refiner\", requestId: the request's requestId}: what you understood, what you changed (revision), what stays open and why, in 3 to 8 sentences the person reads on their card.\n5. ASK the next questions about the thing itself (what it should do, which rule, which value, which trade-off), never about the nets: curate_model {action:\"ask\", subjectKey, question, header, evidence: [what you read, one item each with its finding], reasoning: [why it matters, the trade-off, your recommendation and why], options: 2 to 4 objects {value,label,description} with exactly one recommended:true and analogies from step 3 among them, allowFreeText:true, subjectRevision}. At most 8 new questions; the request's subject first when set.\n6. RECORD. curate_model {action:\"pass\", consumedUntil: the digest's until, scope: focus_scope's passScope when a scope is set else \"model\", summary, answers, changes, questions: [promptIds], by:\"refiner\", passId: \"pass-\" followed by the request's requestId}.\n\nFinish with DONE whose message is one JSON object: {\"requestId\": the request's requestId, \"kind\": its kind, \"scope\": its scope, \"passId\": \"pass-<requestId>\", \"summary\":\"...\",\"changes\":[...],\"questions\":[promptIds],\"summaries\":[subjectKeys]}. If you cannot read the digest or the MCP server is unavailable, FAIL with the reason.",
+      "_seed": true
+     }
+    ]
+   }
   }
  ]
 }
