@@ -22,7 +22,8 @@ export function runtimeHomeMap(rows: any[]): Map<string, string | null> {
 }
 
 /**
- * Elements that stand for a SUBNET. A transition (or place) refined by another net carries either
+ * Elements that stand for a SUBNET, or that are marked design-only. A transition (or place) refined
+ * by another net carries either
  * an inline `subnet: {net}` page or the designtime attributes `subnetSession` / `subnetNet` that
  * reference a persistent workspace net. Such an element is abstract by design: it has no
  * inscription and never fires, and the runtime stays flat because the child's port places reuse
@@ -32,6 +33,10 @@ export function runtimeHomeMap(rows: any[]): Map<string, string | null> {
 export function isAbstractElement(entry: any): boolean {
   if (!entry || typeof entry !== 'object') return false;
   if (entry.subnet && typeof entry.subnet === 'object') return true;
+  // A design-only element describes structure (a level of a model, a module of code) and is never
+  // meant to fire: the attribute `designOnly: "true"` says so explicitly, so a hierarchy of design
+  // nets whose lowest level has no inscriptions is not drift either.
+  if (entry.designOnly === true || entry.designOnly === 'true') return true;
   const session = entry.subnetSession;
   const net = entry.subnetNet;
   return typeof session === 'string' && session.trim() !== ''

@@ -130,6 +130,23 @@ export async function ensurePlace(ctx: AppContext, model: string, placeId: strin
   ctx.markPlaceKnown(model, placeId);
 }
 
+/**
+ * Create one token in a runtime place, ensuring the place first. When the write answers "not found"
+ * although the place was known, the cache outlived the place (deleted out of band, or the model was
+ * re-created under the same id): forget it, ensure the place again and retry once.
+ */
+export async function writeToken(ctx: AppContext, model: string, placeId: string, data: any): Promise<any> {
+  await ensurePlace(ctx, model, placeId);
+  const write = () => ctx.executorFor(model).execute('CREATE_TOKEN', { placePath: placePath(placeId), data });
+  let res = await write();
+  if (!res.success && /not found/i.test(String(res.error ?? ''))) {
+    ctx.forgetPlace(model, placeId);
+    await ensurePlace(ctx, model, placeId);
+    res = await write();
+  }
+  return res;
+}
+
 export async function linkPlaces(
   ctx: AppContext,
   model: string,
@@ -178,9 +195,8 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
     wrapTool(scope, config.mode, { name: 'memory_write', mutates: true }, async (model, args) => {
       if (!args.text && !args.data) throw new Error('provide text and/or data');
       const placeId = resolveMemoryPlace(args.place);
-      await ensurePlace(ctx, model, placeId);
       const data = memoryTokenData(args);
-      const res = await ctx.executorFor(model).execute('CREATE_TOKEN', { placePath: placePath(placeId), data });
+      const res = await writeToken(ctx, model, placeId, data);
       if (!res.success) throw new Error(res.error ?? 'CREATE_TOKEN failed');
       const linked: string[] = [];
       for (const link of args.links ?? []) {
@@ -276,10 +292,7 @@ export function registerMemoryTools(server: McpServer, ctx: AppContext): void {
       const failures: Array<{ index: number; error: string }> = [];
       let created = 0;
       for (let i = 0; i < items.length; i++) {
-        const res = await ctx.executorFor(model).execute('CREATE_TOKEN', {
-          placePath: placePath(placeId),
-          data: items[i],
-        });
+        const res = await writeToken(ctx, model, placeId, items[i]);
         if (res.success) {
           created++;
         } else {

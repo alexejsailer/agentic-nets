@@ -210,8 +210,11 @@ export class AppContext {
    * write hot path re-ensures the same places on every call (container walk +
    * CREATE_RUNTIME_PLACE existence check ≈ 3 node round-trips); once confirmed,
    * subsequent writes to that place skip all of it. Keyed model + NUL + placeId (NUL cannot appear in either id, so keys never collide).
-   * Never caches a NEGATIVE (a place could be created out-of-band), so it can
-   * only avoid redundant work, never mask a missing place.
+   * Never caches a NEGATIVE (a place could be created out-of-band). A positive can go stale when a
+   * place or its whole model is deleted and created again under the same id while this process runs
+   * (e2e 2026-10-12: every charter write into a re-created scratch model failed "not found"), so
+   * writers drop the entry and re-ensure once on a not-found (see writeToken), and create_model
+   * forgets the model.
    */
   private readonly knownPlaces = new Set<string>();
   private placeKey(modelId: string, placeId: string): string {
@@ -222,6 +225,13 @@ export class AppContext {
   }
   markPlaceKnown(modelId: string, placeId: string): void {
     this.knownPlaces.add(this.placeKey(modelId, placeId));
+  }
+  forgetPlace(modelId: string, placeId: string): void {
+    this.knownPlaces.delete(this.placeKey(modelId, placeId));
+  }
+  forgetModelPlaces(modelId: string): void {
+    const prefix = `${modelId}\u0000`;
+    for (const key of [...this.knownPlaces]) if (key.startsWith(prefix)) this.knownPlaces.delete(key);
   }
 
   /**

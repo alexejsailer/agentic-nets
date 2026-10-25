@@ -11,6 +11,8 @@ out at the level below. The runtime stays flat; the hierarchy is designtime data
   reference to a persistent net via the element attributes `subnetSession` + `subnetNet`.
 - **The abstract element never fires.** It has no inscription; the child's ordinary transitions do
   the work. A higher-level summary comes from a normal transition reading the lower output ports.
+- **Design-only elements** (attribute `designOnly: "true"`) describe structure that never runs, such as
+  the code-level nets of a model that documents an application; `sync_net` keeps them like abstract ones.
 - **Depth** is the distance from a root. **Levels** are optional named bands (product, service,
   implementation) a net can be pinned to; nets with neither sit in "unassigned".
 - Refinements are checked: `ok` (ports match the element), `portMismatch`, `targetMissing`, or

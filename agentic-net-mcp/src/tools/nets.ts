@@ -257,7 +257,7 @@ function registerSyncNet(server: McpServer, ctx: AppContext): void {
         'Compare a net\'s designtime canvas against its runtime transitions and report the drift: shapes with no runtime behind them ANYWHERE in the model (the canvas showing something that cannot fire), and arcs whose endpoints no longer exist. ' +
         'Runtime transitions homed in this net (inscription metadata.netId) with no shape are reported too, but never auto-drawn — placing an element means choosing coordinates, which is a layout decision, not a cleanup. ' +
         'Shapes backed by a transition homed in a DIFFERENT net are viewShapes, not drift: several small nets drawing shared elements of one big runtime is the supported way to structure it, and netRole reports canonical/view/hybrid accordingly. ' +
-        'Abstract elements (a transition or place refined by a subnet: inline `subnet` page or `subnetSession`/`subnetNet` reference) carry no inscription by design and are reported as abstractShapes, never as drift. ' +
+        'Abstract elements (a transition or place refined by a subnet: inline `subnet` page or `subnetSession`/`subnetNet` reference, or marked `designOnly: "true"`) carry no inscription by design and are reported as abstractShapes, never as drift. ' +
         'Read-only by default; pass apply:true to remove the stale shapes and dangling arcs (view and abstract shapes are never removed). Run it when a net is finished, or when the editor and net_stats disagree.',
       inputSchema: {
         netId: z.string(),
@@ -516,6 +516,9 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
           }
           throw err;
         }
+        // A new model: nothing this process knew about places under the same id still holds (a model
+        // deleted and created again would otherwise skip creating its runtime places).
+        ctx.forgetModelPlaces(modelId);
         grantModel(scope, modelId);
           announceModelGranted();
         // Persist as soon as model creation is known to have succeeded. Workspace/template setup

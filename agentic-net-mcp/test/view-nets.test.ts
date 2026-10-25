@@ -93,6 +93,17 @@ describe('classifyCanvas — abstract elements (subnet refinement)', () => {
     })).toEqual(['t-auth', 't-legacy']);
   });
 
+  it('a designOnly element is abstract too, so a design net without inscriptions is never stale', () => {
+    expect(isAbstractElement({ label: 'x', designOnly: 'true' })).toBe(true);
+    expect(isAbstractElement({ label: 'x', designOnly: true })).toBe(true);
+    expect(isAbstractElement({ label: 'x', designOnly: 'false' })).toBe(false);
+    const ids = abstractElementIds({ 't-pe-steps': { label: 'steps', designOnly: 'true' }, 't-fetch': { label: 'fetch' } });
+    expect(ids).toEqual(['t-pe-steps']);
+    const c = classifyCanvas(['t-fetch', 't-pe-steps'], home, 'scout', ids);
+    expect(c.staleShapes).toEqual([]);
+    expect(c.abstractShapes).toEqual(['t-pe-steps']);
+  });
+
   it('an abstract transition with no inscription is abstractShapes, never stale, and keeps the net canonical', () => {
     const c = classifyCanvas(['t-fetch', 't-auth'], home, 'scout', ['t-auth']);
     expect(c.staleShapes).toEqual([]);
