@@ -305,7 +305,10 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   per net and element, folded from the Curation and Interview applications), **`refine_model`** (the
   top-down and bottom-up worklist with ready-made questions) and **`curate_model`** (ask, answer,
   confirm, flag, resolve) — a client runs a whole question round by tools; prompts `organize-model`,
-  `realize-net-definition`, `question-round`;
+  `realize-net-definition`; the method prompts (`structure-pass`, `ground-model`, `refinement-pass`,
+  `question-round`, `implement-from-model`) come from the Focus application's manifest
+  (`agentProtocol.prompts`, `src/app-prompts.ts`: read from the NetHub catalog, registered only where
+  the tools they name are; the review tools sit behind `AGENTICOS_REVIEW_TOOLS`);
   **knowledge pack**: 17 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
   loader) served as `agenticnets://docs/{topic}` + searched by **`search_knowledge`** (offline grep,
   registered in readonly too) — includes `tool-catalog` (rwxhludcts flags, global/local-first

@@ -162,6 +162,22 @@ if (agentProtocol) {
       throw new Error(`application.agentProtocol.workflow references undeclared action: ${step.action}`);
     }
   }
+  // MCP prompts the application brings (agentic-net-mcp src/app-prompts.ts renders them).
+  const promptNames = new Set();
+  for (const prompt of agentProtocol.prompts || []) {
+    const name = String(prompt?.name ?? '');
+    if (!/^[a-z][a-z0-9-]{0,63}$/.test(name)) throw new Error(`application.agentProtocol.prompts: invalid name '${name}'`);
+    if (promptNames.has(name)) throw new Error(`application.agentProtocol.prompts: duplicate name '${name}'`);
+    promptNames.add(name);
+    if (typeof prompt.text !== 'string' || !prompt.text.trim() || prompt.text.length > 16384) {
+      throw new Error(`application.agentProtocol.prompts '${name}': text must be 1..16384 characters`);
+    }
+    for (const arg of prompt.arguments || []) {
+      if (!/^[A-Za-z][A-Za-z0-9_]{0,31}$/.test(String(arg?.name ?? ''))) {
+        throw new Error(`application.agentProtocol.prompts '${name}': invalid argument name '${arg?.name}'`);
+      }
+    }
+  }
 }
 
 const applicationManifest = {

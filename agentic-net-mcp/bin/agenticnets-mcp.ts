@@ -15,6 +15,7 @@ import { loadConfig, ConfigError } from '../src/config.js';
 import { AppContext } from '../src/context.js';
 import { log } from '../src/logger.js';
 import { createServer, SERVER_NAME, SERVER_VERSION } from '../src/server.js';
+import { startAppPromptRefresh } from '../src/app-prompts.js';
 
 async function main(): Promise<void> {
   let config;
@@ -29,6 +30,8 @@ async function main(): Promise<void> {
   }
 
   const ctx = new AppContext(config);
+  // Application prompts come from the NetHub catalog; loaded in the background, retried until it answers.
+  startAppPromptRefresh(ctx);
 
   if (config.transport === 'stdio') {
     const server = createServer(ctx);

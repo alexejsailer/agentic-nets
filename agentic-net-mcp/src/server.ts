@@ -27,6 +27,7 @@ import { registerDefinitionReaders, registerDefinitionTools } from './tools/defi
 import { registerLevelTools } from './tools/levels.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
+import { registerAppPrompts } from './app-prompts.js';
 
 export const SERVER_NAME = 'agenticnets';
 export const SERVER_VERSION = '0.1.0';
@@ -129,6 +130,8 @@ export function createServer(ctx: AppContext): McpServer {
     }
   }
 
+  // Last: an application's prompts register only where every tool they name is registered.
+  registerAppPrompts(server, ctx);
   return server;
 }
 

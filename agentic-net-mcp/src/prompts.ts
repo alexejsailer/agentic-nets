@@ -5,35 +5,14 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from './context.js';
 
-/** A focus scope expression (one feature across its levels) as the prompts accept it: domain:, tag:, net:, or several. */
-function isFocusScope(scope?: string): boolean {
-  return !!scope && /^(domain|tag|net|any):/.test(scope.split(',')[0].trim());
-}
-
-/** The look-around step every scoped pass runs before it asks: gaps, neighbours, other features. */
-function lookAround(scope: string): string {
-  return `Look around ${scope} before asking anything: focus_scope {scope:"${scope}"} lists its nets per level, the nets around it with how each connects, and the gaps (levels its chain passes without a net of its own). `
-    + `For each open gap decide from the sources and from the other features on that level (the gap's examples): the scope needs its own net there (update_net_definition {action:"create"} on that level, domain and tags of the scope, the parent element its chain passes, status draft), the level is covered by a net in its chain (curate_model {action:"confirm", subjectKey: the gap's subjectKey, notes:"covered by <net>: <why>"}), or it is not needed (confirm with notes "not needed: <why>"); only when neither the sources nor the neighbours settle it, ask the person on the gap's subjectKey. `
-    + `For each neighbour with cards (parent, child, depends-on and its inverse, explains, references, shares-place) read its definition and open decisions: a change or an open question there that affects the scope becomes a flag on the scope's net (level-above-changed / level-below-changed / unclear) or a question with the neighbour as evidence. `
-    + `Derive from the other features: what they have that the scope lacks on the same level (acceptance criteria, error states, rules, a place they share, a child net they refine) is a candidate gap; raise it with evidence from both sides, never silently copy it.`;
-}
-
 function userMessage(text: string) {
   return { messages: [{ role: 'user' as const, content: { type: 'text' as const, text } }] };
 }
 
-/** Prompts that drive the review method's tools; registered only with AGENTICOS_REVIEW_TOOLS. */
-export const REVIEW_PROMPTS = new Set(['structure-pass', 'ground-model', 'refinement-pass', 'question-round', 'implement-from-model']);
-
 export function registerPrompts(server: McpServer, ctx: AppContext): void {
-  // The review method's prompts (passes, question rounds) name its tools: only with AGENTICOS_REVIEW_TOOLS.
-  const prompts: McpServer = ctx.config.reviewTools === true ? server : new Proxy(server, {
-    get(target, prop, receiver) {
-      if (prop !== 'registerPrompt') return Reflect.get(target, prop, receiver);
-      return (name: string, ...rest: unknown[]) =>
-        REVIEW_PROMPTS.has(name) ? undefined : (target.registerPrompt as (...a: unknown[]) => unknown).call(target, name, ...rest);
-    },
-  });
+  // A method's prompts (passes, question rounds) come from its application's manifest now
+  // (app-prompts.ts) and appear exactly when its tools do.
+  const prompts = server;
   prompts.registerPrompt(
     'setup-working-memory',
     { title: 'Set up my working memory', description: 'Deploy the working-memory template and demonstrate the write/recall loop', argsSchema: {} },
@@ -103,130 +82,6 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
       + 'and {action:"create", parent} for new abstract nets (they stay definitions until someone builds them). A refinement between two existing nets is written by creating or promoting a subnet in Studio, or by a definition with a parent; never by inventing places.\n'
       + '5. Re-read explore_model and report what changed and any port mismatches the catalogue now shows. Nothing here starts, stops or deletes anything.',
     ),
-  );
-
-  prompts.registerPrompt(
-    'structure-pass',
-    {
-      title: 'Settle the model\'s structural cards from the sources, without the person',
-      description: 'Take the cards meant for the AI (nothing refines this, draft definitions, failed refinements, nets below nothing, never confirmed) and settle each by reading the sources; ask the person only what the sources cannot tell',
-      argsSchema: {
-        scope: z.string().optional().describe('A level id, a net key (session::net), or a focus scope (domain:<d>, tag:<t>, net:<session::net>); default: the whole model'),
-        count: z.string().optional().describe('How many cards to settle this pass (default 20)'),
-        model: z.string().optional().describe('Target model when this connection allows several'),
-      },
-    },
-    ({ scope, count, model }) => {
-      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
-      return userMessage(
-        `Run a structure pass${on} on ${scope || 'the whole model'}, ${count || '20'} cards at most. These cards are the model's own housekeeping; the person decides only what the sources cannot settle.\n\n` +
-          `1. Read: refine_model {${scope ? (isFocusScope(scope) ? `scope:"${scope}"` : scope.includes('::') ? `net:"${scope}"` : `level:"${scope}"`) + ', ' : ''}for:"model"} for the structural cards${isFocusScope(scope) ? ' (they include one scope-gap card per level the scope\'s chain passes without a net of its own)' : ''}; explore_model for the hierarchy; for each card get_net_definition and read the sources the definition references (files, documents, data) yourself.\n` +
-          `2. Settle each card from what you read: "nothing refines this" becomes a child definition when the sources show a step with its own inner structure (update_net_definition {action:"create"} under the parent element, status draft, interactions from the sources, references to them), a confirmation with note "known gap" when something is there you cannot describe yet, or a confirmation with note "as simple as it looks" when the step is one thing. A draft definition is filled from the sources (update_net_definition, then status ready) or deleted when nothing realizes it. A failed refinement is repaired (ports, missing target) or flagged wrong with the evidence. A net below nothing gets its parent (organize) or an explains relation, or is flagged. A never-confirmed net is confirmed at the sourceHash when its claims hold in the sources, flagged (wrong, unclear, unmeasured) with evidence when they do not.\n` +
-          (isFocusScope(scope) ? `2b. ${lookAround(scope!)}\n` : '') +
-          `3. Ask only what the sources cannot tell: a reason, an intent, a choice between two readings. Then curate_model {action:"ask", evidence, reasoning, options} as in a question round.\n` +
-          `4. Record the pass: curate_model {action:"pass", consumedUntil: focus_digest's until, scope:"${isFocusScope(scope) ? `focus:<focus_scope's scope>` : `structure:${scope || 'model'}`}", summary, changes, questions}. Report what was settled per kind and what went to the person. Never push, never start anything on a schedule.`,
-      );
-    },
-  );
-
-  prompts.registerPrompt(
-    'ground-model',
-    {
-      title: 'Extract the truth from the bottom level and check every level above',
-      description: 'Walk the bottom level (code, documents, data), read its sources, and check each level above against them: confirm what holds, correct what is mechanical, ask the person where the levels and the sources disagree',
-      argsSchema: {
-        level: z.string().optional().describe('The bottom level id (default: the lowest level)'),
-        net: z.string().optional().describe('One bottom net (session::net) instead of the whole level'),
-        policy: z.string().optional().describe('sources-win: correct the levels silently where the sources clearly decide; ask: every divergence becomes a card (default ask)'),
-        model: z.string().optional().describe('Target model when this connection allows several'),
-      },
-    },
-    ({ level, net, policy, model }) => {
-      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
-      return userMessage(
-        `Ground the model${on}: the bottom level is where the model touches the domain's own material (for software the code, for a process its documents, for a product its measurements). Extract what is true there and carry it up through every level, so the abstractions say what the material does.\n\n` +
-          `1. Read: ground_model {${level ? `level:"${level}"` : ''}${net ? `${level ? ', ' : ''}net:"${net}"` : ''}} for the chains: every bottom net with the nets above it, each node with its claims (description, interactions, acceptance), its references, its definition revision and its confirmation (revision, sourceHash, when). If the model is built from a specification, run its checker and its grounding tool first (they settle the mechanical part: references exist and contain what they claim, parameters hold their values) and take their cards and flags as given.\n` +
-          `2. For each chain, bottom-up: read the bottom node's referenced sources yourself. Then for every node above it compare each claim with what you read. Three outcomes. Agree: curate_model {action:"confirm", subjectKey, subjectRevision, sourceHash, notes: what was checked}. Mechanical divergence (a renamed symbol, a changed value or count, a moved file): ${policy === 'sources-win' ? 'correct the level (update_net_definition or the specification plus a rebuild), then confirm it' : 'correct the level when the sources clearly decide it (update_net_definition or the specification plus a rebuild), then confirm it; when the change could be a regression rather than the truth, treat it as a decision'}. Decision divergence (the level says the product should do X, the sources do Y, and either could be the intended one): curate_model {action:"flag", flag:"contradiction", reason, evidence} on the node, and {action:"ask", subjectKey, header:"Sources differ", evidence: [what the level claims, what the sources do, file and line], reasoning: which one you believe is intended and why, options: [{keep-level: keep the level as written, the sources must change}, {adopt-sources: the sources are right, the level changes}, {both: both need a change}], allowFreeText:true}. A chain whose upper nodes were confirmed before the bottom node (aboveConfirmedBeforeBottom) is checked first.\n` +
-          `3. Never invent: a claim you cannot check against a source is flagged unmeasured, not confirmed. Carry a change down as well as up: when a level changes, the nets it refines are re-checked.\n` +
-          `4. Record the pass: curate_model {action:"pass", consumedUntil: focus_digest's until, scope:"ground:${level || 'bottom'}", summary, changes: [nodes confirmed, nodes corrected], questions: [cards raised]}. Report per chain: agreed, corrected, asked. Never push.`,
-      );
-    },
-  );
-
-  prompts.registerPrompt(
-    'refinement-pass',
-    {
-      title: 'Apply what the person answered, top-down, and prepare the next focus session',
-      description: 'Read the digest since the last pass, revise every layer above the realization that the answers touch, resolve what is settled, raise the next questions and record the pass',
-      argsSchema: {
-        scope: z.string().optional().describe('A level id, a persona, a net key, or a focus scope (domain:<d>, tag:<t>, net:<session::net>: one feature across its levels) to limit the pass; default: the whole model'),
-        since: z.string().optional().describe('ISO-8601 instant to start from; default: the last recorded pass'),
-        model: z.string().optional().describe('Target model when this connection allows several'),
-      },
-    },
-    ({ scope, since, model }) => {
-      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
-      const limit = scope ? ` limited to ${scope}` : '';
-      return userMessage(
-        `Run a refinement pass${on}${limit}. Focus sessions (the person answers cards in the Explorer's Focus view or here) and refinement passes (this) alternate as often as needed; implementation is a separate step later (prompt implement-from-model). The goal of a pass is the layers above the realization (the code, the process, the document, whatever the lowest level is): after it, every definition the answers touched says what the person meant, and the next focus session asks only what nobody can derive.\n\n` +
-          `1. Read: focus_digest {${since ? `since:"${since}", ` : ''}${isFocusScope(scope) ? `scope:"${scope}"` : scope && !scope.includes('::') ? `level:"${scope}"` : ''}} for what was answered, confirmed, flagged, resolved and deferred since the last pass, grouped by level and subject, the person's BRIEFS (notes of noteKind brief: what they said about a subject in their own words, the planning input; derive the subject's definition from a brief, nothing invented, and carry the change down and up), plus the questions still open and the person's own questions (ownQuestions: answer each by changing the model or by asking back with curate_model {action:"ask", requestId}); an answer with intent "revise" carries the person's better wording in revisedQuestion: ask it again with supersedes; note the digest's \`until\`. explore_model for the hierarchy and the levels in order. get_net_definition for every subject in the digest (description, interactions, acceptance, references, questions, curation).\n` +
-          `2. Apply top-down, level by level from the highest: for each subject, read its answers and marks together. A "right" confirms the definition as it is (nothing to change; keep the confirmation). A "partly" or "wrong" with the person's words changes the definition: revise description, interactions and acceptance with update_net_definition (or the specification file plus a rebuild when the model is spec-built; then confirm the rebuilt revision at the current sourceHash), and carry the change DOWN: every child net whose definition contradicts the new wording is revised or flagged level-above-changed, and the parent element is checked (level-below-changed when a child's answer changes what the parent claims). A request to refine here becomes a child definition (update_net_definition {action:"create"} with the parent element, status draft) with the ports the parent's element implies. Free text that is a reason nobody could derive goes into the definition's interactions or the model's context net, never lost. Resolve every flag the change settles (curate_model {action:"resolve", how:"changed"}); leave open what still needs the person.\n` +
-          `3. Check: reread get_net_definition and explore_model on what you changed (or run the specification checker when the model is spec-built); the catalogue must verify every refinement you touched (ports, targets). No level lock is bypassed; nothing is started that spends quota on a schedule.\n` +
-          (isFocusScope(scope) ? `3b. Stay inside the focus, but ${lookAround(scope!).replace(/^Look around/, 'look around')}\n` : '') +
-          `3c. Summarize for the person: for every subject with a brief or an answer, curate_model {action:"note", noteKind:"summary", subjectKey, text} with what you understood, what you changed (revision) and what stays open, in 3 to 8 sentences; the Focus view shows it in the subject's thread. Offer analogies: what the analogous subjects on the same level decided becomes an option of the next question.\n` +
-          `4. Raise the next questions about the thing itself (what it should do, which rule, which value, which trade-off), not about the nets: for every change, ask what it opens (the next lower level first), with curate_model {action:"ask", subjectKey, question, header, evidence, reasoning, options, subjectRevision}. Every card carries substance the person can argue with: evidence = what you read or measured, one item each with its finding (file and line, document, number, the person's earlier words); reasoning = why the question matters, the trade-off between the options, which one you recommend and why; options = two to four, each with a description of its consequence, exactly one recommended; allowFreeText true. A question without evidence and reasoning is not asked. Prefer decide / choose / explain kinds; at most ${scope ? '5' : '10'} new questions, the rest waits for the next pass. Deferred subjects stay untouched until their date.\n` +
-          `5. Record the pass: curate_model {action:"pass", consumedUntil: the digest's until, scope${isFocusScope(scope) ? ` (exactly focus_scope's passScope, so the next digest of this focus starts after it and the whole model still sees the answers)` : ''}, summary, answers: count consumed, changes: [...], questions: [promptIds raised], by: you}. Report here: per level what changed, what was resolved, what was asked, what stays open and why; name the definitions revised by key. Never push. (Every step is a tool call; an MCP client can run the pass without this prompt and without a server-side LLM.)`,
-      );
-    },
-  );
-
-  prompts.registerPrompt(
-    'implement-from-model',
-    {
-      title: 'Realize a net of the lowest layer from its definition',
-      description: 'A separate step after focus and refinement: turn one confirmed lowest-layer net into work items or code through an interview here, never silently',
-      argsSchema: {
-        net: z.string().describe('The net to implement (session::net), normally on the lowest level above the code'),
-        output: z.string().optional().describe('cards (work items in a kanban application), code (edit the referenced sources), or plan (a written plan only); default: ask'),
-        model: z.string().optional().describe('Target model when this connection allows several'),
-      },
-    },
-    ({ net, output, model }) => {
-      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
-      return userMessage(
-        `Implement ${net}${on} from its definition. This is the step AFTER focus and refinement: the layers above the realization are done when the net and its parents are confirmed and no open flag or question remains on them; implementation starts only then and only through this interview.\n\n` +
-          `1. Readiness: get_net_definition for ${net} and explore_model for its parents; review_model for its curation. If the net or a parent is unconfirmed, flagged or has open questions, stop and say what a focus session must settle first (refine_model {net:"${net}"} lists it). If the model is spec-built, name the specification entry.\n` +
-          `2. Interview me, one question at a time, about what the definition leaves to the implementer: the output (${output || 'cards for a kanban application, code in the referenced sources, or a written plan'}), the boundary (which referenced sources may change, which may not), the order (which transition first), the acceptance that will be checked and how, and who reviews. Record each answer with curate_model {action:"ask", evidence, reasoning, options with descriptions and one recommended} + {action:"answer"} on subject "${net}" so the decisions and the arguments live in the model.\n` +
-          `3. Produce exactly the agreed output: cards through the installed kanban application (application_action, one card per transition or per acceptance line, owner = the level's persona, the net key in the card), or code edits in the referenced sources with the net's acceptance as the test list, or a plan as a definition note. Never start a transition, a scheduled lane or a headless coder on your own; a command transition that triggers implementation is a later platform step and is not wired here.\n` +
-          `4. Close the loop: confirm the net at the new sourceHash when sources changed (curate_model {action:"confirm", sourceHash}), flag the definition level-below-changed when the implementation taught something the definition did not say, and report what was produced, what was checked, what stays open.`,
-      );
-    },
-  );
-
-  prompts.registerPrompt(
-    'question-round',
-    {
-      title: 'Run a question round on a level or a net',
-      description: 'Check what the model claims against its sources, ask the person what only they know, and record confirmations, flags and answers',
-      argsSchema: {
-        scope: z.string().optional().describe('A level id (e.g. rules) or a net key (session::net); default: whatever needs the person most'),
-        count: z.string().optional().describe('How many questions to ask this round (default 5)'),
-        persona: z.string().optional().describe('The persona asking, when the model has one per level'),
-        model: z.string().optional().describe('Target model when this connection allows several'),
-      },
-    },
-    ({ scope, count, persona, model }) => {
-      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
-      const who = persona ? `as the ${persona}` : 'as the keeper of that level';
-      return userMessage(
-        `Run a question round${on} ${who}, on ${scope || 'what needs me most'}, ${count || '5'} questions at most. One question at a time; I answer here or in the Explorer.\n\n` +
-          `1. Read: refine_model {${scope ? (scope.includes('::') ? `net:"${scope}"` : `level:"${scope}"`) + ', ' : ''}direction:"both"} for the worklist (looking down: transitions nothing refines, refinements that do not verify, definitions still open; looking up: nets below nothing; and the review: open flags, open questions, never confirmed), each item with a ready-made question; explore_model for the hierarchy; get_net_definition for the nets you will ask about (description, interactions, acceptance, references, questions already answered, curation). Never ask what an answered question already settled.\n` +
-          `2. Check before asking (no LLM needed for most of it): every reference the definition names still exists and still contains what it claims; every parameter named still has that value; every transition at this level is refined below or named as a known gap; a confirmed net whose referenced sources changed since (sourceHash) is stale. If the model is built from a specification file, run its checker. Record each mechanical finding as a flag with a deterministic markId (application_action on "curation", action "flag", subjectKind net|element, subjectKey "<session>::<net>" or "<session>::<net>#<elementId>", flag, reason with the measured evidence, by = you). Resolve flags the check no longer finds (action "resolve", how "changed").\n` +
-          `3. Ask only what you cannot find out: the reasons behind a rule, whether a description still describes what the person means (the code, the process, the rule, the document), a better name, whether a net is too coarse. Prefer these kinds: confirm ("the net says X, the sources do Y: right / partly / wrong / don't know"), choose (options), explain (free text, the most valuable kind), name, split-or-merge. Each question goes through curate_model {action:"ask", subjectKey, question, header, evidence, reasoning, options, subjectRevision} (the worklist's item.ask is a starting point; the subject kind and a promptId are derived) and carries substance: evidence = what you read or measured with its finding, reasoning = why it matters, the trade-off and your recommendation with the reason, options with a description each and one recommended. Show me the question here as well and wait for my answer before the next one.\n` +
-          `4. Record each answer with curate_model {action:"answer", promptId, selected or text, respondedBy = the person}; add then:"confirm" (+ subjectKey, notes = their words) when the answer confirms the subject, or then:"flag" (+ flag, reason) when it refutes it. When it changes the model, change the specification and rebuild (or update_net_definition when the model is edited directly), then curate_model {action:"resolve"} the related flags. When the answer is a reason nobody could have derived, put it where the next reader finds it: the definition's interactions, a note on the confirmation, or the model's context net.\n` +
-          `5. Report: what was confirmed, what was flagged, what changed, what stays open. Never push, never start anything that spends quota on a schedule. (Every step here is a tool call: an MCP client can run the whole round without this prompt and without a server-side LLM.)`,
-      );
-    },
   );
 
   prompts.registerPrompt(

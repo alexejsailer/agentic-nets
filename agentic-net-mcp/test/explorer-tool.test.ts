@@ -483,21 +483,6 @@ describe('focus scope: one feature across its levels', () => {
     expect(curationSubjectKind('rules::activity-rules')).toBe('net');
   });
 
-  it('the refinement and structure passes look around a focus scope before asking', async () => {
-    const { client } = await connect(() => CATALOGUE);
-    const refinement: any = await client.getPrompt({ name: 'refinement-pass', arguments: { scope: 'domain:activity' } });
-    const text = refinement.messages[0].content.text as string;
-    expect(text).toContain('focus_digest {scope:"domain:activity"}');
-    expect(text).toContain('focus_scope {scope:"domain:activity"}');
-    expect(text).toMatch(/passScope/);
-    const structure: any = await client.getPrompt({ name: 'structure-pass', arguments: { scope: 'domain:activity' } });
-    const st = structure.messages[0].content.text as string;
-    expect(st).toContain('refine_model {scope:"domain:activity", for:"model"}');
-    expect(st).toContain('focus:<focus_scope');
-    const plain: any = await client.getPrompt({ name: 'refinement-pass', arguments: { scope: 'rules' } });
-    expect(plain.messages[0].content.text).not.toContain('focus_scope');
-  });
-
   it('focus_scope on an older master says so instead of failing', async () => {
     const { client } = await connect((path) => { if (path.includes('/scope')) { const e: any = new Error('nf'); e.status = 404; throw e; } return CATALOGUE; });
     const result: any = await client.callTool({ name: 'focus_scope', arguments: { scope: 'tag:x' } });
