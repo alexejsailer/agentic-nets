@@ -46,6 +46,7 @@ point.
 |------|--------|--------------|
 | [`token-janitor`](token-janitor/) | platform-maintenance | NL-delegated token deletion: an agent decides the strategy, a deterministic pipeline measures, executes, re-measures and reports. Born interactively, exported to files. |
 | [`place-inspector`](place-inspector/) | observability | NL-delegated read-only place inspection (count / sample - two live strategies behind one dispatch). Born as files, installed onto the runtime as written. |
+| [`headless-agent`](headless-agent/) | platform | The one runner for packages that have a coder: a headless CLI agent (Claude Code, Codex) once in a folder under a profile token, read-only enforced by the runner, MCP only as a private config limited to the caller's tools. Runs nothing by itself; Focus's coder lanes invoke its script. Seeded by the master. |
 
 ## Authoring a pack
 

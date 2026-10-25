@@ -276,6 +276,11 @@ function compileNet(dir, srcPath) {
     put(t.id);
     for (const wv of Object.values(t.writes ?? {})) put(norm(wv).place);
   }
+  // A place declared as a store ({label, store: true}) is part of the net even when no lane reads or
+  // writes it (a store of seeded tokens that scripts or other packages read).
+  for (const [id, meta] of Object.entries(placeMeta)) {
+    if (meta && typeof meta === 'object' && meta.store === true) { notePlace(id); put(id); }
+  }
 
   const places = {};
   for (const id of placeOrder) {

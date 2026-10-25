@@ -1,0 +1,19 @@
+{
+  "cases": [
+    {
+      "name": "the runner's rules",
+      "check": "python3 verify/test_headless_agent.py passes: read-only keeps only reading tools and the allowed MCP tools, disallows shell and write tools, refuses a profile without the placeholders and any bypass flag, forces Codex into the read-only sandbox and refuses it an MCP server, keeps tokens out of the agent's environment",
+      "why": "the runner, not the profile, is what makes read-only true"
+    },
+    {
+      "name": "the script is registered",
+      "check": "after install, the target model's local tool catalog contains headless-agent",
+      "why": "consumers invoke it by toolId from their own command lanes"
+    },
+    {
+      "name": "profiles seeded once",
+      "check": "p-headless-agent-profiles holds claude-code-read-only and codex-read-only; a reinstall adds nothing, an upgrade replaces only an untouched profile",
+      "why": "profiles are seeds (CONTRACT C4)"
+    }
+  ]
+}

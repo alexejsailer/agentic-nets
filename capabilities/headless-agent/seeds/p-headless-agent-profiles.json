@@ -1,0 +1,35 @@
+[
+  {
+    "name": "claude-code-read-only",
+    "kind": "headless-agent-profile",
+    "profileId": "claude-code-read-only",
+    "title": "Claude Code, read-only",
+    "family": "claude-code",
+    "mode": "read-only",
+    "description": "Claude Code run headless in the folder: it reads (Read, Grep, Glob) and may call the MCP tools the caller allows. The runner always passes the shell and write tools as disallowed.",
+    "command": ["claude", "-p", "--model", "{model}", "--allowedTools", "{allowedTools}", "--disallowedTools", "{disallowedTools}", "--max-turns", "{maxTurns}", "--no-session-persistence", "--output-format", "json"],
+    "promptVia": "stdin",
+    "resultFormat": "claude-json",
+    "defaultModel": "",
+    "allowedTools": "Read,Grep,Glob",
+    "maxTurns": "60",
+    "timeoutMin": "30",
+    "mcp": true
+  },
+  {
+    "name": "codex-read-only",
+    "kind": "headless-agent-profile",
+    "profileId": "codex-read-only",
+    "title": "Codex, read-only",
+    "family": "codex",
+    "mode": "read-only",
+    "description": "The Codex CLI in exec mode; the runner always runs it in the read-only sandbox. It takes no MCP server: Codex cannot be limited to the allowed tools of one.",
+    "command": ["codex", "exec", "--model", "{model}", "--skip-git-repo-check", "-"],
+    "promptVia": "stdin",
+    "resultFormat": "text",
+    "defaultModel": "",
+    "maxTurns": "",
+    "timeoutMin": "30",
+    "mcp": false
+  }
+]

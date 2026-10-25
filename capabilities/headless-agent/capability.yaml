@@ -1,0 +1,37 @@
+apiVersion: agentic-nets.com/capability/v1
+name: headless-agent
+version: 1.0.0
+displayName: Headless agent
+domain: platform
+description: >-
+  One runner for every package that has a coder: the script headless-agent runs a headless CLI agent
+  (Claude Code, Codex) once in a folder under a profile token, enforces read-only mode itself (reading
+  tools only, shell and write tools always disallowed, Codex always in the read-only sandbox), gives an
+  MCP server only as a private config file limited to the tools the caller allows, keeps every token
+  out of the agent's environment, and prints one JSON result with the agent's result line. A package
+  keeps its own profiles as tokens and invokes the script from its own command lane; the reference
+  profiles here are the starting point. The pack runs nothing by itself.
+tags: [capability-pack, headless-agent, coder, read-only, executor]
+engineMin: "2.61.0"
+
+nets:
+  - name: headless-agent
+    pnml: nets/headless-agent.pnml.json
+    inscriptions: nets/headless-agent.inscriptions.json
+    role: catalog
+
+scripts:
+  - id: headless-agent
+    file: assets/headless-agent.py
+
+config:
+  - key: p-headless-agent-profiles
+    seed: seeds/p-headless-agent-profiles.json
+    description: >-
+      Reference profiles: Claude Code read-only (MCP allowed, limited by the caller) and Codex
+      read-only (no MCP). Marked as seeds: an upgrade replaces a profile you never edited.
+
+install:
+  sessionId: agent-headless-agent
+
+verify: verify/smoke.json

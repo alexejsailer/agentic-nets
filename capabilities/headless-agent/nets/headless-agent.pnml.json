@@ -1,0 +1,17 @@
+{
+  "net": {
+    "arcs": {},
+    "description": "The shared headless-agent runner: the script headless-agent (one source for every package that runs a coder) and the reference profiles. A package keeps its own profiles as tokens and invokes the script from its own command lane; this net runs nothing by itself.",
+    "id": "headless-agent",
+    "places": {
+      "p-headless-agent-profiles": {
+        "id": "p-headless-agent-profiles",
+        "label": "Reference profiles (claude-code-read-only, codex-read-only); a package copies the ones it needs into its own store",
+        "tokens": 0,
+        "x": 100,
+        "y": 100
+      }
+    },
+    "transitions": {}
+  }
+}
