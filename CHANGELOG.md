@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.61.0] - 2026-10-25
+
 ### Added
 - **Focus 1.6.0 guided rounds; headless-agent 1.0.1; MCP `focus_round` and `focus_rounds`** (`agentic-net-apps/examples/refiner`; `capabilities/headless-agent`; `agentic-net-mcp` - `focus-rounds.ts`; `agentic-net-gateway` tests). Focus gains the stores `rounds`, `round-jobs`, `round-commands`, `round-raw`, `round-results`, the guarded actions `createRound` and `dispatchRound`, the lanes `t-refiner-round-build`, `-run` and `-shape`, a `guided-round` prompt seed and a Codex read-only profile seed. A round's agent runs without MCP and returns proposals that the master validates and applies. headless-agent runs a job without a source folder in a temporary folder holding `model-round.json`, removed afterwards, and takes `HA_RESULT_KEY` for the result marker. With review tools enabled, MCP clients start, answer, refine and retry a round with `focus_round` and read it with `focus_rounds`.
 - **Focus 1.5.0 declares its own page** (`agentic-net-apps/examples/refiner` - `surface.renderer: focus-work-v1`; `agentic-net-mcp` - `refine.ts` wording). Focus is an application page under Applications (Studio renders the declared surface), not a view of the Model Explorer; its prompts and hints say so. Nothing else in the package changed; an upgrade keeps every token and the MCP grant.
