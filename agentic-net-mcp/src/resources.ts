@@ -4,6 +4,7 @@
  * skill references and hard-won operating experience).
  */
 import { ResourceTemplate, type McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { resolveModel } from './scope.js';
 import type { AppContext } from './context.js';
 import { KNOWLEDGE } from './knowledge/index.js';
 import { TEMPLATES } from './templates/index.js';
@@ -206,6 +207,43 @@ export function registerResources(server: McpServer, ctx: AppContext): void {
         },
       };
       return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(limits, null, 1) }] };
+    },
+  );
+
+  // Net definitions of an allowed model (design doc 11.1: model-scoped resources). Resources skip
+  // wrapTool, so the allowlist is checked here; both reads are GET-only and readonly-safe.
+  server.registerResource(
+    'definitions',
+    new ResourceTemplate('agenticnets://definitions/{model}', {
+      list: async () => ({
+        resources: ctx.scope.allowed.map((m) => ({
+          uri: `agenticnets://definitions/${m}`,
+          name: `Net definitions of ${m}`,
+          mimeType: 'application/json',
+        })),
+      }),
+    }),
+    { title: 'Net definitions', description: 'Definitions of a model with status, revision, open build and parent' },
+    async (uri, { model }) => {
+      const m = resolveModel(ctx.scope, String(model));
+      const path = `/explorer/${encodeURIComponent(m)}/catalogue?modelId=${encodeURIComponent(m)}`;
+      const cat: any = await ctx.client.masterApi('GET', path).catch(() => null);
+      const data = cat
+        ? { model: m, definitions: cat.definitions ?? [], levels: cat.levels ?? [] }
+        : { model: m, note: 'catalogue unavailable (older master or model still loading)', definitions: [] };
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(data, null, 1) }] };
+    },
+  );
+
+  server.registerResource(
+    'definition-protocol',
+    'agenticnets://definitions-protocol',
+    { title: 'Net definition build protocol', description: 'States, steps, routes, question rules and error codes of the build protocol, as data', mimeType: 'application/json' },
+    async (uri) => {
+      const m = ctx.scope.defaultModel;
+      const path = `/explorer/${encodeURIComponent(m)}/protocol?modelId=${encodeURIComponent(m)}`;
+      const data = await ctx.client.masterApi('GET', path).catch(() => ({ note: 'protocol unavailable from this master; see agenticnets://docs/definitions' }));
+      return { contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(data, null, 1) }] };
     },
   );
 

@@ -615,3 +615,19 @@ describe('net_levels', () => {
     expect(out.data.code).toBe('missing-field');
   });
 });
+
+describe('definition resources', () => {
+  it('reads definitions of an allowed model and refuses others; serves the protocol', async () => {
+    const { client, calls } = await connect((c) => (c.path.includes('/protocol')
+      ? { name: 'net-definition-build', states: ['queued'] }
+      : { definitions: [{ key: 's::n', status: 'ready' }], levels: [] }));
+    const listed: any = await client.listResourceTemplates();
+    expect(listed.resourceTemplates.map((t: any) => t.uriTemplate)).toContain('agenticnets://definitions/{model}');
+    const read: any = await client.readResource({ uri: 'agenticnets://definitions/m1' });
+    expect(JSON.parse(read.contents[0].text).definitions).toEqual([{ key: 's::n', status: 'ready' }]);
+    expect(calls.some((c) => c.path === '/explorer/m1/catalogue?modelId=m1')).toBe(true);
+    await expect(client.readResource({ uri: 'agenticnets://definitions/other' })).rejects.toThrow();
+    const protocol: any = await client.readResource({ uri: 'agenticnets://definitions-protocol' });
+    expect(JSON.parse(protocol.contents[0].text).name).toBe('net-definition-build');
+  });
+});
