@@ -313,7 +313,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
       title: 'Ask, answer, confirm, flag or resolve on a model subject',
       description:
         'Writes of a question round, each a validated wrapper over the Interview and Curation applications with deterministic ids. '
-        + 'ask: a question to the person about a subject (session::net, session::net#elementId, or a level id); options optional; the subject fields are derived from the key. '
+        + 'ask: a question to the person about a subject (session::net, session::net#elementId, or a level id); the subject fields are derived from the key. A card needs substance: evidence (what was read or measured), reasoning (the argument and the recommendation) and options with a description each, one recommended. '
         + 'answer: record what the person said (selected and/or text) on a promptId; with then:"confirm" the subject is confirmed in the same call (by = the person), with then:"flag" it is flagged (flag + reason). '
         + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). '
         + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it. Nothing here starts anything.',
@@ -322,7 +322,9 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         subjectKey: z.string().optional().describe('ask, confirm, flag, and answer with then: the subject'),
         question: z.string().optional().describe('ask: the question, in the person\'s words'),
         header: z.string().optional().describe('ask: short chip label'),
-        context: z.string().optional().describe('ask: what was measured or read'),
+        context: z.string().optional().describe('ask: one line of background'),
+        reasoning: z.string().optional().describe('ask: the argument behind the question: why it matters, the trade-off between the options, which one you recommend and why. The person argues with this'),
+        evidence: z.array(z.string()).optional().describe('ask: what was read or measured, one item each with its finding (file and line, document, number); flag: files, lines, numbers, the person\'s words'),
         options: z.array(z.union([z.string(), z.object({ value: z.string(), label: z.string(), description: z.string().optional(), recommended: z.boolean().optional() })])).optional(),
         multiSelect: z.boolean().optional(),
         allowFreeText: z.boolean().optional(),
@@ -336,7 +338,6 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         by: z.string().optional().describe('confirm/flag/resolve/pass: who (default "the person")'),
         flag: z.enum(FLAGS).optional().describe('flag, or answer with then:"flag"'),
         reason: z.string().optional().describe('flag: what was measured or read'),
-        evidence: z.array(z.string()).optional().describe('flag: files, lines, numbers, the person\'s words'),
         sourceHash: z.string().optional().describe('confirm: hash of the referenced sources at this moment'),
         markId: z.string().optional().describe('confirm/flag: id of the new mark (default deterministic); resolve: the flag'),
         how: z.enum(['changed', 'confirmed', 'withdrawn']).optional().describe('resolve: how the flag was settled'),
@@ -387,6 +388,8 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
             source: 'question-round',
             ...(args.header ? { header: args.header } : {}),
             ...(args.context ? { context: args.context } : {}),
+            ...(args.reasoning ? { reasoning: args.reasoning } : {}),
+            ...(args.evidence ? { evidence: args.evidence } : {}),
             ...(args.options ? { options: args.options } : {}),
             ...(args.multiSelect != null ? { multiSelect: args.multiSelect } : {}),
             ...(args.allowFreeText != null ? { allowFreeText: args.allowFreeText } : {}),

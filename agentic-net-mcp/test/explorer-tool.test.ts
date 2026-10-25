@@ -272,11 +272,12 @@ describe('refine_model and curate_model', () => {
     const client = new Client({ name: 'test', version: '0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
     const asked: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
-      action: 'ask', subjectKey: 'product::overview#t-pay', question: 'What happens in t-pay?', options: ['a', 'b'], subjectRevision: 2,
+      action: 'ask', subjectKey: 'product::overview#t-pay', question: 'What happens in t-pay?', options: ['a', 'b'], subjectRevision: 2, reasoning: 'because the fee is settled elsewhere', evidence: ['rules.md line 4: fee = 0'],
     } })) as any).content[0].text);
     expect(asked.promptId).toMatch(/^q-product-overview-t-pay-\d{14}$/);
     expect(posted[0].path).toBe('/applications/m1/interview/actions/ask');
     expect(posted[0].body).toMatchObject({ subjectKind: 'net-element', subjectKey: 'product::overview#t-pay', subjectRevision: 2, options: ['a', 'b'], source: 'question-round' });
+    expect(posted[0].body).toMatchObject({ reasoning: 'because the fee is settled elsewhere', evidence: ['rules.md line 4: fee = 0'] });
     const answered: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
       action: 'answer', promptId: asked.promptId, selected: ['a'], then: 'confirm', subjectKey: 'product::overview#t-pay', notes: 'because', respondedBy: 'the person',
     } })) as any).content[0].text);

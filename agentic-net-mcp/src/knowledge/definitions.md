@@ -47,7 +47,7 @@ nets below nothing, flags, questions, never confirmed), each item with a ready-m
 `curate_model` asks, answers (and confirms or flags in the same call), confirms, flags, resolves. The
 prompt `question-round` is one way to drive them; any MCP client can run the loop by tools alone.
 
-Focus and refinement alternate: `focus_digest` returns what the person answered, confirmed, flagged, deferred or resolved since the last `pass` record (grouped by level and subject, plus the open questions); the `refinement-pass` prompt applies it top-down (revise definitions, carry changes down, resolve settled flags, raise the next questions) and records the pass with `curate_model {action:"pass", consumedUntil}`. Implementation is a separate step, `implement-from-model`, an interview on one confirmed lowest-layer net; it never starts anything by itself.
+Focus and refinement alternate: `focus_digest` returns what the person answered, confirmed, flagged, deferred or resolved since the last `pass` record (grouped by level and subject, plus the open questions); the `refinement-pass` prompt applies it top-down (revise definitions, carry changes down, resolve settled flags, raise the next questions) and records the pass with `curate_model {action:"pass", consumedUntil}`. A card raised for the person carries `evidence` (what was read or measured), `reasoning` (the argument and the recommendation) and options with a description each; a question without them is not asked. Implementation is a separate step, `implement-from-model`, an interview on one confirmed lowest-layer net; it never starts anything by itself.
 
 
 ## Building one
