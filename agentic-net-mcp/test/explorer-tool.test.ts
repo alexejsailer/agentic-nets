@@ -310,3 +310,50 @@ describe('refine_model on a master that serves the worklist', () => {
   });
 });
 
+describe('focus_digest and the pass record', () => {
+  it('focus_digest returns the served digest plus the next-step hint; curate_model pass posts the record', async () => {
+    const served = { modelId: 'm1', since: '2026-10-13T11:30:00Z', until: '2026-10-13T16:00:00Z', lastPass: { passId: 'pass-1' }, passes: 1,
+      counts: { answers: 1, confirmations: 0, flags: 0, resolutions: 0, deferrals: 0, openQuestions: 1 },
+      levels: [{ level: 'product', subjects: [{ subjectKey: 'product::overview', answers: [{ promptId: 'q-1', text: 'no' }] }] }] };
+    const posted: Array<{ path: string; body: any }> = [];
+    const ctx = new AppContext(config());
+    const calls: string[] = [];
+    (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
+      calls.push(path);
+      if (method === 'POST') { posted.push({ path, body }); return { ok: true }; }
+      if (path.includes('/digest')) return served;
+      return CATALOGUE;
+    };
+    const server = createServer(ctx);
+    const [ct, st] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'test', version: '0' });
+    await Promise.all([server.connect(st), client.connect(ct)]);
+
+    const digest: any = await client.callTool({ name: 'focus_digest', arguments: { level: 'product' } });
+    const out = JSON.parse(digest.content[0].text);
+    expect(calls).toEqual(['/explorer/m1/digest?modelId=m1&level=product']);
+    expect(out.levels[0].subjects[0].answers[0].text).toBe('no');
+    expect(out.until).toBe('2026-10-13T16:00:00Z');
+    expect(out.next).toMatch(/refinement-pass/);
+
+    const pass: any = await client.callTool({ name: 'curate_model', arguments: {
+      action: 'pass', consumedUntil: out.until, scope: 'product', summary: 'revised the overview', answers: 1,
+      changes: ['product::overview revised (rev 3)'], questions: ['q-2'], by: 'claude', passId: 'pass-2' } });
+    const rec = JSON.parse(pass.content[0].text);
+    expect(rec.passId).toBe('pass-2');
+    expect(posted).toHaveLength(1);
+    expect(posted[0].path).toBe('/applications/m1/curation/actions/pass');
+    expect(posted[0].body).toMatchObject({ passId: 'pass-2', kind: 'refinement-pass', consumedUntil: '2026-10-13T16:00:00Z', scope: 'product', answers: 1, questions: ['q-2'], by: 'claude' });
+    expect(typeof posted[0].body.startedAt).toBe('string');
+
+    const missing: any = await client.callTool({ name: 'curate_model', arguments: { action: 'pass' } });
+    expect(missing.isError).toBe(true);
+  });
+
+  it('focus_digest on an older master says so instead of failing', async () => {
+    const { client } = await connect((path) => { if (path.includes('/digest')) { const e: any = new Error('nf'); e.status = 404; throw e; } return CATALOGUE; });
+    const result: any = await client.callTool({ name: 'focus_digest', arguments: {} });
+    expect(JSON.parse(result.content[0].text)).toMatchObject({ available: false, model: 'm1' });
+  });
+});
+

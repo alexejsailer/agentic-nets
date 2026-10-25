@@ -40,6 +40,16 @@ function worklistPath(model: string, args: { level?: string; net?: string; direc
   return `/explorer/${m}/worklist?${q.toString()}`;
 }
 
+function digestPath(model: string, args: { since?: string; level?: string }): string {
+  const m = encodeURIComponent(model);
+  const q = new URLSearchParams({ modelId: model });
+  if (args.since) q.set('since', args.since);
+  if (args.level) q.set('level', args.level);
+  return `/explorer/${m}/digest?${q.toString()}`;
+}
+
+const DIGEST_NEXT = 'Apply it top-down (prompt refinement-pass): revise the definitions the answers touch, create the child definitions the person asked for, resolve settled flags, rebuild from the specification when the model is spec-built, raise the next questions with curate_model {action:"ask"}, then record the pass with curate_model {action:"pass", consumedUntil: this digest\'s `until`}.';
+
 const WORKLIST_NEXT = 'curate_model {action:"ask", ...item.ask} sends a question to the person; {action:"answer"} records what they said and can confirm or flag the subject; {action:"confirm"|"flag"|"resolve"|"defer"} marks it directly.';
 
 /** Interview subject kind for a subject key: a net, one of its elements, or a level. */
@@ -258,6 +268,32 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       return refineWorklist(catalogue, review, { level: args.level, net: args.net, direction: args.direction, mode: args.mode, count: args.count });
     }),
   );
+
+  server.registerTool(
+    'focus_digest',
+    {
+      title: 'What the person answered since the last refinement pass',
+      description:
+        'The digest of a model: every answer, confirmation, flag, resolution and deferral the person recorded (in the Explorer\'s Focus view, the Interview inbox or by curate_model) since the last refinement pass, grouped by level and subject, plus the questions still open. '
+        + 'Focus sessions and refinement passes alternate as often as needed: the digest starts after the newest `pass` record (curate_model {action:"pass"}) unless `since` is given. Read-only; `until` is the instant to hand back as consumedUntil when the pass is recorded.',
+      inputSchema: {
+        since: z.string().optional().describe('ISO-8601 instant; default: the last pass\'s consumedUntil, or everything when no pass was recorded'),
+        level: z.string().optional().describe('Only subjects on this level'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'focus_digest', mutates: false }, async (model, args) => {
+      try {
+        const served = await ctx.master.get(digestPath(model, args));
+        return { ...served, next: DIGEST_NEXT };
+      } catch (err: any) {
+        if (err?.status === 404) {
+          return { available: false, model, hint: 'master without /api/explorer/{model}/digest: upgrade master' };
+        }
+        throw err;
+      }
+    }),
+  );
 }
 
 export function registerRefineTools(server: McpServer, ctx: AppContext): void {
@@ -279,9 +315,10 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         'Writes of a question round, each a validated wrapper over the Interview and Curation applications with deterministic ids. '
         + 'ask: a question to the person about a subject (session::net, session::net#elementId, or a level id); options optional; the subject fields are derived from the key. '
         + 'answer: record what the person said (selected and/or text) on a promptId; with then:"confirm" the subject is confirmed in the same call (by = the person), with then:"flag" it is flagged (flag + reason). '
-        + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). Nothing here starts anything.',
+        + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). '
+        + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it. Nothing here starts anything.',
       inputSchema: {
-        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer']),
+        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass']),
         subjectKey: z.string().optional().describe('ask, confirm, flag, and answer with then: the subject'),
         question: z.string().optional().describe('ask: the question, in the person\'s words'),
         header: z.string().optional().describe('ask: short chip label'),
@@ -296,7 +333,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         notes: z.string().optional().describe('answer: a note beside the choice; confirm: why it is right'),
         respondedBy: z.string().optional().describe('answer: who answered (default "the person")'),
         then: z.enum(['confirm', 'flag']).optional().describe('answer: also confirm or flag subjectKey'),
-        by: z.string().optional().describe('confirm/flag/resolve: who (default "the person")'),
+        by: z.string().optional().describe('confirm/flag/resolve/pass: who (default "the person")'),
         flag: z.enum(FLAGS).optional().describe('flag, or answer with then:"flag"'),
         reason: z.string().optional().describe('flag: what was measured or read'),
         evidence: z.array(z.string()).optional().describe('flag: files, lines, numbers, the person\'s words'),
@@ -304,6 +341,13 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         markId: z.string().optional().describe('confirm/flag: id of the new mark (default deterministic); resolve: the flag'),
         how: z.enum(['changed', 'confirmed', 'withdrawn']).optional().describe('resolve: how the flag was settled'),
         until: z.string().optional().describe('defer: ISO-8601 instant after which the subject is due again'),
+        passId: z.string().optional().describe('pass: id of the pass record (default pass-<stamp>)'),
+        consumedUntil: z.string().optional().describe('pass: the digest\'s `until`; every answer and mark up to it counts as read'),
+        scope: z.string().optional().describe('pass: level, persona or net the pass was limited to'),
+        summary: z.string().optional().describe('pass: what the pass did, in two or three sentences'),
+        answers: z.number().int().optional().describe('pass: how many answers it consumed'),
+        changes: z.array(z.string()).optional().describe('pass: definitions revised, nets created, flags resolved, spec rebuilt'),
+        questions: z.array(z.string()).optional().describe('pass: promptIds raised for the next focus session'),
         ...modelParam,
       },
     },
@@ -391,6 +435,20 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
           };
           const result = await act(model, 'curation', 'defer', input, `curate-defer-${input['markId']}`);
           return { model, subjectKey, until: args.until, markId: input['markId'], result };
+        }
+        case 'pass': {
+          need('consumedUntil', args.consumedUntil);
+          const passId = args.passId ?? `pass-${stamp()}`;
+          const input: Record<string, unknown> = {
+            passId, kind: 'refinement-pass', by, consumedUntil: args.consumedUntil, startedAt: new Date().toISOString(),
+            ...(args.scope ? { scope: args.scope } : {}),
+            ...(args.summary ? { summary: args.summary } : {}),
+            ...(args.answers != null ? { answers: args.answers } : {}),
+            ...(args.changes ? { changes: args.changes } : {}),
+            ...(args.questions ? { questions: args.questions } : {}),
+          };
+          const result = await act(model, 'curation', 'pass', input, `curate-pass-${passId}`);
+          return { model, passId, consumedUntil: args.consumedUntil, result, next: 'The next focus_digest starts after this pass; the person continues in the Focus view.' };
         }
         default:
           throw new Error(`unknown action ${String(args.action)}`);

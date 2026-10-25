@@ -128,7 +128,7 @@ describe('sizing discipline — the teaching layer stays cheap', () => {
   // same-id ports) and the fenced definition build protocol are new platform contracts a client
   // acts on wrongly if it guesses (building on a lost lease, reseeding a reused place, creating a
   // second net after a lost response). The doc is 5.2K and its index line 0.2K; +5KB covers both.
-  const PACK_CAP = 159744; // +7KB 2026-08-26: delegation topic; +1KB 2026-08-31: view-net partitioning joined architecture; +5KB 2026-10-10: definitions topic; +1KB 2026-10-12: review (curation) in definitions
+  const PACK_CAP = 160768; // +7KB 2026-08-26: delegation topic; +1KB 2026-08-31: view-net partitioning joined architecture; +5KB 2026-10-10: definitions topic; +1KB 2026-10-12: review (curation) in definitions; +1KB 2026-10-13: focus digest + refinement pass (new master route /explorer/{m}/digest, pass record)
   // 2026-08-14: +512B for gotcha rule 12 (leases) — a new ENGINE MECHANISM earns a rule; this
   // cap is defended per-edit (rule 12 was minimized to two lines first). Raise only WITH a new
   // rule, never for rewording.

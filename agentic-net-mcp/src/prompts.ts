@@ -82,6 +82,54 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'refinement-pass',
+    {
+      title: 'Apply what the person answered, top-down, and prepare the next focus session',
+      description: 'Read the digest since the last pass, revise every layer above the realization that the answers touch, resolve what is settled, raise the next questions and record the pass',
+      argsSchema: {
+        scope: z.string().optional().describe('A level id, a persona or a net key to limit the pass; default: the whole model'),
+        since: z.string().optional().describe('ISO-8601 instant to start from; default: the last recorded pass'),
+        model: z.string().optional().describe('Target model when this connection allows several'),
+      },
+    },
+    ({ scope, since, model }) => {
+      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
+      const limit = scope ? ` limited to ${scope}` : '';
+      return userMessage(
+        `Run a refinement pass${on}${limit}. Focus sessions (the person answers cards in the Explorer's Focus view or here) and refinement passes (this) alternate as often as needed; implementation is a separate step later (prompt implement-from-model). The goal of a pass is the layers above the realization (the code, the process, the document, whatever the lowest level is): after it, every definition the answers touched says what the person meant, and the next focus session asks only what nobody can derive.\n\n` +
+          `1. Read: focus_digest {${since ? `since:"${since}", ` : ''}${scope && !scope.includes('::') ? `level:"${scope}"` : ''}} for what was answered, confirmed, flagged, resolved and deferred since the last pass, grouped by level and subject, plus the questions still open; note its \`until\`. explore_model for the hierarchy and the levels in order. get_net_definition for every subject in the digest (description, interactions, acceptance, references, questions, curation).\n` +
+          `2. Apply top-down, level by level from the highest: for each subject, read its answers and marks together. A "right" confirms the definition as it is (nothing to change; keep the confirmation). A "partly" or "wrong" with the person's words changes the definition: revise description, interactions and acceptance with update_net_definition (or the specification file plus a rebuild when the model is spec-built; then confirm the rebuilt revision at the current sourceHash), and carry the change DOWN: every child net whose definition contradicts the new wording is revised or flagged level-above-changed, and the parent element is checked (level-below-changed when a child's answer changes what the parent claims). A request to refine here becomes a child definition (create_net_definition with the parent element, status draft) with the ports the parent's element implies. Free text that is a reason nobody could derive goes into the definition's interactions or the model's context net, never lost. Resolve every flag the change settles (curate_model {action:"resolve", how:"changed"}); leave open what still needs the person.\n` +
+          `3. Check: verify_net_definition / the specification checker on what you changed; the catalogue must verify every refinement you touched (ports, targets). No level lock is bypassed; nothing is started that spends quota on a schedule.\n` +
+          `4. Raise the next questions: for every change, ask what it opens (the next lower level first), with curate_model {action:"ask", subjectKey, question, options?, header?, context?, subjectRevision}; prefer confirm / choose / explain kinds; at most ${scope ? '5' : '10'} new questions, the rest waits for the next pass. Deferred subjects stay untouched until their date.\n` +
+          `5. Record the pass: curate_model {action:"pass", consumedUntil: the digest's until, scope, summary, answers: count consumed, changes: [...], questions: [promptIds raised], by: you}. Report here: per level what changed, what was resolved, what was asked, what stays open and why; name the definitions revised by key. Never push. (Every step is a tool call; an MCP client can run the pass without this prompt and without a server-side LLM.)`,
+      );
+    },
+  );
+
+  server.registerPrompt(
+    'implement-from-model',
+    {
+      title: 'Realize a net of the lowest layer from its definition',
+      description: 'A separate step after focus and refinement: turn one confirmed lowest-layer net into work items or code through an interview here, never silently',
+      argsSchema: {
+        net: z.string().describe('The net to implement (session::net), normally on the lowest level above the code'),
+        output: z.string().optional().describe('cards (work items in a kanban application), code (edit the referenced sources), or plan (a written plan only); default: ask'),
+        model: z.string().optional().describe('Target model when this connection allows several'),
+      },
+    },
+    ({ net, output, model }) => {
+      const on = model ? ` in model "${model}" (pass model:"${model}" on every call)` : '';
+      return userMessage(
+        `Implement ${net}${on} from its definition. This is the step AFTER focus and refinement: the layers above the realization are done when the net and its parents are confirmed and no open flag or question remains on them; implementation starts only then and only through this interview.\n\n` +
+          `1. Readiness: get_net_definition for ${net} and explore_model for its parents; review_model for its curation. If the net or a parent is unconfirmed, flagged or has open questions, stop and say what a focus session must settle first (refine_model {net:"${net}"} lists it). If the model is spec-built, name the specification entry.\n` +
+          `2. Interview me, one question at a time, about what the definition leaves to the implementer: the output (${output || 'cards for a kanban application, code in the referenced sources, or a written plan'}), the boundary (which referenced sources may change, which may not), the order (which transition first), the acceptance that will be checked and how, and who reviews. Record each answer with curate_model {action:"ask"} + {action:"answer"} on subject "${net}" so the decisions live in the model.\n` +
+          `3. Produce exactly the agreed output: cards through the installed kanban application (application_action, one card per transition or per acceptance line, owner = the level's persona, the net key in the card), or code edits in the referenced sources with the net's acceptance as the test list, or a plan as a definition note. Never start a transition, a scheduled lane or a headless coder on your own; a command transition that triggers implementation is a later platform step and is not wired here.\n` +
+          `4. Close the loop: confirm the net at the new sourceHash when sources changed (curate_model {action:"confirm", sourceHash}), flag the definition level-below-changed when the implementation taught something the definition did not say, and report what was produced, what was checked, what stays open.`,
+      );
+    },
+  );
+
+  server.registerPrompt(
     'question-round',
     {
       title: 'Run a question round on a level or a net',

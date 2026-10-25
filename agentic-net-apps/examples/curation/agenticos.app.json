@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "curation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "displayName": "Curation",
   "description": "Confirmations and flags on the subjects of a model's abstraction hierarchy: nets, elements, levels and relations.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "curation"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/curation-1.1.0.application.json",
+  "output": "../../dist/packages/curation-1.2.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -35,6 +35,12 @@
         "placeId": "p-curation-resolutions",
         "required": true,
         "description": "How an open flag was settled, correlated by markId."
+      },
+      {
+        "role": "passes",
+        "placeId": "p-curation-passes",
+        "required": true,
+        "description": "Refinement passes: each records which answers and marks a pass consumed (consumedUntil), what it changed and what it asked next, so the next pass and the next focus session start from it."
       }
     ],
     "actions": [
@@ -267,22 +273,81 @@
             }
           }
         }
+      },
+      {
+        "name": "pass",
+        "targetRole": "passes",
+        "description": "Record a refinement pass over the model: the answers and marks up to consumedUntil were read and applied top-down, the listed changes were made, the listed questions were raised for the next focus session. One record per passId.",
+        "guard": {
+          "role": "passes",
+          "matchKey": "passId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "refinement-pass"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "passId",
+            "by",
+            "consumedUntil"
+          ],
+          "properties": {
+            "passId": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string",
+              "description": "Who ran the pass: the client and persona, or the person"
+            },
+            "consumedUntil": {
+              "type": "string",
+              "description": "ISO-8601 instant: every answer and mark created up to it was read by this pass"
+            },
+            "startedAt": {
+              "type": "string"
+            },
+            "scope": {
+              "type": "string",
+              "description": "Level, persona or net the pass was limited to, if any"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "answers": {
+              "type": "integer",
+              "description": "Answers consumed"
+            },
+            "changes": {
+              "type": "array",
+              "description": "What changed: definitions revised, nets created, flags resolved, spec rebuilt"
+            },
+            "questions": {
+              "type": "array",
+              "description": "promptIds raised for the next focus session"
+            }
+          }
+        }
       }
     ],
     "permissions": {
       "readStores": [
         "marks",
-        "resolutions"
+        "resolutions",
+        "passes"
       ],
       "watchStores": [
         "marks",
-        "resolutions"
+        "resolutions",
+        "passes"
       ],
       "actions": [
         "confirm",
         "flag",
         "resolve",
-        "defer"
+        "defer",
+        "pass"
       ]
     }
   }
