@@ -349,6 +349,10 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
         if (err?.status === 404 && !routeMissing(err)) {
           return { available: false, model, reason: 'not-found', hint: errorText(err, `model ${model} not found`) };
         }
+        if (err?.status === 503) {
+          // The node is still loading the model (after a restart): nothing of it is known yet.
+          return { available: false, model, loading: true, hint: errorText(err, 'the model is still loading') + '; ask again in a few seconds' };
+        }
         if (err?.status === 404) {
           return {
             available: false,

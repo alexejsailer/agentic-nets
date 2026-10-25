@@ -171,6 +171,19 @@ describe('explore_model', () => {
     expect(out.hint).toBe("model 'm1' does not exist");
   });
 
+  it('a model the node is still loading answers loading:true, not an empty model', async () => {
+    const { client } = await connect(() => {
+      const err: any = new Error('Gateway 503 (GET /api/explorer/m1/catalogue)');
+      err.status = 503;
+      err.body = JSON.stringify({ error: 'the model is still loading', loading: true });
+      throw err;
+    });
+    const out = await call(client);
+    expect(out.available).toBe(false);
+    expect(out.loading).toBe(true);
+    expect(out.hint).toMatch(/still loading.*ask again/);
+  });
+
   it('is registered in readonly mode too', async () => {
     const ctx = new AppContext(config({ mode: 'readonly' }));
     const server = createServer(ctx);
