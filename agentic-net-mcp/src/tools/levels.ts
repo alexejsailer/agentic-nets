@@ -35,7 +35,7 @@ export function registerLevelTools(server: McpServer, ctx: AppContext): void {
         + 'locked:true is a level policy: the master refuses organize, relate and builds for nets on that level '
         + '(code level-locked) until it is saved unlocked. Designtime only.',
       inputSchema: {
-        action: z.enum(['list', 'save']),
+        action: z.enum(['list', 'save']).default('list').describe('list (default) or save'),
         levels: z.array(levelSchema).optional().describe('save: the complete ordered list'),
         ...modelParam,
       },

@@ -617,6 +617,14 @@ describe('net_levels', () => {
     expect(saved.data.levels).toHaveLength(2);
   });
 
+  it('lists when no action is given (a reader needs no verb)', async () => {
+    const { client, calls } = await connect(() => ({ levels: [{ id: 'service', name: 'Service', order: 0 }] }));
+    const out = await call(client, 'net_levels', {});
+    expect(out.isError).toBe(false);
+    expect(out.data.levels).toEqual([{ id: 'service', name: 'Service', order: 0 }]);
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+  });
+
   it('refuses a save without the list', async () => {
     const { client } = await connect(() => ({}));
     const out = await call(client, 'net_levels', { action: 'save' });
