@@ -397,7 +397,7 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
           answered: Array.isArray(questions.answered) ? questions.answered : [],
         },
         interview: detail?.interview ?? null,
-        // Confirmations and flags of the net and its elements (Curation application); null on an older master.
+        // The review state (Curation application) is read with review_model; a master before 2026-10-15 sent it here.
         curation: detail?.curation ?? null,
         askWith: {
           application: 'interview',
