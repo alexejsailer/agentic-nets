@@ -31,6 +31,10 @@ command token in its own lane:
                   "HA_MCP_URL": "http://127.0.0.1:8091/mcp", "HA_MCP_TOOLS": "explore_model,curate_model"}}}
 ```
 
+In a published package every value inside `env` must be a template (`${...}`): the importer
+redacts each literal string there as a possible secret. Keep fixed values (the folder, the profile,
+the tool list) in a record the lane reads through a second preset, as Focus does with its config.
+
 The MCP token comes from the lane's credential `AGENTICNETS_MCP_TOKEN` (`HA_MCP_TOKEN_ENV` names
 another). The script prints one JSON object: `ok`, `exitCode`, `profileId`, `mode`, `model`,
 `report` (the parsed `CODER_RESULT:` line; `HA_RESULT_KEY` names another key), `text`, `stderr`,
