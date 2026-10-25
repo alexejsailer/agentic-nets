@@ -150,11 +150,25 @@ describe('explore_model', () => {
     const { client } = await connect(() => {
       const err: any = new Error('Gateway 404 (GET /api/explorer/m1/catalogue): not found');
       err.status = 404;
+      err.body = JSON.stringify({ timestamp: '2026-10-15T20:00:00Z', path: '/api/explorer/m1/catalogue', status: 404, error: 'Not Found' });
       throw err;
     });
     const out = await call(client);
     expect(out.available).toBe(false);
     expect(out.hint).toMatch(/master without \/api\/explorer/);
+  });
+
+  it('an unknown model is the master\'s own 404, never "upgrade master"', async () => {
+    const { client } = await connect(() => {
+      const err: any = new Error('Gateway 404 (GET /api/explorer/m1/catalogue)');
+      err.status = 404;
+      err.body = JSON.stringify({ error: "model 'm1' does not exist" });
+      throw err;
+    });
+    const out = await call(client);
+    expect(out.available).toBe(false);
+    expect(out.reason).toBe('not-found');
+    expect(out.hint).toBe("model 'm1' does not exist");
   });
 
   it('is registered in readonly mode too', async () => {
@@ -471,6 +485,7 @@ describe('focus scope: one feature across its levels', () => {
     await client.callTool({ name: 'ground_model', arguments: { scope: 'domain:activity' } });
     expect(calls).toEqual([
       '/explorer/m1/scope?modelId=m1&scope=domain%3Aactivity',
+      '/explorer/m1/handover?modelId=m1',
       '/explorer/m1/worklist?modelId=m1&direction=both&for=model&scope=domain%3Aactivity&ring=all',
       '/explorer/m1/digest?modelId=m1&scope=domain%3Aactivity&ring=all',
       '/explorer/m1/ground?modelId=m1&scope=domain%3Aactivity',
@@ -544,7 +559,7 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     await Promise.all([server.connect(st), client.connect(ct)]);
     const first: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'refinement', scope: 'domain:x', note: 'finish it' } })) as any).content[0].text);
     expect(first.state).toBe('needs-setup');
-    expect(first.next).toContain('application_mcp {name:"refiner", action:"grant"}');
+    expect(first.next).toContain('application_mcp {name:"refiner", action:"grant", model:"m1"}');
     expect(first.next).toContain('2 review tools');
     // nothing attached, no credential stored by this server
     expect(posted.filter(p => p.path.includes('/credentials') || p.path.includes('/transitions/assign'))).toHaveLength(0);

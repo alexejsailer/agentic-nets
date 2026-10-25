@@ -383,9 +383,24 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
       const builds = (Array.isArray(detail?.builds) ? detail.builds : []).map(buildSummary);
       const openBuild = builds.find((b: any) => b.state && !TERMINAL_STATES.has(b.state));
       const questions = detail?.questions ?? {};
+      // The review state is Curation's: read it from the model's curation route (it needs the model, not Focus)
+      // and keep the net's own subjects and its elements', the shape the definition detail used to carry.
+      const netKey = `${args.sessionId}::${args.netId}`;
+      const review = await masterCall(ctx, 'GET', explorerPath(model, '/curation')).catch(() => null);
+      let curation: any = detail?.curation ?? null;
+      if (!curation && Array.isArray(review?.subjects)) {
+        const elements: Record<string, unknown> = {};
+        let own: unknown = null;
+        for (const s of review.subjects) {
+          const k = String(s?.subjectKey ?? '');
+          if (k === netKey) own = s;
+          else if (k.startsWith(netKey + '#')) elements[k.slice(netKey.length + 1)] = s;
+        }
+        curation = { installed: review?.curation?.installed ?? null, net: own, elements };
+      }
       return {
         model,
-        key: `${args.sessionId}::${args.netId}`,
+        key: netKey,
         definition: detail?.definition ?? null,
         references: Array.isArray(detail?.definition?.references) ? detail.definition.references : [],
         templateId: detail?.definition?.templateId ?? null,
@@ -397,8 +412,8 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
           answered: Array.isArray(questions.answered) ? questions.answered : [],
         },
         interview: detail?.interview ?? null,
-        // The review state (Curation application) is read with review_model; a master before 2026-10-15 sent it here.
-        curation: detail?.curation ?? null,
+        // The review state (Curation application): confirmations and open flags of the net and its elements.
+        curation,
         askWith: {
           application: 'interview',
           action: 'ask',

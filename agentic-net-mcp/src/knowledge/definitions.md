@@ -47,7 +47,8 @@ questions take the same `subjectKey`. `review_model` folds both per net and elem
 is the worklist top-down and bottom-up (unrefined transitions, failed refinements, open definitions,
 nets below nothing, flags, questions, never confirmed), each item with a ready-made question;
 `curate_model` asks, answers (and confirms or flags in the same call), confirms, flags, resolves. The
-prompt `question-round` is one way to drive them; any MCP client can run the loop by tools alone.
+prompt `question-round` is one way to drive them; tools alone suffice.
+Method tools need `AGENTICOS_REVIEW_TOOLS=true`.
 
 Focus and refinement alternate: `focus_digest` returns what the person answered, confirmed, flagged, deferred or resolved since the last `pass` record (grouped by level and subject, plus the open questions); the `refinement-pass` prompt applies it top-down (revise definitions, carry changes down, resolve settled flags, raise the next questions) and records the pass with `curate_model {action:"pass", consumedUntil}`. A card raised for the person carries `evidence` (what was read or measured), `reasoning` (the argument and the recommendation) and options with a description each; a question without them is not asked. Cards have an audience: open questions and open flags are for the person (`refine_model {for:"person"}`); unrefined, unverified, draft and unconfirmed cards are for the AI (`for:"model"`, prompt `structure-pass`). The person can raise an own question (`curate_model raise`) or reshape one (`reshape`). `ground_model` lists, for every bottom-level net, the chain above it with claims and confirmations; the `ground-model` prompt reads the sources and confirms, corrects or asks per node. Implementation is a separate step, `implement-from-model`, an interview on one confirmed lowest-layer net; it never starts anything by itself.
 

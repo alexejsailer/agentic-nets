@@ -15,6 +15,13 @@ import { notInstalled } from './refine.js';
 const TOP_SHARED = 10;
 
 /** A 404 from a master that lacks the route itself (Spring's default body), not from the read. */
+/** The master's own error text from a GatewayError body (JSON or text). */
+function errorText(err: any, fallback: string): string {
+  let body: any = err?.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { return body || fallback; } }
+  return String(body?.error ?? body?.message ?? err?.message ?? fallback);
+}
+
 function routeMissing(err: any): boolean {
   if (err?.status !== 404) return false;
   const body = typeof err?.body === 'string' ? err.body : JSON.stringify(err?.body ?? '');
@@ -339,6 +346,9 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
       try {
         catalogue = await structureGet(ctx, model, '');
       } catch (err: any) {
+        if (err?.status === 404 && !routeMissing(err)) {
+          return { available: false, model, reason: 'not-found', hint: errorText(err, `model ${model} not found`) };
+        }
         if (err?.status === 404) {
           return {
             available: false,
@@ -396,6 +406,9 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
         [catalogue, review] = await Promise.all([structureGet(ctx, model, ''), ctx.master.get(curationPath(model))]);
       } catch (err: any) {
         { const ni = notInstalled(err, model); if (ni) return ni; }
+        if (err?.status === 404 && !routeMissing(err)) {
+          return { available: false, model, reason: 'not-found', hint: errorText(err, `model ${model} not found`) };
+        }
         if (err?.status === 404) {
           return { available: false, model, hint: 'master without /api/explorer/{model}/curation: upgrade master; confirmations and flags need the Curation application' };
         }
