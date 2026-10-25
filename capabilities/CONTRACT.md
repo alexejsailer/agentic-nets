@@ -151,6 +151,14 @@ capabilities/<name>/
 4. **Deterministic export.** `pack export` produces byte-stable output for an unchanged pack
    (sorted keys, stable ordering), so `git diff` shows real changes only.
 
+**MCP access is granted, never taken.** A pack (or an application) that needs this platform's MCP
+server declares `mcp`; the install grants it only on the person's consent (`hub_install
+{grantMcp: true}`, Studio's install dialog, or later `application_mcp {action: grant}`). The master
+then stores its own MCP token under `credentialKey` on each named lane (merged with what the lane
+holds) and attaches the server, limited to `allowTools`, to every lane marked `attach` (an agent
+lane). An upgrade that asks for nothing more renews the grant; one that asks for more waits for
+consent again. Uninstall revokes it. A command lane receives the token itself: say so in `reason`.
+
 ### B1a. Compact net source — what a human actually writes [IMPLEMENTED v0]
 
 The compiled pair (`.pnml.json` + `.inscriptions.json`) is the *interchange* format — complete
@@ -217,6 +225,13 @@ config:                            # policy + tuning, overridable at install
     description: Models this pack may touch. Gate refuses others.
 
 credentials: []                    # required vault keys: [{key, purpose, required}]
+
+mcp:                               # optional: the platform's own MCP access the pack asks for
+  credentialKey: PACK_MCP_TOKEN    # the vault key its lanes read the token from
+  allowTools: [readiness, list_transitions]   # the tools it calls (enforced for agent lanes)
+  lanes: [t-<name>-cmd]            # only the pack's own lanes
+  reason: >-                       # what the person reads before granting
+    Why the pack needs it, and that a command lane receives the token itself.
 
 tiers:                             # tier hints per agent transition
   - transition: t-<name>-decide

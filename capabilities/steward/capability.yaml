@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: steward
-version: 0.3.1
+version: 0.3.2
 displayName: The Steward
 domain: platform
 description: "The Steward is a persona whose job is the model it lives in. It measures the model's nets and lanes, proposes the next increment as a choice, an interview or a request for the goal, writes a change spec inside a closed grammar (tune, view, crystallise, add-lane, remove-lane, add-net, add-script, app), lets a policy gate and the person decide, applies the approved change through a headless coder in the pack's own repository, verifies, releases a new pack version, learns, and proposes again. Every iteration ends in a question for the person; nothing structural happens without an answer. Given a goal it grows into whatever the goal needs, one pack version at a time."
@@ -71,6 +71,17 @@ credentials:
       The bearer token of the runtime's own MCP server, stored in the vault by `steward-infra
       provision` for every lane in charter.tokenLanes; on a Desktop the app's token file is the
       fallback. Never in a token.
+
+mcp:
+  credentialKey: STEWARD_MCP_TOKEN
+  allowTools: [readiness, application_list, list_transitions, scheduler_status, usage_report, net_stats, verify_inscription, start_transition, stop_transition, delete_transition]
+  lanes: [t-steward-setup-cmd, t-steward-observe-cmd, t-steward-context-cmd, t-steward-gate-cmd, t-steward-apply-cmd, t-steward-verify-cmd, t-steward-release-cmd, t-steward-brain-observe-cmd, t-steward-curate-cmd, t-steward-brain-apply-cmd]
+  reason: >-
+    The Steward's scripts measure and operate the model it lives in through this platform's MCP
+    server: readiness, the installed applications, the lanes and their schedules, usage, and
+    starting, stopping and removing the lanes of the pack versions it releases. These command
+    lanes receive the token itself, so the scripts can reach every tool of the server; the tools
+    listed are the ones they call. Granting it replaces the provision step of steward-infra.
 
 install:
   targetModelDefault: steward

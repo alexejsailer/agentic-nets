@@ -520,6 +520,26 @@ function readCapabilityYaml(dir) {
     }
     const top = line.match(/^([A-Za-z]+):\s*$/);
     if (top) { section = top[1]; continue; }
+    // the MCP access the pack asks for (granted only on the person's consent at install): scalars,
+    // flow lists [a, b] and folded block scalars (>-)
+    const mcpKey = section === 'mcp' ? line.match(/^\s{2}([A-Za-z]+):\s*(.*?)\s*$/) : null;
+    if (mcpKey) {
+      out.mcp ??= {};
+      let value = mcpKey[2];
+      if (/^[>|][-+]?$/.test(value)) {
+        const body = [];
+        while (ln + 1 < lines.length && (/^\s{4,}\S/.test(lines[ln + 1]) || lines[ln + 1].trim() === '')) body.push(lines[++ln].trim());
+        value = body.join(' ').replace(/\s+/g, ' ').trim();
+      } else if (value.startsWith('[')) {
+        let text = value;
+        while (!text.includes(']') && ln + 1 < lines.length) text += ' ' + lines[++ln].trim();
+        value = text.replace(/^\[|\]$/g, '').split(',').map((x) => x.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+      } else {
+        value = value.replace(/^["']|["']$/g, '');
+      }
+      out.mcp[mcpKey[1]] = value;
+      continue;
+    }
     // the install block (targetModelDefault, instancePolicy, sessionId) travels into the artifact
     const sub = section === 'install' ? line.match(/^\s{2}([A-Za-z]+):\s*(.+?)\s*$/) : null;
     if (sub) { out.install ??= {}; out.install[sub[1]] = sub[2].replace(/^["']|["']$/g, ''); }
@@ -599,6 +619,16 @@ async function cmdPackage(a) {
   // install.instancePolicy: 'multiple' lets the hub install the pack once per target session, namespacing every id
   if (cap.install?.instancePolicy) agentManifest.instancePolicy = cap.install.instancePolicy;
   if (cap.description) agentManifest.description = cap.description;
+  // The MCP access the pack asks for: only its own lanes; the install grants it on the person's consent.
+  if (cap.mcp) {
+    const own = new Set(nets.flatMap((n) => Object.keys(n.inscriptions ?? {})));
+    const lanes = (cap.mcp.lanes ?? []).map((l) => (typeof l === 'string' ? { transitionId: l } : l));
+    const foreign = lanes.filter((l) => !own.has(l.transitionId)).map((l) => l.transitionId);
+    if (foreign.length) throw new Error(`capability.yaml mcp.lanes names lanes the pack does not have: ${foreign.join(', ')}`);
+    if (!Array.isArray(cap.mcp.allowTools) || !cap.mcp.allowTools.length) throw new Error('capability.yaml mcp.allowTools must name at least one tool');
+    if (!cap.mcp.credentialKey || !cap.mcp.reason) throw new Error('capability.yaml mcp needs credentialKey and reason');
+    agentManifest.mcp = { ...cap.mcp, lanes };
+  }
 
   // optional Studio application (app/agenticos.app.json + its UI entry)
   let applicationManifest = null;

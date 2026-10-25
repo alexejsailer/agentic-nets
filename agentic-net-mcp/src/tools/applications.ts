@@ -171,5 +171,35 @@ export function registerApplicationTools(server: McpServer, ctx: AppContext): vo
     ),
   );
 
+  server.registerTool(
+    'application_mcp',
+    {
+      title: 'The MCP access an installed application asks for: read, grant, revoke',
+      description:
+        'An application or capability may declare in its manifest the MCP access it needs (mcp: the tools, the lanes, a reason); '
+        + 'nothing is granted without consent. state: what it asks and whether it is granted. grant: store this platform\'s MCP '
+        + 'token on the named lanes and attach the server, limited to the declared tools, to its agent lanes. Grant ONLY when '
+        + 'the person agreed to exactly that. revoke: remove the token and the attachments.',
+      inputSchema: {
+        name: z.string().describe('Application name (e.g. refiner) or the installed session id'),
+        action: z.enum(['state', 'grant', 'revoke']).describe('state (default), grant, revoke'),
+        by: z.string().optional().describe('Who consented (grant)'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'application_mcp', mutates: true }, async (model, args) => {
+      const base = `/applications/${encodeURIComponent(model)}/${encodeURIComponent(args.name)}/mcp`;
+      try {
+        if (args.action === 'grant') return await ctx.client.masterApi('POST', `${base}/grant`, { by: args.by ?? 'the person' });
+        if (args.action === 'revoke') return await ctx.client.masterApi('DELETE', `${base}/grant`);
+        return await ctx.master.get(base);
+      } catch (err: any) {
+        if (err?.status === 404) return { available: false, model, application: args.name, hint: 'not installed here, or the master predates MCP grants' };
+        if (err?.status === 409) return { available: false, model, application: args.name, state: 'unavailable', hint: String(err?.body ?? err?.message) };
+        throw err;
+      }
+    }),
+  );
+
   registerApplicationReaders(server, ctx);
 }

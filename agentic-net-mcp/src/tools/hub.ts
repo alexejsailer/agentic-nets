@@ -198,6 +198,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         mode: z.enum(['CREATE_NEW', 'REPLACE']).optional().describe('model-kind only (default CREATE_NEW)'),
         autoStart: z.boolean().optional().describe('kind=capability: start the non-link lanes after install (default true)'),
         allowDowngrade: z.boolean().optional().describe('application/capability: install an older version over a newer one (default false: the master answers 409 downgrade)'),
+        grantMcp: z.boolean().optional().describe('application/capability: the person consents to the MCP access the manifest asks for (hub_show lists it as mcp: tools, lanes, reason). Only when the person agreed; without it the install answers mcp.state needs-consent, and application_mcp grants later'),
         scopeOwnerId: z.string().optional().describe('kind=context with scope=session/agent/task: REQUIRED id of the owning session/agent/task (model scope derives it automatically)'),
         ...modelParam,
       },
@@ -236,6 +237,7 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
         scopeOwnerId: args.scopeOwnerId,
         ...(args.autoStart === undefined ? {} : { autoStart: args.autoStart }),
         ...(args.allowDowngrade === undefined ? {} : { allowDowngrade: args.allowDowngrade }),
+        ...(args.grantMcp === undefined ? {} : { grantMcp: args.grantMcp }),
       } as any);
       // A freshly installed model must be immediately targetable via the `model` param.
       if (res?.kind === 'model' && res?.targetModelId) {

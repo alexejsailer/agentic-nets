@@ -516,41 +516,43 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     expect(missing.isError).toBe(true);
   });
 
-  it('hand_over posts the request, attaches this server when the master says needs-setup, and reads status and thread', async () => {
+  it('hand_over names the grant when Focus has no MCP access, never attaches itself, and reads status and thread', async () => {
     const posted: Array<{ path: string; body: any }> = [];
     const calls: string[] = [];
-    let handovers = 0;
+    let granted = false;
     const ctx = new AppContext({ ...config(), transport: 'http', httpToken: 'tok', httpPort: 8091 } as any);
     (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
       calls.push(`${method} ${path}`);
       if (method === 'POST' && path.endsWith('/handover')) {
-        handovers++;
-        if (handovers === 1) { const e: any = new Error('needs setup'); e.status = 409; e.body = JSON.stringify({ state: 'needs-setup', lane: 't-refiner-pass' }); throw e; }
+        if (!granted) {
+          const e: any = new Error('needs setup'); e.status = 409;
+          e.body = JSON.stringify({ state: 'needs-setup', lane: 't-refiner-pass', missing: ['mcp-grant'], mcp: 'needs-grant',
+            mcpRequested: { allowTools: ['explore_model', 'curate_model'] } });
+          throw e;
+        }
         return { state: 'running', requestId: 'hand-1', fired: true };
       }
+      if (method === 'POST' && path.endsWith('/mcp/grant')) { granted = true; posted.push({ path, body }); return { state: 'granted' }; }
       if (method === 'POST') { posted.push({ path, body }); return { ok: true }; }
       if (path.includes('/handover')) return { installed: true, state: 'idle', runs: [] };
       if (path.includes('/thread')) return { subjectKey: 'product::overview', entries: [{ kind: 'brief' }] };
       return CATALOGUE;
     };
-    (ctx as any).executorFor = () => ({ execute: async () => ({ data: { inscription: { id: 't-refiner-pass', kind: 'agent', action: { type: 'agent', role: 'r' } } } }) });
-    (ctx.master as any).stopTransition = async () => ({});
     const server = createServer(ctx);
     const [ct, st] = InMemoryTransport.createLinkedPair();
     const client = new Client({ name: 'test', version: '0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
+    const first: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'refinement', scope: 'domain:x', note: 'finish it' } })) as any).content[0].text);
+    expect(first.state).toBe('needs-setup');
+    expect(first.next).toContain('application_mcp {name:"refiner", action:"grant"}');
+    expect(first.next).toContain('2 review tools');
+    // nothing attached, no credential stored by this server
+    expect(posted.filter(p => p.path.includes('/credentials') || p.path.includes('/transitions/assign'))).toHaveLength(0);
+    const grant: any = JSON.parse(((await client.callTool({ name: 'application_mcp', arguments: { name: 'refiner', action: 'grant', by: 'alex' } })) as any).content[0].text);
+    expect(grant.state).toBe('granted');
+    expect(posted.find(p => p.path.endsWith('/applications/explorer-e2e/refiner/mcp/grant') || p.path.endsWith('/refiner/mcp/grant'))?.body).toEqual({ by: 'alex' });
     const out: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'refinement', scope: 'domain:x', note: 'finish it' } })) as any).content[0].text);
     expect(out.state).toBe('running');
-    expect(out.attached).toMatchObject({ attached: true, server: 'agenticnets' });
-    expect(handovers).toBe(2);
-    const credential = posted.find(p => p.path.includes('/credentials'));
-    expect(credential?.body).toEqual({ AGENTICNETS_MCP_TOKEN: 'tok' });
-    const assigned = posted.find(p => p.path.includes('/transitions/assign'));
-    expect(assigned?.body?.inscription?.action?.mcp?.[0]).toMatchObject({ name: 'agenticnets', auth: { credentialKey: 'AGENTICNETS_MCP_TOKEN' } });
-    // the lane may call the review tools only; without allowTools it could build nets through this server
-    expect(assigned?.body?.inscription?.action?.mcp?.[0]?.allowTools).toContain('curate_model');
-    expect(assigned?.body?.inscription?.action?.mcp?.[0]?.allowTools).not.toContain('add_transition');
-    expect(assigned?.body?.inscription?.action?.role).toBe('r---------m');
     const status: any = JSON.parse(((await client.callTool({ name: 'refiner_status', arguments: {} })) as any).content[0].text);
     expect(status.state).toBe('idle');
     const thread: any = JSON.parse(((await client.callTool({ name: 'subject_thread', arguments: { subject: 'product::overview' } })) as any).content[0].text);

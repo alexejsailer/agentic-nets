@@ -180,6 +180,24 @@ if (agentProtocol) {
   }
 }
 
+// The MCP access the application asks for (granted only on the person's consent at install): its own
+// lanes, an allowlist, the credential key, and a reason the person reads before granting.
+const mcp = config.application.mcp;
+if (mcp) {
+  const lanes = new Set((runtime?.nets || []).flatMap(net => Object.keys(net.inscriptions || {})));
+  const agentLanes = new Set((runtime?.nets || []).flatMap(net => Object.entries(net.inscriptions || {})
+    .filter(([, i]) => i?.kind === 'agent' || i?.action?.type === 'agent').map(([id]) => id)));
+  if (!/^[A-Z][A-Z0-9_]{0,63}$/.test(mcp.credentialKey || '')) throw new Error('application.mcp.credentialKey must be an upper-case key');
+  if (!Array.isArray(mcp.allowTools) || !mcp.allowTools.length) throw new Error('application.mcp.allowTools must name at least one tool');
+  if (!Array.isArray(mcp.lanes) || !mcp.lanes.length) throw new Error('application.mcp.lanes must name at least one lane');
+  for (const lane of mcp.lanes) {
+    const id = typeof lane === 'string' ? lane : lane?.transitionId;
+    if (!lanes.has(id)) throw new Error(`application.mcp.lanes names ${id}, which is not a lane of the runtime package`);
+    if (lane?.attach && !agentLanes.has(id)) throw new Error(`application.mcp.lanes attaches the server to ${id}, which is not an agent lane`);
+  }
+  if (!String(mcp.reason || '').trim()) throw new Error('application.mcp.reason must say why the application needs MCP');
+}
+
 const applicationManifest = {
   manifestVersion: '2.0',
   name: config.name,

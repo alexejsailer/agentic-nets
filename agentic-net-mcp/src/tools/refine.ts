@@ -16,8 +16,6 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
-import { assignInscription, withMcpFlag } from '../inscriptions.js';
-import { SELF_CREDENTIAL_KEY, SELF_SERVER_NAME, describeSelf } from './mcp-servers.js';
 
 const FLAGS = ['stale', 'unclear', 'wrong', 'contradiction', 'unmeasured', 'too-coarse', 'level-below-changed', 'level-above-changed'] as const;
 
@@ -703,22 +701,17 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         const names = result.applications.map((a: any) => `hub_install {name:"${a.name}", version:"latest"}`).join(', ');
         return { ...result, next: `Install what is missing from the local hub (seeded): ${names}; then hand over again.` };
       }
+      if (result?.state === 'needs-setup' && Array.isArray(result?.missing) && result.missing.includes('mcp-grant')) {
+        // Focus asks for MCP access in its manifest; only the person grants it (this server attaches nothing itself).
+        const tools = Array.isArray(result?.mcpRequested?.allowTools) ? result.mcpRequested.allowTools.length : undefined;
+        return { ...result, next: `Focus asks for MCP access${tools ? ` (${tools} review tools on its pass and coder lanes)` : ''}. `
+          + 'Grant it only when the person agrees: application_mcp {name:"refiner", action:"grant"} (or Studio\'s hand-over panel); then hand over again.' };
+      }
       if (result?.state === 'needs-setup' && result?.runner === 'coder' && Array.isArray(result?.missing) && result.missing.includes('headless-agent')) {
         return { ...result, next: 'Install the runner the coder lanes use: hub_install {name:"headless-agent", version:"latest"} into this model (seeded); then hand over again.' };
       }
       if (result?.state === 'needs-setup' && result?.runner === 'coder') {
         return { ...result, next: 'Tell the coder where the sources are: refiner_configure {root, profile, model}, then hand over again.' };
-      }
-      if (result?.state === 'needs-setup' && !args.dryRun) {
-        // The master could not attach its MCP server; this server attaches itself to the lane, then asks again.
-        const attach = await attachSelfToLane(ctx, model, String(result.lane ?? 't-refiner-pass'));
-        try {
-          result = await post();
-        } catch (err: any) {
-          if (err?.status !== 409) throw err;
-          result = conflictBody(err);
-        }
-        result = { ...result, attached: attach };
       }
       return { ...result, next: result?.state === 'running'
         ? (result?.runner === 'coder'
@@ -766,29 +759,4 @@ function conflictBody(err: any): Record<string, any> {
   return { state: 'needs-setup', error: String(err?.message ?? '') };
 }
 
-/**
- * The tools the Refiner's lane may call on this server: reading the model and curating it, never
- * building nets. The same list the master declares; a declaration without it would allow every tool.
- */
-export const REVIEW_MCP_TOOLS = [
-  'explore_model', 'net_levels', 'get_net_definition', 'list_net_definitions', 'update_net_definition',
-  'focus_scope', 'focus_digest', 'refine_model', 'ground_model', 'subject_thread', 'review_model', 'curate_model',
-];
 
-/** What attach_mcp_server {self:true, allowTools} does, for the hand-over lane: declaration with the allowlist, m flag, this server's token in the vault. */
-async function attachSelfToLane(ctx: AppContext, model: string, transitionId: string): Promise<Record<string, unknown>> {
-  const self = describeSelf(ctx);
-  if (!self.attachable) return { attached: false, reason: self.reason };
-  const current: any = await ctx.executorFor(model).execute('GET_TRANSITION', { transitionId });
-  const inscription = current?.data?.inscription ?? current?.data;
-  if (!inscription || typeof inscription !== 'object') return { attached: false, reason: `transition '${transitionId}' has no inscription in model '${model}'` };
-  const action = { ...(inscription.action ?? {}) };
-  const existing: any[] = Array.isArray(action.mcp) ? action.mcp.filter((s: any) => s?.name !== SELF_SERVER_NAME) : [];
-  action.mcp = [...existing, { ...self.declaration, allowTools: [...REVIEW_MCP_TOOLS] }];
-  action.role = withMcpFlag(action.role);
-  const next = { ...inscription, action, ...(inscription.role !== undefined ? { role: action.role } : {}) };
-  await ctx.master.stopTransition(transitionId, model).catch(() => undefined);
-  await assignInscription(ctx, model, next, 'agentic-net-master');
-  await ctx.client.masterApi('POST', `/transitions/${transitionId}/credentials`, { [SELF_CREDENTIAL_KEY]: ctx.config.httpToken }, { modelId: model });
-  return { attached: true, server: SELF_SERVER_NAME, url: self.url };
-}

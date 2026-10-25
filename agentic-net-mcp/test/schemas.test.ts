@@ -81,6 +81,7 @@ const CURATED = [
   'application_describe',
   'application_view',
   'application_action',
+  'application_mcp',
   'explore_model',
   'list_net_definitions',
   'get_net_definition',
