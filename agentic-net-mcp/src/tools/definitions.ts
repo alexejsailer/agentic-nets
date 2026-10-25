@@ -445,7 +445,7 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
         + 'action:"ready" marks the current revision ready to build. action:"request_build" opens a build for the current ready revision (policy.activate:true starts its transitions on completion; default stays stopped). '
         + 'action:"organize" sets organization on ANY net (definition or not): layer, domain (component), responsible (person), tags (replaces the list; [] clears), or clearLayer/clearDomain/clearResponsible; create also accepts layer, domain, responsible, tags. '
         + 'action:"relate" declares explicit relations from this net (any net) to others: relation explains|depends-on|references with target {sessionId, netId} and an optional note, or a relations list; mode add (default: merge, a repeat updates the note), remove, or replace (send exactly this list). refines is the subnet hierarchy, not a relation here. '
-        + 'action:"archive" sets status archived (kept, hidden from active work and lists; refused while a build is open), action:"unarchive" returns it to draft; neither bumps the revision. '
+        + 'action:"archive" sets status archived (kept, hidden from active work and lists; refused while a build is open), action:"unarchive" restores the status it had (or realized when its revision was realized, else draft); neither bumps the revision. '
         + 'create also takes templateId (a template from net_definition_templates fills every field you do not pass; explicit args win) and references [{kind: code|trace|doc, uri, label}] stored in the definition (revise accepts references too). Designtime only.',
       inputSchema: {
         action: z.enum(['create', 'revise', 'ready', 'request_build', 'organize', 'relate', 'archive', 'unarchive']),
@@ -597,8 +597,20 @@ export function registerDefinitionTools(server: McpServer, ctx: AppContext): voi
             });
           }
         }
-        const status = args.action === 'archive' ? 'archived' : 'draft';
-        const next: Record<string, any> = { ...definitionBody(current), status };
+        // Same rule as the Explorer: archive remembers the status it left, unarchive restores it;
+        // a record archived without that memory returns to realized when its revision was
+        // realized, else to draft.
+        const body: Record<string, any> = definitionBody(current);
+        let next: Record<string, any>;
+        if (args.action === 'archive') {
+          next = { ...body, status: 'archived', archivedFrom: current.status === 'archived' ? (current.archivedFrom ?? null) : current.status };
+        } else {
+          const { archivedFrom, ...rest } = body;
+          const realized = rest.realizedRevision != null && Number(rest.realizedRevision) >= Number(rest.revision ?? 1);
+          const restoredStatus = archivedFrom && archivedFrom !== 'archived' ? archivedFrom : (realized ? 'realized' : 'draft');
+          next = { ...rest, status: restoredStatus };
+        }
+        const status = next.status;
         await masterCall(ctx, 'PUT', organizationPath, { definition: next });
         return { action: args.action, model, key, revision: next.revision ?? 1, status };
       }

@@ -464,13 +464,22 @@ describe('relations, archive, templates and references', () => {
     expect(archived.data).toMatchObject({ action: 'archive', status: 'archived', revision: 4 });
     const put = archiving.calls.find((c) => c.method === 'PUT')!;
     expect(put.path).toBe('/explorer/m1/nets/identity/risk/organization?modelId=m1');
-    expect(put.body.definition).toMatchObject({ status: 'archived', revision: 4 });
+    expect(put.body.definition).toMatchObject({ status: 'archived', revision: 4, archivedFrom: 'realized' });
     expect(put.body.definition).not.toHaveProperty('key');
 
-    const restoring = await connect((c) => (c.method === 'GET' ? detail({ definition: { status: 'archived', revision: 4 } }) : { updated: true }));
+    // Restores the status it left.
+    const restoring = await connect((c) => (c.method === 'GET' ? detail({ definition: { status: 'archived', archivedFrom: 'ready', revision: 4 } }) : { updated: true }));
     const restored = await call(restoring.client, 'update_net_definition', { action: 'unarchive', sessionId: 'identity', netId: 'risk' });
-    expect(restored.data).toMatchObject({ action: 'unarchive', status: 'draft', revision: 4 });
-    expect(restoring.calls.find((c) => c.method === 'PUT')!.body.definition).toMatchObject({ status: 'draft', revision: 4 });
+    expect(restored.data).toMatchObject({ action: 'unarchive', status: 'ready', revision: 4 });
+    const restoredBody = restoring.calls.find((c) => c.method === 'PUT')!.body.definition;
+    expect(restoredBody).toMatchObject({ status: 'ready', revision: 4 });
+    expect(restoredBody).not.toHaveProperty('archivedFrom');
+
+    // Archived elsewhere without the memory: realized when its revision was realized, else draft.
+    const realized = await connect((c) => (c.method === 'GET' ? detail({ definition: { status: 'archived', revision: 4, realizedRevision: 4 } }) : { updated: true }));
+    expect((await call(realized.client, 'update_net_definition', { action: 'unarchive', sessionId: 'identity', netId: 'risk' })).data.status).toBe('realized');
+    const stale = await connect((c) => (c.method === 'GET' ? detail({ definition: { status: 'archived', revision: 5, realizedRevision: 4 } }) : { updated: true }));
+    expect((await call(stale.client, 'update_net_definition', { action: 'unarchive', sessionId: 'identity', netId: 'risk' })).data.status).toBe('draft');
 
     const open = await connect(() => detail({ builds: [{ buildId: 'b-9', attempt: { state: 'building' } }] }));
     const refused = await call(open.client, 'update_net_definition', { action: 'archive', sessionId: 'identity', netId: 'risk' });
