@@ -145,3 +145,64 @@ describe('hierarchyLines', () => {
     expect(out.topSharedPlaces).toEqual([]);
   });
 });
+
+describe('review_model', () => {
+  const REVIEW = {
+    modelId: 'm1',
+    curation: { installed: true, version: '1.0.0' },
+    interview: { installed: true, version: '1.4.0', supportsSubjects: true },
+    subjects: [
+      { subjectKind: 'net', subjectKey: 'product::overview', state: 'confirmed', confirmed: { markId: 'c-1', by: 'the person', at: '2026-10-12T10:00:00Z', revision: 2, codeHash: 'abcd' }, flags: [], resolvedFlags: 0, openQuestions: [] },
+      { subjectKind: 'element', subjectKey: 'product::overview#t-auth', state: 'flagged', confirmed: null, flags: [{ markId: 'f-1', flag: 'level-below-changed', reason: 'identity::account-access changed', by: 'curate.py', status: 'open' }], resolvedFlags: 0, openQuestions: [] },
+      { subjectKind: 'net', subjectKey: 'identity::risk-analysis', state: 'unconfirmed', confirmed: null, flags: [], resolvedFlags: 0, openQuestions: [{ promptId: 'q-1', question: 'Which risks count?' }] },
+    ],
+    counts: { subjects: 3, confirmed: 1, flagged: 1, openFlags: 1, openQuestions: 1, subjectsWithQuestions: 1 },
+  };
+  const LEVELLED = { ...CATALOGUE, nets: CATALOGUE.nets.map((n) => ({ ...n, layer: n.key.startsWith('product') ? 'product' : 'service' })) };
+
+  async function review(args: Record<string, unknown> = {}) {
+    const { client, calls } = await connect((path) => (path.includes('/curation') ? REVIEW : LEVELLED));
+    const result: any = await client.callTool({ name: 'review_model', arguments: args });
+    return { out: JSON.parse(result.content[0].text), calls };
+  }
+
+  it('lists every net with its state, rolls element marks up, and counts per level', async () => {
+    const { out, calls } = await review();
+    expect(calls.sort()).toEqual(['/explorer/m1/catalogue?modelId=m1', '/explorer/m1/curation?modelId=m1']);
+    expect(out.total).toBe(3);
+    const overview = out.nets.find((n: any) => n.key === 'product::overview');
+    expect(overview.state).toBe('confirmed');
+    expect(overview.confirmed.codeHash).toBe('abcd');
+    expect(overview.elements).toEqual([{ elementId: 't-auth', state: 'flagged', flags: [{ markId: 'f-1', flag: 'level-below-changed', reason: 'identity::account-access changed', by: 'curate.py' }], openQuestions: [] }]);
+    expect(overview.openFlags).toBe(1);
+    const risk = out.nets.find((n: any) => n.key === 'identity::risk-analysis');
+    expect(risk.state).toBe('unconfirmed');
+    expect(risk.openQuestionCount).toBe(1);
+    expect(out.levels).toEqual({
+      product: { nets: 1, confirmed: 1, flagged: 1, questions: 0, unconfirmed: 0 },
+      service: { nets: 2, confirmed: 0, flagged: 0, questions: 1, unconfirmed: 2 },
+    });
+    expect(out.markWith.flag.input.flag).toMatch(/stale\|unclear/);
+  });
+
+  it('narrows to a level, a net, or what needs the person', async () => {
+    expect((await review({ level: 'service' })).out.nets.map((n: any) => n.key)).toEqual(['identity::account-access', 'identity::risk-analysis']);
+    expect((await review({ net: 'product::overview' })).out.nets.map((n: any) => n.key)).toEqual(['product::overview']);
+    expect((await review({ needs: 'flagged' })).out.nets.map((n: any) => n.key)).toEqual(['product::overview']);
+    expect((await review({ needs: 'questions' })).out.nets.map((n: any) => n.key)).toEqual(['identity::risk-analysis']);
+    expect((await review({ needs: 'unconfirmed' })).out.nets.map((n: any) => n.key)).toEqual(['identity::account-access', 'identity::risk-analysis']);
+    expect((await review({ needs: 'any' })).out.matched).toBe(3);
+  });
+
+  it('a master without the curation route answers available:false', async () => {
+    const { client } = await connect((path) => {
+      if (!path.includes('/curation')) return CATALOGUE;
+      const err: any = new Error('Gateway 404');
+      err.status = 404;
+      throw err;
+    });
+    const result: any = await client.callTool({ name: 'review_model', arguments: {} });
+    const out = JSON.parse(result.content[0].text);
+    expect(out.available).toBe(false);
+  });
+});

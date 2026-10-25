@@ -20,6 +20,111 @@ function cataloguePath(model: string): string {
   return `/explorer/${m}/catalogue?modelId=${m}`;
 }
 
+function curationPath(model: string): string {
+  const m = encodeURIComponent(model);
+  return `/explorer/${m}/curation?modelId=${m}`;
+}
+
+/** Subject key of a net, element, level or relation (section 22). */
+export function subjectKindOf(key: string): 'relation' | 'element' | 'net' | 'level' {
+  if (key.includes('>')) return 'relation';
+  if (key.includes('#')) return 'element';
+  if (key.includes('::')) return 'net';
+  return 'level';
+}
+
+/**
+ * The review of a model: every net with its state (confirmed, flagged, unconfirmed), its open flags
+ * and open questions (own and on its elements), narrowed to a level or a net when asked. Nets
+ * nobody marked are listed as unconfirmed, so a question round can start from what is untouched.
+ */
+export function reviewSummary(catalogue: any, review: any, opts: { level?: string; net?: string; needs?: string } = {}): any {
+  const nets: any[] = Array.isArray(catalogue?.nets) ? catalogue.nets : [];
+  const subjects: any[] = Array.isArray(review?.subjects) ? review.subjects : [];
+  const bySubject = new Map<string, any>(subjects.map((s) => [String(s?.subjectKey ?? ''), s]));
+  const wanted = nets.filter((n) => {
+    if (opts.net && n?.key !== opts.net) return false;
+    if (opts.level && (n?.layer ?? '') !== opts.level) return false;
+    return true;
+  });
+  const rows = wanted.map((n) => {
+    const key = String(n?.key ?? '');
+    const own = bySubject.get(key);
+    const elements: any[] = [];
+    for (const [subjectKey, s] of bySubject) {
+      if (!subjectKey.startsWith(`${key}#`)) continue;
+      const flags = Array.isArray(s?.flags) ? s.flags : [];
+      const questions = Array.isArray(s?.openQuestions) ? s.openQuestions : [];
+      if (!flags.length && !questions.length && !s?.confirmed) continue;
+      elements.push({
+        elementId: subjectKey.slice(key.length + 1),
+        state: s?.state ?? 'unconfirmed',
+        flags: flags.map((f: any) => ({ markId: f?.markId, flag: f?.flag, reason: f?.reason, by: f?.by })),
+        openQuestions: questions.map((q: any) => ({ promptId: q?.promptId, question: q?.question })),
+      });
+    }
+    const flags = Array.isArray(own?.flags) ? own.flags : [];
+    const questions = Array.isArray(own?.openQuestions) ? own.openQuestions : [];
+    const openFlags = flags.length + elements.reduce((a, e) => a + e.flags.length, 0);
+    const openQuestions = questions.length + elements.reduce((a, e) => a + e.openQuestions.length, 0);
+    return {
+      key,
+      title: n?.title,
+      level: n?.layer ?? null,
+      responsible: n?.responsible ?? null,
+      state: own?.state ?? 'unconfirmed',
+      confirmed: own?.confirmed
+        ? { by: own.confirmed.by, at: own.confirmed.at, revision: own.confirmed.revision ?? null, codeHash: own.confirmed.codeHash ?? null }
+        : null,
+      flags: flags.map((f: any) => ({ markId: f?.markId, flag: f?.flag, reason: f?.reason, by: f?.by })),
+      openQuestions: questions.map((q: any) => ({ promptId: q?.promptId, question: q?.question })),
+      elements,
+      openFlags,
+      openQuestionCount: openQuestions,
+      needs: openFlags > 0 || openQuestions > 0 || !own?.confirmed,
+    };
+  });
+  const needs = opts.needs ?? '';
+  const filtered = rows.filter((r) => {
+    switch (needs) {
+      case 'flagged': return r.openFlags > 0;
+      case 'questions': return r.openQuestionCount > 0;
+      case 'unconfirmed': return !r.confirmed;
+      case 'any': return r.needs;
+      default: return true;
+    }
+  });
+  const levelCounts: Record<string, { nets: number; confirmed: number; flagged: number; questions: number; unconfirmed: number }> = {};
+  for (const r of rows) {
+    const level = r.level ?? '(unassigned)';
+    const c = (levelCounts[level] ??= { nets: 0, confirmed: 0, flagged: 0, questions: 0, unconfirmed: 0 });
+    c.nets++;
+    if (r.confirmed) c.confirmed++; else c.unconfirmed++;
+    if (r.openFlags) c.flagged++;
+    if (r.openQuestionCount) c.questions++;
+  }
+  return {
+    modelId: catalogue?.modelId,
+    curation: review?.curation ?? { installed: false },
+    interview: review?.interview ?? { installed: false, supportsSubjects: false },
+    counts: review?.counts ?? {},
+    levels: levelCounts,
+    ...(opts.level ? { level: opts.level } : {}),
+    ...(opts.net ? { net: opts.net } : {}),
+    ...(needs ? { needs } : {}),
+    nets: filtered.map(({ needs: _needs, ...r }) => r),
+    matched: filtered.length,
+    total: rows.length,
+    markWith: {
+      application: 'curation',
+      confirm: { action: 'confirm', input: { markId: '<unique>', subjectKind: 'net|element|level|relation', subjectKey: '<key>', by: '<who>', revision: '<definition revision>', note: '<optional>', codeHash: '<optional>' } },
+      flag: { action: 'flag', input: { markId: '<unique or deterministic>', subjectKind: '...', subjectKey: '<key>', flag: 'stale|unclear|wrong|contradiction|unmeasured|too-coarse|level-below-changed|level-above-changed', reason: '<what was measured or read>', by: '<who>' } },
+      resolve: { action: 'resolve', input: { markId: '<the flag>', how: 'changed|confirmed|withdrawn', by: '<who>' } },
+      ask: { application: 'interview', action: 'ask', subjectKind: 'net-definition|net-element|level', subjectKey: '<session>::<net> or <session>::<net>#<elementId> or <level id>' },
+    },
+  };
+}
+
 function matches(net: any, query: string): boolean {
   const q = query.toLowerCase();
   const tags: unknown[] = Array.isArray(net?.tags) ? net.tags : [];
@@ -183,6 +288,37 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
         return { ...catalogue, nets, query: args.query, matched: nets.length };
       }
       return summarize(catalogue, args.query);
+    }),
+  );
+
+  server.registerTool(
+    'review_model',
+    {
+      title: 'Review a model: what is confirmed, flagged or questioned',
+      description:
+        'The review state of a model\'s abstraction hierarchy (Curation and Interview applications): per net, whether the person confirmed it, which flags are open (stale, unclear, wrong, contradiction, unmeasured, too-coarse, level-below-changed, level-above-changed), '
+        + 'which questions are still open, and the same for its elements (subject key `session::net#elementId`). Nets nobody marked are listed as unconfirmed. '
+        + 'Narrow with level (a level id), net (a key) or needs (any | flagged | questions | unconfirmed). The answer carries markWith: how to confirm, flag, resolve and ask through application_action. '
+        + 'Use it to start a question round (prompt question-round) or to see what a code change invalidated. Read-only.',
+      inputSchema: {
+        level: z.string().optional().describe('Only nets on this level (level id)'),
+        net: z.string().optional().describe('Only this net (session::netId)'),
+        needs: z.enum(['any', 'flagged', 'questions', 'unconfirmed']).optional().describe('Only nets that need the person in this way'),
+        ...modelParam,
+      },
+    },
+    wrapTool(scope, config.mode, { name: 'review_model', mutates: false }, async (model, args) => {
+      let catalogue: any;
+      let review: any;
+      try {
+        [catalogue, review] = await Promise.all([ctx.master.get(cataloguePath(model)), ctx.master.get(curationPath(model))]);
+      } catch (err: any) {
+        if (err?.status === 404) {
+          return { available: false, model, hint: 'master without /api/explorer/{model}/curation: upgrade master; confirmations and flags need the Curation application' };
+        }
+        throw err;
+      }
+      return reviewSummary(catalogue, review, { level: args.level, net: args.net, needs: args.needs });
     }),
   );
 }

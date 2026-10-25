@@ -11,8 +11,7 @@ out at the level below. The runtime stays flat; the hierarchy is designtime data
   reference to a persistent net via the element attributes `subnetSession` + `subnetNet`.
 - **The abstract element never fires.** It has no inscription; the child's ordinary transitions do
   the work. A higher-level summary comes from a normal transition reading the lower output ports.
-- **Design-only elements** (attribute `designOnly: "true"`) describe structure that never runs, such as
-  the code-level nets of a model that documents an application; `sync_net` keeps them like abstract ones.
+- **Design-only elements** (`designOnly: "true"`) never run (e.g. code-level nets); `sync_net` keeps them.
 - **Depth** is the distance from a root. **Levels** are optional named bands (product, service,
   implementation) a net can be pinned to; nets with neither sit in "unassigned".
 - Refinements are checked: `ok` (ports match the element), `portMismatch`, `targetMissing`, or
@@ -36,6 +35,14 @@ with a newer definition shows **changes pending** and can be rebuilt.
 `revise`, `ready`, `request_build`, `organize` (layer, domain, responsible, tags on any net),
 `relate` (mode add, remove or replace), `archive`, `unarchive`. Templates: `list_net_definition_templates`,
 `net_definition_templates`. Read with `list_net_definitions`, `get_net_definition` (`nextActions`).
+
+## Review
+
+The Curation application records agreement on any subject (`session::net`, `session::net#elementId`,
+a level id): `confirm` (revision, optional `codeHash`), `flag` (stale, unclear, wrong, contradiction,
+unmeasured, too-coarse, level-below-changed, level-above-changed; open until `resolve`). Interview
+questions take the same `subjectKey`. `review_model` folds both per net and element; the prompt
+`question-round` runs the loop: check, flag, ask only what the person knows, record, confirm.
 
 ## Building one
 

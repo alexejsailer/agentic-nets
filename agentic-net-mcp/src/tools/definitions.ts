@@ -368,7 +368,7 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
     {
       title: 'Read one net definition',
       description:
-        'One definition with its builds, open and answered questions, Interview support, and nextActions derived from its state. '
+        'One definition with its builds, open and answered questions (own and about its elements, subjectElement set), its curation (confirmations and open flags of the net and its elements), Interview support, and nextActions derived from its state. '
         + 'To ask the person a question about it, call application_action on application "interview", action "ask", with a NEW unique promptId (never reuse one), question, optional options (strings or {value,label,description,recommended}), multiSelect, allowFreeText, '
         + 'and the subject fields subjectKind:"net-definition", subjectKey:"<session>::<net>", subjectRevision:<revision>, buildId:<open build>. Then record_net_build checkpoint state:"awaiting-answers" (releases your lease) and come back later: claim again and reread this document; answers given in the Explorer or in your chat land in the same tokens. Read-only.',
       inputSchema: {
@@ -397,6 +397,8 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
           answered: Array.isArray(questions.answered) ? questions.answered : [],
         },
         interview: detail?.interview ?? null,
+        // Confirmations and flags of the net and its elements (Curation application); null on an older master.
+        curation: detail?.curation ?? null,
         askWith: {
           application: 'interview',
           action: 'ask',
