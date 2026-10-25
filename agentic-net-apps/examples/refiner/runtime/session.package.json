@@ -6,7 +6,7 @@
  "tokenPolicy": "none",
  "manifest": {
   "name": "refiner-runtime",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Hand-over requests and runs of the Refiner, with the agent lane that runs a pass",
   "author": "AgenticNetOS",
   "tags": [
@@ -17,7 +17,7 @@
   "createdAt": "2026-10-14T00:00:00Z",
   "agenticosVersion": "1.0.0"
  },
- "readme": "# Refiner\n\nThe AI side of the focus loop, inside the model. A person works the Focus view (answers cards, describes subjects in their own words) and then hands over: a `request` token asks for a refinement, structure or ground pass, limited to a focus scope and a subject when wanted. The lane `t-refiner-pass` consumes it and runs the pass as an agent through the Agentic-Nets MCP server (attach it once with attach_mcp_server {transitionId:\"t-refiner-pass\", self:true}, or let the master attach it when it knows its MCP server): it reads the digest, applies briefs and answers to the definitions, writes a summary note per subject, asks the next questions with evidence, reasoning and options, and records the pass. Its report lands in `runs`. The lane ships stopped and is fired once per request (nothing spends quota on a schedule); by default it thinks with the claude CLI on the master's host (action.llmMode bash), change action.llmMode/model to use the server's provider.\n\n1.1.0: kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the `headless-coder` tool net, a read-only Claude Code or Codex session in the folder of the model's sources named by `configure` (store `config`).\n",
+ "readme": "# Refiner\n\nThe AI side of the focus loop, inside the model. A person works the Focus view (answers cards, describes subjects in their own words) and then hands over: a `request` token asks for a refinement, structure or ground pass, limited to a focus scope and a subject when wanted. The lane `t-refiner-pass` consumes it and runs the pass as an agent through the Agentic-Nets MCP server (attach it once with attach_mcp_server {transitionId:\"t-refiner-pass\", self:true}, or let the master attach it when it knows its MCP server): it reads the digest, applies briefs and answers to the definitions, writes a summary note per subject, asks the next questions with evidence, reasoning and options, and records the pass. Its report lands in `runs`. The lane ships stopped and is fired once per request (nothing spends quota on a schedule); by default it thinks with the claude CLI on the master's host (action.llmMode bash), change action.llmMode/model to use the server's provider.\n\n1.1.0: kinds that read the sources (structure, ground, look, explain, check, draft, diff) are delegated to the `headless-coder` tool net, a read-only Claude Code or Codex session in the folder of the model's sources named by `configure` (store `config`).\n\n1.1.1: the lane takes the newest open request first, so a request it once left behind never stands in front of a new one.\n",
  "nets": [
   {
    "netId": "net-application-refiner",
@@ -68,7 +68,7 @@
       "request": {
        "placeId": "p-refiner-requests",
        "host": "application-template@localhost:8080",
-       "arcql": "FROM $ WHERE $.status==\"requested\" LIMIT 1",
+       "arcql": "FROM $ WHERE $.status==\"requested\" ORDER BY $.createdAt DESC LIMIT 1",
        "take": "FIRST",
        "consume": true
       }
