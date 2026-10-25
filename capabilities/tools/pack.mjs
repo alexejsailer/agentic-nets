@@ -556,7 +556,9 @@ async function cmdPackage(a) {
     for (const f of readdirSync(seedsDir).filter((f) => f.endsWith('.json') && f.startsWith('p-')).sort()) {
       const place = basename(f, '.json');
       const tokens = JSON.parse(readFileSync(join(seedsDir, f), 'utf8'));
-      nets[0].tokens[place] = tokens.map((t, i) => ({ name: t.name ?? `${place}-seed-${i + 1}`, ...t }));
+      // `_seed`: a replaceable default. An upgrade replaces it only while it is untouched (the master
+      // compares the hash it stored at install); an edited seed is kept (CONTRACT C4).
+      nets[0].tokens[place] = tokens.map((t, i) => ({ name: t.name ?? `${place}-seed-${i + 1}`, ...t, _seed: true }));
       seedCount += tokens.length;
     }
   }

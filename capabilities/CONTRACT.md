@@ -286,7 +286,10 @@ subsystem, surfaced via `hub_show --installed`):
 
 Install is **idempotent and upgrade-aware**: re-installing the recorded version is a no-op;
 installing a newer version diffs manifest + nets + seeds and applies the delta. Seeds are never
-blind-reseeded on upgrade (the stale-seed-manifest failure class). `hub_install --reinstall`
+blind-reseeded on upgrade (the stale-seed-manifest failure class): `pack package` marks every seed
+token `_seed`, the master stores the hash of what it installed (`_seedHash`), and an upgrade replaces
+a seed only while it still matches that hash (an untouched default takes the newer default); an
+edited seed, or one installed before the hash existed, is kept. `hub_install --reinstall`
 forces a clean replace after explicit confirmation.
 
 ### C5. Lifecycle verbs
