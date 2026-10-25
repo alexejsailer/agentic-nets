@@ -1,7 +1,6 @@
 /**
  * Named abstraction levels of a model (Explorer levels document): list them, or save the whole
- * ordered list. A level may be locked (a level-specific access policy): the master then refuses
- * changes to the nets on it, builds included, until the level is unlocked here.
+ * ordered list. Levels order nets; they carry no permissions.
  */
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -13,8 +12,6 @@ const levelSchema = z.object({
   id: z.string().describe('Stable id, e.g. "product"'),
   name: z.string().optional(),
   description: z.string().optional(),
-  locked: z.boolean().optional().describe('Refuse changes to the nets on this level until unlocked'),
-  lockNote: z.string().optional(),
 });
 
 export function registerLevelTools(server: McpServer, ctx: AppContext): void {
@@ -32,8 +29,7 @@ export function registerLevelTools(server: McpServer, ctx: AppContext): void {
         'The named levels of the hierarchy, top to bottom (order follows the list). action:"list" returns them; '
         + 'action:"save" REPLACES the whole list (read first, then send the full list). Nets are placed on a level with '
         + 'update_net_definition {action:"organize", layer}; without a level a net sits at its subnet depth. '
-        + 'locked:true is a level policy: the master refuses organize, relate and builds for nets on that level '
-        + '(code level-locked) until it is saved unlocked. Designtime only.',
+        + 'Levels carry no permissions. Designtime only.',
       inputSchema: {
         action: z.enum(['list', 'save']).default('list').describe('list (default) or save'),
         levels: z.array(levelSchema).optional().describe('save: the complete ordered list'),

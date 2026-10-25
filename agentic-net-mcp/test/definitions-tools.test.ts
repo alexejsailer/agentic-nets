@@ -601,7 +601,7 @@ describe('definition body', () => {
 });
 
 describe('net_levels', () => {
-  it('lists levels and saves the whole ordered list with locks', async () => {
+  it('lists levels and saves the whole ordered list; levels carry no lock', async () => {
     const { client, calls } = await connect((c) => (c.method === 'GET'
       ? { levels: [{ id: 'product', name: 'Product', order: 0 }] }
       : { levels: c.body.levels }));
@@ -612,7 +612,7 @@ describe('net_levels', () => {
     const put = calls.find((c) => c.method === 'PUT');
     expect(put?.path).toBe('/explorer/m1/levels?modelId=m1');
     expect(put?.body.levels).toEqual([
-      { id: 'product', name: 'Product', locked: true, lockNote: 'audit', order: 0 },
+      { id: 'product', name: 'Product', order: 0 },
       { id: 'service', name: 'Service', order: 1 }]);
     expect(saved.data.levels).toHaveLength(2);
   });
