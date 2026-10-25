@@ -189,6 +189,9 @@ export class ApprovalRoomComponent implements OnDestroy {
   set runtime(value: NetApplicationRuntime | undefined) {
     this.stopAllWatching();
     this.runtimeValue = value;
+    // Act as the name declared in Studio unless someone already typed one here.
+    const viewer = value?.viewer?.();
+    if (viewer?.declared && (!this.actor.trim() || this.actor === 'human-reviewer')) this.actor = viewer.name;
     if (value) void this.connect(value);
   }
   get runtime(): NetApplicationRuntime | undefined { return this.runtimeValue; }

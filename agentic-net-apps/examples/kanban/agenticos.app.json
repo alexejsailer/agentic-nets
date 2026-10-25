@@ -1,14 +1,14 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "persona-kanban",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "displayName": "Persona Kanban",
   "description": "A shared, event-sourced work board for humans and autonomous Persona agents.",
   "author": "AgenticNetOS",
   "visibility": "public",
   "tags": ["application", "example", "angular", "kanban", "personas", "tasks"],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/persona-kanban-1.0.0.application.json",
+  "output": "../../dist/packages/persona-kanban-1.0.1.application.json",
   "ui": {
     "element": "agenticos-persona-kanban-v1",
     "entryFile": "../../dist/persona-kanban/browser/main.js",

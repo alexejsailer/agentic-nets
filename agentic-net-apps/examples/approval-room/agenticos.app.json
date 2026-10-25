@@ -1,14 +1,14 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "approval-room",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "displayName": "Approval Room",
   "description": "An independent decision inbox for humans and Persona agents, backed by event-sourced net state.",
   "author": "AgenticNetOS",
   "visibility": "public",
   "tags": ["application", "example", "angular", "approvals", "personas", "separation-of-duty", "evidence"],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/approval-room-1.1.0.application.json",
+  "output": "../../dist/packages/approval-room-1.1.1.application.json",
   "ui": {
     "element": "agenticos-approval-room-v1",
     "entryFile": "../../dist/approval-room/browser/main.js",

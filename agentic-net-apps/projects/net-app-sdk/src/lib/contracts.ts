@@ -58,6 +58,12 @@ export interface NetApplicationRuntime {
     options?: NetApplicationInvokeOptions,
   ): Promise<T>;
   navigate(command: 'open-app-index' | 'open-underlying-net'): void;
+  /**
+   * The name declared in this Studio browser (`declared: false` means nobody declared one and
+   * `name` is Studio's stand-in). A label to prefill "acting as" fields, never an authenticated
+   * identity. Optional: older Studios do not offer it.
+   */
+  viewer?(): { name: string; declared: boolean };
 }
 
 export interface NetApplicationElement extends HTMLElement {

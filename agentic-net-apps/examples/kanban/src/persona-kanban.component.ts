@@ -195,6 +195,9 @@ export class PersonaKanbanComponent implements OnDestroy {
     this.stopAllWatching();
     this.runtimeValue = value;
     if (!value) return;
+    // Act as the name declared in Studio unless someone already typed one here.
+    const viewer = value.viewer?.();
+    if (viewer?.declared && (!this.actor.trim() || this.actor === 'human')) this.actor = viewer.name;
     this.stopWatching.push(value.watchStore<KanbanCardProperties>('cards', event => {
       this.cards = sortCards(event.tokens.map(normalizeCard));
       this.reselect();
