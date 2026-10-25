@@ -590,3 +590,28 @@ describe('definition body', () => {
     expect(body).toEqual({ status: 'realized', revision: 2, realizedRevision: 1, realizations: [{ sessionId: 's', netId: 'v' }] });
   });
 });
+
+describe('net_levels', () => {
+  it('lists levels and saves the whole ordered list with locks', async () => {
+    const { client, calls } = await connect((c) => (c.method === 'GET'
+      ? { levels: [{ id: 'product', name: 'Product', order: 0 }] }
+      : { levels: c.body.levels }));
+    const listed = await call(client, 'net_levels', { action: 'list' });
+    expect(listed.data.levels).toEqual([{ id: 'product', name: 'Product', order: 0 }]);
+    const saved = await call(client, 'net_levels', { action: 'save', levels: [
+      { id: 'product', name: 'Product', locked: true, lockNote: 'audit' }, { id: 'service', name: 'Service' }] });
+    const put = calls.find((c) => c.method === 'PUT');
+    expect(put?.path).toBe('/explorer/m1/levels?modelId=m1');
+    expect(put?.body.levels).toEqual([
+      { id: 'product', name: 'Product', locked: true, lockNote: 'audit', order: 0 },
+      { id: 'service', name: 'Service', order: 1 }]);
+    expect(saved.data.levels).toHaveLength(2);
+  });
+
+  it('refuses a save without the list', async () => {
+    const { client } = await connect(() => ({}));
+    const out = await call(client, 'net_levels', { action: 'save' });
+    expect(out.isError).toBe(true);
+    expect(out.data.code).toBe('missing-field');
+  });
+});

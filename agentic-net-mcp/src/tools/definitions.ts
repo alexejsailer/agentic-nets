@@ -34,7 +34,7 @@ function seg(value: string): string {
  * Call master; a non-2xx carrying master's `{error, code}` becomes a structured tool error with
  * that code (lease-lost, superseded, cancel-requested, ...). Never reports success on a non-2xx.
  */
-async function masterCall(ctx: AppContext, method: string, path: string, body?: any): Promise<any> {
+export async function masterCall(ctx: AppContext, method: string, path: string, body?: any): Promise<any> {
   try {
     return await ctx.client.masterApi(method, path, body);
   } catch (err: any) {

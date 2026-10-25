@@ -58,6 +58,30 @@ export function registerPrompts(server: McpServer, ctx: AppContext): void {
   );
 
   server.registerPrompt(
+    'organize-model',
+    {
+      title: 'Organize a model into an abstraction hierarchy',
+      description: 'Read the model, propose levels, domains, parents and relations, and apply only what the person approves',
+      argsSchema: {
+        model: z.string().optional().describe('Target model when this connection allows several'),
+        focus: z.string().optional().describe('Optional area to organize first, e.g. a session or a domain'),
+      },
+    },
+    ({ model, focus }) => userMessage(
+      `Help me organize${model ? ` model "${model}"` : ' this model'} as a hierarchy of abstractions`
+      + `${focus ? `, starting with ${focus}` : ''}.\n\n`
+      + '1. Read it: explore_model {detail:"full"} (nets with depth, parent, interface, domain, tags, execution; shared places with readers and writers; relations), net_levels {action:"list"}, and list_net_definitions.\n'
+      + '2. Propose, do not apply yet: named levels top to bottom (the domain decides: e.g. product > service > implementation, or customer promise > process > team > tooling); a level and a domain for each net; '
+      + 'which net refines which element of another net (a parent transition whose presets and postsets are the child\'s input and output ports; same place ids); explicit relations (explains, depends-on, references) where nets explain or rely on each other without refinement; '
+      + 'and definitions for missing abstract nets (a higher-level net that summarizes several lower ones). Base every proposal on what you read: shared places, link relations, names and descriptions; say how sure you are.\n'
+      + '3. Present it as a short table and ask me which parts to apply (an Interview question is fine when I am not in this conversation).\n'
+      + '4. Apply only what I approved: net_levels {action:"save"}, update_net_definition {action:"organize"} per net, {action:"relate"} for relations, '
+      + 'and {action:"create", parent} for new abstract nets (they stay definitions until someone builds them). A refinement between two existing nets is written by creating or promoting a subnet in Studio, or by a definition with a parent; never by inventing places.\n'
+      + '5. Re-read explore_model and report what changed and any port mismatches the catalogue now shows. Nothing here starts, stops or deletes anything.',
+    ),
+  );
+
+  server.registerPrompt(
     'realize-net-definition',
     {
       title: 'Realize a net definition',

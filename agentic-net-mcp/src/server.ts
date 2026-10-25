@@ -23,6 +23,7 @@ import { registerProtocolReaders, registerProtocolTools } from './tools/protocol
 import { registerApplicationReaders, registerApplicationTools } from './tools/applications.js';
 import { registerExplorerReaders } from './tools/explorer.js';
 import { registerDefinitionReaders, registerDefinitionTools } from './tools/definitions.js';
+import { registerLevelTools } from './tools/levels.js';
 import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
 
@@ -96,6 +97,7 @@ export function createServer(ctx: AppContext): McpServer {
     registerExplorerReaders(server, ctx);
     registerDefinitionReaders(server, ctx);
     registerDefinitionTools(server, ctx);
+    registerLevelTools(server, ctx);
     registerNetTools(server, ctx);
     registerPackTools(server, ctx);
     // Invoke the platform agents (builder/operator/persona/...) — same agent loop as the GUI.
