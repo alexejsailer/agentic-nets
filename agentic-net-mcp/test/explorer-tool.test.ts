@@ -293,3 +293,20 @@ describe('refine_model and curate_model', () => {
     expect(missing.content[0].text).toMatch(/needs how/);
   });
 });
+
+describe('refine_model on a master that serves the worklist', () => {
+  it('returns the served list untouched, plus the next-step hint, without reading the catalogue', async () => {
+    const served = { modelId: 'm1', direction: 'both', mode: 'review', counts: { unconfirmed: 1 }, levels: { product: 1 }, total: 1, returned: 1, deferred: 2,
+      items: [{ kind: 'unconfirmed', direction: 'review', subjectKey: 'product::overview', netKey: 'product::overview', title: 'Overview', level: 'product', detail: 'x', ask: { subjectKey: 'product::overview', question: 'ok?' } }] };
+    const master: any = (path: string) => (path.includes('/worklist') ? served : CATALOGUE);
+    master.servesWorklist = true;
+    const { client, calls } = await connect(master);
+    const result: any = await client.callTool({ name: 'refine_model', arguments: { mode: 'review', count: 5 } });
+    const out = JSON.parse(result.content[0].text);
+    expect(calls).toEqual(['/explorer/m1/worklist?modelId=m1&direction=both&mode=review&count=5']);
+    expect(out.items).toEqual(served.items);
+    expect(out.deferred).toBe(2);
+    expect(out.next).toMatch(/curate_model/);
+  });
+});
+

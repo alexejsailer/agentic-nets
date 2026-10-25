@@ -29,6 +29,19 @@ function curationPath(model: string): string {
   return `/explorer/${m}/curation?modelId=${m}`;
 }
 
+function worklistPath(model: string, args: { level?: string; net?: string; direction?: string; mode?: string; count?: number }): string {
+  const m = encodeURIComponent(model);
+  const q = new URLSearchParams({ modelId: model });
+  if (args.level) q.set('level', args.level);
+  if (args.net) q.set('net', args.net);
+  if (args.direction) q.set('direction', args.direction);
+  if (args.mode) q.set('mode', args.mode);
+  if (args.count) q.set('count', String(args.count));
+  return `/explorer/${m}/worklist?${q.toString()}`;
+}
+
+const WORKLIST_NEXT = 'curate_model {action:"ask", ...item.ask} sends a question to the person; {action:"answer"} records what they said and can confirm or flag the subject; {action:"confirm"|"flag"|"resolve"|"defer"} marks it directly.';
+
 /** Interview subject kind for a subject key: a net, one of its elements, or a level. */
 export function interviewSubjectKind(subjectKey: string): 'net-definition' | 'net-element' | 'level' {
   if (subjectKey.includes('#')) return 'net-element';
@@ -72,7 +85,7 @@ const PRIORITY: Record<RefineItem['kind'], number> = {
  * The worklist of a scope. Pure: the catalogue and the review come in, items go out, most pressing
  * first. `direction` keeps only the structural gaps looking that way ("review" items stay).
  */
-export function refineWorklist(catalogue: any, review: any, opts: { level?: string; net?: string; direction?: 'down' | 'up' | 'both'; count?: number } = {}): any {
+export function refineWorklist(catalogue: any, review: any, opts: { level?: string; net?: string; direction?: 'down' | 'up' | 'both'; mode?: 'all' | 'review' | 'plan'; count?: number } = {}): any {
   const nets: any[] = Array.isArray(catalogue?.nets) ? catalogue.nets : [];
   const byKey = new Map<string, any>(nets.map((n) => [String(n?.key ?? ''), n]));
   const levels: any[] = Array.isArray(catalogue?.levels) ? catalogue.levels : [];
@@ -173,6 +186,12 @@ export function refineWorklist(catalogue: any, review: any, opts: { level?: stri
       });
     }
   }
+  const mode = opts.mode ?? 'all';
+  const reviewKinds = new Set<RefineItem['kind']>(['open-flag', 'open-question', 'unconfirmed']);
+  if (mode !== 'all') {
+    const kept = items.filter((i) => reviewKinds.has(i.kind) === (mode === 'review'));
+    items.splice(0, items.length, ...kept);
+  }
   items.sort((a, b) => PRIORITY[a.kind] - PRIORITY[b.kind] || a.subjectKey.localeCompare(b.subjectKey));
   const counts: Record<string, number> = {};
   for (const i of items) counts[i.kind] = (counts[i.kind] ?? 0) + 1;
@@ -210,11 +229,22 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         level: z.string().optional().describe('Only nets on this level'),
         net: z.string().optional().describe('Only this net (session::netId)'),
         direction: z.enum(['down', 'up', 'both']).default('both'),
+        mode: z.enum(['all', 'review', 'plan']).optional().describe('review: flags, questions, never confirmed (bottom-up); plan: open definitions, unrefined transitions, nets below nothing (top-down); default all'),
         count: z.number().int().positive().max(200).optional().describe('At most this many items (default: all)'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'refine_model', mutates: false }, async (model, args) => {
+      // The master computes the one worklist the Explorer's Focus view and the scripts read too
+      // (it also honours deferred subjects); an older master without the route gets the local fold.
+      try {
+        const served = await ctx.master.get(worklistPath(model, args));
+        if (served && Array.isArray(served.items)) {
+          return { ...served, next: WORKLIST_NEXT };
+        }
+      } catch (err: any) {
+        if (err?.status !== 404) throw err;
+      }
       let catalogue: any;
       let review: any;
       try {
@@ -225,7 +255,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
         }
         throw err;
       }
-      return refineWorklist(catalogue, review, { level: args.level, net: args.net, direction: args.direction, count: args.count });
+      return refineWorklist(catalogue, review, { level: args.level, net: args.net, direction: args.direction, mode: args.mode, count: args.count });
     }),
   );
 }
@@ -249,9 +279,9 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         'Writes of a question round, each a validated wrapper over the Interview and Curation applications with deterministic ids. '
         + 'ask: a question to the person about a subject (session::net, session::net#elementId, or a level id); options optional; the subject fields are derived from the key. '
         + 'answer: record what the person said (selected and/or text) on a promptId; with then:"confirm" the subject is confirmed in the same call (by = the person), with then:"flag" it is flagged (flag + reason). '
-        + 'confirm / flag / resolve: write a mark directly (markId defaults to a deterministic id). Nothing here starts anything.',
+        + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). Nothing here starts anything.',
       inputSchema: {
-        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve']),
+        action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer']),
         subjectKey: z.string().optional().describe('ask, confirm, flag, and answer with then: the subject'),
         question: z.string().optional().describe('ask: the question, in the person\'s words'),
         header: z.string().optional().describe('ask: short chip label'),
@@ -273,6 +303,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
         sourceHash: z.string().optional().describe('confirm: hash of the referenced sources at this moment'),
         markId: z.string().optional().describe('confirm/flag: id of the new mark (default deterministic); resolve: the flag'),
         how: z.enum(['changed', 'confirmed', 'withdrawn']).optional().describe('resolve: how the flag was settled'),
+        until: z.string().optional().describe('defer: ISO-8601 instant after which the subject is due again'),
         ...modelParam,
       },
     },
@@ -350,6 +381,16 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
           const input: Record<string, unknown> = { markId: args.markId, how: args.how, by, ...(args.notes ? { note: args.notes } : {}) };
           const result = await act(model, 'curation', 'resolve', input, `curate-resolve-${args.markId}-${args.how}`);
           return { model, markId: args.markId, how: args.how, result };
+        }
+        case 'defer': {
+          need('subjectKey', args.subjectKey); need('until', args.until);
+          const subjectKey = args.subjectKey!;
+          const input: Record<string, unknown> = {
+            markId: args.markId ?? `defer-${slug(subjectKey)}-${stamp()}`, subjectKind: curationSubjectKind(subjectKey), subjectKey,
+            until: args.until, by, ...(args.notes ? { note: args.notes } : {}),
+          };
+          const result = await act(model, 'curation', 'defer', input, `curate-defer-${input['markId']}`);
+          return { model, subjectKey, until: args.until, markId: input['markId'], result };
         }
         default:
           throw new Error(`unknown action ${String(args.action)}`);

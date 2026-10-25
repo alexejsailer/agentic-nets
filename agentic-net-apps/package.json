@@ -28,8 +28,8 @@
     "publish:kanban": "node tools/publish-application.mjs --file dist/packages/persona-kanban-1.0.0.application.json",
     "publish:approval": "node tools/publish-application.mjs --file dist/packages/approval-room-1.1.0.application.json",
     "pack:curation": "node tools/pack-application.mjs --config examples/curation/agenticos.app.json",
-    "test:curation-package": "node tools/test-application-package.mjs --config examples/curation/agenticos.app.json --file dist/packages/curation-1.0.2.application.json",
-    "publish:curation": "node tools/publish-application.mjs --file dist/packages/curation-1.0.2.application.json"
+    "test:curation-package": "node tools/test-application-package.mjs --config examples/curation/agenticos.app.json --file dist/packages/curation-1.1.0.application.json",
+    "publish:curation": "node tools/publish-application.mjs --file dist/packages/curation-1.1.0.application.json"
   },
   "dependencies": {
     "@angular/common": "^21.2.18",

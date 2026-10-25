@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "curation",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "displayName": "Curation",
   "description": "Confirmations and flags on the subjects of a model's abstraction hierarchy: nets, elements, levels and relations.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "curation"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/curation-1.0.2.application.json",
+  "output": "../../dist/packages/curation-1.1.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -216,6 +216,57 @@
             }
           }
         }
+      },
+      {
+        "name": "defer",
+        "targetRole": "marks",
+        "description": "Put a subject aside until a date: the worklist and the Focus view leave it out until then. The newest defer wins; a defer in the past is over.",
+        "guard": {
+          "role": "marks",
+          "matchKey": "markId",
+          "exists": false
+        },
+        "defaults": {
+          "kind": "curation-mark",
+          "mark": "defer",
+          "status": "standing"
+        },
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "markId",
+            "subjectKind",
+            "subjectKey",
+            "until",
+            "by"
+          ],
+          "properties": {
+            "markId": {
+              "type": "string"
+            },
+            "subjectKind": {
+              "enum": [
+                "net",
+                "element",
+                "level",
+                "relation"
+              ]
+            },
+            "subjectKey": {
+              "type": "string"
+            },
+            "until": {
+              "type": "string",
+              "description": "ISO-8601 instant after which the subject is due again"
+            },
+            "by": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
       }
     ],
     "permissions": {
@@ -230,7 +281,8 @@
       "actions": [
         "confirm",
         "flag",
-        "resolve"
+        "resolve",
+        "defer"
       ]
     }
   }
