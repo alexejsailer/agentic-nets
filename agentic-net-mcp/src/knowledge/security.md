@@ -5,9 +5,9 @@ AGENTICOS_MODELS before anything reaches the backend; out-of-list models return
 MODEL_NOT_ALLOWED. Readonly deployments authenticate with the gateway's readonly client — the
 GATEWAY itself rejects mutations (403), and mutating tools are not even registered.
 
-Honest boundary: the underlying gateway credential is not model-scoped (the platform has no
-per-model authorization yet), so the allowlist protects against client/LLM mistakes and prompt
-injection — not against a malicious operator of this process. Never ask for or echo secrets.
+Boundary: an operator credential is not model-scoped, so there the allowlist only guards against
+client/LLM mistakes and prompt injection. A tenant key (multi-tenant platform) is: the gateway
+refuses every model outside `<tenant>-*`. Never ask for or echo secrets.
 
 ## Credentials — set_transition_credentials, the ONE sanctioned secret path
 
