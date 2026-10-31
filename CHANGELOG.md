@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Unknown token roles are refused** (`agentic-net-gateway` - `TenantScopeEnforcementFilter`). A JWT without one of the known roles (admin, readonly, executor, share, tenant) used to pass every scoped filter as admin.
 - **`/api/health` no longer names the master URL** (it is public and unauthenticated).
+- **The opt-in public hub opens only the public catalog** (`gateway.hub.public-catalog`). Anonymous `GET /api/packages/**` is closed: the package registry does not filter by visibility, so private packages were downloadable. Peers read `/api/hub/public/**` only, which stays open.
 - **`hub_install` stays inside the allowlist** (`agentic-net-mcp`): `targetModelId` may name a model outside it only when that model does not exist yet, and never with `REPLACE`.
 - **The node SSE proxy sends the service-auth header** it used to drop, so streams work against a node with `AGENTICOS_SERVICE_TOKEN`.
 - **CLI `GatewayClient`** takes an optional per-instance secret whose token lives in memory only.

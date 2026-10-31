@@ -24,7 +24,6 @@ import java.util.List;
  *   /actuator/**            — Health and metrics
  *   /api/health/**          — Service health checks
  *   GET /api/hub/public/**  — NetHub public catalog (ONLY when gateway.hub.public-catalog=true)
- *   GET /api/packages/**    — Package browsing (ONLY when gateway.hub.public-catalog=true)
  *   POST /oauth2/share      — Read-only net share-link exchange (ONLY when gateway.share-enabled=true).
  *                             Trades a link uuid for a share-scoped JWT; opens nothing under /api.
  *   /internal/masters/**    — Shared-secret protected master registry
@@ -99,8 +98,10 @@ public class SecurityConfig {
                         // Opt-in public hub: anonymous GET of the NetHub public catalog + package
                         // browse. OFF by default (must precede the /api/** catch-all to take effect).
                         if (hubPublicCatalog) {
-                            auth.requestMatchers(HttpMethod.GET, "/api/hub/public/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/packages/**").permitAll();
+                            // Only the PUBLIC catalog (master filters it to public artifacts; peers read
+                            // nothing else). The package registry's GET routes do not filter by
+                            // visibility, so opening them leaked private packages to anyone.
+                            auth.requestMatchers(HttpMethod.GET, "/api/hub/public/**").permitAll();
                         }
                         // Opt-in read-only net share links. Only the EXCHANGE is anonymous: it
                         // trades the link uuid for a share-scoped JWT, after which
