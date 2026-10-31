@@ -137,18 +137,15 @@ def t_forbidden_flags():
     raise AssertionError("not refused")
 
 
-def t_codex_sandbox_is_forced_and_mcp_refused():
+def t_codex_sandbox_is_forced_and_mcp_dropped():
     r, _ = run_with(CODEX)
     argv = r["report"]["seen"]["argv"]
     assert argv[:3] == ["exec", "--sandbox", "read-only"], argv
     assert "workspace-write" not in argv
-    try:
-        run_with(CODEX, HA_MCP_URL="http://x/mcp", HA_MCP_TOOLS="explore_model", AGENTICNETS_MCP_TOKEN="t")
-    except ha.Refused as e:
-        assert "codex" in str(e)
-        return
-    raise AssertionError("codex with MCP not refused")
-
+    # codex cannot be limited to the allowed MCP tools: it runs without the server and reports proposals
+    r, _ = run_with(CODEX, HA_MCP_URL="http://x/mcp", HA_MCP_TOOLS="explore_model", AGENTICNETS_MCP_TOKEN="t")
+    assert r["ok"] and r.get("mcpDropped") is True, r
+    assert r["report"]["seen"]["cfg"] is None and "--mcp-config" not in r["report"]["seen"]["argv"], r["report"]["seen"]
 
 def t_write_mode_keeps_the_profile_tools():
     p = dict(READ_ONLY_CLAUDE, mode="write")
@@ -188,14 +185,21 @@ def t_missing_root_and_binary():
 
 def t_a_profile_without_mcp_gets_none_even_as_a_string():
     for flag in (False, "false"):
-        try:
-            run_with(dict(READ_ONLY_CLAUDE, mcp=flag), HA_MCP_URL="http://x/mcp", HA_MCP_TOOLS="explore_model",
-                     AGENTICNETS_MCP_TOKEN="t")
-        except ha.Refused as e:
-            assert "no MCP" in str(e), str(e)
-            continue
-        raise AssertionError("mcp=%r not refused" % flag)
+        r, _ = run_with(dict(READ_ONLY_CLAUDE, mcp=flag), HA_MCP_URL="http://x/mcp", HA_MCP_TOOLS="explore_model",
+                        AGENTICNETS_MCP_TOKEN="t")
+        seen = r["report"]["seen"]
+        assert r.get("mcpDropped") is True and seen["cfg"] is None, (flag, r)
+        allowed = seen["argv"][seen["argv"].index("--allowedTools") + 1]
+        assert "mcp__" not in allowed, allowed
 
+
+def t_billed_api_keys_stay_out_of_the_agent_unless_asked():
+    r, _ = run_with(READ_ONLY_CLAUDE, ANTHROPIC_API_KEY="sk-billed", OPENAI_API_KEY="sk-open")
+    env = ha.child_env({"ANTHROPIC_API_KEY": "a", "OPENAI_API_KEY": "o", "PATH": "/bin"}, "AGENTICNETS_MCP_TOKEN")
+    assert env == {"PATH": "/bin"}, env
+    kept = ha.child_env({"ANTHROPIC_API_KEY": "a", "HA_USE_API_KEY": "true", "PATH": "/bin"}, "AGENTICNETS_MCP_TOKEN")
+    assert kept == {"ANTHROPIC_API_KEY": "a", "PATH": "/bin"}, kept
+    assert r["ok"], r
 
 def t_token_properties_arrive_as_strings():
     p = dict(READ_ONLY_CLAUDE, command=json.dumps(READ_ONLY_CLAUDE["command"]), mcp="true")

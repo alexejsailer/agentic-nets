@@ -44,7 +44,8 @@ export function registerFocusRoundTools(server: McpServer, ctx: AppContext): voi
     inputSchema: {
       action: z.enum(['start', 'answer', 'refine', 'implement', 'retry']), roundId: identity,
       topic: z.string().min(1).optional(), scope: z.string().min(1).optional().describe('Optional explicit boundary; omit to let the headless agent discover the relevant areas from the topic'),
-      profileId: z.enum(['claude-code-read-only', 'codex-read-only']).optional(),
+      profileId: z.string().min(1).max(100).optional().describe('Runner profile: claude-code-read-only (default), codex-read-only, '
+        + 'platform-read-only (the platform\'s own LLM: reads the model through MCP, cannot open source files), or one added to the model'),
       promptId: z.string().optional(), selected: z.array(z.string()).optional(), text: z.string().optional(),
       unknown: z.boolean().optional(), by: z.string().optional(), ...modelParam(ctx),
     },

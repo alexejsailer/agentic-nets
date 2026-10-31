@@ -16,6 +16,8 @@ arrive as environment variables:
   HA_MCP_SERVER  the server's name for the agent                           default agenticnets
   HA_MCP_TOKEN_ENV  the variable holding the server's bearer token         default AGENTICNETS_MCP_TOKEN
   HA_TIMEOUT_MIN overrides the profile's timeoutMin
+  HA_USE_API_KEY true: keep ANTHROPIC_API_KEY / OPENAI_API_KEY in the agent's environment (default: removed,
+                 so the CLI runs on its own login and an executor's key is never billed by accident)
 
 A profile: {profileId, title, family: claude-code | codex, command: [argv with {model}, {allowedTools},
 {disallowedTools}, {maxTurns} placeholders ($-prefixed forms are accepted too)], promptVia: stdin | argv,
@@ -25,8 +27,10 @@ timeoutMin, mcp: true | false}.
 The runner, not the profile, enforces the mode. read-only: a claude-code profile keeps only the
 reading tools (and the allowed MCP tools) and always passes the write and shell tools as disallowed; a
 codex profile always runs in the read-only sandbox and gets no MCP server (it cannot be limited to
-the allowed tools). The agent never sees a token in its environment: an MCP server reaches it as a
-private config file, the token variables are removed from its environment.
+the allowed tools). A profile that takes no MCP server (mcp:false, or codex) runs without one when a
+caller passes an MCP URL anyway: the result says mcpDropped and the agent reports proposals instead.
+The agent never sees a token in its environment: an MCP server reaches it as a private config file,
+the token variables are removed from its environment.
 
 Prints exactly one JSON object: {ok, exitCode, agentId, profileId, mode, model, report, text, stderr,
 durationSec, costUsd, turns, error?}. Exit code 0 even when the agent failed: the lane records it.
@@ -50,6 +54,8 @@ FORBIDDEN_FLAGS = ("--dangerously-skip-permissions", "--permission-mode", "--dan
                    "--yolo", "--full-auto")
 TOOL_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 STRIP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "AGENTICNETS_MCP_URL")
+# Billed API keys an executor may carry for other work: the CLIs use their own login unless HA_USE_API_KEY=true.
+API_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")
 
 
 class Refused(Exception):
@@ -124,8 +130,11 @@ def plan(profile, env):
             raise Refused("'%s' is not a tool name" % t)
     if not re.match(r"^[a-z][a-z0-9-]{0,31}$", server):
         raise Refused("'%s' is not a server name" % server)
-    if mcp_url and str(profile.get("mcp")).strip().lower() == "false":
-        raise Refused("profile %s takes no MCP server" % profile.get("profileId", "?"))
+    dropped = False
+    if mcp_url and (str(profile.get("mcp")).strip().lower() == "false" or family == "codex"):
+        # A profile that takes no MCP server (or codex, which cannot be limited to the allowed tools) runs
+        # without one: the agent reports proposals in its result line and the caller applies them.
+        mcp_url, mcp_tools, dropped = "", [], True
     if mode == "read-only" and family not in ("claude-code", "codex"):
         raise Refused("read-only can only be enforced for claude-code and codex profiles, not '%s'" % (family or "unknown"))
     if mode == "read-only":
@@ -145,8 +154,6 @@ def plan(profile, env):
         argv = placeholder(argv, "allowedTools", ",".join(allowed))
         argv = placeholder(argv, "disallowedTools", ",".join(disallowed))
     elif family == "codex":
-        if mcp_url:
-            raise Refused("codex cannot be limited to the allowed MCP tools; it would reach every tool of the server")
         if mode == "read-only":
             fixed, i = [], 0
             while i < len(argv):
@@ -171,13 +178,16 @@ def plan(profile, env):
             continue
         cleaned.append(argv[i])
         i += 1
-    return {"argv": cleaned, "model": model, "mcpUrl": mcp_url, "mcpServer": server, "mcpNames": mcp_names}
+    return {"argv": cleaned, "model": model, "mcpUrl": mcp_url, "mcpServer": server, "mcpNames": mcp_names, "mcpDropped": dropped}
 
 
 def child_env(env, token_env):
+    keep_keys = str(env.get("HA_USE_API_KEY") or "").strip().lower() == "true"
     out = {}
     for k, v in env.items():
         if k in STRIP_ENV or k.startswith("HA_") or k == token_env or k.endswith("_MCP_TOKEN"):
+            continue
+        if k in API_KEYS and not keep_keys:
             continue
         out[k] = v
     return out
@@ -381,6 +391,8 @@ def run(env, context=None):
               "profileId": profile.get("profileId"), "mode": profile["mode"], "model": p["model"], "report": report,
               "text": text[-6000:], "stderr": err[-2000:], "durationSec": round(time.time() - started),
               "costUsd": cost, "turns": turns}
+    if p.get("mcpDropped"):
+        result["mcpDropped"] = True
     if timed_out:
         result["error"] = "the agent did not finish within %d minutes" % (timeout_s // 60)
     return result
