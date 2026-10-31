@@ -41,4 +41,9 @@ test('both providers and the round policy are editable upgrade-safe seeds', () =
   assert.equal(manifest.application.agentProtocol.guidedRounds.maxQuestions, 10);
   assert.equal(manifest.application.agentProtocol.guidedRounds.scopeSelection, 'agent');
   assert.match(p.text, /Never ask the person to select a net/);
+  assert.equal(manifest.application.agentProtocol.guidedRounds.questionDelivery, 'batch');
+  assert.equal(manifest.application.agentProtocol.guidedRounds.questionsPerRun, 10);
+  assert.match(p.text, /questions:\[\.\.\.\]/);
+  assert.match(p.text, /Exactly one option is recommended/);
+  assert.match(p.text, /without another agent call per answer/);
 });

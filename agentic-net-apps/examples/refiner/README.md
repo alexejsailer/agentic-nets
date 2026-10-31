@@ -6,13 +6,17 @@ Since 1.4.0 its prompts and coder profiles are tokens in the model: `prompts` (p
 
 Packed with `npm run pack:refiner`; the master seeds the packed copy (`application-templates/refiner.json`).
 
-## Guided rounds (1.7.0)
+## Guided rounds (1.8.0)
 
 The Focus page starts from a plain-language goal. The headless agent discovers relevant nets and
 layers; the person does not select nets, sessions or tags. The selected model areas are visible
-for inspection and can expand as answers clarify the topic. Refine seals that selection with
-the answers, and the server rejects targets outside it. Up to ten
-questions, with an early finish, free text, and an investigation option. Questions and responses
+for inspection. Refine seals that selection with
+the answers, and the server rejects targets outside it. One headless request prepares up to ten
+short, independent multiple-choice cards, with exactly one recommended option and a brief reason.
+The UI shows one card at a time; choosing an answer saves it and immediately advances without a
+new agent run. Supporting analysis is collapsed under "Why this question?". Follow-up rounds adapt
+to the saved decisions. Early finish, free text and investigation remain available; investigating
+the current decision preserves the remaining cards. Questions and responses
 also appear in Interview. Answers are saved before any model edit. Pressing Refine seals the
 answered questions and directly applies structured definitions, topology and organization changes.
 Applied operations retain receipts; unfinished work can be retried, and the next round waits for
@@ -50,4 +54,4 @@ the token nor model context is placed in the prompt. This command net is interna
 person supplies only a goal. A job starts one headless process, records its result, then exits.
 
 Checks: `node --test examples/refiner/round-package.test.mjs`, `npm run pack:refiner`, and
-`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.7.0.application.json`.
+`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.8.0.application.json`.
