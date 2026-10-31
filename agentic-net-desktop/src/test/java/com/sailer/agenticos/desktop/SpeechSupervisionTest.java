@@ -45,7 +45,9 @@ class SpeechSupervisionTest {
 
     @Test
     void speechSetUpHereIsSupervisedAsAnOptionalServiceOnItsPort() throws Exception {
-        ServiceSpec spec = withHome("", true, true, config -> Main.speechSpec(config, Map.of("PATH", "/usr/bin:/bin")));
+        // A PATH in this platform's own form (':' here, ';' on Windows).
+        String path = String.join(File.pathSeparator, System.getProperty("java.io.tmpdir"), System.getProperty("user.dir"));
+        ServiceSpec spec = withHome("", true, true, config -> Main.speechSpec(config, Map.of("PATH", path)));
         assertEquals("speech", spec.name());
         assertTrue(spec.optional());
         assertEquals("http://127.0.0.1:8092/health", spec.healthUrl());
@@ -89,6 +91,14 @@ class SpeechSupervisionTest {
             }
         });
         assertTrue(venvPython.endsWith(".agenticos/speech/venv/bin/python3"), venvPython);
+    }
+
+    @Test
+    void aPathEntryTheFileSystemCannotReadIsSkippedNotFatal() throws Exception {
+        // On Windows a Unix-style PATH arrives as one entry with ':' in it, which is no valid path there.
+        String odd = "/usr/bin:/bin" + File.pathSeparator + "\u0000bad";
+        String python = withHome("", true, true, config -> Main.speechPython(config, odd));
+        assertTrue(python.equals("python3") || python.equals("python") || python.endsWith("python3") || python.endsWith("python.exe"), python);
     }
 
     @Test

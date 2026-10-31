@@ -348,8 +348,15 @@ public final class Main {
         }
         String name = windows ? "python.exe" : "python3";
         for (String dir : (path == null ? "" : path).split(File.pathSeparator)) {
-            if (!dir.isEmpty() && Files.isExecutable(Path.of(dir, name))) {
-                return Path.of(dir, name).toString();
+            if (dir.isEmpty()) continue;
+            try {
+                Path candidate = Path.of(dir, name);
+                if (Files.isExecutable(candidate)) {
+                    return candidate.toString();
+                }
+            } catch (java.nio.file.InvalidPathException ignored) {
+                // A PATH entry this file system cannot read as a directory: skip it, never fail the
+                // launcher over it (an optional service must not block the stack).
             }
         }
         return windows ? "python" : "python3";
