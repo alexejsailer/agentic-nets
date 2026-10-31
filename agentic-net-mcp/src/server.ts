@@ -31,6 +31,21 @@ import { registerResources } from './resources.js';
 import { registerPrompts } from './prompts.js';
 import { registerAppPrompts } from './app-prompts.js';
 
+/**
+ * Tools a tenant never sees (AGENTICOS_TENANCY=true). The gateway refuses what they would do anyway;
+ * withholding them keeps a tenant's client from trying.
+ */
+export const TENANCY_WITHHELD = new Set<string>([
+  // the platform's own agents and this process's own LLM provider
+  'invoke_agent', 'start_domain_expert', 'host_transition', 'unhost_transition',
+  // capability packs live in the operator's registry model
+  'find_capabilities', 'delegate',
+  // instance-wide NetHub writes and remotes
+  'hub_publish', 'hub_add_remote', 'hub_remotes', 'hub_sync_remote',
+  // the platform's own MCP token
+  'application_mcp', 'refinement_access',
+]);
+
 export const SERVER_NAME = 'agenticnets';
 export const SERVER_VERSION = '0.1.0';
 
@@ -47,6 +62,11 @@ export function createServer(ctx: AppContext): McpServer {
   // argument evaluation, i.e. before this wrapper body runs for that tool.
   const registerWithAnnotations = server.registerTool.bind(server);
   (server as any).registerTool = (name: string, config: any, handler: any) => {
+    if (ctx.config.tenancy && TENANCY_WITHHELD.has(String(name))) {
+      // Not a tenant's to call (operator registries, the platform's own agents or provider, other
+      // models): absent rather than refused, so a tenant's client never plans around them.
+      return undefined;
+    }
     const spec = toolRegistry.get(String(name));
     if (config && config.annotations === undefined && spec) {
       config = {

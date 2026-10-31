@@ -11,13 +11,28 @@ export function buildInstructions(config: McpConfig): string {
       ? `All tools operate on the model '${config.models[0]}'.`
       : `Allowed models: ${config.models.join(', ')} (default '${config.models[0]}'; pass \`model\` to target another).`;
 
+  const reasoner = config.serverAi === false || config.tenancy
+    ? `
+
+## You are the reasoner here
+This platform runs no AI of its own. Agent and llm transitions in your nets are served by YOU:
+\`list_external_fires\` shows the ready ones, \`prepare_external_fire\` hands you the exact prompt and
+bindings, \`complete_external_fire\` writes your answer through the lane's own emit rules. Starting
+such a lane offers it to connected clients; nothing fires until one serves it.` +
+      (config.tenancy && config.tenant
+        ? `
+Your account owns the models starting with '${config.tenant}-' and nothing else; \`create_model\` adds
+one (the prefix is added for you). Command lanes run only on executors registered to your account.`
+        : '')
+    : '';
+
   return `# Agentic-Nets — persona agents with memory that runs
 
 You are connected to AgenticNetOS: a persona-first agent OS implemented as Petri nets. PLACES are persistent, event-sourced
 containers of JSON TOKENS; TRANSITIONS consume tokens from input places, act (transform / LLM call /
 HTTP call / shell command), and emit results to output places. Everything you store here survives
 this session, is queryable, and can be PROCESSED AUTONOMOUSLY by scheduled transitions while you
-are gone. ${models}
+are gone. ${models}${reasoner}
 
 ## Read these two FIRST — they change what you build, not just how you call it
 - **\`agenticnets://docs/index\`** — the operational-doc index; grep via search_knowledge. Read it

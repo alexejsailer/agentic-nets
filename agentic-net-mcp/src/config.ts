@@ -64,11 +64,27 @@ export interface McpConfig {
   persistAllowlist: boolean;
   /** Whether to register the large UPPERCASE native catalog in addition to curated tools. */
   nativeTools?: NativeToolMode;
+  /**
+   * Multi-tenant mode (AGENTICOS_TENANCY=true, HTTP only): this process holds NO gateway secret.
+   * Every request carries a tenant key (ant_<tenant>_<hex>) as its bearer; the server builds that
+   * tenant's own context (its own gateway token, its own models) and the gateway fences it.
+   */
+  tenancy?: boolean;
+  /** Set on a tenant's context only: the tenant id and the key its gateway client signs in with. */
+  tenant?: string;
+  tenantKey?: string;
+  /** Tenancy: create <tenant>-main on a tenant's first connection when it has no model yet. */
+  tenancyAutoModel?: boolean;
+  /** Server-side AI as the platform reports it (GET /api/system/features); undefined until probed. */
+  serverAi?: boolean;
 }
 
 export class ConfigError extends Error {}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
+  if (env.AGENTICOS_TENANCY === 'true') {
+    return loadTenancyConfig(env);
+  }
   const envModels = (env.AGENTICOS_MODELS ?? '')
     .split(',')
     .map((m) => m.trim())
@@ -143,5 +159,45 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): McpConfig {
     allowlistPath: store.path,
     persistAllowlist: store.enabled,
     nativeTools,
+  };
+}
+
+/**
+ * Multi-tenant configuration: HTTP only, no secret and no model list of its own. The base config is
+ * a template; each tenant gets a copy with its own models, key and session (see tenancy.ts).
+ */
+function loadTenancyConfig(env: NodeJS.ProcessEnv): McpConfig {
+  const transport = (env.AGENTICOS_MCP_TRANSPORT ?? 'http') as McpTransport;
+  if (transport !== 'http') {
+    throw new ConfigError('AGENTICOS_TENANCY=true needs the http transport (each request carries its tenant key).');
+  }
+  const nativeTools = (env.AGENTICOS_NATIVE_TOOLS ?? 'curated') as NativeToolMode;
+  if (nativeTools !== 'all' && nativeTools !== 'curated') {
+    throw new ConfigError(`AGENTICOS_NATIVE_TOOLS must be all|curated, got '${nativeTools}'`);
+  }
+  return {
+    gatewayUrl: env.AGENTICOS_GATEWAY_URL ?? 'http://localhost:8083',
+    // Placeholder: a tenant's context replaces it with that tenant's models.
+    models: ['tenant-pending'],
+    mode: 'rw',
+    session: env.AGENTICOS_SESSION ?? 'mcp',
+    nodeHost: env.AGENTICOS_NODE_HOST ?? 'localhost:8080',
+    transport: 'http',
+    httpPort: Number(env.AGENTICOS_MCP_HTTP_PORT ?? '8091'),
+    httpHost: env.AGENTICOS_MCP_HTTP_HOST ?? '0.0.0.0',
+    httpToken: undefined,
+    selfUrl: undefined,
+    // A tenancy server never reasons with a provider of its own: the tenant's client does.
+    llmProvider: 'none',
+    llmModel: undefined,
+    llmTier: 'medium',
+    allowModelCreate: true,
+    persistedModels: [],
+    allowlistPath: '(tenancy: none)',
+    persistAllowlist: false,
+    nativeTools,
+    tenancy: true,
+    tenancyAutoModel: env.AGENTICOS_TENANCY_AUTO_MODEL !== 'false',
+    serverAi: false,
   };
 }

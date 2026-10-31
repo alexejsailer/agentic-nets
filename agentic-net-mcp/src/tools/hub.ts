@@ -9,7 +9,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
-import { grantModel } from '../scope.js';
+import { ScopeError, grantModel } from '../scope.js';
 
 export function registerHubTools(server: McpServer, ctx: AppContext): void {
   const { scope, config } = ctx;
@@ -204,6 +204,20 @@ export function registerHubTools(server: McpServer, ctx: AppContext): void {
       },
     },
     wrapTool(scope, config.mode, { name: 'hub_install', mutates: true }, async (model, args) => {
+      if (args.targetModelId && config.tenant && !String(args.targetModelId).startsWith(`${config.tenant}-`)) {
+        args = { ...args, targetModelId: `${config.tenant}-${args.targetModelId}` };
+      }
+      if (args.targetModelId && !scope.allowed.includes(args.targetModelId)) {
+        // targetModelId is not the scoped `model` param: without this check it reached any model.
+        // Outside the allowlist it may only name a model that does not exist yet (a model-kind
+        // install creating it), and never REPLACE one.
+        const list: any = await ctx.client.nodeApi('GET', '/admin/models').catch(() => []);
+        const exists = (Array.isArray(list) ? list : (list?.models ?? []))
+          .some((m: any) => (m.modelId ?? m.id) === args.targetModelId);
+        if (exists || args.mode === 'REPLACE') {
+          throw new ScopeError(String(args.targetModelId), scope.allowed);
+        }
+      }
       // Agent templates get their own session (master defaults to "agent-<name>") — only
       // net/session kinds fall back to the MCP working session. Probe the kind when the
       // caller didn't pin a session; on lookup failure keep the classic default.

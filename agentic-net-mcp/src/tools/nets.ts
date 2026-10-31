@@ -425,7 +425,11 @@ export function registerNetTools(server: McpServer, ctx: AppContext): void {
         },
       },
       wrapTool(scope, config.mode, { name: 'create_model', mutates: true }, async (_model, args) => {
-        const modelId = String(args.modelId).trim();
+        let modelId = String(args.modelId).trim();
+        if (config.tenant && !modelId.startsWith(`${config.tenant}-`)) {
+          // A tenant's models carry its prefix; the gateway refuses any other id.
+          modelId = `${config.tenant}-${modelId}`;
+        }
         if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(modelId)) {
           throw new Error('modelId must be lowercase letters/digits/dashes (max 64, starting alphanumeric)');
         }

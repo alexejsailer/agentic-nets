@@ -70,11 +70,14 @@ export class AppContext {
   };
 
   constructor(readonly config: McpConfig) {
-    this.client = new AuditedGatewayClient({
-      gatewayUrl: config.gatewayUrl,
-      profileName: config.mode === 'readonly' ? 'mcp-readonly' : 'mcp',
-      clientId: config.mode === 'readonly' ? 'agenticos-readonly' : 'agenticos-admin',
-    }, config.session);
+    this.client = new AuditedGatewayClient(config.tenantKey
+      // A tenant's context signs in with that tenant's key only, token kept in memory.
+      ? { gatewayUrl: config.gatewayUrl, profileName: `tenant-${config.tenant}`, clientId: 'tenant', secret: config.tenantKey }
+      : {
+          gatewayUrl: config.gatewayUrl,
+          profileName: config.mode === 'readonly' ? 'mcp-readonly' : 'mcp',
+          clientId: config.mode === 'readonly' ? 'agenticos-readonly' : 'agenticos-admin',
+        }, config.session);
     this.master = new MasterApi(this.client);
     this.node = new NodeApi(this.client);
     this.scope = scopeFromConfig(config);

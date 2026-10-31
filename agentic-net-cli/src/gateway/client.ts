@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { getTokenStore, acquireToken } from './auth.js';
+import { getTokenStore, acquireToken, type StoredToken } from './auth.js';
 import { log } from '../util/logger.js';
 
 export class GatewayError extends Error {
@@ -28,6 +28,12 @@ export interface GatewayClientOptions {
   gatewayUrl: string;
   profileName: string;
   clientId?: string;
+  /**
+   * A secret for THIS client only (e.g. one tenant's key on a multi-tenant MCP server). When set, the
+   * environment secret is never read and the token lives in memory only, never in the shared token
+   * store on disk, so two clients in one process can never pick up each other's token.
+   */
+  secret?: string;
 }
 
 /**
@@ -38,11 +44,14 @@ export class GatewayClient {
   private gatewayUrl: string;
   private profileName: string;
   private clientId: string;
+  private readonly ownSecret?: string;
+  private memoryToken?: StoredToken;
 
   constructor(opts: GatewayClientOptions) {
     this.gatewayUrl = opts.gatewayUrl;
     this.profileName = opts.profileName;
     this.clientId = opts.clientId ?? 'agenticos-admin';
+    this.ownSecret = opts.secret;
   }
 
   /** Call master APIs via gateway: /api/... */
@@ -97,6 +106,14 @@ export class GatewayClient {
 
   /** Ensure a valid JWT is available, auto-acquiring if AGENTICOS_ADMIN_SECRET is set. */
   private async ensureAuth(): Promise<string | null> {
+    if (this.ownSecret) {
+      const t = this.memoryToken;
+      if (t && Date.now() < t.acquired_at + t.expires_in * 1000 - 30_000) {
+        return t.access_token;
+      }
+      this.memoryToken = await acquireToken(this.gatewayUrl, this.clientId, this.ownSecret);
+      return this.memoryToken.access_token;
+    }
     const tokenStore = getTokenStore();
     const existing = tokenStore.getToken(this.profileName);
     if (existing && !tokenStore.isExpired(this.profileName)) {
@@ -168,7 +185,11 @@ export class GatewayClient {
       // token was invalidated mid-window (gateway restart / key rotation / stale token
       // file on disk). Discard the cache, re-authenticate with the secret, retry ONCE.
       log.warn('[auth] Gateway rejected cached token (401) — re-authenticating and retrying once');
-      getTokenStore().removeToken(this.profileName);
+      if (this.ownSecret) {
+        this.memoryToken = undefined;
+      } else {
+        getTokenStore().removeToken(this.profileName);
+      }
       return this.doRequest<T>(method, url, body, true);
     }
 
