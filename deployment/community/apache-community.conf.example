@@ -1,0 +1,31 @@
+# Apache vhost for the community platform (TLS via certbot; adjust ServerName and ports).
+# a2enmod proxy proxy_http headers ssl rewrite
+<VirtualHost *:443>
+    ServerName community.example.com
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+
+    # Accounts and tokens
+    ProxyPass        /oauth2     http://127.0.0.1:18083/oauth2
+    ProxyPassReverse /oauth2     http://127.0.0.1:18083/oauth2
+    # Platform API through the gateway (the tenant fence)
+    ProxyPass        /api        http://127.0.0.1:18083/api        timeout=300
+    ProxyPassReverse /api        http://127.0.0.1:18083/api
+    ProxyPass        /node-api   http://127.0.0.1:18083/node-api   timeout=300
+    ProxyPassReverse /node-api   http://127.0.0.1:18083/node-api
+    # MCP (bearer = the person's tenant key)
+    ProxyPass        /mcp        http://127.0.0.1:18091/mcp        timeout=600
+    ProxyPassReverse /mcp        http://127.0.0.1:18091/mcp
+    # Studio
+    ProxyPass        /           http://127.0.0.1:14200/
+    ProxyPassReverse /           http://127.0.0.1:14200/
+
+    # Nothing else of the gateway is public (actuator, internal master registry).
+    <LocationMatch "^/(actuator|internal)">
+        Require all denied
+    </LocationMatch>
+
+    SSLEngine on
+    # SSLCertificateFile / SSLCertificateKeyFile: written by certbot --apache -d community.example.com
+</VirtualHost>

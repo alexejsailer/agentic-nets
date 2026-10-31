@@ -1,0 +1,261 @@
+# Agentic-Nets — community platform (many tenants, MCP-driven, no AI of its own)
+#
+# A separate compose project for a shared, multi-tenant AgenticNets: people get an account (a tenant
+# key), connect their own MCP client, and build and run nets in their own models (<tenant>-*). The
+# platform reasons with nothing of its own: AGENTICOS_AI_ENABLED=false + community mode, so every
+# llm/agent lane is served by the tenant's connected client (external fires). Command lanes run only
+# on executors a tenant registers. No executor, Ollama, Docker socket or monitoring in this project.
+#
+# Runs beside an operator stack on the same host: its own project name, networks, data directory and
+# loopback ports. Put Apache/Nginx with TLS in front (community/apache-community.conf.example).
+#
+# Usage:
+#   cd deployment
+#   cp community/.env.community.template community/.env.community   # fill in the secrets
+#   docker compose -p agenticos-community --env-file community/.env.community -f docker-compose.community.yml up -d
+#
+# Needs images of AgenticNetOS 2.62.0 or later (tenancy, community mode, AI switch).
+
+name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+volumes:
+  community-blobstore:
+
+networks:
+  community-backend:
+    name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-backend
+    driver: bridge
+  community-clients:
+    name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-clients
+    driver: bridge
+
+x-community-common: &community-env
+  AGENTICOS_SERVICE_TOKEN: ${AGENTICOS_SERVICE_TOKEN:?set AGENTICOS_SERVICE_TOKEN (openssl rand -hex 24)}
+  SPRING_PROFILES_ACTIVE: docker
+  LOG_PATH: /app/logs
+  OTEL_SDK_DISABLED: "true"
+
+services:
+
+  init-perms:
+    image: alpine:3.20
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-init-perms
+    command: ["sh", "-c", "mkdir -p /data/logs/node /data/logs/master /data/logs/vault /data/logs/gateway /data/logs/gui /data/logs/blobstore /data/gateway/jwt /data/vault /data/node && (getent group agenticnet >/dev/null || addgroup -S agenticnet) && (getent passwd agenticnet >/dev/null || adduser -S -G agenticnet agenticnet) && chown -R agenticnet:agenticnet /data && chown -R 1001:1001 /data/logs/gui && chmod -R u=rwX,g=rwX,o= /data && chmod 700 /data/gateway /data/gateway/jwt /data/vault"]
+    volumes:
+      - ${COMMUNITY_DATA_DIR:-./data-community}:/data
+    restart: "no"
+
+  agentic-net-node:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-node:${AGENTICNETOS_VERSION:?set AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-node
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+    environment:
+      <<: *community-env
+      AGENTICOS_EVENTPERSISTENCE_FILESYSTEM_BASEPATH: /app/data/events
+      AGENTICOS_SNAPSHOT_STORE_FILESYSTEM_DIRECTORY: /app/data/snapshots
+      AGENTICOS_PERSISTENCE_RECOVERY_MODELSBASEPATH: /app/data/models
+      AGENTICOS_PERSISTENCE_RECOVERY_EVENTBASEPATH: /app/data/events
+      AGENTICOS_PERSISTENCE_RECOVERY_SNAPSHOTBASEPATH: /app/data/snapshots
+      JAVA_OPTS: "-XX:MaxRAMPercentage=70.0"
+    volumes:
+      - ${COMMUNITY_DATA_DIR:-./data-community}/node:/app/data
+      - ${COMMUNITY_DATA_DIR:-./data-community}/logs/node:/app/logs
+    networks: [community-backend]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: "${COMMUNITY_NODE_MEMORY_LIMIT:-1536M}", cpus: "1.0" }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  agentic-net-vault:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-vault:${AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-vault
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+    environment:
+      <<: *community-env
+      # Encrypted local files (AES-256-GCM, key generated 0600): no OpenBao to run for this project.
+      VAULT_BACKEND: file
+      VAULT_FILE_PATH: /app/vault/credentials
+      VAULT_FILE_KEY_FILE: /app/vault/vault.key
+      JAVA_OPTS: "-XX:MaxRAMPercentage=50.0"
+    volumes:
+      - ${COMMUNITY_DATA_DIR:-./data-community}/vault:/app/vault
+      - ${COMMUNITY_DATA_DIR:-./data-community}/logs/vault:/app/logs
+    networks: [community-backend]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: 512M, cpus: "0.5" }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/api/health/ping || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  sa-blobstore:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-blobstore:${AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-blobstore
+    depends_on:
+      init-perms:
+        condition: service_completed_successfully
+    environment:
+      <<: *community-env
+    volumes:
+      - community-blobstore:/app/data
+      - ${COMMUNITY_DATA_DIR:-./data-community}/logs/blobstore:/app/logs
+    networks: [community-backend]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: 512M, cpus: "0.5" }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9090/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  agentic-net-master:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-master:${AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-master
+    depends_on:
+      agentic-net-node: { condition: service_healthy }
+      agentic-net-vault: { condition: service_healthy }
+    environment:
+      <<: *community-env
+      # The platform carries no intelligence of its own: tenants' MCP clients serve every AI lane.
+      AGENTICOS_COMMUNITY: "true"
+      AGENTICOS_AI_ENABLED: "false"
+      LLM_PROVIDER: disabled
+      AGENTIC_NET_NODE_BASE_URL: http://agentic-net-node:8080/api
+      AGENTICOS_VAULT_URL: http://agentic-net-vault:8085
+      BLOBSTORE_BASE_URL: http://sa-blobstore:8080
+      AGENTICOS_CREDENTIALS_KEY: ${AGENTICOS_CREDENTIALS_KEY:?set AGENTICOS_CREDENTIALS_KEY (openssl rand -hex 32)}
+      AGENTICOS_REGISTRY_ENABLED: "false"
+      AGENTICOS_DOCKER_ENABLED: "false"
+      AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE: ${AGENTICOS_HUB_REQUIRE_SIGNED_REMOTE:-false}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?set GATEWAY_INTERNAL_SECRET (openssl rand -hex 24)}
+      PERSONA_AUTONOMY: "false"
+      JAVA_OPTS: "-XX:MaxRAMPercentage=70.0"
+    volumes:
+      - ${COMMUNITY_DATA_DIR:-./data-community}/logs/master:/app/logs
+    networks: [community-backend]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: "${COMMUNITY_MASTER_MEMORY_LIMIT:-1536M}", cpus: "1.0" }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  agentic-net-gateway:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-gateway:${AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-gateway
+    depends_on:
+      agentic-net-master: { condition: service_healthy }
+    environment:
+      <<: *community-env
+      MASTER_URL: http://agentic-net-master:8082
+      NODE_URL: http://agentic-net-node:8080
+      VAULT_URL: http://agentic-net-vault:8085
+      GATEWAY_JWT_KEY_DIR: /app/data/jwt
+      AGENTICOS_ADMIN_SECRET: ${AGENTICOS_ADMIN_SECRET:-}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET}
+      # Tenancy: accounts, keys and the model fence.
+      AGENTICOS_TENANCY: "true"
+      AGENTICOS_TENANCY_SIGNUP: ${AGENTICOS_TENANCY_SIGNUP:-invite}
+      AGENTICOS_TENANCY_INVITE_CODES: ${AGENTICOS_TENANCY_INVITE_CODES:-}
+      AGENTICOS_TENANCY_MODELS_MAX: ${AGENTICOS_TENANCY_MODELS_MAX:-5}
+      AGENTICOS_TENANCY_RATE_LIMIT: ${AGENTICOS_TENANCY_RATE_LIMIT:-300}
+      AGENTICOS_TENANCY_PUBLIC_MCP_URL: ${COMMUNITY_PUBLIC_URL:?set COMMUNITY_PUBLIC_URL (https://community.example.com)}/mcp
+      AGENTICOS_TENANCY_PUBLIC_STUDIO_URL: ${COMMUNITY_PUBLIC_URL}
+      # Apache on the host forwards from loopback; trust its X-Forwarded-For so rate limits are per person.
+      GATEWAY_TRUSTED_PROXIES: ${GATEWAY_TRUSTED_PROXIES:-127.0.0.1,172.16.0.0/12}
+      GATEWAY_RATE_LIMIT: ${GATEWAY_RATE_LIMIT:-10}
+      GATEWAY_CORS_ALLOWED_ORIGIN_PATTERNS: ${COMMUNITY_PUBLIC_URL}
+      AGENTICOS_SHARE_ENABLED: ${AGENTICOS_SHARE_ENABLED:-true}
+      AGENTICOS_HUB_PUBLIC_CATALOG: "false"
+    ports:
+      - "127.0.0.1:${COMMUNITY_GATEWAY_PORT:-18083}:8083"
+    volumes:
+      - ${COMMUNITY_DATA_DIR:-./data-community}/gateway:/app/data
+      - ${COMMUNITY_DATA_DIR:-./data-community}/logs/gateway:/app/logs
+    networks: [community-backend, community-clients]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: 768M, cpus: "0.75" }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/api/health/ping || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  agentic-net-mcp:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-mcp:${AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-mcp
+    depends_on:
+      agentic-net-gateway: { condition: service_healthy }
+    environment:
+      # Multi-tenant: no secret here. Each request carries a tenant key; the gateway fences it.
+      AGENTICOS_TENANCY: "true"
+      AGENTICOS_GATEWAY_URL: http://agentic-net-gateway:8083
+      AGENTICOS_NODE_HOST: agentic-net-node:8080
+      AGENTICOS_MCP_TRANSPORT: http
+      AGENTICOS_MCP_HTTP_PORT: "8091"
+      AGENTICOS_NATIVE_TOOLS: ${AGENTICOS_NATIVE_TOOLS:-curated}
+    ports:
+      - "127.0.0.1:${COMMUNITY_MCP_PORT:-18091}:8091"
+    networks: [community-clients]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: 384M, cpus: "0.5" }
+
+  agentic-net-gui:
+    image: ${AGENTICNETOS_IMAGE_PREFIX:-alexejsailer/agenticnetos}-gui:${AGENTICNETOS_VERSION}
+    container_name: ${COMMUNITY_PROJECT_NAME:-agenticos-community}-gui
+    depends_on:
+      agentic-net-gateway: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${COMMUNITY_GUI_PORT:-14200}:4200"
+    volumes:
+      - ${COMMUNITY_DATA_DIR:-./data-community}/logs/gui:/app/logs
+    networks: [community-clients]
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits: { memory: 256M, cpus: "0.25" }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4200/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

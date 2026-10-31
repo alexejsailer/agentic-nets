@@ -78,6 +78,16 @@ agentic-nets/
   pins poll/discover to it and stamps `X-Agenticos-Executor-Id` for master, which refuses deployment/consume/
   release for another executor's reservations. Pin a specific executor to its own secret with
   `AGENTICOS_EXECUTOR_SECRET_<ID>` (or `<jwt-key-dir>/executor-<id>-secret`).
+- **Tenancy** (`AGENTICOS_TENANCY=true`, off by default; `tenant/*`): accounts with keys `ant_<tenant>_<hex>`
+  (sign in without a client id; hashes in `<jwt-key-dir>/tenants.json`; rotate/disable revoke at the next
+  request), each owning the models `<tenant>-*`. `TenantRoutePolicy` is default deny: every allowed route
+  names where its model travels (path/query/body); a second model, a foreign inscription host or a tool
+  parameter naming another model is refused; model lists are answered filtered; quota
+  `AGENTICOS_TENANCY_MODELS_MAX`; per-tenant rate limit. Operator API `/api/tenants` (admin token: create,
+  rotate, disable, limits, executor keys `axe_<tenant>_<name>_<hex>` for executor id `<tenant>-<name>`);
+  public `GET /oauth2/tenancy` + `POST /oauth2/register` (signup `off|invite|open`). The gateway stamps
+  `X-Agenticos-Tenant` for master/node. Any JWT without a known role (admin/readonly/executor/share/tenant)
+  is refused. Community deployment: `deployment/docker-compose.community.yml` + `deployment/community/`.
 - **Readonly scope** never reaches `/vault-api/**`, the executor protocol (`poll`/`discover`/credentials/
   tokens), the universal assistant or any non-`domain-expert-readonly` agent-stream, on any method.
 - **Multi-master**: masters self-register (`POST /internal/masters/register` + heartbeat, shared
@@ -358,6 +368,7 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
 | `AGENTICOS_MCP_TRANSPORT` / `AGENTICOS_MCP_HTTP_PORT` / `AGENTICOS_MCP_HTTP_TOKEN` | HTTP transport toggle, port, required bearer token | `stdio` / `8091` / — |
 | `AGENTICOS_MCP_HTTP_HOST` | Bind interface for the HTTP transport (desktop bundles set `127.0.0.1`); `GET /health` answers 200 pre-auth for supervisors | `0.0.0.0` |
 | `AGENTICOS_MCP_SELF_URL` | The URL at which **master** reaches this server, so it can be handed to an agent transition via `action.mcp` (`mcp_servers` / `attach_mcp_server {self:true}`). The bind host is not the answer: `0.0.0.0` is not routable and a container's loopback is not master's. Compose sets `http://agentic-net-mcp:8091/mcp` and puts the service on the backend network | `http://127.0.0.1:{port}/mcp` |
+| `AGENTICOS_TENANCY` | `true` = multi-tenant HTTP server: no secret/allowlist in the process; the bearer of each request is a tenant key served by that tenant's own context (own models, own token); operator tools withheld; `<tenant>-main` created on first connection (`AGENTICOS_TENANCY_AUTO_MODEL`) | `false` |
 | `AGENTICOS_NATIVE_TOOLS` | `all` registers curated + full native UPPERCASE catalog; `curated` registers the focused lowercase surface only (Desktop Lite default) | `all` |
 
 Compose keys (`deployment/.env`): `AGENTICOS_MCP_MODELS` / `_MODE` / `_SESSION` / `_HTTP_TOKEN`

@@ -137,6 +137,8 @@ Deploys are idempotent: re-running skips existing elements and never duplicates 
 | `AGENTICOS_STATE_DIR` | directory containing the durable model grant file (`allowlist.json`) | `~/.agenticnets` |
 | `AGENTICOS_PERSIST_ALLOWLIST` | remember newly created models across MCP sessions; pre-existing models still require `persistAllowlist:true` | `true` |
 | `AGENTICOS_NATIVE_TOOLS` | `all` = curated lowercase + native UPPERCASE catalog; `curated` = focused product tools only (Desktop Lite default) | `all` |
+| `AGENTICOS_TENANCY` | `true` = multi-tenant HTTP server: no secret and no model list here; each request's bearer is a tenant key (`ant_<tenant>_<hex>`) and is served by that tenant's own context (its models, its gateway token). Needs a gateway with tenancy on. See `deployment/community/` | `false` |
+| `AGENTICOS_TENANCY_AUTO_MODEL` | tenancy: create `<tenant>-main` on a tenant's first connection when it has no model | `true` |
 | `AGENTICOS_DOCKER_TOOLS` | `false` withholds the container/registry tools (`DOCKER_*`, `REGISTRY_*`) from the native catalog — container spawning as a deliberate grant, mirroring the master's D flag | `true` |
 
 ## Claude Code hooks: memory with zero discipline
