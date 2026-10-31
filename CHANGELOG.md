@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The Explorer's refinement tools are always there** (`agentic-net-mcp` - `refine.ts`, `focus-rounds.ts`, `refinement-routes.ts`, `refinement-prompts.ts`; `agentic-net-desktop`). Refinement is part of the master's core, so the review tools register on every connection (`AGENTICOS_REVIEW_TOOLS` and the Desktop setting `mcp.reviewTools` are gone). The tools call `/api/explorer/{model}/refinement/...` and fall back to the old paths on an older master. New: `refinement_access {state|grant|revoke}`; `refinement_status` and `refinement_configure` (old `refiner_*` names kept). The five method prompts are built into the server.
+- **`refinement_programme`** (`agentic-net-mcp`). Reads and steers the model's continuous refinement: start, pause, resume, stop, topic, use-focus, mode.
+- **`restructure_model` and `refine_balance`** (`agentic-net-mcp`). Structure operations on the abstraction levels (attach, detach, abstract, split, merge, promote, move; repeat-safe by `requestId`) and the deterministic balance read. The structure-pass prompt reads the balance and proposes structure changes as cards.
+- **`source_watch`** (`agentic-net-mcp`). Status, configure (interval watch) and scan now; changed sources become stale, level-below-changed and contradiction flags and cards in the master.
+- **headless-agent 1.3.0 and 1.4.0** (`capabilities/headless-agent`). 1.3.0 removes `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` from the CLI's environment unless `HA_USE_API_KEY=true`, and a profile without MCP given an MCP server drops it (`mcpDropped`) instead of refusing. 1.4.0 adds `scan` (no AI): per net the hash over the files its definition references in the curation's recipe, existence and quoted-text checks with excerpts, and in a git work tree the revision, dirtiness and the files changed since a given revision. Only files under `HA_ROOT` that a definition names are read.
+
+### Changed
+- **`focus_round` takes any runner profile** of the model (`platform-read-only` included), not only the two CLI ones.
+- **`net_levels`** returns the list's hash and passes `expectedHash` on save, so a save over a list changed meanwhile is refused.
+- **Focus (`agentic-net-apps/examples/refiner`) is retired**: refinement is part of the Explorer; 1.9.0 stays for older masters.
+
 ## [2.61.0] - 2026-10-25
 
 ### Added
