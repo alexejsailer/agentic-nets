@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import stat
+import subprocess
 import sys
 import tempfile
 
@@ -22,8 +23,14 @@ if "--mcp-config" in sys.argv:
     cfg = json.load(open(sys.argv[sys.argv.index("--mcp-config") + 1]))
 seen = {"argv": sys.argv[1:], "cwd": os.getcwd(), "prompt": prompt, "cfg": cfg,
         "env": sorted(k for k in os.environ if k.startswith(("HA_", "AGENTICNETS", "CLAUDE")) or k.endswith("_MCP_TOKEN"))}
-if os.path.isfile("model-round.json"):
-    seen["modelContext"] = json.load(open("model-round.json"))
+context_dir = next((line.split(": ", 1)[1] for line in prompt.splitlines() if line.startswith("MODEL_CONTEXT_DIR: ")), os.getcwd())
+if os.path.isfile(os.path.join(context_dir, "model-round.json")):
+    seen["modelContext"] = json.load(open(os.path.join(context_dir, "model-round.json")))
+    seen["contextDir"] = context_dir
+if os.path.isfile(os.path.join(context_dir, "model-index.json")):
+    index = json.load(open(os.path.join(context_dir, "model-index.json")))
+    seen["modelIndex"] = index
+    seen["detailBytes"] = [os.path.getsize(os.path.join(context_dir, entry["file"])) for entry in index["nets"]]
 key = "FOCUS_ROUND_RESULT" if prompt.startswith("Focus round") else "CODER_RESULT"
 result = "did it\n" + key + ": " + json.dumps({"summary": "ok", "seen": seen})
 if os.path.basename(sys.argv[0]) == "claude":
@@ -103,6 +110,19 @@ def t_read_only_needs_the_placeholders():
         assert "allowedTools" in str(e)
         return
     raise AssertionError("not refused")
+
+
+def t_granted_mcp_credentials_connect_claude_and_do_not_reach_its_environment():
+    r, _ = run_with(dict(READ_ONLY_CLAUDE, mcp=True), AGENTICNETS_MCP_URL='http://127.0.0.1:8091/mcp',
+        AGENTICNETS_MCP_TOKEN='round-secret', HA_MCP_TOOLS='explore_model,focus_round_scope,focus_round_apply')
+    seen = r['report']['seen']
+    cfg = seen['cfg']['mcpServers']['agenticnets']
+    assert cfg['url'] == 'http://127.0.0.1:8091/mcp' and cfg['headers']['Authorization'] == 'Bearer round-secret', cfg
+    assert seen['env'] == [], seen
+    allowed = seen['argv'][seen['argv'].index('--allowedTools')+1].split(',')
+    assert 'mcp__agenticnets__focus_round_apply' in allowed and 'Bash' not in allowed, allowed
+    r, _ = run_with(dict(CODEX, mcp=False), AGENTICNETS_MCP_URL='http://127.0.0.1:8091/mcp', AGENTICNETS_MCP_TOKEN='round-secret')
+    assert r['report']['seen']['cfg'] is None, r
 
 
 def t_forbidden_flags():
@@ -211,6 +231,41 @@ def t_source_backed_rounds_keep_the_configured_folder():
                        HA_PROMPT="Focus round: inspect sources", HA_RESULT_KEY="FOCUS_ROUND_RESULT")
     assert r["ok"] and os.path.realpath(r["report"]["seen"]["cwd"]) == os.path.realpath(root), r
     assert not os.path.exists(os.path.join(root, "model-round.json")), "source folder was modified"
+    seen = r["report"]["seen"]
+    assert seen["modelContext"]["roundId"] == "r" and not os.path.exists(seen["contextDir"]), seen
+
+
+def t_large_rounds_use_stdin_and_searchable_files_with_both_providers():
+    context = {"roundId": "r", "topic": "Morning advice", "snapshot": {
+        "nets": {"modules::n%d" % i: {"definition": {"interactions": "Evidence " + "x" * 4000}} for i in range(65)},
+        "index": [{"key": "modules::n%d" % i, "title": "Advice %d" % i} for i in range(65)],
+        "fingerprints": {"modules::n0": "server-only"}, "hierarchy": [], "sharedPlaces": []}}
+    for profile in (READ_ONLY_CLAUDE, CODEX):
+        env, root = setup()
+        env.update(HA_PROFILE=json.dumps(dict(profile, mcp=False)), HA_PROMPT="Focus round: find the relevant areas", HA_RESULT_KEY="FOCUS_ROUND_RESULT")
+        proc = subprocess.run([sys.executable, ha.__file__, "run-context"], input=json.dumps(context), text=True,
+                              capture_output=True, env=env, timeout=30)
+        r = json.loads(proc.stdout);assert r["ok"], r
+        seen = r["report"]["seen"]
+        assert len(seen["modelIndex"]["nets"]) == 65 and min(seen["detailBytes"]) > 4000, seen
+        assert "nets" not in seen["modelContext"]["snapshot"] and "fingerprints" not in seen["modelContext"]["snapshot"], seen
+        assert len(seen["prompt"]) < 2000 and seen["env"] == [], seen
+        assert os.path.realpath(seen["cwd"]) == os.path.realpath(root), seen
+        assert os.listdir(root) == [] and not os.path.exists(seen["contextDir"]), seen
+
+
+def t_context_file_names_cannot_escape_the_temporary_snapshot():
+    env, _ = setup();env["HA_PROFILE"] = json.dumps(READ_ONLY_CLAUDE)
+    r = ha.run(env, {"snapshot": {"nets": {"../../escape": {"description": "Data only"}}}})
+    entry = r["report"]["seen"]["modelIndex"]["nets"][0]
+    assert entry["key"] == "../../escape" and entry["file"].startswith("nets/") and ".." not in entry["file"], entry
+
+
+def t_malformed_stdin_context_is_refused_without_launching_a_provider():
+    env, _ = setup();env["HA_PROFILE"] = json.dumps(READ_ONLY_CLAUDE)
+    proc = subprocess.run([sys.executable, ha.__file__, "run-context"], input='[1,2,3]', text=True, capture_output=True, env=env, timeout=30)
+    result = json.loads(proc.stdout)
+    assert not result["ok"] and "JSON object" in result["error"], result
 
 
 for name, fn in list(globals().items()):

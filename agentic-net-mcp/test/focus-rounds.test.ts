@@ -28,12 +28,31 @@ describe('guided Focus rounds over MCP', () => {
     expect(calls).toEqual([{ method: 'POST', path: '/explorer/m2/rounds', body: { roundId: 'r', topic: 'Approval', scope: 'domain:sales', profileId: 'codex-read-only' } }]);
     await client.close();
   });
+  it('starts from a plain-language goal without requiring any net, session or scope', async () => {
+    const { client, calls } = await connect();
+    const result = await call(client, { action: 'start', roundId: 'r', topic: 'Make morning advice clearer', model: 'm2' });
+    expect(result.isError).not.toBe(true);
+    expect(calls).toEqual([{ method: 'POST', path: '/explorer/m2/rounds', body: { roundId: 'r', topic: 'Make morning advice clearer' } }]);
+    await client.close();
+  });
   it('preserves selected answers, text and investigation intent', async () => {
     const { client, calls } = await connect();
     await call(client, { action: 'answer', roundId: 'r', promptId: 'q', selected: ['owner'], text: 'Only once' });
     await call(client, { action: 'answer', roundId: 'r', promptId: 'q2', unknown: true });
     expect(calls[0]).toMatchObject({ path: '/explorer/m1/rounds/r/answer', body: { selected: ['owner'], text: 'Only once' } });
     expect(calls[1].body).toMatchObject({ unknown: true }); await client.close();
+  });
+  it('lets the headless agent register discovery and apply model edits through MCP with its exact job identity', async () => {
+    const { client, calls } = await connect();
+    const discovered = { roundId: 'r', requestId: 'r-question-1', scopeNets: ['rules::advice', 'modules::advice'], scopeSummary: 'Morning advice' };
+    await client.callTool({ name: 'focus_round_scope', arguments: discovered });
+    const operations = [{ id: 'advice-text', kind: 'definition', target: 'rules::advice', definition: { interactions: 'Clarified from the saved answer' } }];
+    await client.callTool({ name: 'focus_round_apply', arguments: { roundId: 'r', requestId: 'r-refine-2', operations } });
+    expect(calls).toEqual([
+      { method: 'POST', path: '/explorer/m1/rounds/r/scope', body: { requestId: 'r-question-1', scopeNets: discovered.scopeNets, scopeSummary: discovered.scopeSummary } },
+      { method: 'POST', path: '/explorer/m1/rounds/r/apply', body: { requestId: 'r-refine-2', operations } },
+    ]);
+    await client.close();
   });
   it('refines and retries only the named round and reads its receipts', async () => {
     const { client, calls } = await connect();
@@ -42,7 +61,7 @@ describe('guided Focus rounds over MCP', () => {
     expect(calls.map(c => c.path)).toEqual(['/explorer/m1/rounds/r/refine', '/explorer/m1/rounds/r/retry', '/explorer/m1/rounds/r']);
     await client.close();
   });
-  it('rejects starts without a topic/scope and models outside the allowlist', async () => {
+  it('rejects starts without a topic and models outside the allowlist', async () => {
     const { client, calls } = await connect();
     expect((await call(client, { action: 'start', roundId: 'r' })).isError).toBe(true);
     expect((await call(client, { action: 'retry', roundId: 'r', model: 'other' })).isError).toBe(true);
@@ -51,6 +70,7 @@ describe('guided Focus rounds over MCP', () => {
   it('exposes reads on read-only connections and hides all round tools when review tools are off', async () => {
     const ro = await connect('readonly'); const names = (await ro.client.listTools()).tools.map(t => t.name);
     expect(names).toContain('focus_rounds'); expect(names).not.toContain('focus_round'); await ro.client.close();
+    expect(names).not.toContain('focus_round_scope'); expect(names).not.toContain('focus_round_apply');
     const off = await connect('rw', false); const hidden = (await off.client.listTools()).tools.map(t => t.name);
     expect(hidden).not.toContain('focus_rounds'); expect(hidden).not.toContain('focus_round'); await off.client.close();
   });

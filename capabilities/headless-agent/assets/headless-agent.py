@@ -34,6 +34,7 @@ durationSec, costUsd, turns, error?}. Exit code 0 even when the agent failed: th
 usage: headless-agent.py run | check
 """
 import base64
+import hashlib
 import json
 import os
 import re
@@ -48,7 +49,7 @@ WRITE_AND_SHELL = ("Bash", "Edit", "Write", "MultiEdit", "NotebookEdit", "WebFet
 FORBIDDEN_FLAGS = ("--dangerously-skip-permissions", "--permission-mode", "--dangerously-bypass-approvals-and-sandbox",
                    "--yolo", "--full-auto")
 TOOL_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
-STRIP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")
+STRIP_ENV = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "AGENTICNETS_MCP_URL")
 
 
 class Refused(Exception):
@@ -112,6 +113,8 @@ def plan(profile, env):
     model = (env.get("HA_MODEL") or "").strip() or str(profile.get("defaultModel") or "")
     allowed = as_list(profile.get("allowedTools"))
     mcp_url = (env.get("HA_MCP_URL") or "").strip()
+    if not mcp_url and str(profile.get("mcp")).strip().lower() == "true":
+        mcp_url = (env.get("AGENTICNETS_MCP_URL") or "").strip()
     mcp_tools = as_list(env.get("HA_MCP_TOOLS"))
     server = (env.get("HA_MCP_SERVER") or "agenticnets").strip()
     if mcp_url and not mcp_tools:
@@ -190,15 +193,51 @@ def profile_text(env):
     return raw
 
 
-def run(env):
-    # Model-only rounds need no repository; their local evidence is a disposable snapshot.
-    if not (env.get("HA_ROOT") or "").strip() and (env.get("HA_CONTEXT_JSON") or "").strip():
-        context = json.loads(env["HA_CONTEXT_JSON"])
+def context_object(raw):
+    # Script args.input may arrive as a JSON object or as JSON text encoded once by the template.
+    for _ in range(3):
+        if isinstance(raw, dict): return raw
+        if not isinstance(raw, str): break
+        raw = json.loads(raw)
+    raise Refused("model context must be a JSON object")
+
+
+def write_context(workspace, context):
+    """Searchable index and per-net files: no whole-model prompt or environment limit."""
+    summary = json.loads(json.dumps(context))
+    snapshot = summary.get("snapshot")
+    def save(name, value):
+        path = os.path.join(workspace, name)
+        with open(path, "w", encoding="utf-8") as out: json.dump(value, out, ensure_ascii=False, indent=2)
+    if isinstance(snapshot, dict) and isinstance(snapshot.get("nets"), dict):
+        nets = snapshot.pop("nets")
+        snapshot.pop("fingerprints", None)
+        index = {k: snapshot.pop(k) for k in ("levels", "hierarchy", "relations", "sharedPlaces") if k in snapshot}
+        entries = {item["key"]: item for item in snapshot.pop("index", []) if isinstance(item, dict) and "key" in item}
+        os.mkdir(os.path.join(workspace, "nets"))
+        for key, value in nets.items():
+            filename = "nets/" + hashlib.sha256(key.encode()).hexdigest() + ".json"
+            save(filename, value)
+            entries.setdefault(key, {"key": key})["file"] = filename
+        index["nets"] = list(entries.values())
+        save("model-index.json", index)
+        snapshot["indexFile"] = "model-index.json"
+    save("model-round.json", summary)
+
+
+def run(env, context=None):
+    if context is None and (env.get("HA_CONTEXT_JSON") or "").strip():
+        context = context_object(env["HA_CONTEXT_JSON"])
+    # Sources stay in their configured root; all model evidence is staged outside it for both modes.
+    if context is not None:
+        context = context_object(context)
         with tempfile.TemporaryDirectory(prefix="headless-model-") as workspace:
-            with open(os.path.join(workspace, "model-round.json"), "w") as out:
-                json.dump(context, out)
+            write_context(workspace, context)
             local = dict(env)
-            local["HA_ROOT"] = workspace
+            local.pop("HA_CONTEXT_JSON", None)
+            local["HA_ROOT"] = (env.get("HA_ROOT") or "").strip() or workspace
+            local["HA_PROMPT"] = (env.get("HA_PROMPT") or "") + "\nMODEL_CONTEXT_DIR: " + workspace + \
+                "\nRead model-round.json there first, then model-index.json when present. Follow its per-net file references using absolute paths under MODEL_CONTEXT_DIR."
             return run(local)
     started = time.time()
     profile = load_profile(profile_text(env))
@@ -290,6 +329,10 @@ def main(argv):
     try:
         if action == "run":
             emit(run(dict(os.environ)))
+        elif action == "run-context":
+            raw = sys.stdin.buffer.read(32 * 1024 * 1024 + 1)
+            if len(raw) > 32 * 1024 * 1024: raise Refused("model context exceeds the runner's 32 MB input limit")
+            emit(run(dict(os.environ), context_object(raw.decode("utf-8"))))
         elif action == "check":
             emit(check(dict(os.environ)))
         else:

@@ -603,7 +603,7 @@ async function cmdPackage(a) {
       }
       catalog.push({ installScope: 'local', entry: {
         id: sc.id, name: sc.name ?? sc.id, description: sc.description ?? '', scope: 'local',
-        version: '1.0.0', status: 'approved', createdAt: new Date().toISOString(),
+        version: sc.version ?? '1.0.0', status: 'approved', createdAt: new Date().toISOString(),
         capabilities: [], contract: {},
         binding: { type: 'script', runtime: sc.runtime ?? 'python3', filename: sc.file,
           sizeBytes: Buffer.byteLength(body, 'utf8'), sha256: digest, scriptUrn },

@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: headless-agent
-version: 1.0.1
+version: 1.1.0
 displayName: Headless agent
 domain: platform
 description: >-

@@ -31,7 +31,7 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
 }
 
 /** The review method's tools: registered only with AGENTICOS_REVIEW_TOOLS (reviewTools). */
-const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refiner_status', 'refiner_configure', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round'];
+const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refiner_status', 'refiner_configure', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply'];
 
 /** The readonly surface without the review method. */
 const READONLY = ['application_describe', 'application_list', 'application_view', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'get_net_definition', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'];

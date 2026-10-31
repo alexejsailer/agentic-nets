@@ -36,10 +36,23 @@ redacts each literal string there as a possible secret. Keep fixed values (the f
 the tool list) in a record the lane reads through a second preset, as Focus does with its config.
 
 The MCP token comes from the lane's credential `AGENTICNETS_MCP_TOKEN` (`HA_MCP_TOKEN_ENV` names
-another). The script prints one JSON object: `ok`, `exitCode`, `profileId`, `mode`, `model`,
+another). For an MCP-enabled profile, a granted lane's `AGENTICNETS_MCP_URL` supplies the server
+address when `HA_MCP_URL` is absent. Both granted values are removed from the CLI's environment;
+the URL/token go in the private MCP config only. Read-only mode concerns source files; explicitly
+allowed MCP tools can edit the model. The script prints one JSON object: `ok`, `exitCode`, `profileId`, `mode`, `model`,
 `report` (the parsed `CODER_RESULT:` line; `HA_RESULT_KEY` names another key), `text`, `stderr`,
 `durationSec`, `costUsd`, `turns`, and `error` when it failed. The argument `check` instead of `run` reports whether the
 profile's binary is on the executor's PATH.
+
+For large model context, use `argv: ["run-context"]` and `args.input: <round JSON object>`.
+The runner reads up to 32 MB from stdin and stages a private temporary `model-round.json`, a
+`model-index.json` and separate per-net JSON files. The prompt gets only `MODEL_CONTEXT_DIR`,
+so the agent searches the index and reads the relevant files itself. With a configured source
+root its working directory stays there; model-only rounds work in the temporary folder.
+All context files are removed after execution, including failure/timeout. No model payload is
+passed in environment variables or CLI arguments. `HA_CONTEXT_JSON` remains supported for older
+callers. Focus 1.7.0 uses this handoff with runner 1.1.0 to discover nets from a natural-language
+topic without asking the person to choose technical IDs or limiting the model to forty nets.
 
 ## Profiles
 

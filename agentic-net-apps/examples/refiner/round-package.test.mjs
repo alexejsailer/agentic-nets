@@ -15,15 +15,20 @@ test('guided rounds retain the existing review and add persistent role-based sto
   }
   assert.ok(net.inscriptions['t-refiner-pass']); assert.ok(net.inscriptions['t-refiner-coder-run']);
 });
-test('a round consumes only its frozen task and never passes MCP access to the CLI', () => {
+test('a round consumes its frozen task and receives phase-specific MCP tools through the granted lane', () => {
   const build = net.inscriptions['t-refiner-round-build'];
   assert.deepEqual(Object.keys(build.presets), ['input']);
   assert.equal(build.action.template.args.toolId, 'headless-agent');
   const env = build.action.template.args.env;
-  assert.ok(env.HA_CONTEXT_JSON && env.HA_PROFILE_B64 && env.HA_RESULT_KEY);
-  assert.equal(Object.keys(env).some(k => /MCP|TOKEN/.test(k)), false);
-  // A stored JSON string binds as an object, and the executor leaves object env values out: keep it text.
-  assert.equal(env.HA_CONTEXT_JSON, '${json(input.data.contextJson)}');
+  assert.ok(env.HA_PROFILE_B64 && env.HA_RESULT_KEY);
+  assert.equal(env.HA_MCP_TOOLS, '${input.data.mcpTools}');
+  assert.equal(Object.keys(env).some(k => /TOKEN/.test(k)), false);
+  assert.equal(manifest.application.mcp.urlKey, 'AGENTICNETS_MCP_URL');
+  assert.ok(manifest.application.mcp.allowTools.includes('focus_round_apply'));
+  assert.ok(manifest.application.mcp.lanes.some(l => l.transitionId === 't-refiner-round-run'));
+  assert.equal(env.HA_CONTEXT_JSON, undefined);
+  assert.deepEqual(build.action.template.args.argv, ['run-context']);
+  assert.equal(build.action.template.args.input, '${input.data.contextJson}');
   assert.ok(net.inscriptions['t-refiner-round-run']); assert.ok(net.inscriptions['t-refiner-round-shape'].action.template.requestId);
 });
 test('both providers and the round policy are editable upgrade-safe seeds', () => {
@@ -34,4 +39,6 @@ test('both providers and the round policy are editable upgrade-safe seeds', () =
   const p = net.tokens['p-refiner-prompts'].find(p => p.promptId === 'guided-round');
   assert.equal(p._seed, true); assert.match(p.text, /sealed answers/); assert.match(p.text, /FOCUS_ROUND_RESULT/);
   assert.equal(manifest.application.agentProtocol.guidedRounds.maxQuestions, 10);
+  assert.equal(manifest.application.agentProtocol.guidedRounds.scopeSelection, 'agent');
+  assert.match(p.text, /Never ask the person to select a net/);
 });

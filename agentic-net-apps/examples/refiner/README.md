@@ -6,9 +6,12 @@ Since 1.4.0 its prompts and coder profiles are tokens in the model: `prompts` (p
 
 Packed with `npm run pack:refiner`; the master seeds the packed copy (`application-templates/refiner.json`).
 
-## Guided rounds (1.6.0)
+## Guided rounds (1.7.0)
 
-The Focus page starts an adaptive interview for one topic across its relevant layers. Up to ten
+The Focus page starts from a plain-language goal. The headless agent discovers relevant nets and
+layers; the person does not select nets, sessions or tags. The selected model areas are visible
+for inspection and can expand as answers clarify the topic. Refine seals that selection with
+the answers, and the server rejects targets outside it. Up to ten
 questions, with an early finish, free text, and an investigation option. Questions and responses
 also appear in Interview. Answers are saved before any model edit. Pressing Refine seals the
 answered questions and directly applies structured definitions, topology and organization changes.
@@ -17,9 +20,15 @@ an explicit start.
 
 Roles `rounds`, `round-jobs`, `round-commands`, `round-raw`, `round-results` extend the existing
 review stores. `t-refiner-round-build`, `-run`, `-shape` execute the installed headless-agent runner
-with a frozen read-only profile, no MCP connection, and result key `FOCUS_ROUND_RESULT`. Claude Code
-and Codex share the same proposal contract. Without sources, headless-agent 1.0.1 creates a temporary
-`model-round.json` workspace. Prompts (`guided-round`) and both profiles remain upgrade-safe seed tokens.
+with a frozen profile and result key `FOCUS_ROUND_RESULT`. Claude searches the live model through
+MCP, registers its chosen areas with `focus_round_scope`, then makes real model edits with
+`focus_round_apply` after the person presses Refine. The server validates the sealed scope and
+returns persistent operation receipts. Source files stay read-only. Codex retains the proposal
+path without MCP. headless-agent 1.1.0 receives the context over stdin
+(`run-context`) and stages a searchable model index plus per-net files, alongside the round's
+answers. This removes the environment-variable size limit and forty-net gate. Sources are optional
+and stay in their configured root; model evidence is staged outside it and removed after the run.
+Prompts (`guided-round`) and both profiles remain upgrade-safe seed tokens.
 
 The master coordinates rounds under `/api/explorer/{model}/rounds`, with `answer`, `refine`, and
 `retry` sub-actions. MCP exposes `focus_round` and `focus_rounds` when review tools are enabled.
@@ -29,8 +38,16 @@ deleted. New root abstractions must connect back to the topic through relations 
 Pending work resumes when a saved round is read after restart. This workflow does not advance the
 legacy model-wide digest watermark; its membership is the round's exact sealed answers.
 
-1.6.1 hands the round context to the runner as JSON text (`json()`): a stored JSON string binds as an object,
-and the executor leaves an object out of a command's environment.
+MCP `focus_round` start needs only `roundId` and `topic`. An explicit scope remains optional for
+clients that already have one. Existing rounds retain their saved boundaries.
+
+The existing application MCP grant includes `t-refiner-round-run` and injects
+`AGENTICNETS_MCP_URL` / `AGENTICNETS_MCP_TOKEN` as credentials. The runner writes a private MCP
+configuration and starts `claude -p --mcp-config <temporary file> --strict-mcp-config` with an exact
+tool allowlist. Question jobs can search/read/register scope; only refinement jobs receive the
+MCP edit tool, whose server also requires the current request ID and sealed human answers. Neither
+the token nor model context is placed in the prompt. This command net is internal to Focus; the
+person supplies only a goal. A job starts one headless process, records its result, then exits.
 
 Checks: `node --test examples/refiner/round-package.test.mjs`, `npm run pack:refiner`, and
-`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.6.1.application.json`.
+`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.7.0.application.json`.

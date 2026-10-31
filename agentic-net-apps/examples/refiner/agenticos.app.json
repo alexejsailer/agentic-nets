@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/application-package.schema.json",
   "name": "refiner",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "displayName": "Focus",
   "description": "Focus: work one feature of a model across its levels, card by card, and hand the work to an AI between rounds. The AI side runs as lanes in the model: a hand-over request becomes a refinement, structure or ground pass run by an agent, or a read-only coder run through the headless-agent runner, both through the Agentic-Nets MCP server, with every run recorded. Its prompts and coder profiles are tokens you can edit; an upgrade keeps an edited one. Guided rounds ask up to ten adaptive questions about one topic across layers, then refine definitions and topology from sealed answers with resumable operation receipts.",
   "author": "AgenticNetOS",
@@ -13,7 +13,7 @@
     "agent"
   ],
   "runtimePackage": "runtime/session.package.json",
-  "output": "../../dist/packages/refiner-1.6.1.application.json",
+  "output": "../../dist/packages/refiner-1.7.0.application.json",
   "application": {
     "scope": "model",
     "instancePolicy": "singleton",
@@ -67,7 +67,7 @@
       {
         "role": "round-jobs",
         "placeId": "p-refiner-round-jobs",
-        "description": "Validated round tasks for a read-only headless CLI; no MCP credentials."
+        "description": "Validated round tasks with phase-specific MCP tools; the MCP URL/token are lane credentials."
       },
       {
         "role": "round-commands",
@@ -296,7 +296,7 @@
       {
         "name": "dispatchRound",
         "targetRole": "round-jobs",
-        "description": "Queue a validated guided-round command. Called by the round service with a frozen read-only profile and no MCP connection.",
+        "description": "Queue a validated guided-round job. Claude MCP access comes from the granted run lane, not from job data.",
         "guard": {
           "role": "round-jobs",
           "matchKey": "requestId",
@@ -339,6 +339,10 @@
             },
             "resultKey": {
               "type": "string"
+            },
+            "mcpTools": {
+              "type": "string",
+              "description": "Server-selected tools for this phase; empty for a non-MCP profile"
             }
           }
         }
@@ -514,7 +518,11 @@
           "inspect receipts",
           "retry unfinished",
           "suggest next round; wait for the person"
-        ]
+        ],
+        "scopeSelection": "agent",
+        "contextTransport": "stdin-files",
+        "mcpDiscovery": true,
+        "mcpApply": "focus_round_apply"
       }
     },
     "mcp": {
@@ -531,7 +539,11 @@
         "ground_model",
         "subject_thread",
         "review_model",
-        "curate_model"
+        "curate_model",
+        "query_tokens",
+        "focus_rounds",
+        "focus_round_scope",
+        "focus_round_apply"
       ],
       "lanes": [
         {
@@ -540,9 +552,13 @@
         },
         {
           "transitionId": "t-refiner-coder-run"
+        },
+        {
+          "transitionId": "t-refiner-round-run"
         }
       ],
-      "reason": "The review pass (t-refiner-pass) reads the model and writes summaries, notes and questions through the platform's MCP server, limited to these review tools. The coder's run lane (t-refiner-coder-run) receives the token itself; the headless-agent runner hands the coder only these tools. Neither builds, starts or deletes nets."
+      "reason": "Claude searches and reads the live model through MCP. Guided rounds register discovered areas and apply model edits through round-aware MCP tools only after the person presses Refine. The round lane receives the MCP URL/token as credentials; file writes, runtime activation and runtime-place deletion are outside this grant.",
+      "urlKey": "AGENTICNETS_MCP_URL"
     }
   }
 }
