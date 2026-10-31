@@ -37,6 +37,21 @@ describe('the refinement programme over MCP', () => {
     await client.close();
   });
 });
+describe('restructuring over MCP', () => {
+  it('sends one structure operation with qualified nets and reads the balance', async () => {
+    const { client, calls } = await connect();
+    await client.callTool({ name: 'restructure_model', arguments: { kind: 'split', requestId: 'req-1', sessionId: 's', netId: 'n',
+      elements: ['t1', 'p-mid'], child: { sessionId: 's', netId: 'part' }, name: 'Part', model: 'm2' } });
+    await client.callTool({ name: 'restructure_model', arguments: { kind: 'move', requestId: 'req-2', sessionId: 's', netId: 'n', toSession: 'other', model: 'm2' } });
+    await client.callTool({ name: 'refine_balance', arguments: { level: 'top', model: 'm2' } });
+    expect(calls).toEqual([
+      { method: 'POST', path: '/explorer/m2/refinement/structure', body: { kind: 'split', requestId: 'req-1', target: 's::n', elements: ['t1', 'p-mid'], name: 'Part', child: 's::part' } },
+      { method: 'POST', path: '/explorer/m2/refinement/structure', body: { kind: 'move', requestId: 'req-2', target: 's::n', toSession: 'other' } },
+      { method: 'GET', path: '/explorer/m2/refinement/balance?modelId=m2&level=top', body: undefined },
+    ]);
+    await client.close();
+  });
+});
 describe('guided Focus rounds over MCP', () => {
   it('routes a stable start identity and scope to the selected model', async () => {
     const { client, calls } = await connect();

@@ -20,6 +20,18 @@ export function registerFocusRoundReaders(server: McpServer, ctx: AppContext): v
     inputSchema: { roundId: identity.optional(), ...modelParam(ctx) },
   }, wrapTool(ctx.scope, ctx.config.mode, { name: 'focus_rounds', mutates: false }, async (model, args) =>
     refinementCall(ctx, 'GET', model, rounds(args.roundId))));
+  server.registerTool('refine_balance', {
+    title: 'How the levels carry the model: sizes, unexplained steps, hubs and findings',
+    description: 'Deterministic read of the abstraction hierarchy (no AI): per level the nets, their element count and spread; per net its size, depth, children, fan-in/fan-out through shared places and the steps no net below explains; hub places; and findings: a level that carries more than the level below it (the top must be the smallest), an oversized net among its siblings, an upper net with unexplained steps, a place shared by many nets. Read it before proposing structure (restructure_model or round operations split/merge/abstract/move). level and scope narrow it.',
+    inputSchema: { level: z.string().optional(), scope: z.string().optional().describe('A focus scope (domain:, tag:, net:)'), ...modelParam(ctx) },
+  }, wrapTool(ctx.scope, ctx.config.mode, { name: 'refine_balance', mutates: false }, async (model, args) => {
+    try {
+      return await refinementCall(ctx, 'GET', model, '/balance', undefined, { level: args.level, scope: args.scope });
+    } catch (err: any) {
+      if (routeMissing(err)) return { available: false, model, reason: 'route-missing', hint: 'This master predates the balance read.' };
+      throw err;
+    }
+  }));
 }
 export function registerFocusRoundTools(server: McpServer, ctx: AppContext): void {
   server.registerTool('focus_round_scope', {
@@ -32,11 +44,46 @@ export function registerFocusRoundTools(server: McpServer, ctx: AppContext): voi
   }));
   server.registerTool('focus_round_apply', {
     title: 'Apply model changes through the active refinement round',
-    description: 'Make real definition/topology/organization/refinement/relation/level changes after the person presses Refine. Needs the current refinement requestId. operations use stable IDs and the same typed shapes as the round\'s proposals; the server checks the sealed scope, source fingerprints and shared ports and returns per-operation receipts. Repeated identical IDs keep successful edits. Call focus_rounds to inspect progress. This cannot edit files, activate transitions or delete runtime places.',
+    description: 'Make real definition/topology/organization/refinement/relation/level changes, and structure changes (attach, detach, abstract, split, merge, promote, move with the arguments of restructure_model, the net as target "session::net", a new net as child "session::net"), after the person presses Refine. Needs the current refinement requestId. operations use stable IDs and the same typed shapes as the round\'s proposals; the server checks the sealed scope, source fingerprints and shared ports and returns per-operation receipts. Repeated identical IDs keep successful edits. Call focus_rounds to inspect progress. This cannot edit files, activate transitions or delete runtime places.',
     inputSchema: { roundId: identity, requestId: requestIdentity, operations: z.array(z.record(z.unknown())).min(1).max(50), ...modelParam(ctx) },
   }, wrapTool(ctx.scope, ctx.config.mode, { name: 'focus_round_apply', mutates: true }, async (model, args) => {
     const { roundId, model: _model, ...body } = args;
     return refinementCall(ctx, 'POST', model, rounds(roundId) + '/apply', body);
+  }));
+  const netRef = z.object({ sessionId: z.string(), netId: z.string() });
+  server.registerTool('restructure_model', {
+    title: 'Restructure the abstraction levels: attach, detach, abstract, split, merge, promote or move a net',
+    description: 'Structure operations on the hierarchy, outside a round (inside a round use the same kinds as focus_round_apply operations). '
+      + 'attach {sessionId, netId, parent} puts an existing net below an element; detach {sessionId, netId} removes it from its parent element; '
+      + 'abstract {sessionId, netId, elementId, child?} marks a step design-only and optionally attaches the net that explains it; '
+      + 'split {sessionId, netId, elements, child, name, transitionId?, label?} moves named places and steps into a new net one level down, behind one new design-only step whose ports keep the same place ids; '
+      + 'merge {sessionId, netId, elementId} replaces a refined step by the content of its net (that net is archived); '
+      + 'promote {sessionId, netId, elementId, child, name?} turns an inline page into a persistent net; '
+      + 'move {sessionId, netId, toSession, newNetId?} copies a net to another session, re-points parents, children and relations, and archives the original. '
+      + 'Simpler from the bottom up: read refine_balance first. Steps that run (have an inscription) are never moved or removed: the bottom level is the asset. '
+      + 'requestId makes a call repeat-safe: the same requestId continues an interrupted operation. Nothing is deleted.',
+    inputSchema: {
+      kind: z.enum(['attach', 'detach', 'abstract', 'split', 'merge', 'promote', 'move']), requestId: requestIdentity,
+      sessionId: z.string(), netId: z.string(), elementId: z.string().optional(), elements: z.array(z.string()).min(1).max(200).optional(),
+      child: netRef.optional().describe('split/promote: the new net; abstract: the net that explains the step'),
+      name: z.string().optional(), description: z.string().optional(), label: z.string().optional(), transitionId: z.string().optional(),
+      parent: z.object({ sessionId: z.string(), netId: z.string(), elementId: z.string(), elementType: z.enum(['transition', 'place']).optional() }).optional(),
+      previousChild: netRef.optional(), toSession: z.string().optional(), newNetId: z.string().optional(), ...modelParam(ctx),
+    },
+  }, wrapTool(ctx.scope, ctx.config.mode, { name: 'restructure_model', mutates: true }, async (model, args) => {
+    const key = (r: { sessionId: string; netId: string }) => `${r.sessionId}::${r.netId}`;
+    const body: Record<string, unknown> = { kind: args.kind, requestId: args.requestId, target: key({ sessionId: args.sessionId, netId: args.netId }) };
+    for (const k of ['elementId', 'elements', 'name', 'description', 'label', 'transitionId', 'toSession'] as const) if (args[k] !== undefined) body[k] = args[k];
+    if (args.child) body.child = key(args.child);
+    if (args.previousChild) body.previousChild = key(args.previousChild);
+    if (args.newNetId) body.netId = args.newNetId;
+    if (args.parent) body.parent = { net: key(args.parent), elementId: args.parent.elementId, elementType: args.parent.elementType ?? 'transition' };
+    try {
+      return await ctx.client.masterApi('POST', refinementPath(model, '/structure'), body, { modelId: model });
+    } catch (err: any) {
+      if (routeMissing(err)) return { available: false, model, reason: 'route-missing', hint: 'This master predates the structure operations: use update_net_definition and add_transitions.' };
+      throw err;
+    }
   }));
   server.registerTool('refinement_programme', {
     title: 'Read or steer the model\'s refinement programme (continuous question rounds)',

@@ -27,26 +27,28 @@ export function registerLevelTools(server: McpServer, ctx: AppContext): void {
       title: 'Abstraction levels of a model',
       description:
         'The named levels of the hierarchy, top to bottom (order follows the list). action:"list" returns them; '
-        + 'action:"save" REPLACES the whole list (read first, then send the full list). Nets are placed on a level with '
+        + 'action:"save" REPLACES the whole list (read first, then send the full list with expectedHash = the hash the list returned: '
+        + 'a save over a list someone changed meanwhile is refused instead of overwriting it). Nets are placed on a level with '
         + 'update_net_definition {action:"organize", layer}; without a level a net sits at its subnet depth. '
         + 'Levels carry no permissions. Designtime only.',
       inputSchema: {
         action: z.enum(['list', 'save']).default('list').describe('list (default) or save'),
         levels: z.array(levelSchema).optional().describe('save: the complete ordered list'),
+        expectedHash: z.string().optional().describe('save: the hash list returned; an older master ignores it'),
         ...modelParam,
       },
     },
     wrapTool(scope, config.mode, { name: 'net_levels', mutates: true }, async (model, args) => {
       if (args.action === 'list') {
         const listed = await masterCall(ctx, 'GET', explorerPath(model, '/levels'));
-        return { action: 'list', model, levels: Array.isArray(listed?.levels) ? listed.levels : [] };
+        return { action: 'list', model, levels: Array.isArray(listed?.levels) ? listed.levels : [], ...(listed?.hash ? { hash: listed.hash } : {}) };
       }
       if (!Array.isArray(args.levels)) {
         throw new StructuredToolError({ code: 'missing-field', error: 'save needs the complete levels list' });
       }
       const levels = args.levels.map((l: any, order: number) => ({ ...l, order }));
-      const saved = await masterCall(ctx, 'PUT', explorerPath(model, '/levels'), { levels });
-      return { action: 'save', model, levels: Array.isArray(saved?.levels) ? saved.levels : levels };
+      const saved = await masterCall(ctx, 'PUT', explorerPath(model, '/levels'), args.expectedHash ? { levels, expectedHash: args.expectedHash } : { levels });
+      return { action: 'save', model, levels: Array.isArray(saved?.levels) ? saved.levels : levels, ...(saved?.hash ? { hash: saved.hash } : {}) };
     }),
   );
 }

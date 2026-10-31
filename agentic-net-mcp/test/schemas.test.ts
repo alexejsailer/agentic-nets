@@ -31,10 +31,10 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
 }
 
 /** The Explorer's refinement (core since master 2.62): always registered; refiner_* are the old names. */
-const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refinement_status', 'refiner_status', 'refinement_configure', 'refiner_configure', 'refinement_access', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply', 'refinement_programme'];
+const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refinement_status', 'refiner_status', 'refinement_configure', 'refiner_configure', 'refinement_access', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply', 'refinement_programme', 'restructure_model', 'refine_balance'];
 
 /** The refinement's readers, registered in readonly too. */
-const REVIEW_READERS = ['focus_digest', 'focus_scope', 'refinement_status', 'refiner_status', 'subject_thread', 'ground_model', 'refine_model', 'review_model', 'focus_rounds'];
+const REVIEW_READERS = ['focus_digest', 'focus_scope', 'refinement_status', 'refiner_status', 'subject_thread', 'ground_model', 'refine_model', 'review_model', 'focus_rounds', 'refine_balance'];
 
 /** The readonly surface besides the refinement's readers. */
 const READONLY = ['application_describe', 'application_list', 'application_view', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'get_net_definition', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'];
