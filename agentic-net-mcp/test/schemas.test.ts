@@ -30,10 +30,13 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
   };
 }
 
-/** The review method's tools: registered only with AGENTICOS_REVIEW_TOOLS (reviewTools). */
-const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refiner_status', 'refiner_configure', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply'];
+/** The Explorer's refinement (core since master 2.62): always registered; refiner_* are the old names. */
+const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refinement_status', 'refiner_status', 'refinement_configure', 'refiner_configure', 'refinement_access', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply'];
 
-/** The readonly surface without the review method. */
+/** The refinement's readers, registered in readonly too. */
+const REVIEW_READERS = ['focus_digest', 'focus_scope', 'refinement_status', 'refiner_status', 'subject_thread', 'ground_model', 'refine_model', 'review_model', 'focus_rounds'];
+
+/** The readonly surface besides the refinement's readers. */
 const READONLY = ['application_describe', 'application_list', 'application_view', 'domain_memory_recall', 'explore_model', 'find_capabilities', 'get_net_definition', 'list_net_definition_templates', 'list_net_definitions', 'event_trail', 'events_wait', 'list_executors', 'list_external_fires', 'list_models', 'list_transitions', 'llm_health', 'llm_groups', 'mcp_servers', 'memory_graph', 'memory_recall', 'model_history', 'net_overview', 'net_stats', 'protocol_tail', 'query_tokens', 'readiness', 'scheduler_status', 'search_knowledge', 'token_lineage', 'transition_history', 'usage_report'];
 
 async function connectedClient(config: McpConfig) {
@@ -154,7 +157,7 @@ describe('advertised tool surface', () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
     // Curated (lowercase) layer: all present.
-    for (const c of CURATED) expect(names, `curated ${c}`).toContain(c);
+    for (const c of [...CURATED, ...REVIEW]) expect(names, `curated ${c}`).toContain(c);
     // Native (UPPERCASE) layer: full platform parity — spot-check breadth across groups
     // and assert the agent-loop-only primitives are excluded.
     for (const n of ['NET_DOCTOR', 'DELETE_NET', 'DELETE_TRANSITION', 'SET_INSCRIPTION', 'QUERY_TOKENS', 'PACKAGE_SEARCH', 'HUB_PUBLISH', 'HUB_INSTALL', 'HUB_REMOTE_ADD', 'DOCKER_LIST', 'HTTP_CALL', 'EXPORT_PNML']) {
@@ -163,7 +166,7 @@ describe('advertised tool surface', () => {
     for (const excluded of ['THINK', 'DONE', 'FAIL']) expect(names).not.toContain(excluded);
     const native = names.filter((n) => n === n.toUpperCase() && /_|^[A-Z]+$/.test(n));
     expect(native.length).toBeGreaterThanOrEqual(60); // 65 catalog − 3 loop-only ≥ 62
-    expect(names.length).toBe(CURATED.length + native.length); // no strays
+    expect(names.length).toBe(CURATED.length + REVIEW.length + native.length); // no strays
     // Capability tools keep `model` even single-model: omitting it targets the system registry
     // in `default`, so the param is how a caller escapes the connection's own model.
     const modelKeepers = new Set(['find_capabilities', 'delegate']);
@@ -196,7 +199,7 @@ describe('advertised tool surface', () => {
     const client = await connectedClient(makeConfig({ nativeTools: 'curated' }));
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(CURATED);
+    expect(names).toEqual([...CURATED, ...REVIEW].sort());
     expect(names).not.toContain('QUERY_TOKENS');
   });
 
@@ -258,23 +261,18 @@ describe('advertised tool surface', () => {
     expect(Object.keys((invoke!.inputSchema as any).properties)).not.toContain('params');
   });
 
-  it('review tools and prompts only with AGENTICOS_REVIEW_TOOLS, in rw and in readonly', async () => {
-    const rw = await connectedClient(makeConfig({ nativeTools: 'curated', reviewTools: true }));
+  it('the refinement\'s tools are always there; readonly gets its readers, AGENTICOS_REVIEW_TOOLS changes nothing', async () => {
+    const rw = await connectedClient(makeConfig({ nativeTools: 'curated' }));
     expect((await rw.listTools()).tools.map((t) => t.name).sort()).toEqual([...CURATED, ...REVIEW].sort());
-    const ro = await connectedClient(makeConfig({ mode: 'readonly', reviewTools: true }));
-    expect((await ro.listTools()).tools.map((t) => t.name).sort()).toEqual(
-      [...READONLY, 'focus_digest', 'focus_scope', 'refiner_status', 'subject_thread', 'ground_model', 'refine_model', 'review_model', 'focus_rounds'].sort());
-    const off = await connectedClient(makeConfig({ nativeTools: 'curated' }));
-    const offNames = (await off.listTools()).tools.map((t) => t.name);
-    for (const name of REVIEW) expect(offNames).not.toContain(name);
-    expect(offNames).toContain('explore_model');
+    const ro = await connectedClient(makeConfig({ mode: 'readonly' }));
+    expect((await ro.listTools()).tools.map((t) => t.name).sort()).toEqual([...READONLY, ...REVIEW_READERS].sort());
   });
 
   it('readonly: only the read tools are registered (GET-based; POST diagnostics excluded)', async () => {
     const client = await connectedClient(makeConfig({ mode: 'readonly' }));
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual(
-      READONLY.sort(),
+      [...READONLY, ...REVIEW_READERS].sort(),
     );
   });
 
@@ -349,6 +347,12 @@ describe('advertised tool surface', () => {
         'debug-net',
         'monitor-personas',
         'organize-model',
+        // the refinement's method prompts, built in since the refinement became part of the core
+        'structure-pass',
+        'ground-model',
+        'refinement-pass',
+        'implement-from-model',
+        'question-round',
         'realize-net-definition',
         'review-current-model',
         'setup-working-memory',

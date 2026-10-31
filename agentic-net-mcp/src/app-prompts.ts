@@ -38,6 +38,9 @@ export interface AppPrompt {
   text: string;
 }
 
+/** Applications whose prompts this server now carries itself (refinement-prompts.ts): their catalog copies are not registered again. */
+const RETIRED_INTO_CORE = new Set(['refiner']);
+
 const NAME = /^[a-z][a-z0-9-]{0,63}$/;
 const ARG = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 /** A template larger than this is refused (the knowledge pack keeps its documents near 8 KB too). */
@@ -181,7 +184,7 @@ export function registerAppPrompts(server: McpServer, _ctx: AppContext): void {
     const tools = new Set(Object.keys((server as any)._registeredTools ?? {}));
     for (const p of prompts) {
       const key = `${p.application}/${p.name}`;
-      if (registered.has(key)) continue;
+      if (registered.has(key) || RETIRED_INTO_CORE.has(p.application)) continue;
       if (!p.requiresTools.every((t) => tools.has(t))) continue;
       const existing = new Set(Object.keys((server as any)._registeredPrompts ?? {}));
       const name = existing.has(p.name) ? `${p.application}-${p.name}` : p.name;

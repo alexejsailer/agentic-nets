@@ -23,6 +23,7 @@ import { registerProtocolReaders, registerProtocolTools } from './tools/protocol
 import { registerApplicationReaders, registerApplicationTools } from './tools/applications.js';
 import { registerExplorerReaders } from './tools/explorer.js';
 import { registerFocusScope, registerRefineReaders, registerRefineTools } from './tools/refine.js';
+import { registerRefinementPrompts } from './refinement-prompts.js';
 import { registerFocusRoundReaders, registerFocusRoundTools } from './tools/focus-rounds.js';
 import { registerDefinitionReaders, registerDefinitionTools } from './tools/definitions.js';
 import { registerLevelTools } from './tools/levels.js';
@@ -89,13 +90,10 @@ export function createServer(ctx: AppContext): McpServer {
     registerApplicationReaders(server, ctx);
     // Model Explorer catalogue is one GET: the hierarchy is readable by observers too.
     registerExplorerReaders(server, ctx);
-    // The review method's readers (worklist, digest, scope, thread) only with AGENTICOS_REVIEW_TOOLS;
-    // asking and marking are not for observers.
-    if (ctx.config.reviewTools === true) {
-      registerRefineReaders(server, ctx);
-      registerFocusRoundReaders(server, ctx);
-      registerFocusScope(server, ctx);
-    }
+    // The refinement's readers (worklist, digest, scope, thread, rounds); asking and marking are not for observers.
+    registerRefineReaders(server, ctx);
+    registerFocusRoundReaders(server, ctx);
+    registerFocusScope(server, ctx);
     // Definitions and their builds are readable by observers; claiming and building are not.
     registerDefinitionReaders(server, ctx);
     // External-fire discovery is GET-based — readonly observers can see the lane.
@@ -105,14 +103,12 @@ export function createServer(ctx: AppContext): McpServer {
     registerProtocolTools(server, ctx);
     registerApplicationTools(server, ctx);
     registerExplorerReaders(server, ctx);
-    // The review method (Focus, Curation, Interview applications) is opt-in: AGENTICOS_REVIEW_TOOLS=true.
-    if (ctx.config.reviewTools === true) {
-      registerRefineReaders(server, ctx);
-      registerFocusRoundReaders(server, ctx);
-      registerFocusScope(server, ctx);
-      registerRefineTools(server, ctx);
-      registerFocusRoundTools(server, ctx);
-    }
+    // The Explorer's refinement (core since master 2.62): rounds, passes, marks and questions.
+    registerRefineReaders(server, ctx);
+    registerFocusRoundReaders(server, ctx);
+    registerFocusScope(server, ctx);
+    registerRefineTools(server, ctx);
+    registerFocusRoundTools(server, ctx);
     registerDefinitionReaders(server, ctx);
     registerDefinitionTools(server, ctx);
     registerLevelTools(server, ctx);
@@ -134,7 +130,8 @@ export function createServer(ctx: AppContext): McpServer {
     }
   }
 
-  // Last: an application's prompts register only where every tool they name is registered.
+  // Last: the refinement's prompts, then an application's, each only where every tool they name is registered.
+  registerRefinementPrompts(server, ctx);
   registerAppPrompts(server, ctx);
   return server;
 }

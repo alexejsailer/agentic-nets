@@ -17,7 +17,7 @@ function config(overrides: Partial<McpConfig> = {}): McpConfig {
     nodeHost: 'localhost:8080', transport: 'stdio', httpPort: 0,
     llmProvider: 'claude-code', llmTier: 'medium', allowModelCreate: false,
     persistedModels: [], allowlistPath: '/tmp/agenticnets-explorer-test.json',
-    persistAllowlist: false, nativeTools: 'curated', reviewTools: true,
+    persistAllowlist: false, nativeTools: 'curated',
     ...overrides,
   } as McpConfig;
 }
@@ -99,7 +99,7 @@ describe('explore_model', () => {
     expect(full.places).toHaveLength(2);
   });
 
-  it('facts, slice and chain are options of explore_model, without the review tools', async () => {
+  it('facts, slice and chain are options of explore_model', async () => {
     const FACTS = { modelId: 'm1', total: 2, counts: {}, facts: [
       { kind: 'refinement-unverified', subjectKey: 'product::overview#t-risk', netKey: 'product::overview', element: 't-risk', child: 'identity::risk-analysis', status: 'targetMissing' },
       { kind: 'below-nothing', subjectKey: 'identity::lost', netKey: 'identity::lost' },
@@ -109,11 +109,9 @@ describe('explore_model', () => {
       if (path.startsWith('/models/m1/structure/chain')) return { modelId: 'm1', net: 'identity::account-access', chain: [{ key: 'identity::account-access' }, { key: 'product::overview' }] };
       if (path.startsWith('/models/m1/structure/scope')) return { modelId: 'm1', scope: 'domain:identity', core: [] };
       return CATALOGUE;
-    }, { reviewTools: false });
+    });
     const names = (await client.listTools()).tools.map((t) => t.name);
     expect(names).toContain('explore_model');
-    expect(names).not.toContain('refine_model');
-    expect(names).not.toContain('review_model');
     const withFacts = await call(client, { facts: true, query: 'overview' });
     expect(withFacts.facts.total).toBe(1);
     expect(withFacts.facts.lines).toEqual(['refinement-unverified product::overview#t-risk (element t-risk, child identity::risk-analysis, targetMissing)']);
@@ -230,14 +228,14 @@ describe('review_model', () => {
   const LEVELLED = { ...CATALOGUE, nets: CATALOGUE.nets.map((n) => ({ ...n, layer: n.key.startsWith('product') ? 'product' : 'service' })) };
 
   async function review(args: Record<string, unknown> = {}) {
-    const { client, calls } = await connect((path) => (path.includes('/curation') ? REVIEW : LEVELLED));
+    const { client, calls } = await connect((path) => (path.includes('/refinement/review') ? REVIEW : LEVELLED));
     const result: any = await client.callTool({ name: 'review_model', arguments: args });
     return { out: JSON.parse(result.content[0].text), calls };
   }
 
   it('lists every net with its state, rolls element marks up, and counts per level', async () => {
     const { out, calls } = await review();
-    expect(calls.sort()).toEqual(['/explorer/m1/curation?modelId=m1', '/models/m1/structure?modelId=m1']);
+    expect(calls.sort()).toEqual(['/explorer/m1/refinement/review?modelId=m1', '/models/m1/structure?modelId=m1']);
     expect(out.total).toBe(3);
     const overview = out.nets.find((n: any) => n.key === 'product::overview');
     expect(overview.state).toBe('confirmed');
@@ -263,9 +261,9 @@ describe('review_model', () => {
     expect((await review({ needs: 'any' })).out.matched).toBe(3);
   });
 
-  it('a master without the curation route answers available:false', async () => {
+  it('a master without the review route answers available:false', async () => {
     const { client } = await connect((path) => {
-      if (!path.includes('/curation')) return CATALOGUE;
+      if (!path.includes('/refinement/review')) return CATALOGUE;
       const err: any = new Error('Gateway 404');
       err.status = 404;
       throw err;
@@ -333,7 +331,7 @@ describe('refine_model and curate_model', () => {
     const ctx = new AppContext(config());
     (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
       if (method === 'POST') { posted.push({ path, body }); return { success: true }; }
-      return path.includes('/curation') ? REVIEW : LEVELLED;
+      return path.includes('/refinement/review') ? REVIEW : LEVELLED;
     };
     const server = createServer(ctx);
     const [ct, st] = InMemoryTransport.createLinkedPair();
@@ -343,15 +341,15 @@ describe('refine_model and curate_model', () => {
       action: 'ask', subjectKey: 'product::overview#t-pay', question: 'What happens in t-pay?', options: ['a', 'b'], subjectRevision: 2, reasoning: 'because the fee is settled elsewhere', evidence: ['rules.md line 4: fee = 0'],
     } })) as any).content[0].text);
     expect(asked.promptId).toMatch(/^q-product-overview-t-pay-\d{14}$/);
-    expect(posted[0].path).toBe('/applications/m1/interview/actions/ask');
+    expect(posted[0].path).toBe('/explorer/m1/refinement/actions/ask');
     expect(posted[0].body).toMatchObject({ subjectKind: 'net-element', subjectKey: 'product::overview#t-pay', subjectRevision: 2, options: ['a', 'b'], source: 'question-round' });
     expect(posted[0].body).toMatchObject({ reasoning: 'because the fee is settled elsewhere', evidence: ['rules.md line 4: fee = 0'] });
     const answered: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
       action: 'answer', promptId: asked.promptId, selected: ['a'], then: 'confirm', subjectKey: 'product::overview#t-pay', notes: 'because', respondedBy: 'the person',
     } })) as any).content[0].text);
-    expect(posted[1].path).toBe('/applications/m1/interview/actions/respond');
+    expect(posted[1].path).toBe('/explorer/m1/refinement/actions/respond');
     expect(posted[1].body).toMatchObject({ promptId: asked.promptId, intent: 'answer', selected: ['a'], respondedBy: 'the person' });
-    expect(posted[2].path).toBe('/applications/m1/curation/actions/confirm');
+    expect(posted[2].path).toBe('/explorer/m1/refinement/actions/confirm');
     expect(posted[2].body).toMatchObject({ subjectKind: 'element', subjectKey: 'product::overview#t-pay', by: 'the person', note: 'because' });
     expect(answered.confirmed.markId).toMatch(/^confirm-product-overview-t-pay-/);
     const flagged: any = await client.callTool({ name: 'curate_model', arguments: { action: 'flag', subjectKey: 'rules', flag: 'too-coarse', reason: 'one net for twelve rules', by: 'me' } });
@@ -372,7 +370,7 @@ describe('refine_model on a master that serves the worklist', () => {
     const { client, calls } = await connect(master);
     const result: any = await client.callTool({ name: 'refine_model', arguments: { mode: 'review', count: 5 } });
     const out = JSON.parse(result.content[0].text);
-    expect(calls).toEqual(['/explorer/m1/worklist?modelId=m1&direction=both&mode=review&count=5']);
+    expect(calls).toEqual(['/explorer/m1/refinement/worklist?modelId=m1&direction=both&mode=review&count=5']);
     expect(out.items).toEqual(served.items);
     expect(out.deferred).toBe(2);
     expect(out.next).toMatch(/curate_model/);
@@ -400,7 +398,7 @@ describe('focus_digest and the pass record', () => {
 
     const digest: any = await client.callTool({ name: 'focus_digest', arguments: { level: 'product' } });
     const out = JSON.parse(digest.content[0].text);
-    expect(calls).toEqual(['/explorer/m1/digest?modelId=m1&level=product']);
+    expect(calls).toEqual(['/explorer/m1/refinement/digest?modelId=m1&level=product']);
     expect(out.levels[0].subjects[0].answers[0].text).toBe('no');
     expect(out.until).toBe('2026-10-13T16:00:00Z');
     expect(out.next).toMatch(/refinement-pass/);
@@ -411,7 +409,7 @@ describe('focus_digest and the pass record', () => {
     const rec = JSON.parse(pass.content[0].text);
     expect(rec.passId).toBe('pass-2');
     expect(posted).toHaveLength(1);
-    expect(posted[0].path).toBe('/applications/m1/curation/actions/pass');
+    expect(posted[0].path).toBe('/explorer/m1/refinement/actions/pass');
     expect(posted[0].body).toMatchObject({ passId: 'pass-2', kind: 'refinement-pass', consumedUntil: '2026-10-13T16:00:00Z', scope: 'product', answers: 1, questions: ['q-2'], by: 'claude' });
     expect(typeof posted[0].body.startedAt).toBe('string');
 
@@ -451,10 +449,10 @@ describe('audience, own questions and the ground', () => {
     master.servesWorklist = true;
     const { client, calls } = await connect(master);
     const wl: any = JSON.parse(((await client.callTool({ name: 'refine_model', arguments: { for: 'person' } })) as any).content[0].text);
-    expect(calls[0]).toBe('/explorer/m1/worklist?modelId=m1&direction=both&for=person');
+    expect(calls[0]).toBe('/explorer/m1/refinement/worklist?modelId=m1&direction=both&for=person');
     expect(wl.audiences).toEqual({ person: 1, model: 5 });
     const g: any = JSON.parse(((await client.callTool({ name: 'ground_model', arguments: { level: 'service' } })) as any).content[0].text);
-    expect(calls[1]).toBe('/explorer/m1/ground?modelId=m1&level=service');
+    expect(calls[1]).toBe('/explorer/m1/refinement/ground?modelId=m1&level=service');
     expect(g.chains[0].nodes.map((n: any) => n.key)).toEqual(['identity::account-access', 'product::overview']);
     expect(g.next).toMatch(/ground-model/);
   });
@@ -471,11 +469,11 @@ describe('audience, own questions and the ground', () => {
     const client = new Client({ name: 'test', version: '0' });
     await Promise.all([server.connect(st), client.connect(ct)]);
     const raised: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: { action: 'raise', subjectKey: 'product::overview', question: 'Why no refunds?', by: 'the person' } })) as any).content[0].text);
-    expect(posted[0].path).toBe('/applications/m1/interview/actions/raise');
+    expect(posted[0].path).toBe('/explorer/m1/refinement/actions/raise');
     expect(posted[0].body).toMatchObject({ question: 'Why no refunds?', raisedBy: 'the person', subjectKind: 'net-definition', subjectKey: 'product::overview' });
     expect(String(raised.requestId)).toMatch(/^r-product-overview-/);
     const reshaped: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: { action: 'reshape', promptId: 'q-1', revisedQuestion: 'Which refunds are allowed?' } })) as any).content[0].text);
-    expect(posted[1].path).toBe('/applications/m1/interview/actions/respond');
+    expect(posted[1].path).toBe('/explorer/m1/refinement/actions/respond');
     expect(posted[1].body).toMatchObject({ promptId: 'q-1', intent: 'revise', revisedQuestion: 'Which refunds are allowed?' });
     expect(reshaped.next).toMatch(/supersedes/);
     const missing: any = await client.callTool({ name: 'curate_model', arguments: { action: 'reshape', promptId: 'q-1' } });
@@ -498,10 +496,10 @@ describe('focus scope: one feature across its levels', () => {
     await client.callTool({ name: 'ground_model', arguments: { scope: 'domain:activity' } });
     expect(calls).toEqual([
       '/explorer/m1/scope?modelId=m1&scope=domain%3Aactivity',
-      '/explorer/m1/handover?modelId=m1',
-      '/explorer/m1/worklist?modelId=m1&direction=both&for=model&scope=domain%3Aactivity&ring=all',
-      '/explorer/m1/digest?modelId=m1&scope=domain%3Aactivity&ring=all',
-      '/explorer/m1/ground?modelId=m1&scope=domain%3Aactivity',
+      '/explorer/m1/refinement/run?modelId=m1',
+      '/explorer/m1/refinement/worklist?modelId=m1&direction=both&for=model&scope=domain%3Aactivity&ring=all',
+      '/explorer/m1/refinement/digest?modelId=m1&scope=domain%3Aactivity&ring=all',
+      '/explorer/m1/refinement/ground?modelId=m1&scope=domain%3Aactivity',
     ]);
   });
 
@@ -533,7 +531,7 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     const brief: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
       action: 'note', subjectKey: 'product::overview', text: 'The overview opens on the day, newest first.' } })) as any).content[0].text);
     expect(brief.noteKind).toBe('brief');
-    expect(posted[0].path).toBe('/applications/m1/curation/actions/note');
+    expect(posted[0].path).toBe('/explorer/m1/refinement/actions/note');
     expect(posted[0].body).toMatchObject({ noteKind: 'brief', subjectKind: 'net', subjectKey: 'product::overview', by: 'the person' });
     expect(posted[0].body.noteId).toMatch(/^note-brief-product-overview-/);
     const summary: any = JSON.parse(((await client.callTool({ name: 'curate_model', arguments: {
@@ -544,14 +542,14 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     expect(missing.isError).toBe(true);
   });
 
-  it('hand_over names the grant when Focus has no MCP access, never attaches itself, and reads status and thread', async () => {
+  it('hand_over names the grant when the refinement has no MCP access, never attaches itself, and reads status and thread', async () => {
     const posted: Array<{ path: string; body: any }> = [];
     const calls: string[] = [];
     let granted = false;
     const ctx = new AppContext({ ...config(), transport: 'http', httpToken: 'tok', httpPort: 8091 } as any);
     (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
       calls.push(`${method} ${path}`);
-      if (method === 'POST' && path.endsWith('/handover')) {
+      if (method === 'POST' && path.endsWith('/refinement/run')) {
         if (!granted) {
           const e: any = new Error('needs setup'); e.status = 409;
           e.body = JSON.stringify({ state: 'needs-setup', lane: 't-refiner-pass', missing: ['mcp-grant'], mcp: 'needs-grant',
@@ -560,9 +558,9 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
         }
         return { state: 'running', requestId: 'hand-1', fired: true };
       }
-      if (method === 'POST' && path.endsWith('/mcp/grant')) { granted = true; posted.push({ path, body }); return { state: 'granted' }; }
+      if (method === 'POST' && path.endsWith('/refinement/access')) { granted = true; posted.push({ path, body }); return { state: 'granted' }; }
       if (method === 'POST') { posted.push({ path, body }); return { ok: true }; }
-      if (path.includes('/handover')) return { installed: true, state: 'idle', runs: [] };
+      if (path.includes('/refinement/run')) return { installed: true, state: 'idle', runs: [] };
       if (path.includes('/thread')) return { subjectKey: 'product::overview', entries: [{ kind: 'brief' }] };
       return CATALOGUE;
     };
@@ -572,30 +570,30 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     await Promise.all([server.connect(st), client.connect(ct)]);
     const first: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'refinement', scope: 'domain:x', note: 'finish it' } })) as any).content[0].text);
     expect(first.state).toBe('needs-setup');
-    expect(first.next).toContain('application_mcp {name:"refiner", action:"grant", model:"m1"}');
+    expect(first.next).toContain('refinement_access {action:"grant", model:"m1"}');
     expect(first.next).toContain('2 review tools');
     // nothing attached, no credential stored by this server
     expect(posted.filter(p => p.path.includes('/credentials') || p.path.includes('/transitions/assign'))).toHaveLength(0);
-    const grant: any = JSON.parse(((await client.callTool({ name: 'application_mcp', arguments: { name: 'refiner', action: 'grant', by: 'alex' } })) as any).content[0].text);
+    const grant: any = JSON.parse(((await client.callTool({ name: 'refinement_access', arguments: { action: 'grant', by: 'alex' } })) as any).content[0].text);
     expect(grant.state).toBe('granted');
-    expect(posted.find(p => p.path.endsWith('/applications/explorer-e2e/refiner/mcp/grant') || p.path.endsWith('/refiner/mcp/grant'))?.body).toEqual({ by: 'alex' });
+    expect(posted.find(p => p.path.endsWith('/refinement/access'))?.body).toEqual({ by: 'alex' });
     const out: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'refinement', scope: 'domain:x', note: 'finish it' } })) as any).content[0].text);
     expect(out.state).toBe('running');
-    const status: any = JSON.parse(((await client.callTool({ name: 'refiner_status', arguments: {} })) as any).content[0].text);
+    const status: any = JSON.parse(((await client.callTool({ name: 'refinement_status', arguments: {} })) as any).content[0].text);
     expect(status.state).toBe('idle');
     const thread: any = JSON.parse(((await client.callTool({ name: 'subject_thread', arguments: { subject: 'product::overview' } })) as any).content[0].text);
     expect(thread.entries[0].kind).toBe('brief');
     expect(calls.filter(c => c.includes('/thread'))[0]).toContain('subject=product%3A%3Aoverview');
   });
 
-  it('hand_over sends a coder kind with its card, never attaches itself for a coder, and refiner_configure saves the root', async () => {
+  it('hand_over sends a coder kind with its card, never attaches itself for a coder, and refinement_configure saves the root (old name too)', async () => {
     const posted: Array<{ path: string; body: any }> = [];
     let configured = false;
     const ctx = new AppContext({ ...config(), transport: 'http', httpToken: 'tok', httpPort: 8091 } as any);
     (ctx.client as any).masterApi = async (method: string, path: string, body?: any) => {
       posted.push({ path, body });
-      if (path.endsWith('/handover/config')) { configured = true; return { root: body.root, profileId: body.profileId }; }
-      if (path.endsWith('/handover')) {
+      if (path.endsWith('/refinement/run/config')) { configured = true; return { root: body.root, profileId: body.profileId }; }
+      if (path.endsWith('/refinement/run')) {
         if (!configured) { const e: any = new Error('needs setup'); e.status = 409; e.body = JSON.stringify({ state: 'needs-setup', runner: 'coder', missing: ['root'] }); throw e; }
         return { state: 'running', runner: 'coder', requestId: 'hand-2' };
       }
@@ -608,7 +606,7 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     const card = { kind: 'unconfirmed', question: 'Does this match the code?' };
     const first: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'explain', subject: 'modules::activities', card } })) as any).content[0].text);
     expect(first.state).toBe('needs-setup');
-    expect(first.next).toContain('refiner_configure');
+    expect(first.next).toContain('refinement_configure');
     expect(posted.filter(p => p.path.includes('/credentials') || p.path.includes('/transitions/assign'))).toHaveLength(0);
     expect(posted[0].body).toMatchObject({ kind: 'explain', subject: 'modules::activities', card });
     const saved: any = JSON.parse(((await client.callTool({ name: 'refiner_configure', arguments: { root: '~/src/app', coder: 'codex' } })) as any).content[0].text);
@@ -618,7 +616,7 @@ describe('planning in a layer: notes, the thread and the hand-over', () => {
     expect(chosen.config).toEqual({ root: '~/src/app', profileId: 'claude-code-read-only' });
     const second: any = JSON.parse(((await client.callTool({ name: 'hand_over', arguments: { kind: 'explain', subject: 'modules::activities' } })) as any).content[0].text);
     expect(second.state).toBe('running');
-    expect(second.next).toContain('coder reads the sources');
+    expect(second.next).toContain('runner reads the sources');
     const note: any = await client.callTool({ name: 'curate_model', arguments: { action: 'note', noteKind: 'finding', subjectKey: 'product::overview', text: 'x at A.swift:3', by: 'coder' } });
     expect(note.isError).toBeFalsy();
     expect(posted.at(-1)?.body).toMatchObject({ noteKind: 'finding', by: 'coder' });

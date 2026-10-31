@@ -48,9 +48,9 @@ is the worklist top-down and bottom-up (unrefined transitions, failed refinement
 nets below nothing, flags, questions, never confirmed), each item with a ready-made question;
 `curate_model` asks, answers (and confirms or flags in the same call), confirms, flags, resolves. The
 prompt `question-round` is one way to drive them; tools alone suffice.
-Method tools need `AGENTICOS_REVIEW_TOOLS=true`.
+The refinement's tools are core: always registered.
 
-Focus alternates with refinement: `focus_digest` groups the person's decisions since the last pass by level and subject. The `refinement-pass` prompt revises definitions top-down, resolves settled flags, asks follow-up questions and records `curate_model {action:"pass", consumedUntil}`. Questions need evidence, reasoning and two to four options with consequences. `refine_model {for:"person"}` serves human decisions; `for:"model"` serves structural gaps (`structure-pass`). The person can raise or reshape questions. `ground_model` lists bottom-up chains with claims and confirmations; `ground-model` checks them against sources. `implement-from-model` separately interviews one confirmed lowest-layer net and never starts itself.
+Question rounds alternate with refinement passes: `focus_digest` groups the person's decisions since the last pass by level and subject. The `refinement-pass` prompt revises definitions top-down, resolves settled flags, asks follow-up questions and records `curate_model {action:"pass", consumedUntil}`. Questions need evidence, reasoning and two to four options with consequences. `refine_model {for:"person"}` serves human decisions; `for:"model"` serves structural gaps (`structure-pass`). The person can raise or reshape questions. `ground_model` lists bottom-up chains with claims and confirmations; `ground-model` checks them against sources. `implement-from-model` separately interviews one confirmed lowest-layer net and never starts itself.
 
 
 ## Building one

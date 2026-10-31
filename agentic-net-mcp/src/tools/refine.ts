@@ -5,10 +5,10 @@
  * - `refine_model` (read-only): the worklist of a level or a net. Looking down: transitions nothing
  *   refines yet, refinements that do not verify, definitions still draft or ready. Looking up: nets
  *   with neither a parent nor an `explains` relation. Plus the review: open flags, open questions,
- *   subjects nobody confirmed. Every item carries a ready-made Interview `ask` input, so the client
- *   can turn a gap into a question for the person in one call.
+ *   subjects nobody confirmed. Every item carries a ready-made `ask` input, so the client can turn a
+ *   gap into a question for the person in one call.
  * - `curate_model` (writes): ask, answer, confirm, flag, resolve, each a thin, validated wrapper over
- *   the Interview and Curation application actions with deterministic ids.
+ *   the refinement's guarded actions (core since master 2.62) with deterministic ids.
  *
  * Everything is designtime: nothing here starts a lane or spends quota.
  */
@@ -16,6 +16,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
+import { refinementAction, refinementCall, routeMissing } from './refinement-routes.js';
 
 const FLAGS = ['stale', 'unclear', 'wrong', 'contradiction', 'unmeasured', 'too-coarse', 'level-below-changed', 'level-above-changed'] as const;
 
@@ -24,59 +25,15 @@ function cataloguePath(model: string): string {
   return `/explorer/${m}/catalogue?modelId=${m}`;
 }
 
-function curationPath(model: string): string {
-  const m = encodeURIComponent(model);
-  return `/explorer/${m}/curation?modelId=${m}`;
-}
-
-function worklistPath(model: string, args: { level?: string; net?: string; direction?: string; mode?: string; count?: number; for?: string; scope?: string; ring?: string; includeDeferred?: boolean }): string {
-  const m = encodeURIComponent(model);
-  const q = new URLSearchParams({ modelId: model });
-  if (args.level) q.set('level', args.level);
-  if (args.net) q.set('net', args.net);
-  if (args.direction) q.set('direction', args.direction);
-  if (args.mode) q.set('mode', args.mode);
-  if (args.count) q.set('count', String(args.count));
-  if (args.for) q.set('for', args.for);
-  if (args.scope) q.set('scope', args.scope);
-  if (args.ring) q.set('ring', args.ring);
-  if (args.includeDeferred) q.set('includeDeferred', 'true');
-  return `/explorer/${m}/worklist?${q.toString()}`;
-}
-
-function groundPath(model: string, args: { level?: string; net?: string; scope?: string }): string {
-  const m = encodeURIComponent(model);
-  const q = new URLSearchParams({ modelId: model });
-  if (args.level) q.set('level', args.level);
-  if (args.net) q.set('net', args.net);
-  if (args.scope) q.set('scope', args.scope);
-  return `/explorer/${m}/ground?${q.toString()}`;
+function worklistParams(args: { level?: string; net?: string; direction?: string; mode?: string; count?: number; for?: string; scope?: string; ring?: string; includeDeferred?: boolean }) {
+  return { level: args.level, net: args.net, direction: args.direction, mode: args.mode, count: args.count,
+    for: args.for, scope: args.scope, ring: args.ring, includeDeferred: args.includeDeferred ? 'true' : undefined };
 }
 
 const GROUND_NEXT = 'For each chain (prompt ground-model): read the bottom node\'s references from the sources, then check every node above against them, bottom-up. Agree: curate_model {action:"confirm", sourceHash}. A mechanical divergence (a name, a value, a count): update_net_definition or the specification, then confirm. A divergence that is a decision: curate_model {action:"flag", flag:"contradiction", evidence} on the node and {action:"ask"} with evidence, reasoning and options [keep the level as written | adopt what the sources do | both need a change]. Record the pass with scope "ground:<level>".';
 
-function digestPath(model: string, args: { since?: string; level?: string; scope?: string; ring?: string }): string {
-  const m = encodeURIComponent(model);
-  const q = new URLSearchParams({ modelId: model });
-  if (args.since) q.set('since', args.since);
-  if (args.level) q.set('level', args.level);
-  if (args.scope) q.set('scope', args.scope);
-  if (args.ring) q.set('ring', args.ring);
-  return `/explorer/${m}/digest?${q.toString()}`;
-}
 
 const DIGEST_NEXT = 'Apply it top-down (prompt refinement-pass): revise the definitions the answers touch, create the child definitions the person asked for, resolve settled flags, rebuild from the specification when the model is spec-built, raise the next questions with curate_model {action:"ask"}, then record the pass with curate_model {action:"pass", consumedUntil: this digest\'s `until`}.';
-
-export function handoverPath(model: string): string {
-  const m = encodeURIComponent(model);
-  return `/explorer/${m}/handover?modelId=${m}`;
-}
-
-export function threadPath(model: string, subject: string): string {
-  const m = encodeURIComponent(model);
-  const q = new URLSearchParams({ modelId: model, subject });
-  return `/explorer/${m}/thread?${q.toString()}`;
-}
 
 /**
  * A master 404 that says an application is not installed in the model (code "not-installed"),
@@ -96,15 +53,8 @@ export function notInstalled(err: any, model: string): Record<string, unknown> |
   };
 }
 
-/** Spring's own 404 body (no handler for the path): this master has no such route. */
-function routeMissing(err: any): boolean {
-  if (err?.status !== 404) return false;
-  const body = typeof err?.body === 'string' ? err.body : JSON.stringify(err?.body ?? '');
-  return /"error"\s*:\s*"Not Found"/.test(body) && /"path"\s*:/.test(body);
-}
-
 /**
- * A 404 from the master is one of three answers: Focus is not installed in the model (named), this master has
+ * A 404 from the master is one of three answers: an application is not installed in the model (named; older masters), this master has
  * no such route (upgrade it), or the master's own "not found" (an unknown model, net or subject), passed on as
  * it is. Only the second one is about the master's version.
  */
@@ -340,10 +290,10 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       },
     },
     wrapTool(scope, config.mode, { name: 'refine_model', mutates: false }, async (model, args) => {
-      // The master computes the one worklist the Focus application and the scripts read too
+      // The master computes the one worklist the Refine view and the scripts read too
       // (it also honours deferred subjects); an older master without the route gets the local fold.
       try {
-        const served = await ctx.master.get(worklistPath(model, args));
+        const served = await refinementCall(ctx, 'GET', model, '/worklist', undefined, worklistParams(args));
         if (served && Array.isArray(served.items)) {
           return { ...served, next: WORKLIST_NEXT };
         }
@@ -358,7 +308,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
       let catalogue: any;
       let review: any;
       try {
-        [catalogue, review] = await Promise.all([ctx.master.get(cataloguePath(model)), ctx.master.get(curationPath(model))]);
+        [catalogue, review] = await Promise.all([ctx.master.get(cataloguePath(model)), refinementCall(ctx, 'GET', model, '/review')]);
       } catch (err: any) {
         { const missing = missingAnswer(err, model, '/api/explorer'); if (missing) return missing; }
         throw err;
@@ -384,7 +334,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
     },
     wrapTool(scope, config.mode, { name: 'ground_model', mutates: false }, async (model, args) => {
       try {
-        const served = await ctx.master.get(groundPath(model, args));
+        const served = await refinementCall(ctx, 'GET', model, '/ground', undefined, { level: args.level, net: args.net, scope: args.scope });
         return { ...(args.full ? served : compactChains(served)), next: GROUND_NEXT };
       } catch (err: any) {
         { const missing = missingAnswer(err, model, '/api/explorer/{model}/ground'); if (missing) return missing; }
@@ -398,8 +348,8 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
     {
       title: 'What the person answered since the last refinement pass',
       description:
-        'The digest of a model: every answer, confirmation, flag, resolution and deferral the person recorded (in the Focus application, the Interview inbox or by curate_model) since the last refinement pass, grouped by level and subject, plus the questions still open. '
-        + 'Focus sessions and refinement passes alternate as often as needed: the digest starts after the newest `pass` record (curate_model {action:"pass"}) unless `since` is given. Read-only; `until` is the instant to hand back as consumedUntil when the pass is recorded.',
+        'The digest of a model: every answer, confirmation, flag, resolution and deferral the person recorded (in the Explorer\'s Refine view or by curate_model) since the last refinement pass, grouped by level and subject, plus the questions still open. '
+        + 'Question rounds and refinement passes alternate as often as needed: the digest starts after the newest `pass` record (curate_model {action:"pass"}) unless `since` is given. Read-only; `until` is the instant to hand back as consumedUntil when the pass is recorded.',
       inputSchema: {
         since: z.string().optional().describe('ISO-8601 instant; default: the last pass\'s consumedUntil, or everything when no pass was recorded'),
         level: z.string().optional().describe('Only subjects on this level'),
@@ -410,7 +360,7 @@ export function registerRefineReaders(server: McpServer, ctx: AppContext): void 
     },
     wrapTool(scope, config.mode, { name: 'focus_digest', mutates: false }, async (model, args) => {
       try {
-        const served = await ctx.master.get(digestPath(model, args));
+        const served = await refinementCall(ctx, 'GET', model, '/digest', undefined, { since: args.since, level: args.level, scope: args.scope, ring: args.ring });
         return { ...served, next: DIGEST_NEXT };
       } catch (err: any) {
         { const missing = missingAnswer(err, model, '/api/explorer/{model}/digest'); if (missing) return missing; }
@@ -441,11 +391,11 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
     wrapTool(scope, config.mode, { name: 'focus_scope', mutates: false }, async (model, args) => {
       try {
         const served = await ctx.master.get(scopePath(model, args.scope));
-        // The slice is the core's; the next steps name Focus's tools, which answer only where Focus is installed.
-        const focus = await ctx.master.get(handoverPath(model)).catch(() => null);
-        if (focus && focus.installed === false) {
+        // The slice is the core's. An older master served the refinement's tools only where Focus was installed.
+        const focus = await refinementCall(ctx, 'GET', model, '/run').catch(() => null);
+        if (focus && focus.state === 'not-installed') {
           return { ...served, focusInstalled: false,
-            next: `Focus is not installed in ${model}: the slice above is all there is. refine_model, focus_digest and the passes need it: hub_install {name:"refiner", version:"latest", model:"${model}"}.` };
+            next: `This master runs the refinement as the Focus application, which is not installed in ${model}: the slice above is all there is. refine_model, focus_digest and the passes need it: hub_install {name:"refiner", version:"latest", model:"${model}"}.` };
         }
         return { ...served, next: SCOPE_NEXT };
       } catch (err: any) {
@@ -454,23 +404,24 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
       }
     }),
   );
-  server.registerTool(
-    'refiner_status',
+  for (const name of ['refinement_status', 'refiner_status']) server.registerTool(
+    name,
     {
-      title: 'The Refiner lane: installed, attached, running, pending requests and the last runs',
-      description: 'Read-only state of the hand-over lane on the model: whether the Refiner application is installed, whether the lane carries an MCP server, which LLM it thinks with, whether a pass is running now, the pending requests and the last runs with their reports.',
+      title: name === 'refiner_status' ? 'Old name of refinement_status' : 'The refinement on a model: its lanes, MCP access, pending requests and the last runs',
+      description: 'Read-only state of the refinement on the model: whether its package is installed yet (it installs itself on the first hand-over or round), whether the pass lane carries an MCP server, which LLM it thinks with, the runner settings and profiles, the MCP grant, whether a pass is running now, the pending requests and the last runs with their reports.',
       inputSchema: { ...modelParam },
     },
-    wrapTool(scope, config.mode, { name: 'refiner_status', mutates: false }, async (model) => {
+    wrapTool(scope, config.mode, { name, mutates: false }, async (model) => {
       try {
-        const st = await ctx.master.get(handoverPath(model));
-        if (st && st.installed === false) {
+        const st = await refinementCall(ctx, 'GET', model, '/run');
+        if (st && st.state === 'not-installed') {
+          // An older master: the review method was the Focus application.
           return { available: false, model, reason: 'not-installed', application: 'refiner',
-            hint: `Focus is not installed in ${model}; the hand-over installs nothing itself: hub_install {name:"refiner", version:"latest", model:"${model}"}` };
+            hint: `This master runs the refinement as the Focus application, which is not installed in ${model}: hub_install {name:"refiner", version:"latest", model:"${model}"}` };
         }
         return st;
       } catch (err: any) {
-        { const missing = missingAnswer(err, model, '/api/explorer/{model}/handover'); if (missing) return missing; }
+        { const missing = missingAnswer(err, model, '/api/explorer/{model}/refinement/run'); if (missing) return missing; }
         throw err;
       }
     }),
@@ -485,7 +436,7 @@ export function registerFocusScope(server: McpServer, ctx: AppContext): void {
     },
     wrapTool(scope, config.mode, { name: 'subject_thread', mutates: false }, async (model, args) => {
       try {
-        return await ctx.master.get(threadPath(model, args.subject));
+        return await refinementCall(ctx, 'GET', model, '/thread', undefined, { subject: args.subject });
       } catch (err: any) {
         { const missing = missingAnswer(err, model, '/api/explorer/{model}/thread'); if (missing) return missing; }
         throw err;
@@ -500,23 +451,22 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
     ? { model: z.string().optional().describe(`Target model. One of: ${scope.allowed.join(', ')} (default ${scope.defaultModel})`) }
     : {};
 
+  // `application` names where an older master kept the action (Curation or Interview); the core needs no name.
   const act = (model: string, application: string, action: string, input: Record<string, unknown>, idempotencyKey?: string) =>
-    ctx.client.masterApi('POST',
-      `/applications/${encodeURIComponent(model)}/${encodeURIComponent(application)}/actions/${encodeURIComponent(action)}`,
-      input, idempotencyKey ? { idempotencyKey } : undefined);
+    refinementAction(ctx, model, application, action, input, idempotencyKey);
 
   server.registerTool(
     'curate_model',
     {
       title: 'Ask, answer, confirm, flag or resolve on a model subject',
       description:
-        'Writes of a question round, each a validated wrapper over the Interview and Curation applications with deterministic ids. '
+        'Writes of a question round, each a validated wrapper over the refinement\'s guarded actions with deterministic ids. '
         + 'ask: a question to the person about a subject (session::net, session::net#elementId, or a level id); the subject fields are derived from the key. A card needs substance: evidence (what was read or measured), reasoning (the argument and the recommendation) and options with a description each, one recommended. '
         + 'answer: record what the person said (selected and/or text) on a promptId; with then:"confirm" the subject is confirmed in the same call (by = the person), with then:"flag" it is flagged (flag + reason). '
         + 'confirm / flag / resolve / defer (until a date): write a mark directly (markId defaults to a deterministic id). '
         + 'pass: record a refinement pass (consumedUntil = the digest\'s `until`, summary, changes, questions raised), so the next focus_digest starts after it; a structure or ground pass records scope structure:... or ground:... and leaves the answers for the next refinement. '
-        + 'raise: the person\'s own question about a subject (an Interview request; the digest lists it until a prompt carries its requestId). reshape: the person reshapes a question (respond with intent revise and the better wording; the next pass asks again). '
-        + 'note: words about a subject (Curation 1.3.0): noteKind brief = what the person said about it in their own words (the next pass derives the definition from it), summary = what the AI understood, changed and left open after a pass (the person reads it on the card), decision = settled for good, finding = what the sources say now, written by a coder that read them (Curation 1.4.0; explain, look and diff write one). Nothing here starts anything.',
+        + 'raise: the person\'s own question about a subject (the digest lists it until a question carries its requestId). reshape: the person reshapes a question (respond with intent revise and the better wording; the next pass asks again). '
+        + 'note: words about a subject: noteKind brief = what the person said about it in their own words (the next pass derives the definition from it), summary = what the AI understood, changed and left open after a pass (the person reads it on the card), decision = settled for good, finding = what the sources say now, written by a runner that read them (explain, look and diff write one). Nothing here starts anything.',
       inputSchema: {
         action: z.enum(['ask', 'answer', 'confirm', 'flag', 'resolve', 'defer', 'pass', 'raise', 'reshape', 'note']),
         noteKind: z.enum(['brief', 'summary', 'decision', 'finding']).optional().describe('note: brief (the person\'s words), summary (the AI\'s, after a pass), decision, finding (what the sources say, with where it says so (file and line, page, record))'),
@@ -687,7 +637,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
             ...(args.questions ? { questions: args.questions } : {}),
           };
           const result = await act(model, 'curation', 'pass', input, `curate-pass-${passId}`);
-          return { model, passId, consumedUntil: args.consumedUntil, result, next: 'The next focus_digest starts after this pass; the person continues in the Focus application.' };
+          return { model, passId, consumedUntil: args.consumedUntil, result, next: 'The next focus_digest starts after this pass; the person continues in the Explorer\'s Refine view.' };
         }
         case 'note': {
           need('subjectKey', args.subjectKey); need('text', args.text);
@@ -703,7 +653,7 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
           return { model, noteId, noteKind, subjectKey, result,
             next: noteKind === 'brief'
               ? 'The next refinement pass derives the definition from it and answers with a summary note; hand_over runs that pass in the model.'
-              : 'The person reads it in the thread of the subject (the Focus application) and on the card.' };
+              : 'The person reads it in the thread of the subject (the Refine view) and on the card.' };
         }
         default:
           throw new Error(`unknown action ${String(args.action)}`);
@@ -713,18 +663,18 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
   server.registerTool(
     'hand_over',
     {
-      title: 'Hand the focus work over to the AI: the agent lane or the read-only coder',
+      title: 'Hand the refinement work over to the AI: the pass lane or the read-only runner',
       description:
-        'The person\'s "now it is your turn". kind refinement applies what the person answered and described, writes a summary per subject and prepares the next questions; it runs on the coder below once a sources folder is configured, otherwise on the Refiner application\'s agent lane (t-refiner-pass) inside the model through this MCP server (runner forces one). '
-        + 'The other kinds need the sources and run a headless coder READ-ONLY in the folder of the model\'s sources on the executor (code, documents, data), on Focus\'s own coder lanes through the headless-agent runner (a read-only profile of Focus\'s coders store, Claude Code by default), with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the sources), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does according to the sources), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the sources). '
-        + 'Coder kinds need a sources root first (refiner_configure); without it the answer is state needs-setup. Optional scope (domain:<d>, tag:<t>, net:<session::net>), subject (session::net, session::net#element, scope:<expr>@<level>), note, card (the card the person is on). dryRun reports what would run, for a coder kind with the full prompt, and writes nothing. '
+        'The person\'s "now it is your turn". kind refinement applies what the person answered and described, writes a summary per subject and prepares the next questions; it runs on the coder below once a sources folder is configured, otherwise on the refinement\'s agent lane (t-refinement-pass) inside the model through this MCP server (runner forces one). '
+        + 'The other kinds need the sources and run a headless coder READ-ONLY in the folder of the model\'s sources on the executor (code, documents, data), on the refinement\'s runner lanes through the headless-agent runner (a read-only runner profile, Claude Code by default), with this MCP server attached so everything it finds lands in the model: structure (settle the AI\'s structural cards from the sources), ground (check the levels of the scope or model against the sources), and on one subject: look (the person\'s own instruction in note), explain (a finding note: what it really does according to the sources), check (confirm, correct drift, or ask), draft (a draft definition for what is missing), diff (a finding note listing the card\'s claims against the sources). '
+        + 'Coder kinds need a sources root first (refinement_configure); without it the answer is state needs-setup. The refinement and its runner install themselves into the model on the first hand-over. Optional scope (domain:<d>, tag:<t>, net:<session::net>), subject (session::net, session::net#element, scope:<expr>@<level>), note, card (the card the person is on). dryRun reports what would run, for a coder kind with the full prompt, and writes nothing. '
         + 'Use it when the person wants the work done in the background; run the pass yourself when you ARE the AI they are talking to.',
       inputSchema: {
         kind: z.enum(['refinement', 'structure', 'ground', 'look', 'explain', 'check', 'draft', 'diff']).default('refinement'),
         scope: z.string().optional().describe('A focus scope: domain:<d>, tag:<t>, net:<session::net>'),
         subject: z.string().optional().describe('The subject: required for look, explain, check, draft, diff (session::net, session::net#element, scope:<expr>@<level>)'),
         note: z.string().optional().describe('What the person wants, in their words (required for look)'),
-        runner: z.enum(['agent', 'coder']).optional().describe('refinement only: agent = the Refiner lane with the master\'s LLM, coder = the headless coder (default when a sources folder is configured)'),
+        runner: z.enum(['agent', 'coder']).optional().describe('refinement only: agent = the pass lane with the master\'s LLM, coder = the headless runner (default when a sources folder is configured)'),
         card: z.record(z.unknown()).optional().describe('The card the person is on: {kind, detail, question}; it goes into the coder\'s prompt'),
         by: z.string().optional().describe('Who hands over (default "the person")'),
         dryRun: z.boolean().optional().describe('Report what would run; write nothing'),
@@ -735,77 +685,101 @@ export function registerRefineTools(server: McpServer, ctx: AppContext): void {
     wrapTool(scope, config.mode, { name: 'hand_over', mutates: true }, async (model, args) => {
       const body = { kind: args.kind ?? 'refinement', scope: args.scope, subject: args.subject, note: args.note, card: args.card, runner: args.runner, by: args.by ?? 'the person', dryRun: !!args.dryRun,
         ...(args.requestId ? { requestId: args.requestId } : {}) };
-      const post = () => ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover`, body, { modelId: model });
+      const post = () => refinementCall(ctx, 'POST', model, '/run', body);
       let result: any;
       try {
         result = await post();
       } catch (err: any) {
-        { const missing = missingAnswer(err, model, '/api/explorer/{model}/handover'); if (missing) return missing; }
+        { const missing = missingAnswer(err, model, '/api/explorer/{model}/refinement/run'); if (missing) return missing; }
         if (err?.status !== 409) throw err;
         result = conflictBody(err);
       }
       if (result?.state === 'needs-setup' && Array.isArray(result?.applications) && result.applications.length) {
-        // The master installs nothing by itself; the person (or this client, on their behalf) installs on purpose.
+        // An older master: the review method's applications, installed on purpose.
         const names = result.applications.map((a: any) => `hub_install {name:"${a.name}", version:"latest", model:"${model}"}`).join(', ');
         return { ...result, next: `Install what is missing from the local hub (seeded): ${names}; then hand over again.` };
       }
       if (result?.state === 'needs-setup' && Array.isArray(result?.missing) && result.missing.includes('mcp-url')) {
         return { ...result, next: 'The master does not know its own MCP server (agenticos.mcp.self.url; the Desktop launcher sets it). '
-          + 'Nothing to configure in Focus: set it on the master, restart it, then hand over again.' };
+          + 'Nothing to configure in the model: set it on the master, restart it, then hand over again.' };
       }
       if (result?.state === 'needs-setup' && result?.mcp === 'unavailable') {
-        return { ...result, next: 'The MCP server Focus would use is not reachable from the master; a grant cannot help. Start it (or fix agenticos.mcp.self.url), then hand over again.' };
+        return { ...result, next: 'The MCP server the refinement would use is not reachable from the master; a grant cannot help. Start it (or fix agenticos.mcp.self.url), then hand over again.' };
       }
       if (result?.state === 'needs-setup' && Array.isArray(result?.missing) && result.missing.includes('mcp-grant')) {
-        // Focus asks for MCP access in its manifest; only the person grants it (this server attaches nothing itself).
+        // The refinement asks for MCP access in its package; only the person grants it (this server attaches nothing itself).
         const tools = Array.isArray(result?.mcpRequested?.allowTools) ? result.mcpRequested.allowTools.length : undefined;
-        return { ...result, next: `Focus asks for MCP access${tools ? ` (${tools} review tools on its pass and coder lanes)` : ''}. `
-          + `Grant it only when the person agrees: application_mcp {name:"refiner", action:"grant", model:"${model}"} (or Studio's hand-over panel); then hand over again.` };
+        return { ...result, next: `The refinement asks for MCP access${tools ? ` (${tools} review tools on its pass and run lanes)` : ''}. `
+          + `Grant it only when the person agrees: refinement_access {action:"grant", model:"${model}"} (or the Refine view's setup); then hand over again.` };
       }
       if (result?.state === 'needs-setup' && result?.runner === 'coder' && Array.isArray(result?.missing) && result.missing.includes('headless-agent')) {
-        return { ...result, next: `Install the runner the coder lanes use: hub_install {name:"headless-agent", version:"latest", model:"${model}"} (seeded); then hand over again.` };
+        return { ...result, next: `The runner is missing and could not be installed: hub_install {name:"headless-agent", version:"latest", model:"${model}"} (seeded); then hand over again.` };
       }
       if (result?.state === 'needs-setup' && result?.runner === 'coder' && (!Array.isArray(result?.missing) || result.missing.includes('root'))) {
-        return { ...result, next: `Tell the coder where the sources are: refiner_configure {root, profile, model:"${model}"}, then hand over again.` };
+        return { ...result, next: `Tell the runner where the sources are: refinement_configure {root, profile, model:"${model}"}, then hand over again.` };
       }
       if (result?.state === 'needs-setup') {
         return { ...result, next: `Not ready: ${(result?.missing ?? []).join(', ') || 'see hint'}. ${String(result?.hint ?? '')}`.trim() };
       }
       return { ...result, next: result?.state === 'running'
         ? (result?.runner === 'coder'
-          ? 'The coder reads the sources (minutes); refiner_status lists the run with its report when it is done, and subject_thread shows its notes and questions.'
-          : 'The lane runs the pass; refiner_status shows when its run is recorded, then the Focus application and focus_digest carry the summaries and the next questions.')
+          ? 'The runner reads the sources (minutes); refinement_status lists the run with its report when it is done, and subject_thread shows its notes and questions.'
+          : 'The lane runs the pass; refinement_status shows when its run is recorded, then the Refine view and focus_digest carry the summaries and the next questions.')
         : result?.state === 'would-run' ? 'Call again without dryRun to run it.' : String(result?.hint ?? '') };
     }),
   );
 
-  server.registerTool(
-    'refiner_configure',
+  for (const name of ['refinement_configure', 'refiner_configure']) server.registerTool(
+    name,
     {
-      title: 'Set up the coder of the hand-over: where the sources are and which profile reads them',
-      description: 'Where the read-only coder of hand_over works on this model: root = the folder of the model\'s sources on the executor (~ allowed), profile = a read-only profile of Focus\'s coders store (default claude-code-read-only; refiner_status lists them as coders; a write profile is refused), model = the coder\'s model (optional). Appends a Focus config token (the newest wins) with a snapshot of the profile. Read the current setting with refiner_status (config).',
+      title: name === 'refiner_configure' ? 'Old name of refinement_configure' : 'Set up the runner of the hand-over: where the sources are and which profile reads them',
+      description: 'Where the read-only runner of hand_over and of the question rounds works on this model: root = the folder of the model\'s sources on the executor (~ allowed), profile = a read-only runner profile (default claude-code-read-only; refinement_status lists them as coders; a write profile is refused), model = the runner\'s model (optional). Appends a settings record (the newest wins) with a snapshot of the profile. Read the current setting with refinement_status (config).',
       inputSchema: {
         root: z.string().min(1).describe('The folder of the sources on the executor, e.g. ~/Documents/handbook or ~/Developer/my-app'),
-        profile: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional().describe('A read-only profile of Focus\'s coders store (default claude-code-read-only)'),
-        coder: z.enum(['claude', 'codex']).optional().describe('Before Focus 1.4.0: claude or codex (mapped to the read-only profiles); use profile'),
-        coderModel: z.string().optional().describe('The coder\'s model id (optional)'),
+        profile: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).optional().describe('A read-only runner profile (default claude-code-read-only)'),
+        coder: z.enum(['claude', 'codex']).optional().describe('Older settings: claude or codex (mapped to the read-only profiles); use profile'),
+        coderModel: z.string().optional().describe('The runner\'s model id (optional)'),
         by: z.string().optional(),
         ...modelParam,
       },
     },
-    wrapTool(scope, config.mode, { name: 'refiner_configure', mutates: true }, async (model, args) => {
+    wrapTool(scope, config.mode, { name, mutates: true }, async (model, args) => {
       const profileId = args.profile ?? (args.coder === 'codex' ? 'codex-read-only' : args.coder ? 'claude-code-read-only' : undefined);
       const body = { root: args.root, profileId, model: args.coderModel, by: args.by ?? 'the person' };
       try {
-        const saved = await ctx.client.masterApi('POST', `/explorer/${encodeURIComponent(model)}/handover/config`, body, { modelId: model });
-        return { model, config: saved, next: 'hand_over with a coder kind (explain, look, check, draft, diff, ground, structure) now runs in this root.' };
+        const saved = await refinementCall(ctx, 'POST', model, '/run/config', body);
+        return { model, config: saved, next: 'hand_over with a runner kind (explain, look, check, draft, diff, ground, structure) and focus_round now run in this root.' };
       } catch (err: any) {
         if (err?.status === 409) {
           const c = conflictBody(err);
-          return { available: false, model, reason: 'needs-install', hint: String(c.error ?? c.hint ?? err?.message ?? 'Focus is not installed'),
-            next: `hub_install {name:"refiner", version:"latest", model:"${model}"}, then refiner_configure again.` };
+          return { available: false, model, reason: 'needs-install', hint: String(c.error ?? c.hint ?? err?.message ?? 'not ready'),
+            next: `An older master runs the refinement as the Focus application: hub_install {name:"refiner", version:"latest", model:"${model}"}, then configure again.` };
         }
-        { const missing = missingAnswer(err, model, '/api/explorer/{model}/handover/config'); if (missing) return missing; }
+        { const missing = missingAnswer(err, model, '/api/explorer/{model}/refinement/run/config'); if (missing) return missing; }
+        throw err;
+      }
+    }),
+  );
+
+  server.registerTool(
+    'refinement_access',
+    {
+      title: 'The refinement\'s MCP access: read, grant or revoke',
+      description: 'The refinement\'s lanes (the pass lane and the runner\'s run lanes) reach this model through this MCP server only with the person\'s grant. action state (default) reads what it asks for and whether it is granted; grant gives it (only when the person agrees: it stores this server\'s token on those lanes under the listed tool allowlist); revoke takes it back. A grant installs the refinement into the model first.',
+      inputSchema: { action: z.enum(['state', 'grant', 'revoke']).default('state'), by: z.string().optional(), ...modelParam },
+    },
+    wrapTool(scope, config.mode, { name: 'refinement_access', mutates: true }, async (model, args) => {
+      const action = args.action ?? 'state';
+      const m = encodeURIComponent(model);
+      try {
+        if (action === 'grant') return await ctx.client.masterApi('POST', `/explorer/${m}/refinement/access`, { by: args.by ?? 'the person' }, { modelId: model });
+        if (action === 'revoke') return await ctx.client.masterApi('DELETE', `/explorer/${m}/refinement/access`, undefined, { modelId: model });
+        return await ctx.client.masterApi('GET', `/explorer/${m}/refinement/access`, undefined, { modelId: model });
+      } catch (err: any) {
+        if (routeMissing(err)) {
+          return { available: false, model, reason: 'route-missing',
+            hint: `This master runs the refinement as the Focus application: application_mcp {name:"refiner", action:"${action}", model:"${model}"}` };
+        }
         throw err;
       }
     }),

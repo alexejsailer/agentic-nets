@@ -145,12 +145,12 @@ showing the large low-level UPPERCASE catalog. Advanced clients can opt back int
 setting `AGENTICOS_NATIVE_TOOLS=all` when running their own MCP server; non-Desktop installations
 retain `all` as the backward-compatible default.
 
-The review method's tools and prompts (`refine_model`, `curate_model`, `review_model`,
-`hand_over`, the pass prompts; they work with the Focus, Curation and Interview applications) are
-off by default. Turn them on with `mcp.reviewTools=true` in `desktop.properties` and Restart
-Services. The Model Explorer's own reads stay on either way: `explore_model` with `facts:true`,
-`slice` (one feature across its levels) and `chain` (a net and the nets above it). Studio's
-"Hand over to the AI" runs its coder through this endpoint, so it needs the review tools on.
+The Explorer's refinement tools and prompts (`refine_model`, `curate_model`, `review_model`,
+`hand_over`, `focus_round`, `refinement_access`, the pass prompts) are always on: the refinement is
+part of the core (master 2.62), so `mcp.reviewTools` is gone. The Model Explorer's reads are there
+too: `explore_model` with `facts:true`, `slice` (one feature across its levels) and `chain` (a net
+and the nets above it). The refinement's runner reaches the model through this endpoint once the
+person grants it access in the Explorer's Refine view.
 
 Use `add_transitions` for a batch of similar lanes, `delete_tokens` for a bounded ArcQL-selected
 cleanup, and `fire_once` to smoke-test a deterministic lane without stopping it (the default

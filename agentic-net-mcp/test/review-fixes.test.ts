@@ -16,7 +16,7 @@ function config(): McpConfig {
     nodeHost: 'localhost:8080', transport: 'stdio', httpPort: 0,
     llmProvider: 'claude-code', llmTier: 'medium', allowModelCreate: false,
     persistedModels: [], allowlistPath: '/tmp/agenticnets-review-fixes-test.json',
-    persistAllowlist: false, nativeTools: 'curated', reviewTools: true,
+    persistAllowlist: false, nativeTools: 'curated',
   } as McpConfig;
 }
 
@@ -49,7 +49,7 @@ describe('review fixes 2026-10-17', () => {
     const { client, calls } = await connect(() => ({ success: true }));
     await text(client, 'curate_model', { action: 'ask', subjectKey: 'rules::power', question: 'Which gap?', promptId: 'q-2',
       requestId: 'r-own-1', supersedes: 'q-1', evidence: ['e'], reasoning: 'r', options: ['a', 'b'] });
-    const ask = calls.find(c => c.path.includes('/interview/actions/ask'));
+    const ask = calls.find(c => c.path.includes('/refinement/actions/ask'));
     expect(ask?.body).toMatchObject({ promptId: 'q-2', requestId: 'r-own-1', supersedes: 'q-1' });
   });
 
@@ -71,18 +71,24 @@ describe('review fixes 2026-10-17', () => {
   it('hand_over passes a requestId on for a retry', async () => {
     const { client, calls } = await connect(() => ({ state: 'running', requestId: 'hand-1', runner: 'coder' }));
     await text(client, 'hand_over', { kind: 'refinement', requestId: 'hand-1' });
-    expect(calls.find(c => c.path.includes('/handover'))?.body).toMatchObject({ requestId: 'hand-1' });
+    expect(calls.find(c => c.path.includes('/refinement/run'))?.body).toMatchObject({ requestId: 'hand-1' });
   });
 
-  it('refiner_status on a model without Focus is a not-installed answer, not a status with a stale hint', async () => {
-    const { client } = await connect(() => ({ modelId: 'm1', installed: false, hint: 'old text' }));
+  it('refiner_status on an older master without Focus is a not-installed answer, not a status with a stale hint', async () => {
+    const { client } = await connect(() => ({ modelId: 'm1', installed: false, state: 'not-installed', hint: 'old text' }));
     const out = await text(client, 'refiner_status', {});
     expect(out).toMatchObject({ available: false, reason: 'not-installed', application: 'refiner' });
     expect(out.hint).not.toContain('old text');
   });
 
-  it('focus_scope on a model without Focus shows the slice and names what the next steps need', async () => {
-    const { client } = await connect((_m, path) => path.includes('/handover') ? { installed: false } : { scope: 'domain:a', core: [], counts: {} });
+  it('refinement_status on a model the refinement has not reached yet is its status: it installs itself', async () => {
+    const { client } = await connect(() => ({ modelId: 'm1', installed: false, state: 'idle', hint: 'installs itself' }));
+    const out = await text(client, 'refinement_status', {});
+    expect(out).toMatchObject({ installed: false, state: 'idle' });
+  });
+
+  it('focus_scope on an older master without Focus shows the slice and names what the next steps need', async () => {
+    const { client } = await connect((_m, path) => path.includes('/refinement/run') ? { installed: false, state: 'not-installed' } : { scope: 'domain:a', core: [], counts: {} });
     const out = await text(client, 'focus_scope', { scope: 'domain:a' });
     expect(out.focusInstalled).toBe(false);
     expect(out.next).toContain('hub_install {name:"refiner"');

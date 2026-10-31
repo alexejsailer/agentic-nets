@@ -14,6 +14,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { StructuredToolError, wrapTool } from '../scope.js';
+import { refinementCall } from './refinement-routes.js';
 
 const TERMINAL_STATES = new Set(['succeeded', 'failed', 'cancelled', 'superseded']);
 const ACTIVE_STATES = new Set(['claimed', 'planning', 'building', 'verifying']);
@@ -383,10 +384,10 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
       const builds = (Array.isArray(detail?.builds) ? detail.builds : []).map(buildSummary);
       const openBuild = builds.find((b: any) => b.state && !TERMINAL_STATES.has(b.state));
       const questions = detail?.questions ?? {};
-      // The review state is Curation's: read it from the model's curation route (it needs the model, not Focus)
-      // and keep the net's own subjects and its elements', the shape the definition detail used to carry.
+      // The review state (the refinement's marks and questions): keep the net's own subjects and its
+      // elements', the shape the definition detail used to carry.
       const netKey = `${args.sessionId}::${args.netId}`;
-      const review = await masterCall(ctx, 'GET', explorerPath(model, '/curation')).catch(() => null);
+      const review = await refinementCall(ctx, 'GET', model, '/review').catch(() => null);
       let curation: any = detail?.curation ?? null;
       if (!curation && Array.isArray(review?.subjects)) {
         const elements: Record<string, unknown> = {};
@@ -412,7 +413,7 @@ export function registerDefinitionReaders(server: McpServer, ctx: AppContext): v
           answered: Array.isArray(questions.answered) ? questions.answered : [],
         },
         interview: detail?.interview ?? null,
-        // The review state (Curation application): confirmations and open flags of the net and its elements.
+        // The review state: confirmations and open flags of the net and its elements.
         curation,
         askWith: {
           application: 'interview',

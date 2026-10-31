@@ -53,10 +53,10 @@ describe('templates', () => {
   });
 });
 
-describe('the Focus prompts come from its manifest', () => {
-  it('appear with the review tools and render the old branches', async () => {
+describe('the refinement prompts are built in', () => {
+  it('appear with the refinement tools and render the old branches; the retired catalog copy adds nothing', async () => {
     appPromptCache.set(promptsOfManifest('refiner', FOCUS.application));
-    const c = await client({ nativeTools: 'curated', reviewTools: true });
+    const c = await client({ nativeTools: 'curated' });
     const names = (await c.listPrompts()).prompts.map((p) => p.name);
     for (const n of METHOD) expect(names).toContain(n);
 
@@ -83,11 +83,9 @@ describe('the Focus prompts come from its manifest', () => {
     expect(await text(c, 'implement-from-model', { net: 's::n' })).toContain('Implement s::n from its definition');
   });
 
-  it('stay away without the review tools, and readonly lacks the tools they write with', async () => {
+  it('readonly lacks the tools they write with', async () => {
     appPromptCache.set(promptsOfManifest('refiner', FOCUS.application));
-    const off = (await (await client({ nativeTools: 'curated' })).listPrompts()).prompts.map((p) => p.name);
-    for (const n of METHOD) expect(off).not.toContain(n);
-    const ro = (await (await client({ mode: 'readonly', reviewTools: true })).listPrompts()).prompts.map((p) => p.name);
+    const ro = (await (await client({ mode: 'readonly' })).listPrompts()).prompts.map((p) => p.name);
     for (const n of METHOD) expect(ro).not.toContain(n);
   });
 
@@ -101,9 +99,9 @@ describe('the Focus prompts come from its manifest', () => {
   });
 
   it('registers late when the hub answers after the client connected', async () => {
-    const c = await client({ nativeTools: 'curated', reviewTools: true });
-    expect((await c.listPrompts()).prompts.map((p) => p.name)).not.toContain('refinement-pass');
-    appPromptCache.set(promptsOfManifest('refiner', FOCUS.application));
-    expect((await c.listPrompts()).prompts.map((p) => p.name)).toContain('refinement-pass');
+    const c = await client({ nativeTools: 'curated' });
+    expect((await c.listPrompts()).prompts.map((p) => p.name)).not.toContain('late-round');
+    appPromptCache.set(promptsOfManifest('kit', { agentProtocol: { prompts: [{ name: 'late-round', text: 'late {{scope}}', requiresTools: ['refine_model'], arguments: [{ name: 'scope' }] }] } }));
+    expect((await c.listPrompts()).prompts.map((p) => p.name)).toContain('late-round');
   });
 });

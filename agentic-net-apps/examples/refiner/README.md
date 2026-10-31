@@ -1,5 +1,12 @@
 # Focus (package `refiner`)
 
+> **Retired with AgenticNetOS 2.62.** The Explorer's refinement is part of the core now: the master
+> carries its own package `refinement` (built from this one) and installs it into a model on the first
+> refinement write; Studio shows it as the Explorer's Refine view and the MCP server always registers
+> its tools. 1.9.0 is the last version of this package; it stays here for masters older than 2.62.
+> A model that had Focus keeps its records: the core reads them beside its own and copies its rounds
+> on the first write. Focus can be uninstalled afterwards.
+
 Focus is the way of working on one feature of a model across its levels. In Studio it contributes the Focus view, the "Focus here" actions, the hand-over to the AI and the AI actions on a card; without it the Explorer shows the structure only. This package is its runtime, the AI side of the focus loop as an application in the model: a `request` hands the focus work over (kind refinement, structure or ground; a focus scope and a subject when wanted), the agent lane `t-refiner-pass` runs the pass through the Agentic-Nets MCP server and reports into `runs`. The Explorer's Focus view has the "Hand over to the AI" button and the MCP tool `hand_over` writes the same request; install it from the hub (Studio's Install button, MCP `hub_install`, or the `modeling` model profile, which also installs Interview and Curation); the master attaches its MCP server when it knows one. The lane ships stopped and is fired once per request.
 
 Since 1.4.0 its prompts and coder profiles are tokens in the model: `prompts` (promptId `rules`, the coder kinds `refinement`, `structure`, `ground`, `look`, `explain`, `check`, `draft`, `diff`, and `refinement-pass`, the prompt of `t-refiner-pass`) and `coders` (seeded with Claude Code read-only). Both are seeds: an upgrade replaces a token you never edited and keeps an edited one. The coder runs in this package's own lanes (`t-refiner-coder-build`, `-run`, `-shape`) through the script of the `headless-agent` capability: the hand-over writes one task per request (action `delegate`, the composed prompt only), and the lanes take the folder, the profile and the MCP server from the newest `config` record. Focus refuses a profile whose mode is not read-only.

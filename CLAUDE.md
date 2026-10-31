@@ -302,13 +302,16 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   **Model Explorer**: `explore_model` (the hierarchy), `list_net_definitions` / `get_net_definition` /
   `update_net_definition` / `claim_net_definition` / `record_net_build` (natural-language definitions
   and the build protocol), `net_levels`, **`review_model`** (confirmations, flags and open questions
-  per net and element, folded from the Curation and Interview applications), **`refine_model`** (the
-  top-down and bottom-up worklist with ready-made questions) and **`curate_model`** (ask, answer,
-  confirm, flag, resolve) — a client runs a whole question round by tools; prompts `organize-model`,
-  `realize-net-definition`; the method prompts (`structure-pass`, `ground-model`, `refinement-pass`,
-  `question-round`, `implement-from-model`) come from the Focus application's manifest
-  (`agentProtocol.prompts`, `src/app-prompts.ts`: read from the NetHub catalog, registered only where
-  the tools they name are; the review tools sit behind `AGENTICOS_REVIEW_TOOLS`);
+  per net and element), **`refine_model`** (the top-down and bottom-up worklist with ready-made
+  questions), **`curate_model`** (ask, answer, confirm, flag, resolve), the question rounds
+  (`focus_round`, `focus_rounds`, `focus_round_scope`, `focus_round_apply`), `hand_over`,
+  `refinement_status` / `refinement_configure` / `refinement_access` (old names `refiner_*` kept) —
+  the Explorer's refinement, core since master 2.62 and always registered; routes under
+  `/api/explorer/{m}/refinement` with a fallback to the old paths for older masters
+  (`src/tools/refinement-routes.ts`); prompts `organize-model`, `realize-net-definition` and the
+  method prompts (`structure-pass`, `ground-model`, `refinement-pass`, `question-round`,
+  `implement-from-model`, built in: `src/refinement-prompts.ts`; an application can still bring its
+  own prompts through `agentProtocol.prompts`, `src/app-prompts.ts`);
   **knowledge pack**: 17 curated md docs bundled into the binary (`src/knowledge/*.md`, tsup text
   loader) served as `agenticnets://docs/{topic}` + searched by **`search_knowledge`** (offline grep,
   registered in readonly too) — includes `tool-catalog` (rwxhludcts flags, global/local-first

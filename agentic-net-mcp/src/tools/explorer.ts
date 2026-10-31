@@ -11,6 +11,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
 import { notInstalled } from './refine.js';
+import { refinementCall } from './refinement-routes.js';
 
 const TOP_SHARED = 10;
 
@@ -65,11 +66,6 @@ function factsOf(doc: any, detail: string, keys: Set<string> | null): Record<str
     lines: facts.slice(0, SUMMARY_FACTS).map(line),
     ...(facts.length > SUMMARY_FACTS ? { truncated: true, complete: false, more: facts.length - SUMMARY_FACTS, hint: 'detail:"full" returns every fact' } : { complete: true }),
   };
-}
-
-function curationPath(model: string): string {
-  const m = encodeURIComponent(model);
-  return `/explorer/${m}/curation?modelId=${m}`;
 }
 
 /** Subject key of a net, element, level or relation (section 22). */
@@ -162,12 +158,13 @@ export function reviewSummary(catalogue: any, review: any, opts: { level?: strin
     nets: filtered.map(({ needs: _needs, ...r }) => r),
     matched: filtered.length,
     total: rows.length,
+    // Marks and questions go through curate_model (the refinement's guarded actions).
     markWith: {
-      application: 'curation',
+      tool: 'curate_model',
       confirm: { action: 'confirm', input: { markId: '<unique>', subjectKind: 'net|element|level|relation', subjectKey: '<key>', by: '<who>', revision: '<definition revision>', note: '<optional>', sourceHash: '<optional>' } },
       flag: { action: 'flag', input: { markId: '<unique or deterministic>', subjectKind: '...', subjectKey: '<key>', flag: 'stale|unclear|wrong|contradiction|unmeasured|too-coarse|level-below-changed|level-above-changed', reason: '<what was measured or read>', by: '<who>' } },
       resolve: { action: 'resolve', input: { markId: '<the flag>', how: 'changed|confirmed|withdrawn', by: '<who>' } },
-      ask: { application: 'interview', action: 'ask', subjectKind: 'net-definition|net-element|level', subjectKey: '<session>::<net> or <session>::<net>#<elementId> or <level id>' },
+      ask: { action: 'ask', subjectKey: '<session>::<net> or <session>::<net>#<elementId> or <level id>', question: '<the question>', evidence: ['<what was read>'], reasoning: '<the argument>', options: ['<value or {value,label,description,recommended}>'] },
     },
   };
 }
@@ -384,17 +381,14 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
     }),
   );
 
-  // The review state belongs to the review method (Curation, Interview): only with AGENTICOS_REVIEW_TOOLS.
-  if (config.reviewTools !== true) return;
-
   server.registerTool(
     'review_model',
     {
       title: 'Review a model: what is confirmed, flagged or questioned',
       description:
-        'The review state of a model\'s abstraction hierarchy (Curation and Interview applications): per net, whether the person confirmed it, which flags are open (stale, unclear, wrong, contradiction, unmeasured, too-coarse, level-below-changed, level-above-changed), '
+        'The review state of a model\'s abstraction hierarchy (the refinement\'s marks and questions): per net, whether the person confirmed it, which flags are open (stale, unclear, wrong, contradiction, unmeasured, too-coarse, level-below-changed, level-above-changed), '
         + 'which questions are still open, and the same for its elements (subject key `session::net#elementId`). Nets nobody marked are listed as unconfirmed. '
-        + 'Narrow with level (a level id), net (a key) or needs (any | flagged | questions | unconfirmed). The answer carries markWith: how to confirm, flag, resolve and ask through application_action. '
+        + 'Narrow with level (a level id), net (a key) or needs (any | flagged | questions | unconfirmed). The answer carries markWith: how to confirm, flag, resolve and ask through curate_model. '
         + 'Use it to start a question round (prompt question-round) or to see what a change in the referenced sources invalidated. Read-only.',
       inputSchema: {
         level: z.string().optional().describe('Only nets on this level (level id)'),
@@ -407,14 +401,14 @@ export function registerExplorerReaders(server: McpServer, ctx: AppContext): voi
       let catalogue: any;
       let review: any;
       try {
-        [catalogue, review] = await Promise.all([structureGet(ctx, model, ''), ctx.master.get(curationPath(model))]);
+        [catalogue, review] = await Promise.all([structureGet(ctx, model, ''), refinementCall(ctx, 'GET', model, '/review')]);
       } catch (err: any) {
         { const ni = notInstalled(err, model); if (ni) return ni; }
         if (err?.status === 404 && !routeMissing(err)) {
           return { available: false, model, reason: 'not-found', hint: errorText(err, `model ${model} not found`) };
         }
         if (err?.status === 404) {
-          return { available: false, model, hint: 'master without /api/explorer/{model}/curation: upgrade master; confirmations and flags need the Curation application' };
+          return { available: false, model, hint: 'master without the review routes: upgrade master' };
         }
         throw err;
       }
