@@ -304,7 +304,9 @@ plus a net-building workbench. Design doc: `agentic-net-mcp/DESIGN.md`.
   and the build protocol), `net_levels`, **`review_model`** (confirmations, flags and open questions
   per net and element), **`refine_model`** (the top-down and bottom-up worklist with ready-made
   questions), **`curate_model`** (ask, answer, confirm, flag, resolve), the question rounds
-  (`focus_round`, `focus_rounds`, `focus_round_scope`, `focus_round_apply`), `hand_over`,
+  (`focus_round`, `focus_rounds`, `focus_round_scope`, `focus_round_apply`), the continuous programme
+  (`refinement_programme`), the structure tools (`restructure_model`, `refine_balance`), the source watch
+  (`source_watch`), `hand_over`,
   `refinement_status` / `refinement_configure` / `refinement_access` (old names `refiner_*` kept) —
   the Explorer's refinement, core since master 2.62 and always registered; routes under
   `/api/explorer/{m}/refinement` with a fallback to the old paths for older masters
