@@ -56,6 +56,15 @@ topic without asking the person to choose technical IDs or limiting the model to
 
 ## Profiles
 
+Focus 1.9.0 uses the runner's implementation context (`job.phase: implement`) only after an explicit
+Implement action. Runner 1.2.0 requires a write profile and an existing source root, records source
+file SHA-256 values before and after, and returns `workspace {captured,root,changes,preExistingChanges}`
+even when the CLI fails after editing. Git projects use tracked and unignored files; other folders
+exclude common dependency/build directories. The audit supports up to 20,000 files / 512 MB.
+No source contents are stored in the audit. Claude implementation uses a strict empty MCP config;
+model refinement uses a separate read-only profile. Code checks in the agent's report remain
+agent-reported; the executor's file evidence is independent of that report.
+
 `{profileId, title, family: claude-code | codex, mode: read-only | write, command: [argv with {model},
 {allowedTools}, {disallowedTools}, {maxTurns}], promptVia: stdin | argv, resultFormat: claude-json |
 text, defaultModel, allowedTools, disallowedTools, maxTurns, timeoutMin, mcp}`. `${...}` placeholders

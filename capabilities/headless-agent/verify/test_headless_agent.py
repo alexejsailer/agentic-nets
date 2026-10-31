@@ -18,6 +18,8 @@ spec.loader.exec_module(ha)
 FAKE = r'''#!/usr/bin/env python3
 import json, os, sys
 prompt = sys.stdin.read()
+if "WRITE_IMPLEMENTATION_FIXTURE" in prompt:
+    open("approval.py", "w").write("def approved(): return True\n")
 cfg = None
 if "--mcp-config" in sys.argv:
     cfg = json.load(open(sys.argv[sys.argv.index("--mcp-config") + 1]))
@@ -37,6 +39,7 @@ if os.path.basename(sys.argv[0]) == "claude":
     print(json.dumps({"result": result, "total_cost_usd": 0.01, "num_turns": 3, "is_error": False}))
 else:
     print(result)
+if "FAIL_IMPLEMENTATION_FIXTURE" in prompt: sys.exit(1)
 '''
 
 READ_ONLY_CLAUDE = {"profileId": "claude-read-only", "family": "claude-code", "mode": "read-only",
@@ -266,6 +269,40 @@ def t_malformed_stdin_context_is_refused_without_launching_a_provider():
     proc = subprocess.run([sys.executable, ha.__file__, "run-context"], input='[1,2,3]', text=True, capture_output=True, env=env, timeout=30)
     result = json.loads(proc.stdout)
     assert not result["ok"] and "JSON object" in result["error"], result
+
+
+def t_implementation_records_real_file_changes_preserves_existing_files_and_disables_mcp():
+    env, root = setup()
+    open(os.path.join(root, "existing.txt"), "w").write("Keep the user's work")
+    env.update(HA_PROFILE=json.dumps(dict(READ_ONLY_CLAUDE, mode="write", mcp=False, allowedTools="Read,Grep,Glob,Edit,Write,Bash")),
+               HA_PROMPT="WRITE_IMPLEMENTATION_FIXTURE")
+    result = ha.run(env, {"roundId":"r", "job":{"phase":"implement"}})
+    assert result["ok"] and result["mode"] == "write", result
+    assert result["workspace"]["captured"] and result["workspace"]["changes"][0]["path"] == "approval.py", result
+    assert result["workspace"]["changes"][0]["change"] == "added", result
+    assert open(os.path.join(root, "existing.txt")).read() == "Keep the user's work"
+    assert result["report"]["seen"]["cfg"] == {"mcpServers":{}}, result
+
+
+def t_failed_implementation_still_records_partial_file_changes():
+    env, root = setup()
+    env.update(HA_PROFILE=json.dumps(dict(READ_ONLY_CLAUDE, mode="write", mcp=False)),
+               HA_PROMPT="WRITE_IMPLEMENTATION_FIXTURE FAIL_IMPLEMENTATION_FIXTURE")
+    result = ha.run(env, {"roundId":"r", "job":{"phase":"implement"}})
+    assert not result["ok"] and result["workspace"]["captured"], result
+    assert result["workspace"]["changes"][0]["path"] == "approval.py", result
+
+
+def t_implementation_requires_an_explicit_source_root_and_refinement_refuses_write_mode():
+    env, _ = setup(); env["HA_PROFILE"] = json.dumps(dict(READ_ONLY_CLAUDE,mode="write",mcp=False))
+    for context in ({"job":{"phase":"refine"}}, {"job":{"phase":"question"}}):
+        try: ha.run(env,context)
+        except ha.Refused: pass
+        else: raise AssertionError("a model-only phase accepted a write profile")
+    env["HA_ROOT"] = ""
+    try: ha.run(env,{"job":{"phase":"implement"}})
+    except ha.Refused: pass
+    else: raise AssertionError("implementation wrote into a temporary model workspace")
 
 
 for name, fn in list(globals().items()):

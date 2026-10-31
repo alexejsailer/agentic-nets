@@ -4,7 +4,7 @@
     "name": "headless-agent",
     "file": "headless-agent.py",
     "runtime": "python3",
-    "description": "Run a headless CLI agent (Claude Code, Codex) once in a folder under a profile (HA_PROFILE, HA_ROOT, HA_PROMPT; optional HA_MCP_URL with HA_MCP_TOOLS). The runner enforces read-only mode, gives an MCP server only as a private config file limited to the allowed tools, and prints one JSON result with the agent's result line. run-context accepts model JSON on stdin and stages a searchable index with per-net files.",
-    "version": "1.1.0"
+    "description": "Run a headless CLI agent (Claude Code, Codex) once in a folder under a profile (HA_PROFILE, HA_ROOT, HA_PROMPT; optional HA_MCP_URL with HA_MCP_TOOLS). The runner enforces read-only mode, gives an MCP server only as a private config file limited to the allowed tools, and prints one JSON result with the agent's result line. run-context accepts model JSON on stdin and stages a searchable index with per-net files. Implementation contexts require an explicit source root and write profile and include executor-recorded before/after file fingerprints.",
+    "version": "1.2.0"
   }
 ]

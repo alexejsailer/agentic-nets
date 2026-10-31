@@ -56,9 +56,9 @@ describe('guided Focus rounds over MCP', () => {
   });
   it('refines and retries only the named round and reads its receipts', async () => {
     const { client, calls } = await connect();
-    await call(client, { action: 'refine', roundId: 'r' }); await call(client, { action: 'retry', roundId: 'r' });
+    await call(client, { action: 'refine', roundId: 'r' }); await call(client, { action: 'implement', roundId: 'r' }); await call(client, { action: 'retry', roundId: 'r' });
     await client.callTool({ name: 'focus_rounds', arguments: { roundId: 'r' } });
-    expect(calls.map(c => c.path)).toEqual(['/explorer/m1/rounds/r/refine', '/explorer/m1/rounds/r/retry', '/explorer/m1/rounds/r']);
+    expect(calls.map(c => c.path)).toEqual(['/explorer/m1/rounds/r/refine', '/explorer/m1/rounds/r/implement', '/explorer/m1/rounds/r/retry', '/explorer/m1/rounds/r']);
     await client.close();
   });
   it('rejects starts without a topic and models outside the allowlist', async () => {

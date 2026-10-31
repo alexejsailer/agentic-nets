@@ -6,21 +6,30 @@ Since 1.4.0 its prompts and coder profiles are tokens in the model: `prompts` (p
 
 Packed with `npm run pack:refiner`; the master seeds the packed copy (`application-templates/refiner.json`).
 
-## Guided rounds (1.8.0)
+## Guided rounds (1.9.0)
 
 The Focus page starts from a plain-language goal. The headless agent discovers relevant nets and
 layers; the person does not select nets, sessions or tags. The selected model areas are visible
 for inspection. Refine seals that selection with
-the answers, and the server rejects targets outside it. One headless request prepares up to ten
+the answers, and the server rejects targets outside it. One headless request prepares ten
 short, independent multiple-choice cards, with exactly one recommended option and a brief reason.
 The UI shows one card at a time; choosing an answer saves it and immediately advances without a
 new agent run. Supporting analysis is collapsed under "Why this question?". Follow-up rounds adapt
-to the saved decisions. Early finish, free text and investigation remain available; investigating
+to the saved decisions. Free text and investigation remain available; investigating
 the current decision preserves the remaining cards. Questions and responses
 also appear in Interview. Answers are saved before any model edit. Pressing Refine seals the
 answered questions and directly applies structured definitions, topology and organization changes.
 Applied operations retain receipts; unfinished work can be retried, and the next round waits for
-an explicit start.
+an explicit start. New rounds require the full ten-card batch before presenting the first card;
+single-question replies cannot silently resume the old per-answer generation loop. Older saved
+rounds retain their original behavior and offer a new ten-card round on the same topic.
+
+After all ten answers, **Refine layers** updates model knowledge/nets under a read-only source
+profile. **Implement** explicitly selects the matching write profile in the configured source folder,
+runs checks and returns a work report. headless-agent 1.2.0 records file fingerprints before/after
+the run, including after a failed agent; the report distinguishes those file changes from the agent's
+reported checks and remaining work. Source-less rounds cannot implement. Implementation uses no MCP
+server and never commits, pushes or deploys. A later layer refinement can use the same sealed answers.
 
 Roles `rounds`, `round-jobs`, `round-commands`, `round-raw`, `round-results` extend the existing
 review stores. `t-refiner-round-build`, `-run`, `-shape` execute the installed headless-agent runner
@@ -54,4 +63,4 @@ the token nor model context is placed in the prompt. This command net is interna
 person supplies only a goal. A job starts one headless process, records its result, then exits.
 
 Checks: `node --test examples/refiner/round-package.test.mjs`, `npm run pack:refiner`, and
-`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.8.0.application.json`.
+`node tools/test-application-package.mjs --config examples/refiner/agenticos.app.json --file dist/packages/refiner-1.9.0.application.json`.

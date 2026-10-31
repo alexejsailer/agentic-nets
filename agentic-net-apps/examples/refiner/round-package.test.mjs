@@ -47,3 +47,13 @@ test('both providers and the round policy are editable upgrade-safe seeds', () =
   assert.match(p.text, /Exactly one option is recommended/);
   assert.match(p.text, /without another agent call per answer/);
 });
+test('ten cards are required and implementation uses separate explicit write profiles', () => {
+  assert.equal(manifest.application.agentProtocol.guidedRounds.minQuestions, 10);
+  assert.deepEqual(manifest.application.agentProtocol.guidedRounds.completionActions, ['refine', 'implement']);
+  const profiles=net.tokens['p-refiner-coders'];
+  for(const id of ['claude-code-implement','codex-implement']) {
+    const p=profiles.find(p=>p.profileId===id);assert.equal(p.mode,'write');assert.equal(p.mcp,false);assert.equal(p._seed,true);
+  }
+  assert.match(profiles.find(p=>p.profileId==='claude-code-implement').allowedTools,/Write/);
+  assert.ok(profiles.find(p=>p.profileId==='codex-implement').command.includes('workspace-write'));
+});

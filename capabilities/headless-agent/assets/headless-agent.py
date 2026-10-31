@@ -225,20 +225,89 @@ def write_context(workspace, context):
     save("model-round.json", summary)
 
 
+def source_snapshot(root):
+    """Fingerprint source files without changing git or recording file contents."""
+    git_env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+    listing = subprocess.run(["git", "-C", root, "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "."],
+                             capture_output=True, env=git_env, timeout=30) if shutil.which("git") else None
+    dirty = []
+    if listing is not None and listing.returncode == 0:
+        paths = [os.fsdecode(p) for p in listing.stdout.split(b"\0") if p]
+        status = subprocess.run(["git", "-C", root, "status", "--porcelain=v1", "-z", "--", "."], capture_output=True, env=git_env, timeout=30)
+        entries = status.stdout.split(b"\0"); i = 0
+        while i < len(entries):
+            entry = os.fsdecode(entries[i]); i += 1
+            if not entry: continue
+            dirty.append({"path": entry[3:], "status": entry[:2]})
+            if "R" in entry[:2] or "C" in entry[:2]: i += 1
+    else:
+        paths = []
+        ignored = {".git", "node_modules", ".build", "DerivedData", ".venv", "__pycache__", ".gradle", "target", "dist"}
+        for folder, dirs, files in os.walk(root, followlinks=False):
+            dirs[:] = [d for d in dirs if d not in ignored and not os.path.islink(os.path.join(folder, d))]
+            paths.extend(os.path.relpath(os.path.join(folder, f), root) for f in files)
+    if len(paths) > 20000: raise Refused("the source folder exceeds the implementation audit's 20000-file limit")
+    files, total = {}, 0
+    for relative in sorted(set(paths)):
+        full = os.path.abspath(os.path.join(root, relative))
+        if os.path.commonpath([root, full]) != root: raise Refused("a source path leaves the configured folder")
+        if os.path.islink(full):
+            files[relative] = hashlib.sha256(os.fsencode(os.readlink(full))).hexdigest(); continue
+        if not os.path.isfile(full): continue
+        total += os.path.getsize(full)
+        if total > 512 * 1024 * 1024: raise Refused("the source folder exceeds the implementation audit's 512 MB limit")
+        digest = hashlib.sha256()
+        with open(full, "rb") as content:
+            for chunk in iter(lambda: content.read(1024 * 1024), b""): digest.update(chunk)
+        files[relative] = digest.hexdigest()
+    return files, dirty
+
+
+def audited_implementation(env):
+    root = os.path.realpath(os.path.expanduser(env.get("HA_ROOT") or ""))
+    if not (env.get("HA_ROOT") or "").strip() or not os.path.isdir(root): raise Refused("implementation needs an existing configured source folder")
+    if load_profile(profile_text(env))["mode"] != "write": raise Refused("implementation needs a write profile")
+    before, dirty = source_snapshot(root)
+    local = dict(env, HA_IMPLEMENTATION_AUDITED="true")
+    try:
+        result = run(local)
+    except Exception as exc:
+        result = {"ok": False, "exitCode": 1, "mode": "write", "error": str(exc)}
+    try:
+        after, _ = source_snapshot(root)
+        changes = [{"path": path, "change": "added" if path not in before else "deleted" if path not in after else "modified",
+                    "beforeSha256": before.get(path), "afterSha256": after.get(path)}
+                   for path in sorted(set(before) | set(after)) if before.get(path) != after.get(path)]
+        result["workspace"] = {"captured": True, "root": root, "changes": changes, "preExistingChanges": dirty}
+    except Exception as exc:
+        result["ok"] = False; result["error"] = "Could not record the final source state: " + str(exc)
+        result["workspace"] = {"captured": False, "root": root, "preExistingChanges": dirty}
+    return result
+
+
 def run(env, context=None):
     if context is None and (env.get("HA_CONTEXT_JSON") or "").strip():
         context = context_object(env["HA_CONTEXT_JSON"])
     # Sources stay in their configured root; all model evidence is staged outside it for both modes.
     if context is not None:
         context = context_object(context)
+        phase = context.get("job", {}).get("phase")
+        profile = load_profile(profile_text(env))
+        if phase in ("question", "investigate", "refine") and profile["mode"] != "read-only":
+            raise Refused("question and layer-refinement runs require a read-only source profile")
+        if phase == "implement" and (profile["mode"] != "write" or not (env.get("HA_ROOT") or "").strip()):
+            raise Refused("implementation requires a write profile and an explicit source folder")
         with tempfile.TemporaryDirectory(prefix="headless-model-") as workspace:
             write_context(workspace, context)
             local = dict(env)
             local.pop("HA_CONTEXT_JSON", None)
             local["HA_ROOT"] = (env.get("HA_ROOT") or "").strip() or workspace
+            if phase == "implement": local["HA_IMPLEMENTATION"] = "true"
             local["HA_PROMPT"] = (env.get("HA_PROMPT") or "") + "\nMODEL_CONTEXT_DIR: " + workspace + \
                 "\nRead model-round.json there first, then model-index.json when present. Follow its per-net file references using absolute paths under MODEL_CONTEXT_DIR."
             return run(local)
+    if env.get("HA_IMPLEMENTATION") == "true" and env.get("HA_IMPLEMENTATION_AUDITED") != "true":
+        return audited_implementation(env)
     started = time.time()
     profile = load_profile(profile_text(env))
     root = (env.get("HA_ROOT") or "").strip()
@@ -258,15 +327,15 @@ def run(env, context=None):
     tmp = tempfile.mkdtemp(prefix="headless-agent-")
     try:
         argv = list(p["argv"])
-        if p["mcpUrl"]:
+        if p["mcpUrl"] or (profile["family"] == "claude-code" and env.get("HA_IMPLEMENTATION") == "true"):
             token = (env.get(token_env) or "").strip()
-            if not token:
+            if p["mcpUrl"] and not token:
                 raise Refused("no token for the MCP server (%s on the lane)" % token_env)
             cfg = os.path.join(tmp, "mcp.json")
             fd = os.open(cfg, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "w") as f:
-                json.dump({"mcpServers": {p["mcpServer"]: {"type": "http", "url": p["mcpUrl"],
-                                                           "headers": {"Authorization": "Bearer " + token}}}}, f)
+                servers = {p["mcpServer"]: {"type": "http", "url": p["mcpUrl"], "headers": {"Authorization": "Bearer " + token}}} if p["mcpUrl"] else {}
+                json.dump({"mcpServers": servers}, f)
             argv[1:1] = ["--mcp-config", cfg, "--strict-mcp-config"]
         stdin_text = prompt
         if str(profile.get("promptVia") or "stdin") == "argv":
