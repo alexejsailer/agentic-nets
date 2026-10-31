@@ -171,6 +171,13 @@ public final class DesktopConfig {
     public Path servicesDir() { return appDir.resolve("services"); }
     public Path guiDir() { return appDir.resolve("gui"); }
     public Path mcpDir() { return appDir.resolve("mcp"); }
+    /** The bundled speech service script (agentic-nets/deployment/speech); setting speech.script overrides it. */
+    public Path speechScript() {
+        String configured = setting("speech.script", "");
+        return configured.isEmpty() ? appDir.resolve("speech").resolve("speech_service.py") : Path.of(configured);
+    }
+    /** Where the speech service keeps its models, voices and venv (the README installs them here). */
+    public Path speechDataDir() { return dataDir.resolve("speech"); }
     public Path updatesDir() { return desktopDir.resolve("update"); }
 
     /**

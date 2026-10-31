@@ -39,6 +39,11 @@ assemble_app_dir() {
   cp "$NETS_DIR/LICENSE.md" "$app/LICENSE.md"
   cp "$NETS_DIR/PROPRIETARY-EULA.md" "$app/EULA.md"
 
+  # Studio's voice: the launcher supervises this script when speech is set up on the machine
+  # (~/.agenticos/speech, see deployment/speech/README.md); it is plain Python, no build step.
+  mkdir -p "$app/speech"
+  cp "$NETS_DIR/deployment/speech/speech_service.py" "$app/speech/speech_service.py"
+
   # MCP: dist + a production-only node_modules (manifest stripped of devDeps —
   # the file:../agentic-net-cli dev dep is inlined by tsup and must not resolve)
   cp "$NETS_DIR/agentic-net-mcp/dist/bin/agenticnets-mcp.js" "$app/mcp/dist/bin/"

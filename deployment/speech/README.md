@@ -28,6 +28,9 @@ Without Piper the service reads with macOS `say` (local, not open source) so rea
 
 ## Run
 
+On the Desktop there is nothing to run: once `~/.agenticos/speech` holds the models, the launcher
+starts this service with the others and keeps it running (see DESKTOP-LITE.md, "Voice"). Elsewhere:
+
 ```bash
 python3 deployment/speech/speech_service.py          # http://127.0.0.1:8092, GET /health shows what it found
 AGENTICOS_SPEECH_URL=http://127.0.0.1:8092 ...        # on the master (agenticos.speech.url); the Desktop uses this address by default

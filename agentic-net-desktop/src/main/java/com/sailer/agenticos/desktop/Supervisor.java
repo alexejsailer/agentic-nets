@@ -24,7 +24,8 @@ import java.util.function.BiConsumer;
  */
 public final class Supervisor {
 
-    public enum Status { PENDING, STARTING, RUNNING, CRASHED, STOPPED, FAILED }
+    /** UNAVAILABLE: an optional service that could not start or keeps crashing; the stack runs without it. */
+    public enum Status { PENDING, STARTING, RUNNING, CRASHED, STOPPED, FAILED, UNAVAILABLE }
 
     private static final int MAX_RESTARTS = 3;
 
@@ -65,8 +66,9 @@ public final class Supervisor {
         return ordered;
     }
 
+    /** Every required service runs; an optional one does not count. */
     public boolean allRunning() {
-        return statuses.values().stream().allMatch(s -> s == Status.RUNNING);
+        return specs.stream().filter(s -> !s.optional()).allMatch(s -> statuses.get(s.name()) == Status.RUNNING);
     }
 
     /** Sequential start with per-service health gate. Throws on the first failure. */
@@ -77,7 +79,11 @@ public final class Supervisor {
                 if (stopping.get()) {
                     return;
                 }
-                startOne(spec);
+                if (spec.optional()) {
+                    startOptional(spec);
+                } else {
+                    startOne(spec);
+                }
             }
         } catch (IOException | InterruptedException e) {
             stopAll();
@@ -116,7 +122,23 @@ public final class Supervisor {
         }
     }
 
+    /** An optional service that cannot start is shown as unavailable; it never tears the stack down. */
+    private void startOptional(ServiceSpec spec) throws InterruptedException {
+        try {
+            startOne(spec);
+        } catch (IOException e) {
+            setStatus(spec.name(), Status.UNAVAILABLE);
+            System.err.println("[desktop] " + spec.displayName() + " is unavailable, the stack runs without it: " + e.getMessage());
+        }
+    }
+
     private void startOne(ServiceSpec spec) throws IOException, InterruptedException {
+        // An optional service someone already runs on its port (started by hand) is used as it is.
+        if (spec.optional() && !processes.containsKey(spec.name()) && isHealthy(spec.healthUrl())) {
+            setStatus(spec.name(), Status.RUNNING);
+            System.err.println("[desktop] " + spec.displayName() + " already answers at " + spec.healthUrl() + "; using it");
+            return;
+        }
         setStatus(spec.name(), Status.STARTING);
         Files.createDirectories(spec.workingDir());
 
@@ -201,7 +223,7 @@ public final class Supervisor {
             }
             int count = restarts.merge(spec.name(), 1, Integer::sum);
             if (count > MAX_RESTARTS) {
-                setStatus(spec.name(), Status.CRASHED);
+                setStatus(spec.name(), spec.optional() ? Status.UNAVAILABLE : Status.CRASHED);
                 return;
             }
             setStatus(spec.name(), Status.STARTING);
@@ -209,10 +231,11 @@ public final class Supervisor {
                 try {
                     Thread.sleep(5000L * count);
                     if (!stopping.get()) {
+                        processes.remove(spec.name(), process);
                         startOne(spec);
                     }
                 } catch (Exception e) {
-                    setStatus(spec.name(), Status.CRASHED);
+                    setStatus(spec.name(), spec.optional() ? Status.UNAVAILABLE : Status.CRASHED);
                 }
             });
         });

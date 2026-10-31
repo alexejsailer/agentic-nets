@@ -1,6 +1,7 @@
 package com.sailer.agenticos.desktop;
 
 import java.io.File;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -281,7 +282,77 @@ public final class Main {
             "http://127.0.0.1:" + DesktopConfig.MCP_PORT + "/health",
             30));
 
+        ServiceSpec speech = speechSpec(config, baseEnv(bind, logs, config));
+        if (speech != null) {
+            specs.add(speech);
+        }
         return specs;
+    }
+
+    /**
+     * Studio's voice: the local speech service (agentic-nets/deployment/speech), started and restarted like the
+     * other services but optional: without Python or its tools it shows as unavailable and the stack runs on, and
+     * Studio reads with the browser's voice. It runs when speech was set up on this machine (the README puts the
+     * models in ~/.agenticos/speech) or speech.supervise=true; never when speech.supervise=false or when
+     * speech.url points to another machine. Null when it is not wanted.
+     */
+    static ServiceSpec speechSpec(DesktopConfig config, Map<String, String> baseEnv) {
+        String supervise = config.setting("speech.supervise", "");
+        if ("false".equalsIgnoreCase(supervise)) {
+            return null;
+        }
+        if (!"true".equalsIgnoreCase(supervise) && !Files.isDirectory(config.speechDataDir())) {
+            return null; // speech was never set up here: start nothing, prompt for nothing
+        }
+        URI url;
+        try {
+            url = URI.create(config.setting("speech.url", "http://127.0.0.1:" + DesktopConfig.SPEECH_PORT));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        String host = url.getHost();
+        if (host == null || !(host.equals("127.0.0.1") || host.equalsIgnoreCase("localhost"))) {
+            return null; // another machine serves the voice
+        }
+        Path script = config.speechScript();
+        if (!Files.isRegularFile(script)) {
+            System.err.println("[desktop] speech service not bundled at " + script + "; Studio reads with the browser's voice");
+            return null;
+        }
+        int port = url.getPort() > 0 ? url.getPort() : DesktopConfig.SPEECH_PORT;
+        Map<String, String> env = merge(baseEnv, Map.of("SPEECH_HOST", "127.0.0.1", "SPEECH_PORT", String.valueOf(port)));
+        return new ServiceSpec(
+            "speech", "Speech (local voice)",
+            List.of(speechPython(config, env.get("PATH")), script.toAbsolutePath().toString()),
+            env,
+            config.runDir("speech"),
+            "http://127.0.0.1:" + port + "/health",
+            30,
+            true);
+    }
+
+    /**
+     * The interpreter for the speech service: speech.python, else the venv the README installs Piper into, else
+     * python3 found on the enriched PATH. An absolute path, because the launcher itself may run with launchd's
+     * minimal PATH and the process is started from there.
+     */
+    static String speechPython(DesktopConfig config, String path) {
+        String configured = config.setting("speech.python", "");
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        boolean windows = File.separatorChar == '\\';
+        Path venv = config.speechDataDir().resolve("venv").resolve(windows ? "Scripts" : "bin").resolve(windows ? "python.exe" : "python3");
+        if (Files.isExecutable(venv)) {
+            return venv.toAbsolutePath().toString();
+        }
+        String name = windows ? "python.exe" : "python3";
+        for (String dir : (path == null ? "" : path).split(File.pathSeparator)) {
+            if (!dir.isEmpty() && Files.isExecutable(Path.of(dir, name))) {
+                return Path.of(dir, name).toString();
+            }
+        }
+        return windows ? "python" : "python3";
     }
 
     static Map<String, String> llmEnv(DesktopConfig config) {

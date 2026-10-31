@@ -144,6 +144,9 @@ foreach ($jar in "agentic-net-node.jar", "agentic-net-master.jar", "agentic-net-
 Copy-Item -Recurse (Join-Path $Closed "gui\*") "$App\gui\"
 Copy-Item (Join-Path $NetsDir "LICENSE.md") "$App\LICENSE.md"
 Copy-Item (Join-Path $NetsDir "PROPRIETARY-EULA.md") "$App\EULA.md"
+# Studio's voice: supervised by the launcher when speech is set up (see deployment/speech/README.md)
+New-Item -ItemType Directory -Force "$App\speech" | Out-Null
+Copy-Item (Join-Path $NetsDir "deployment\speech\speech_service.py") "$App\speech\speech_service.py"
 
 Copy-Item (Join-Path $NetsDir "agentic-net-mcp\dist\bin\agenticnets-mcp.js") "$App\mcp\dist\bin\"
 node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));fs.writeFileSync(process.argv[2],JSON.stringify({name:p.name,version:p.version,type:p.type,dependencies:p.dependencies},null,2))" `

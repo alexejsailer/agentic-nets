@@ -441,20 +441,30 @@ Without it the login works for reads and fails on the first POST with
 
 ### Voice: reading cards and dictating (optional)
 
-Studio's Focus view reads a card aloud (`R`, `Esc` stops, "read cards" follows every card) and
+Studio's Refine view reads a card aloud (`R`, `Esc` stops, "read cards" follows every card) and
 dictates into every text box (the microphone). Out of the box it uses the browser: the OS voices
 for reading (download an enhanced or Siri voice in System Settings for a good one) and the
 browser's recognition for dictation, whose audio goes to the browser vendor. For an open-source,
-on-device pair run the local speech service from `deployment/speech` (whisper.cpp transcribes,
-Piper speaks, the README has the install lines and a table of where the voice goes). The master
-reaches it at `http://127.0.0.1:8092` by default; another address goes into `desktop.properties`:
+on-device pair set up the local speech service from `deployment/speech` (whisper.cpp transcribes,
+Piper speaks; the README has the install lines and a table of where the voice goes).
+
+Once it is set up (its models live in `~/.agenticos/speech`), the Desktop starts it with the other
+services, restarts it when it stops and stops it on quit; the tray lists it as "Speech (local
+voice)". It is optional: without Python, whisper.cpp or Piper it shows as unavailable and the rest
+runs on, and Studio reads with the browser's voice. One already running on its port is used as it
+is. Settings in `desktop.properties`:
 
 ```
+# where the master reaches it; an address on another machine is not started here
 speech.url=http://127.0.0.1:8092
+# false: never start it; true: start it even before the models are in place
+speech.supervise=false
+# the interpreter (default: the README's venv, else python3 on the PATH)
+speech.python=/path/to/python3
 ```
 
-Then pick "local speech service" in the Focus view's voice box. Nothing leaves the machine. The
-Focus view says under its strip where reading and microphone audio go for the current choice.
+Then pick "local speech service" in the Refine view's voice box. Nothing leaves the machine. The
+view says under its strip where reading and microphone audio go for the current choice.
 
 ## Install and update
 
