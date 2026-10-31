@@ -63,7 +63,7 @@ public class TokenRateLimiter extends OncePerRequestFilter {
         if (uri.length() > 1 && uri.endsWith("/")) {
             uri = uri.substring(0, uri.length() - 1);
         }
-        return !("/oauth2/token".equals(uri) || "/oauth2/share".equals(uri));
+        return !("/oauth2/token".equals(uri) || "/oauth2/share".equals(uri) || "/oauth2/register".equals(uri));
     }
 
     @Override

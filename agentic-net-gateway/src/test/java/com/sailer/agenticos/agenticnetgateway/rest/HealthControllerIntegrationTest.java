@@ -32,7 +32,7 @@ class HealthControllerIntegrationTest {
 				.andExpect(jsonPath("$.status").value("UP"))
 				.andExpect(jsonPath("$.service").value("agentic-net-gateway"))
 				.andExpect(jsonPath("$.timestamp").exists())
-				.andExpect(jsonPath("$.masterUrl").value("http://localhost:8082"));
+				.andExpect(jsonPath("$.masterUrl").doesNotExist());
 	}
 
 	@Test

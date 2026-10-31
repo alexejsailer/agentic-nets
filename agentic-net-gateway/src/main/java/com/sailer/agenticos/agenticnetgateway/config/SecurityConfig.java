@@ -49,6 +49,7 @@ public class SecurityConfig {
     private final ReadonlyEnforcementFilter readonlyEnforcementFilter;
     private final ExecutorScopeEnforcementFilter executorScopeEnforcementFilter;
     private final ShareScopeEnforcementFilter shareScopeEnforcementFilter;
+    private final com.sailer.agenticos.agenticnetgateway.tenant.TenantScopeEnforcementFilter tenantScopeEnforcementFilter;
     private final List<String> allowedOriginPatterns;
     private final boolean hubPublicCatalog;
     private final boolean shareEnabled;
@@ -57,6 +58,7 @@ public class SecurityConfig {
                           ReadonlyEnforcementFilter readonlyEnforcementFilter,
                           ExecutorScopeEnforcementFilter executorScopeEnforcementFilter,
                           ShareScopeEnforcementFilter shareScopeEnforcementFilter,
+                          com.sailer.agenticos.agenticnetgateway.tenant.TenantScopeEnforcementFilter tenantScopeEnforcementFilter,
                           @Value("${gateway.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}") String allowedOriginPatterns,
                           @Value("${gateway.hub.public-catalog:false}") boolean hubPublicCatalog,
                           // NOTE the kebab key: this binds to GatewayProperties.shareEnabled too,
@@ -68,6 +70,7 @@ public class SecurityConfig {
         this.readonlyEnforcementFilter = readonlyEnforcementFilter;
         this.executorScopeEnforcementFilter = executorScopeEnforcementFilter;
         this.shareScopeEnforcementFilter = shareScopeEnforcementFilter;
+        this.tenantScopeEnforcementFilter = tenantScopeEnforcementFilter;
         this.allowedOriginPatterns = parseCsv(allowedOriginPatterns);
         this.hubPublicCatalog = hubPublicCatalog;
         this.shareEnabled = shareEnabled;
@@ -80,12 +83,17 @@ public class SecurityConfig {
                 .addFilterAfter(readonlyEnforcementFilter, BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(executorScopeEnforcementFilter, ReadonlyEnforcementFilter.class)
                 .addFilterAfter(shareScopeEnforcementFilter, ExecutorScopeEnforcementFilter.class)
+                // Last: the fail-closed scope gate for every token and the tenant fence.
+                .addFilterAfter(tenantScopeEnforcementFilter, ShareScopeEnforcementFilter.class)
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                         auth
                         .requestMatchers("/oauth2/token").permitAll()
                         .requestMatchers("/oauth2/jwks").permitAll()
+                        // Tenancy: how to get an account, and self-service sign-up (refused unless enabled).
+                        .requestMatchers(HttpMethod.GET, "/oauth2/tenancy").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/oauth2/register").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/health/**").permitAll();
                         // Opt-in public hub: anonymous GET of the NetHub public catalog + package

@@ -508,6 +508,8 @@ public class MasterProxyController {
         }
         // Internal service auth for the backend (inert when AGENTICOS_SERVICE_TOKEN is unset).
         com.sailer.agenticos.agenticnetgateway.config.ServiceAuth.apply(headers);
+        // The tenant this request acts for (verified JWT claim; inbound X-Agenticos-* were stripped).
+        com.sailer.agenticos.agenticnetgateway.tenant.TenantHeader.apply(headers);
         // Executor identity from the JWT (inbound X-Agenticos-* headers were stripped above, so
         // master can trust this one): master pins poll/deployment/consume/release to it.
         org.springframework.security.core.Authentication auth =

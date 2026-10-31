@@ -74,7 +74,11 @@ public class NodeProxyController {
 
         SseEmitter emitter = new SseEmitter(props.getProxyTimeoutSeconds() * 1000L);
 
+        // Same backend headers as the REST path: service auth and the acting tenant (the SSE path
+        // used to send none, so a service-token-protected node refused every stream).
+        HttpHeaders sseHeaders = copyHeaders(request);
         var webRequest = webClient.get().uri(uri)
+                .headers(h -> h.addAll(sseHeaders))
                 .accept(MediaType.TEXT_EVENT_STREAM);
 
         Flux<String> flux = webRequest
@@ -177,6 +181,7 @@ public class NodeProxyController {
             }
         }
         com.sailer.agenticos.agenticnetgateway.config.ServiceAuth.apply(headers);
+        com.sailer.agenticos.agenticnetgateway.tenant.TenantHeader.apply(headers);
         return headers;
     }
 }

@@ -32,16 +32,28 @@ public class TokenController {
 
     private final JwtEncoder jwtEncoder;
     private final GatewayProperties props;
+    private final com.sailer.agenticos.agenticnetgateway.tenant.TenantRegistry tenants;
+    private final com.sailer.agenticos.agenticnetgateway.tenant.TenancySettings tenancy;
 
-    public TokenController(JwtEncoder jwtEncoder, GatewayProperties props) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public TokenController(JwtEncoder jwtEncoder, GatewayProperties props,
+                           com.sailer.agenticos.agenticnetgateway.tenant.TenantRegistry tenants,
+                           com.sailer.agenticos.agenticnetgateway.tenant.TenancySettings tenancy) {
         this.jwtEncoder = jwtEncoder;
         this.props = props;
+        this.tenants = tenants;
+        this.tenancy = tenancy;
+    }
+
+    /** For tests and callers without tenancy. */
+    public TokenController(JwtEncoder jwtEncoder, GatewayProperties props) {
+        this(jwtEncoder, props, null, null);
     }
 
     @PostMapping(value = "/oauth2/token", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     public ResponseEntity<Map<String, Object>> token(
             @RequestParam("grant_type") String grantType,
-            @RequestParam("client_id") String clientId,
+            @RequestParam(value = "client_id", required = false) String clientId,
             @RequestParam("client_secret") String clientSecret,
             @RequestParam(value = "executor_id", required = false) String executorId) {
 
@@ -52,6 +64,16 @@ public class TokenController {
 
         if (!"client_credentials".equals(grantType)) {
             return ResponseEntity.badRequest().body(Map.of("error", "unsupported_grant_type"));
+        }
+
+        // Tenant and tenant-executor keys carry their identity in the key itself (ant_/axe_), so
+        // no client id is needed: the same key works for MCP, Studio and the CLI.
+        if (com.sailer.agenticos.agenticnetgateway.tenant.TenantKeys.looksLikeTenantCredential(clientSecret)) {
+            return tenantToken(clientSecret);
+        }
+        if (clientId == null || clientId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "invalid_request",
+                    "error_description", "client_id is required"));
         }
 
         String scope = resolveScope(clientId, clientSecret, executorId);
@@ -84,6 +106,42 @@ public class TokenController {
                 "token_type", "Bearer",
                 "expires_in", expiresIn,
                 "scope", scope));
+    }
+
+    private ResponseEntity<Map<String, Object>> tenantToken(String key) {
+        if (tenancy == null || tenants == null || !tenancy.enabled()) {
+            return ResponseEntity.status(401).body(Map.of("error", "invalid_client"));
+        }
+        String subject;
+        String scope;
+        JwtClaimsSet.Builder claims = JwtClaimsSet.builder();
+        var tenant = tenants.authenticate(key);
+        if (tenant.isPresent()) {
+            var t = tenant.get();
+            subject = "tenant:" + t.id();
+            scope = "agenticos tenant";
+            claims.claim("tenant", t.id()).claim("kv", t.keyVersion());
+        } else {
+            var executor = tenants.authenticateExecutor(key);
+            if (executor.isEmpty()) {
+                logger.warn("Invalid tenant credential presented");
+                return ResponseEntity.status(401).body(Map.of("error", "invalid_client"));
+            }
+            var t = executor.get().getKey();
+            String name = executor.get().getValue().name();
+            subject = "tenant:" + t.id() + ":executor:" + name;
+            // The executor role keeps the polling-protocol allowlist; the tenant claim adds the model fence.
+            scope = "agenticos executor";
+            claims.claim("tenant", t.id()).claim("executorName", name)
+                    .claim("executorId", com.sailer.agenticos.agenticnetgateway.tenant.TenantKeys.executorId(t.id(), name));
+        }
+        long expiresIn = props.getTokenTtlSeconds();
+        Instant now = Instant.now();
+        claims.issuer("agenticos").subject(subject).issuedAt(now).expiresAt(now.plusSeconds(expiresIn))
+                .id(java.util.UUID.randomUUID().toString()).claim("scope", scope);
+        String jwt = jwtEncoder.encode(JwtEncoderParameters.from(claims.build())).getTokenValue();
+        logger.info("JWT issued for {} scope={}", subject, scope);
+        return ResponseEntity.ok(Map.of("access_token", jwt, "token_type", "Bearer", "expires_in", expiresIn, "scope", scope));
     }
 
     /** Back-compatible entry point (no executor identity) used by existing callers and tests. */

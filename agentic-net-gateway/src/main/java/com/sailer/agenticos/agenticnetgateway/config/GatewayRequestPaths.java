@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets;
  * StrictHttpFirewall before any filter here runs, so after the firewall the only remaining
  * transformation between the raw URI and the backend's view is this decode.</p>
  */
-final class GatewayRequestPaths {
+public final class GatewayRequestPaths {
 
     private GatewayRequestPaths() {}
 
@@ -33,7 +33,7 @@ final class GatewayRequestPaths {
      * is returned unchanged so a scoped token still falls through to its default-deny branch
      * rather than matching an allowlist entry it should not.
      */
-    static String effectivePath(HttpServletRequest request) {
+    public static String effectivePath(HttpServletRequest request) {
         String uri = request.getRequestURI();
         if (uri == null) {
             return null;

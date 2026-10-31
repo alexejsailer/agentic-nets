@@ -34,7 +34,7 @@ public class HealthController {
         health.put("status", "UP");
         health.put("service", "agentic-net-gateway");
         health.put("timestamp", Instant.now().toString());
-        health.put("masterUrl", gatewayProperties.getMasterUrl());
+        // No internal addresses on this public, unauthenticated route.
         return ResponseEntity.ok(health);
     }
 
