@@ -21,6 +21,22 @@ async function connect(mode: 'rw' | 'readonly' = 'rw') {
   return { client, calls };
 }
 const call = (client: Client, args: Record<string, unknown>) => client.callTool({ name: 'focus_round', arguments: args });
+describe('the refinement programme over MCP', () => {
+  it('reads the programme and steers it only by the actions it names', async () => {
+    const { client, calls } = await connect();
+    await client.callTool({ name: 'refinement_programme', arguments: { model: 'm2' } });
+    await client.callTool({ name: 'refinement_programme', arguments: { action: 'start', topic: 'Approval', profileId: 'platform-read-only', model: 'm2' } });
+    await client.callTool({ name: 'refinement_programme', arguments: { action: 'pause', model: 'm2' } });
+    expect(calls).toEqual([
+      { method: 'GET', path: '/explorer/m2/refinement/programme?modelId=m2', body: undefined },
+      { method: 'POST', path: '/explorer/m2/refinement/programme', body: { action: 'start', topic: 'Approval', profileId: 'platform-read-only' } },
+      { method: 'POST', path: '/explorer/m2/refinement/programme', body: { action: 'pause' } },
+    ]);
+    const bad = await client.callTool({ name: 'refinement_programme', arguments: { action: 'dance', model: 'm2' } });
+    expect(bad.isError).toBe(true);
+    await client.close();
+  });
+});
 describe('guided Focus rounds over MCP', () => {
   it('routes a stable start identity and scope to the selected model', async () => {
     const { client, calls } = await connect();

@@ -31,7 +31,7 @@ function makeConfig(over: Partial<McpConfig> = {}): McpConfig {
 }
 
 /** The Explorer's refinement (core since master 2.62): always registered; refiner_* are the old names. */
-const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refinement_status', 'refiner_status', 'refinement_configure', 'refiner_configure', 'refinement_access', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply'];
+const REVIEW = ['review_model', 'refine_model', 'focus_digest', 'focus_scope', 'hand_over', 'refinement_status', 'refiner_status', 'refinement_configure', 'refiner_configure', 'refinement_access', 'subject_thread', 'ground_model', 'curate_model', 'focus_rounds', 'focus_round', 'focus_round_scope', 'focus_round_apply', 'refinement_programme'];
 
 /** The refinement's readers, registered in readonly too. */
 const REVIEW_READERS = ['focus_digest', 'focus_scope', 'refinement_status', 'refiner_status', 'subject_thread', 'ground_model', 'refine_model', 'review_model', 'focus_rounds'];

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { AppContext } from '../context.js';
 import { wrapTool } from '../scope.js';
-import { refinementCall } from './refinement-routes.js';
+import { refinementCall, refinementPath, routeMissing } from './refinement-routes.js';
 
 const identity = z.string().regex(/^[A-Za-z0-9_-]{1,100}$/);
 const requestIdentity = z.string().regex(/^[A-Za-z0-9_-]{1,160}$/);
@@ -16,7 +16,7 @@ function modelParam(ctx: AppContext): Record<string, z.ZodTypeAny> {
 export function registerFocusRoundReaders(server: McpServer, ctx: AppContext): void {
   server.registerTool('focus_rounds', {
     title: 'Read the refinement\'s question rounds and their results',
-    description: 'List saved rounds, or read one round with its current question, saved answers and per-operation outcomes. Rounds a model kept from before the refinement became part of the core are listed with legacy:true until the first write copies them. Pending work resumes when read after a restart. Questions can also be answered with curate_model {action:"answer"}. No new round starts automatically.',
+    description: 'List saved rounds, or read one round with its current question, saved answers and per-operation outcomes. Rounds a model kept from before the refinement became part of the core are listed with legacy:true until the first write copies them. Pending work resumes when read after a restart. Questions can also be answered with curate_model {action:"answer"}. Outside a running continuous programme (refinement_programme) no new round starts automatically; inside one, programme:true rounds carry their sequence, the decisions carried forward and the cards withdrawn after the previous refinement.',
     inputSchema: { roundId: identity.optional(), ...modelParam(ctx) },
   }, wrapTool(ctx.scope, ctx.config.mode, { name: 'focus_rounds', mutates: false }, async (model, args) =>
     refinementCall(ctx, 'GET', model, rounds(args.roundId))));
@@ -38,9 +38,30 @@ export function registerFocusRoundTools(server: McpServer, ctx: AppContext): voi
     const { roundId, model: _model, ...body } = args;
     return refinementCall(ctx, 'POST', model, rounds(roundId) + '/apply', body);
   }));
+  server.registerTool('refinement_programme', {
+    title: 'Read or steer the model\'s refinement programme (continuous question rounds)',
+    description: 'The programme is the model\'s standing refinement on one topic. In continuous mode, when the person presses Refine on a round, the next round\'s ten cards are prepared at once from what was decided, so they are ready while the AI applies the answers; cards whose net that refinement removed are withdrawn. state (default) reads it: topic, mode, state, its rounds, currentRound (the round to answer), nextReady, refining and suggestedFocus. start {topic, profileId?, scope?, mode?} starts or retargets it and makes sure a round is open; pause stops new card preparation (running work finishes); resume continues; stop also cancels rounds that only waited for their cards; topic changes the topic of the next round; use-focus takes the AI\'s suggestedFocus as the topic; mode {mode} switches continuous/manual. An unfinished refinement pauses the programme with its reason. Start, resume and topic changes only on the person\'s request.',
+    inputSchema: {
+      action: z.enum(['state', 'start', 'pause', 'resume', 'stop', 'topic', 'use-focus', 'mode']).default('state'),
+      topic: z.string().min(1).max(2000).optional(), scope: z.string().min(1).optional().describe('Optional explicit boundary; omit to let the runner discover the areas'),
+      profileId: z.string().min(1).max(100).optional().describe('Runner profile: claude-code-read-only (default), codex-read-only, platform-read-only or one added to the model'),
+      mode: z.enum(['continuous', 'manual']).optional(), by: z.string().optional(), ...modelParam(ctx),
+    },
+  }, wrapTool(ctx.scope, ctx.config.mode, { name: 'refinement_programme', mutates: true }, async (model, args) => {
+    const { action = 'state', model: _model, ...input } = args;
+    try {
+      return action === 'state'
+        ? await ctx.client.masterApi('GET', `${refinementPath(model, '/programme')}?${new URLSearchParams({ modelId: model }).toString()}`)
+        : await ctx.client.masterApi('POST', refinementPath(model, '/programme'), { action, ...input }, { modelId: model });
+    } catch (err: any) {
+      if (routeMissing(err)) return { available: false, model, reason: 'route-missing',
+        hint: 'This master has no refinement programme (it predates it): start each round with focus_round {action:"start"}.' };
+      throw err;
+    }
+  }));
   server.registerTool('focus_round', {
     title: 'Start, answer, refine layers, implement code or resume a refinement round',
-    description: 'One goal across its relevant layers. A round is ten short multiple-choice cards prepared in one headless request, with exactly one recommended option each. The UI shows one card at a time; answering saves and advances without another agent run. Free text is accepted. start needs only a stable roundId and a plain-language topic. The headless agent discovers the relevant nets and layers; do not ask the person for a net or session. scope is optional for callers that already have an explicit boundary. answer saves a decision; unknown:true investigates evidence and returns a recommendation for the same decision, keeping the remaining cards. Follow-up rounds adapt to the saved answers after refinement. After all ten answers, refine updates model layers/nets with read-only source access. implement explicitly runs a write profile in the configured source folder, edits code, runs checks and returns a work report with executor-recorded file changes. Both seal the answers. A source folder is required for implement; never invoke it unless the person requested code implementation. Successful edits survive partial failures; retry resumes unfinished work. Read focus_rounds for progress and the discovered model areas. Model context is staged as searchable files; a source repository is optional. The refinement and its runner install themselves into the model on the first round. Each new round must be requested by the person.',
+    description: 'One goal across its relevant layers. A round is ten short multiple-choice cards prepared in one headless request, with exactly one recommended option each. The UI shows one card at a time; answering saves and advances without another agent run. Free text is accepted. start needs only a stable roundId and a plain-language topic. The headless agent discovers the relevant nets and layers; do not ask the person for a net or session. scope is optional for callers that already have an explicit boundary. answer saves a decision; unknown:true investigates evidence and returns a recommendation for the same decision, keeping the remaining cards. Follow-up rounds adapt to the saved answers after refinement. After all ten answers, refine updates model layers/nets with read-only source access. implement explicitly runs a write profile in the configured source folder, edits code, runs checks and returns a work report with executor-recorded file changes. Both seal the answers. A source folder is required for implement; never invoke it unless the person requested code implementation. Successful edits survive partial failures; retry resumes unfinished work. Read focus_rounds for progress and the discovered model areas. Model context is staged as searchable files; a source repository is optional. The refinement and its runner install themselves into the model on the first round. Each new round must be requested by the person, unless the person started a continuous programme (refinement_programme), which prepares the next round when a round is refined.',
     inputSchema: {
       action: z.enum(['start', 'answer', 'refine', 'implement', 'retry']), roundId: identity,
       topic: z.string().min(1).optional(), scope: z.string().min(1).optional().describe('Optional explicit boundary; omit to let the headless agent discover the relevant areas from the topic'),
