@@ -309,6 +309,55 @@ def t_implementation_requires_an_explicit_source_root_and_refinement_refuses_wri
     else: raise AssertionError("implementation wrote into a temporary model workspace")
 
 
+def t_scan_hashes_the_referenced_files_with_the_curation_recipe_and_checks_contains():
+    import hashlib, tempfile
+    root = tempfile.mkdtemp()
+    open(os.path.join(root, "a.md"), "w").write("intro\nThe review runs weekly.\nend\n")
+    open(os.path.join(root, "b.md"), "w").write("second file")
+    outside = tempfile.mkdtemp()
+    open(os.path.join(outside, "secret.txt"), "w").write("not for the scan")
+    os.symlink(os.path.join(outside, "secret.txt"), os.path.join(root, "link.txt"))
+    refs = [{"uri": "b.md"}, {"uri": "a.md", "contains": "weekly"}, {"uri": "missing.md"}, {"uri": "link.txt"},
+            {"uri": "https://example.org/x"}]
+    result = ha.scan({"HA_ROOT": root}, {"nets": [{"key": "s::n", "refs": refs}]})
+    h = hashlib.sha256()
+    for uri, data in [("a.md", b"intro\nThe review runs weekly.\nend\n"), ("b.md", b"second file"),
+                      ("link.txt", None), ("missing.md", None)]:
+        h.update(uri.encode()); h.update(b"\0"); h.update(data if data is not None else b"<missing>"); h.update(b"\0")
+    net = result["nets"]["s::n"]
+    assert net["sourceHash"] == h.hexdigest()[:16], net
+    by = {r["uri"]: r for r in net["refs"]}
+    assert by["a.md"]["contains"] is True and by["a.md"]["line"] == 2 and "weekly" in by["a.md"]["excerpt"], by["a.md"]
+    assert by["missing.md"]["exists"] is False and by["link.txt"]["exists"] is False, by
+    assert "https://example.org/x" not in by, by
+    assert result["kind"] == "folder" and result["files"] == 2, result
+
+
+def t_scan_reports_the_revision_and_what_changed_since_in_a_git_tree():
+    import tempfile, subprocess, shutil as sh
+    if not sh.which("git"): return
+    root = tempfile.mkdtemp()
+    run = lambda *a: subprocess.run(["git", "-C", root, *a], check=True, capture_output=True, text=True,
+                                    env=dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t"))
+    run("init", "-q")
+    open(os.path.join(root, "a.md"), "w").write("one")
+    run("add", "."); run("commit", "-qm", "one")
+    first = run("rev-parse", "HEAD").stdout.strip()
+    open(os.path.join(root, "a.md"), "w").write("two")
+    open(os.path.join(root, "c.md"), "w").write("new")
+    run("add", "."); run("commit", "-qm", "two")
+    open(os.path.join(root, "a.md"), "w").write("three, not committed")
+    result = ha.scan({"HA_ROOT": root}, {"since": first, "nets": [{"key": "s::n", "refs": [{"uri": "a.md"}]}]})
+    assert result["kind"] == "git" and result["revision"] != first and result["dirty"] is True, result
+    assert sorted(result["changed"]) == ["a.md", "c.md"], result
+
+
+def t_scan_refuses_a_missing_root():
+    try: ha.scan({"HA_ROOT": "/no/such/folder"}, {"nets": []})
+    except ha.Refused: pass
+    else: raise AssertionError("a scan ran without its folder")
+
+
 for name, fn in list(globals().items()):
     if name.startswith("t_") and callable(fn):
         case(name[2:].replace("_", " "), fn)

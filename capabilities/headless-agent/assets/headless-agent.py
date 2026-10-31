@@ -35,7 +35,14 @@ the token variables are removed from its environment.
 Prints exactly one JSON object: {ok, exitCode, agentId, profileId, mode, model, report, text, stderr,
 durationSec, costUsd, turns, error?}. Exit code 0 even when the agent failed: the lane records it.
 
-usage: headless-agent.py run | check
+usage: headless-agent.py run | run-context | scan | check
+
+scan (no AI, no profile): measures the sources a model describes. stdin carries {nets: [{key, refs: [{uri,
+contains?}]}], since?}; HA_ROOT is the folder. Per net it answers the hash over the files the net references
+(uri and bytes in uri order, sha256, 16 hex: the recipe the curation confirms at), and per reference whether it
+exists, its own hash, whether its `contains` text is there (line and a short excerpt). In a git work tree it
+adds the revision, whether the tree is dirty, and the files changed since `since`. Only files under HA_ROOT that
+a definition names are read.
 """
 import base64
 import hashlib
@@ -398,6 +405,94 @@ def run(env, context=None):
     return result
 
 
+SCAN_FILE_LIMIT = 8 * 1024 * 1024
+SCAN_EXCERPT_LINES = 20
+SCAN_EXCERPT_BYTES = 8192
+SCAN_EXCERPT_TOTAL = 120_000
+
+
+def git(root, *args):
+    try:
+        p = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL)
+        return p.stdout if p.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def scan(env, request):
+    root = os.path.realpath(os.path.expanduser(env.get("HA_ROOT") or ""))
+    if not env.get("HA_ROOT") or not os.path.isdir(root):
+        raise Refused("HA_ROOT must name an existing folder")
+    nets = request.get("nets") or []
+    if not isinstance(nets, list) or len(nets) > 5000:
+        raise Refused("a scan names at most 5000 nets")
+    cache = {}
+
+    def read(uri):
+        if uri in cache:
+            return cache[uri]
+        data = None
+        if uri and "://" not in uri and not os.path.isabs(uri):
+            path = os.path.realpath(os.path.join(root, uri))
+            # Only files under the root: a reference that climbs out or a link that leads out is not read.
+            if path.startswith(root + os.sep) and os.path.isfile(path) and os.path.getsize(path) <= SCAN_FILE_LIMIT:
+                with open(path, "rb") as f:
+                    data = f.read()
+        cache[uri] = data
+        return data
+
+    budget = SCAN_EXCERPT_TOTAL
+    measured = {}
+    for net in nets:
+        key = str((net or {}).get("key") or "")
+        refs = [r for r in (net or {}).get("refs") or [] if isinstance(r, dict) and r.get("uri") and "://" not in str(r["uri"])]
+        if not key or not refs:
+            continue
+        h = hashlib.sha256()
+        checks = []
+        for r in sorted(refs, key=lambda r: str(r["uri"])):
+            uri = str(r["uri"])
+            data = read(uri)
+            h.update(uri.encode())
+            h.update(b"\0")
+            h.update(data if data is not None else b"<missing>")
+            h.update(b"\0")
+            check = {"uri": uri, "exists": data is not None}
+            if data is not None:
+                check["sha256"] = hashlib.sha256(data).hexdigest()[:16]
+                needle = r.get("contains")
+                if needle:
+                    text = data.decode("utf-8", errors="replace")
+                    at = text.find(str(needle))
+                    check["contains"] = at >= 0
+                    if at >= 0:
+                        line = text.count("\n", 0, at) + 1
+                        check["line"] = line
+                        lines = text.splitlines()
+                        excerpt = "\n".join(lines[max(0, line - 1 - SCAN_EXCERPT_LINES):line + SCAN_EXCERPT_LINES])[:SCAN_EXCERPT_BYTES]
+                        if len(excerpt) <= budget:
+                            check["excerpt"] = excerpt
+                            budget -= len(excerpt)
+            checks.append(check)
+        measured[key] = {"sourceHash": h.hexdigest()[:16], "refs": checks}
+    out = {"ok": True, "kind": "folder", "root": root, "nets": measured, "files": sum(1 for v in cache.values() if v is not None),
+           "scannedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    head = git(root, "rev-parse", "HEAD")
+    if head:
+        out["kind"] = "git"
+        out["revision"] = head.strip()
+        status = git(root, "status", "--porcelain") or ""
+        out["dirty"] = bool(status.strip())
+        since = str(request.get("since") or "")
+        if since and re.fullmatch(r"[0-9a-fA-F]{7,64}", since) and since != out["revision"]:
+            diff = git(root, "diff", "--name-only", since, out["revision"])
+            if diff is not None:
+                changed = [line for line in diff.splitlines() if line.strip()]
+                out["changed"] = changed[:500]
+                out["changedCount"] = len(changed)
+    return out
+
+
 def check(env):
     profile = load_profile(profile_text(env))
     binary = profile["command"][0]
@@ -414,10 +509,14 @@ def main(argv):
             raw = sys.stdin.buffer.read(32 * 1024 * 1024 + 1)
             if len(raw) > 32 * 1024 * 1024: raise Refused("model context exceeds the runner's 32 MB input limit")
             emit(run(dict(os.environ), context_object(raw.decode("utf-8"))))
+        elif action == "scan":
+            raw = sys.stdin.buffer.read(8 * 1024 * 1024 + 1)
+            if len(raw) > 8 * 1024 * 1024: raise Refused("a scan request exceeds the runner's 8 MB input limit")
+            emit(scan(dict(os.environ), json.loads(raw.decode("utf-8") or "{}")))
         elif action == "check":
             emit(check(dict(os.environ)))
         else:
-            emit({"ok": False, "error": "usage: headless-agent.py run | check"})
+            emit({"ok": False, "error": "usage: headless-agent.py run | run-context | scan | check"})
     except Refused as e:
         emit({"ok": False, "refused": True, "error": str(e)})
     except Exception as e:  # noqa: BLE001 - the lane records every failure as a result

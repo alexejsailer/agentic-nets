@@ -50,6 +50,29 @@ export function registerFocusRoundTools(server: McpServer, ctx: AppContext): voi
     const { roundId, model: _model, ...body } = args;
     return refinementCall(ctx, 'POST', model, rounds(roundId) + '/apply', body);
   }));
+  server.registerTool('source_watch', {
+    title: 'Keep the levels true to the sources: watch, scan now, read what changed',
+    description: 'The bottom level is the truth. The watch measures the files the definitions reference (no AI: their hash, whether a quoted text is still there, and in a git tree the revision and changed files) on an interval, on a signal, or now. '
+      + 'A net whose referenced files changed since its confirmation gets a stale flag, the step it explains one level up a level-below-changed flag, and the person a card ("does the net still say what the sources do?"); a missing file or a vanished quoted text is a contradiction flag. Ids derive from the net and the measured hash, so a repeated scan writes nothing new; answering "It still holds" confirms the net at the new sources. '
+      + 'action status (default) reads it; configure {enabled, intervalMin} turns it on (it scans at once) or off; scan {revision?, kind?} scans now (a commit hook or CI can do the same with POST /api/explorer/{model}/refinement/signals). Needs the source folder of the hand-over setup (refinement_configure).',
+    inputSchema: {
+      action: z.enum(['status', 'configure', 'scan']).default('status'), enabled: z.boolean().optional(),
+      intervalMin: z.number().int().min(1).max(1440).optional(), revision: z.string().optional(), kind: z.string().optional(),
+      by: z.string().optional(), ...modelParam(ctx),
+    },
+  }, wrapTool(ctx.scope, ctx.config.mode, { name: 'source_watch', mutates: true }, async (model, args) => {
+    const { action = 'status', model: _model, ...input } = args;
+    try {
+      if (action === 'status') return await ctx.client.masterApi('GET', `${refinementPath(model, '/watch')}?${new URLSearchParams({ modelId: model }).toString()}`);
+      if (action === 'configure') return await ctx.client.masterApi('POST', refinementPath(model, '/watch'),
+        { ...(input.enabled !== undefined ? { enabled: input.enabled } : {}), ...(input.intervalMin ? { intervalMin: input.intervalMin } : {}), by: input.by ?? 'mcp' }, { modelId: model });
+      return await ctx.client.masterApi('POST', refinementPath(model, '/signals'),
+        { kind: input.kind ?? 'person', ...(input.revision ? { revision: input.revision } : {}) }, { modelId: model });
+    } catch (err: any) {
+      if (routeMissing(err)) return { available: false, model, reason: 'route-missing', hint: 'This master has no source watch: run a ground pass (hand_over {kind:"ground"}) instead.' };
+      throw err;
+    }
+  }));
   const netRef = z.object({ sessionId: z.string(), netId: z.string() });
   server.registerTool('restructure_model', {
     title: 'Restructure the abstraction levels: attach, detach, abstract, split, merge, promote or move a net',

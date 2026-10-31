@@ -1,6 +1,6 @@
 apiVersion: agentic-nets.com/capability/v1
 name: headless-agent
-version: 1.3.0
+version: 1.4.0
 displayName: Headless agent
 domain: platform
 description: >-
@@ -10,7 +10,9 @@ description: >-
   MCP server only as a private config file limited to the tools the caller allows, keeps every token
   out of the agent's environment, and prints one JSON result with the agent's result line. A package
   keeps its own profiles as tokens and invokes the script from its own command lane; the reference
-  profiles here are the starting point. The pack runs nothing by itself.
+  profiles here are the starting point. Its scan command (no AI) measures the files a model's definitions
+  reference: their hash in the curation's recipe, contains checks with excerpts, and in a git tree the
+  revision and the files changed since a given one. The pack runs nothing by itself.
 tags: [capability-pack, headless-agent, coder, read-only, executor]
 engineMin: "2.61.0"
 

@@ -44,10 +44,14 @@ describe('restructuring over MCP', () => {
       elements: ['t1', 'p-mid'], child: { sessionId: 's', netId: 'part' }, name: 'Part', model: 'm2' } });
     await client.callTool({ name: 'restructure_model', arguments: { kind: 'move', requestId: 'req-2', sessionId: 's', netId: 'n', toSession: 'other', model: 'm2' } });
     await client.callTool({ name: 'refine_balance', arguments: { level: 'top', model: 'm2' } });
+    await client.callTool({ name: 'source_watch', arguments: { action: 'configure', enabled: true, intervalMin: 15, model: 'm2' } });
+    await client.callTool({ name: 'source_watch', arguments: { action: 'scan', revision: 'abc123', model: 'm2' } });
     expect(calls).toEqual([
       { method: 'POST', path: '/explorer/m2/refinement/structure', body: { kind: 'split', requestId: 'req-1', target: 's::n', elements: ['t1', 'p-mid'], name: 'Part', child: 's::part' } },
       { method: 'POST', path: '/explorer/m2/refinement/structure', body: { kind: 'move', requestId: 'req-2', target: 's::n', toSession: 'other' } },
       { method: 'GET', path: '/explorer/m2/refinement/balance?modelId=m2&level=top', body: undefined },
+      { method: 'POST', path: '/explorer/m2/refinement/watch', body: { enabled: true, intervalMin: 15, by: 'mcp' } },
+      { method: 'POST', path: '/explorer/m2/refinement/signals', body: { kind: 'person', revision: 'abc123' } },
     ]);
     await client.close();
   });
